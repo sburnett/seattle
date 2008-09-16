@@ -119,8 +119,8 @@ def getvessels():
   # Returns vessel information
   # start with the node name, etc.
   vesselstring = "Version: "+nodeversion+"\n"
-  vesselstring = "Nodename: "+nodename+"\n"
-  vesselstring = "Nodekey: "+str(nodepubkey)+"\n"
+  vesselstring = vesselstring+"Nodename: "+nodename+"\n"
+  vesselstring = vesselstring+"Nodekey: "+rsa_publickey_to_string(nodepubkey)+"\n"
   
   # for each vessel add name, status ownerkey, ownerinfo, userkey(s)
   for vesselname in vesseldict:
@@ -413,6 +413,9 @@ def changeusers(vesselname, listofkeysstring):
 
   # check the keys
   for keystring in listofkeysstring.split('|'):
+    if keystring == '':
+      continue
+
     try:
       newkey = rsa_string_to_publickey(keystring)
     except ValueError:
