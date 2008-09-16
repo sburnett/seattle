@@ -118,7 +118,9 @@ def initialize(name, pubkey, version):
 def getvessels():
   # Returns vessel information
   # start with the node name, etc.
-  vesselstring = "Header: "+nodename+" "+str(nodepubkey)+" "+nodeversion+"\n"
+  vesselstring = "Version: "+nodeversion+"\n"
+  vesselstring = "Nodename: "+nodename+"\n"
+  vesselstring = "Nodekey: "+str(nodepubkey)+"\n"
   
   # for each vessel add name, status ownerkey, ownerinfo, userkey(s)
   for vesselname in vesseldict:
