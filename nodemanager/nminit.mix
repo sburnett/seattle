@@ -77,8 +77,24 @@ def initialize_state():
 
 
   # make the vessel dirs...
-  os.mkdir('v1')
-  os.mkdir('v2')
+  try:
+    os.mkdir('v1')
+  except OSError,e:
+    if e[0] == 17:
+      # directory exists
+      pass
+    else:
+      raise
+
+  try:
+    os.mkdir('v2')
+  except OSError,e:
+    if e[0] == 17:
+      # directory exists
+      pass
+    else:
+      raise
+
 
   # write the offcut file...
   outfo = open("resources.offcut","w")

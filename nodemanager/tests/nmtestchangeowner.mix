@@ -20,23 +20,32 @@ if callfunc == 'initialize':
 
   nmclient_set_handle_info(nmhandle, myhandleinfo)
 
-  # get new keys...
+  # get the vessel to use...
+  myvessel = nmclient_listaccessiblevessels(nmhandle,origpub)[0][0]
+
+  # get new keys / credentials...
   keys = rsa_gen_pubpriv_keys(10)
 
-  print "Should succeed: ",nmclient_signedcommunicate(nmhandle, "ChangeAdvertise", "v1", False)
+  nmclient_signedsay(nmhandle, "ChangeAdvertise", myvessel, False)
 
-  print nmclient_signedcommunicate(nmhandle, "ChangeOwner", "v1", rsa_publickey_to_string(keys[0]))
+  # change the owner to the new credentials
+  nmclient_signedsay(nmhandle, "ChangeOwner", myvessel, rsa_publickey_to_string(keys[0]))
 
-  print "Should fail: ",nmclient_signedcommunicate(nmhandle, "ChangeAdvertise", "v1", True)
 
+  # my old credentials shouldn't work anymore
+  try:
+    nmclient_signedsay(nmhandle, "ChangeAdvertise", myvessel, True)
+  except NMClientException:
+    pass
+  else:
+    raise Exception, "Was allowed to change advertisements when I wasn't the owner!"
+
+  # use the credentials I just created...
   myhandleinfo = nmclient_get_handle_info(nmhandle)
-
   myhandleinfo['publickey'] = keys[0]
-
   myhandleinfo['privatekey'] = keys[1]
-
   nmclient_set_handle_info(nmhandle, myhandleinfo)
 
 
-  print "Changing owner back"
-  print nmclient_signedcommunicate(nmhandle, "ChangeOwner", "v1", rsa_publickey_to_string(origpub))
+  # ... to change the owner back
+  nmclient_signedsay(nmhandle, "ChangeOwner", myvessel, rsa_publickey_to_string(origpub))

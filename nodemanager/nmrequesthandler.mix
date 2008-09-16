@@ -224,7 +224,7 @@ def ensure_is_correctly_signed(fullrequest, allowedkeys, oldmetadata):
 
   if not shouldtrust:
     # let's tell them what is wrong.
-    raise nmAPI.BadRequest(' '.join(reasons))
+    raise nmAPI.BadRequest,"Signature problem: "+' '.join(reasons)
   else:
     # We should trust...  All is well!
     return

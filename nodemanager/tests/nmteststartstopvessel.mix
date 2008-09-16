@@ -19,17 +19,39 @@ if callfunc == 'initialize':
   # get the vessel to use...
   myvessel = nmclient_listaccessiblevessels(nmhandle,pubkey)[0][0]
 
-  newstring = str(randomfloat())
+  # get information about the vessels...
+  vesselinfo = nmclient_getvesseldict(nmhandle)
 
-  # I need to double backslash because the program should contain \n
-  programtext = "print '\\n"+newstring+"',\nwhile True:\n  sleep(.1)"
-
-
-  nmclient_signedsay(nmhandle, "AddFileToVessel", myvessel, "infloop.py",programtext)
+  # stop it so that we can start it...
+  if vesselinfo['vessels'][myvessel]['status'] == 'Started':
+    nmclient_signedsay(nmhandle, "StopVessel", myvessel)
+    vesselinfo = nmclient_getvesseldict(nmhandle)
+    sleep(1)
+    if vesselinfo['vessels'][myvessel]['status'] == 'Started':
+      raise Exception, "Vessel is still started after request to stop it (is this due to lagging status updates)?..."
+    
+    
+  nmclient_signedsay(nmhandle, "AddFileToVessel", myvessel, "infloop.py","""while True:
+  sleep(.1)""")
 
   nmclient_signedsay(nmhandle, "StartVessel", myvessel, "infloop.py")
+
+  sleep(1)
+
+  # update our information...
+  vesselinfo = nmclient_getvesseldict(nmhandle)
+
+  # we'll stop and then look at the status because we want it to be stopped
+  # when exiting regardless of whether or not it worked correctly...
   nmclient_signedsay(nmhandle, "StopVessel", myvessel)
 
-  thelog = nmclient_signedsay(nmhandle, "ReadVesselLog", myvessel)
-  if newstring != thelog.split('\n')[-1]:
-    raise Exception, "The log '"+thelog+"' does not match the expected string '"+newstring+"'"
+  if vesselinfo['vessels'][myvessel]['status'] != 'Started':
+    raise Exception, "Vessel is not started after request (is this due to lagging status updates)?..."
+
+  # update our information...
+  vesselinfo = nmclient_getvesseldict(nmhandle)
+
+  sleep(1)
+
+  if vesselinfo['vessels'][myvessel]['status'] != 'Stopped':
+    raise Exception, "Vessel is not stopped after request (is this due to lagging status updates)?..."

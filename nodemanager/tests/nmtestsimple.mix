@@ -3,5 +3,6 @@ include nmclient.repy
 if callfunc == 'initialize':
   nmhandle = nmclient_createhandle(getmyip(), 1224)
 
-  print nmclient_rawcommunicate(nmhandle, "GetVessels")
+  nmclient_rawsay(nmhandle, "GetVessels")
 
+  nmclient_getvesseldict(nmhandle)
