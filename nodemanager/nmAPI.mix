@@ -127,10 +127,10 @@ def getvessels():
     vesselstring = vesselstring+"Name: "+vesselname+"\n"
     vesselstring = vesselstring+"Status: "+vesseldict[vesselname]['status']+"\n"
     vesselstring = vesselstring+"Advertise: "+str(vesseldict[vesselname]['advertise'])+"\n"
-    vesselstring = vesselstring+"OwnerKey: "+str(vesseldict[vesselname]['ownerkey'])+"\n"
+    vesselstring = vesselstring+"OwnerKey: "+rsa_publickey_to_string(vesseldict[vesselname]['ownerkey'])+"\n"
     vesselstring = vesselstring+"OwnerInfo: "+vesseldict[vesselname]['ownerinformation']+"\n"
     for userkey in vesseldict[vesselname]['userkeys']:
-      vesselstring = vesselstring+"UserKey: "+str(userkey)+"\n"
+      vesselstring = vesselstring+"UserKey: "+rsa_publickey_to_string(userkey)+"\n"
 
   vesselstring = vesselstring + "\nSuccess"
   return vesselstring
@@ -204,7 +204,7 @@ def startvessel(vesselname, argstring):
     time.sleep(.5)
 
   else:
-    return "Possible Error: Did not start in a timely manner"
+    return "Did not start in a timely manner\nWarning"
 
   # BUG: Hmm, the status thread may not have noticed this yet.   This means
   # that we would report something different than the status thread if a 
@@ -245,7 +245,7 @@ def stopvessel(vesselname):
     time.sleep(.5)
 
   else:
-    return "Possible Error: May not have stopped in a timely manner"
+    return "May not have stopped in a timely manner\nWarning"
   
   return vesseldict[vesselname]['status']+"\nSuccess"
   
@@ -293,7 +293,7 @@ def retrievefilefromvessel(vesselname,filename):
   except IOError, e:
     # file not found!   Let's detect and re-raise
     if e[0] == 2:
-      return "Error, File Not Found"
+      return "Error, File Not Found\nError"
     
     # otherwise re-raise the error
     raise
@@ -383,7 +383,7 @@ def readvessellog(vesselname):
     os.remove("tmplog.new")
 
   # return only the last 16KB (hide the fact more may be stored)
-  # BUG: Not a bug, but should we return more?   We have more data...
+  # NOTE: Should we return more?   We have more data...
   return readstring[-logmaxbuffersize:]+"\nSuccess"
   
 
@@ -444,7 +444,7 @@ def changeownerinformation(vesselname, ownerstring):
   
 
 
-# BUG: Should this be something other than True / False (perhaps owner / user /
+# NOTE: Should this be something other than True / False (perhaps owner / user /
 # none?)
 def changeadvertise(vesselname, setting):
   if vesselname not in vesseldict:

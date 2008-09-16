@@ -76,7 +76,7 @@ def handle_request(socketobj):
   # Bad parameters, signatures, etc.
   except nmAPI.BadRequest,e:
     try:
-      session_sendmessage(socketobj, str(e))
+      session_sendmessage(socketobj, str(e)+"\nError")
       socketobj.close()
     except:
       pass
@@ -86,7 +86,7 @@ def handle_request(socketobj):
   except Exception,e:
     try:
       traceback.print_exc()
-      session_sendmessage(socketobj,"Internal Error")
+      session_sendmessage(socketobj,"Internal Error\nError")
       socketobj.close()
     except:
       pass
