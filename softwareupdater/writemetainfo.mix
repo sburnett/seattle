@@ -1,0 +1,123 @@
+""" 
+Author: Justin Cappos
+
+Start Date: August 8, 2008
+
+Description:
+Writes the metainfo files used by the software updater.
+
+Usage:  ./writemetainfo.py
+
+"""
+
+
+
+import sys
+import os  
+import time
+import random
+
+
+include rsa.repy
+include signeddata.repy
+
+# fix the fact that I don't have (or need) the getruntime() call...
+def time_gettime():
+  return time_seconds_from_1900_to_1970 + time.time()
+
+randomfloat = random.random
+
+
+def get_file_hash(filename):
+  fileobj = file(filename)
+  filedata = fileobj.read()
+  fileobj.close()
+
+  return sha_hexhash(filedata)
+
+
+def get_previous_entries():
+  returned_dict = {}
+  for line in file('metainfo'):
+    if line.strip() == '':
+      continue
+     
+    # comment, ignore!
+    if line[0] == '#':
+      continue
+
+    # signature, ignore
+    if line[0] == '!':
+      continue
+
+    if len(line.split()) != 3:
+      raise Exception, "malformed line: '"+line.strip()+"'"
+
+    # under the file name, store a hash, size tuple
+    returned_dict[line.split()[0]] = (line.split()[1], int(line.split()[2]))
+
+  return returned_dict
+
+
+def create_metainfo_file(privatekeyfilename, publickeyfilename):
+  previous_entries = get_previous_entries()
+
+  outstring = ''
+  updatedlist = []
+
+  for filename in os.listdir('.'):
+    # ignore pyc files...
+    if filename.endswith('.pyc'):
+      continue
+
+    # ignore swp files...
+    if filename.endswith('.swp'):
+      continue
+
+    # ignore the metainfo file
+    if filename == 'metainfo':
+      continue
+
+    filehash = get_file_hash(filename)
+    filesize = os.path.getsize(filename)
+
+    if filename not in previous_entries:
+      print "Warning: '"+filename+"' not in previous metainfo file!"
+
+    elif (filehash != previous_entries[filename][0] and filesize == previous_entries[filename][1]) or (filehash == previous_entries[filename][0] and filesize != previous_entries[filename][1]):
+      print "Warning, '"+filename+"' has only a hash or file size change but not both (how odd)."
+
+    elif (filehash != previous_entries[filename][0] and filesize != previous_entries[filename][1]):
+      # it was updated.   We'll display output to this effect later.
+      updatedlist.append(filename)
+
+    outstring = outstring + filename+" "+filehash+" "+str(filesize)+"\n"
+
+
+  # Okay, great.   We should have it all ready now.   Let's sign our data
+  # and report what we're doing
+  print "Writing a metafile with updates to:"+ ' '.join(updatedlist)
+
+  # timestamp now, expire in 30 days...
+  outsigneddata = signeddata_signdata(outstring, rsa_file_to_privatekey(privatekeyfilename), rsa_file_to_publickey(publickeyfilename), time_gettime(), time_gettime()+60*60*24*30)   
+
+  outfo = file("metainfo","w")
+  outfo.write(outsigneddata)
+  outfo.close()
+  
+  
+
+
+
+def main():
+  if len(sys.argv) != 3:
+    print "usage: writemetainfo.py privkeyfile publickeyfile"
+    sys.exit(1)
+
+  create_metainfo_file(sys.argv[1], sys.argv[2])
+  
+
+
+
+if __name__ == '__main__':
+  main() 

@@ -1,0 +1,41 @@
+#!/bin/bash
+if [ "" == "$1" ]
+then
+  echo "Must specify a destination directory"
+  exit
+fi
+
+if [ -d "$1" ]
+then
+  DESTDIR=$1
+else 
+  echo "Destination directory must exist"
+  exit
+fi
+
+
+# clean up existing files...
+rm $DESTDIR/* 2> /dev/null
+rm -rf $DESTDIR/v*
+
+# copy the correct files into the new directory
+cp repy/* $DESTDIR/ 2> /dev/null
+cp nodemanager/* $DESTDIR/ 2> /dev/null
+cp nodemanager/tests/* $DESTDIR/ 2> /dev/null
+cp seattlelib/* $DESTDIR/ 2> /dev/null
+cp seash/* $DESTDIR/ 2> /dev/null
+cp softwareupdater/* $DESTDIR/ 2> /dev/null
+#cp -r startingvesselstate/* $DESTDIR/
+
+# This is chatty, kill the output
+pushd $DESTDIR/ > /dev/null
+
+# prep the "mix" files by running them through the pre processor
+for file in *.mix
+do 
+  python repypp.py $file `echo $file | awk -F . '{print $1}'`.py
+done
+
+# This is chatty, kill the output
+popd > /dev/null
+
