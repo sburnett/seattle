@@ -24,7 +24,7 @@ if callfunc == 'initialize':
   myvessel = nmclient_listaccessiblevessels(nmhandle,origpub)[0][0]
 
   # get new keys / credentials...
-  keys = rsa_gen_pubpriv_keys(10)
+  keys = rsa_gen_pubpriv_keys(50)
 
   nmclient_signedsay(nmhandle, "ChangeAdvertise", myvessel, False)
 

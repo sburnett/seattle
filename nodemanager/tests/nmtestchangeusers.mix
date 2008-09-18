@@ -17,7 +17,7 @@ if callfunc == 'initialize':
   myhandleinfo['privatekey'] = privkey
   nmclient_set_handle_info(nmhandle, myhandleinfo)
 
-  keys = rsa_gen_pubpriv_keys(10)
+  keys = rsa_gen_pubpriv_keys(50)
 
   # get the vessel to use...
   myvessel = nmclient_listaccessiblevessels(nmhandle,pubkey)[0][0]
