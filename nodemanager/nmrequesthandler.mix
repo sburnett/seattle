@@ -205,7 +205,7 @@ def ensure_is_correctly_signed(fullrequest, allowedkeys, oldmetadata):
 
   # ensure it's correctly signed, if not report this and exit
   if not signeddata_issignedcorrectly(fullrequest):
-    raise nmAPI.BadRequest('Bad Signature')
+    raise nmAPI.BadRequest,"Bad Signature on '"+fullrequest+"'"
 
   request, requestsignature = signeddata_split_signature(fullrequest)
 
