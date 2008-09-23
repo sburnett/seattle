@@ -22,8 +22,10 @@ rm -rf $DESTDIR/v*
 cp repy/* $DESTDIR/ 2> /dev/null
 cp nodemanager/* $DESTDIR/ 2> /dev/null
 cp nodemanager/tests/* $DESTDIR/ 2> /dev/null
+cp portability/* $DESTDIR/ 2> /dev/null
 cp seattlelib/* $DESTDIR/ 2> /dev/null
 cp seash/* $DESTDIR/ 2> /dev/null
+cp seash/tests/* $DESTDIR/ 2> /dev/null
 cp softwareupdater/* $DESTDIR/ 2> /dev/null
 #cp -r startingvesselstate/* $DESTDIR/
 
