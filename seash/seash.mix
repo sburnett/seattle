@@ -250,7 +250,7 @@ delete remotefn             -- Delete a file
 run file [args ...]    -- Shortcut for upload a file and start
 start file [args ...] -- Start an experiment
 stop               -- Stop an experiment
-!split resourcefn            -- Split each vessel 
+!split resourcefn            -- Split off of each vessel another vessel
 !join                        -- Join vessels on the same node
 help [help | set | show ]    -- help information 
 exit                         -- exits the shell
@@ -277,6 +277,9 @@ show owner      -- Display a vessel's owner
 show targets    -- Display a list of targets
 show identities -- Display the known identities
 show keys       -- Display the known keys
+show log        -- Display the log from the node (*)
+
+(*) No need to update prior, the command contacts the nodes anew
 """
 
 
@@ -320,10 +323,15 @@ update             -- Update information about the vessels
 # show targets    -- Display a list of targets
         elif userinputlist[1] == 'targets' or userinputlist[1] == 'groups':
           for target in targets:
+            if len(targets[target]) == 0:
+              print target, "(empty)"
+              continue
             # this is a vesselentry
             if target == targets[target][0]:
               continue
             print target, targets[target]
+
+
         elif userinputlist[1] == 'keys':
           for identity in keys:
             print identity,keys[identity]['publickey'],keys[identity]['privatekey']
@@ -346,6 +354,8 @@ update             -- Update information about the vessels
 
 # show users      -- Display the user keys for the vessels
         elif userinputlist[1] == 'users':
+          if not currenttarget:
+            raise UserError,"Error, command requires a target"
 
           for longname in targets[currenttarget]:
             if 'userkeys' in vesselinfo[longname]:
@@ -370,6 +380,8 @@ update             -- Update information about the vessels
 
 # show ownerinfo  -- Display owner information for the vessels
         elif userinputlist[1] == 'ownerinfo':
+          if not currenttarget:
+            raise UserError,"Error, command requires a target"
 
           for longname in targets[currenttarget]:
             if 'ownerinfo' in vesselinfo[longname]:
@@ -382,6 +394,8 @@ update             -- Update information about the vessels
 
 # show advertise  -- Display advertisement information about the vessels
         elif userinputlist[1] == 'advertise':
+          if not currenttarget:
+            raise UserError,"Error, command requires a target"
 
           for longname in targets[currenttarget]:
             if 'advertise' in vesselinfo[longname]:
@@ -398,6 +412,8 @@ update             -- Update information about the vessels
 
 # show owner      -- Display a vessel's owner
         elif userinputlist[1] == 'owner':
+          if not currenttarget:
+            raise UserError,"Error, command requires a target"
 
           for longname in targets[currenttarget]:
             if 'ownerkey' in vesselinfo[longname]:
@@ -413,6 +429,40 @@ update             -- Update information about the vessels
               print longname, "has no information (try 'update' or 'list')"
 
           continue
+
+
+# show log        -- Display the log from the node (*)
+        elif userinputlist[1] == 'log' or userinputlist[1] == 'logs':
+
+          if not currenttarget:
+            raise UserError,"Error, command requires a target"
+
+          # print the vessel logs...
+          faillist = []
+          goodlist = []
+          for longname in targets[currenttarget]:
+            vesselname = vesselinfo[longname]['vesselname']
+            try:
+              logdata = nmclient_signedsay(vesselinfo[longname]['handle'],"ReadVesselLog",vesselname)
+            except NMClientException, e:
+              print "failure:",e
+              faillist.append(longname)
+            else:
+              print "Log from '"+longname+"':"
+              print logdata
+              goodlist.append(longname)
+  
+          # and display it...
+          if faillist:
+            print "Failures on "+str(len(faillist))+" targets: "+", ".join(faillist)
+          if goodlist and faillist:
+            targets['loggood'] = goodlist
+            targets['logfail'] = faillist
+            print "Added group 'loggood' with "+str(len(targets['loggood']))+" targets and 'logfail' with "+str(len(targets['logfail']))+" targets"
+
+          continue
+
+
 
 
 
