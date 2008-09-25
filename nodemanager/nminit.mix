@@ -30,75 +30,14 @@ import persist
 # embedded here.   Is this really the right thing to do?
 seattlepubkey = {'e':90828751313604138861138199375516065418794160799843599128558705100285394924191002288444206024669046851496823164408997538063597164575888556545759466459359562498107740756089920043807948902332473328246320686052784108549174961107584377257390484702552802720358211058670482304929480676775120529587723588725818443641, 'n':525084957612029403526131505174200975825703127251864132403159502859804160822964990468591281636411242654674747961575351961726000088901250174303367500864513464050509705219791304838934936387279630515658887485539659961265009321421059720176716708947162824378626801571847650024091762061008172625571327893613638956683252812460872115308998220696100462293803622250781016906532481844303936075489212041575353921582380137171487898138857279657975557703960397669255944572586836026330351201015911407019810196881844728252349871706989352500746246739934128633728161609865084795375265234146710503588616865119751368455059611417010662656542444610089402595766154466648593383612532447541139354746065164116466397617384545008417387953347319292748418523709382954073684016573202764322260104572053850324379711650017898301648724851941758431577684732732530974197468849025690865821258026893591314887586229321070660394639970413202824699842662167602380213079609311959732523089738843316936618119004887003333791949492468210799866238487789522341147699931943938995266536008571314911956415053855180789361316551568462200352674864453587775619457628440845266789022527127587740754838521372486723001413117245220232426753242675828177576859824828400218235780387636278112824686701}
 
+ivanpubkey = {'e':6481764711916916397109273726155956377656536637642807312800757546468526438704587962838968130419349372877884749341748111210223731976275154922405947360547743L, 'n':338268226945045594040102034878758444764651534167506742110546096640083709576476389210311132469953959393591066992795836386110112598793559135339292833492240869157982347822379943074587320930881739344852033537843848473043128034075489712546721364258219630002902462839364391703058991174756678850745791050455715522819926432293598770270226759125320092184546422006399480232477970392705428953893948935507551291416633551949790971970309886077216112873834384725916279080756901772364218481535522170812626810368956042592229275686877306681530987143867223127594219058268997365351814588360451088611972783470143103530508782003784668721L}
+
 # This is the public key of the person who will control most of the resources.
 controllerpubkey = {'e': 1515278400394037168869631887206225761783197636247636149274740854708478416229147500580877416652289990968676310353790883501744269103521055894342395180721167L, 'n': 8811850224687278929671477591179591903829730117649785862652866020803862826558480006479605958786097112503418194852731900367494958963787480076175614578652735061071079458992502737148356289391380249696938882025028801032667062564713111819847043202173425187133883586347323838509679062142786013585264788548556099117804213139295498187634341184917970175566549405203725955179602584979965820196023950630399933075080549044334508921319264315718790337460536601263126663173385674250739895046814277313031265034275415434440823182691254039184953842629364697394327806074576199279943114384828602178957150547925812518281418481896604655037L}
 
 
-# lots of little things need to be initialized...   
-def initialize_state():
 
-  # initialize my configuration file.   This involves a few variables:
-  #    pollfrequency --  the amount of time to sleep after a check when "busy
-  #                      waiting".   This trades CPU load for responsiveness.
-  #    ports         --  the ports the node manager could listen on.
-  #    publickey     --  the public key used to identify the node...
-  #    privatekey    --  the corresponding private key for the node...
-  configuration = {}
-
-  configuration['pollfrequency'] = 1.0
-
-  # NOTE: I chose these randomly (they will be uniform across all NMs)...   
-  # Was this wise?
-  configuration['ports'] = [1224, 2888, 9625, 10348, 39303, 48126, 52862, 57344, 64310]
-
-  print "Generating key..."
-  keys = rsa_gen_pubpriv_keys(100)
-  configuration['publickey'] = keys[0]
-  configuration['privatekey'] = keys[1]
-
-
-  print "Writing config file..."
-  # write the config file...
-  persist.commit_object(configuration,"nodeman.cfg")
-
-
-  
-  # give the controller the lion's share of the donated resources (~80%)
-  vessel1 = {'userkeys':[], 'ownerkey':controllerpubkey, 'oldmetadata':None, 'stopfilename':'v1.stop', 'logfilename':'v1.log', 'statusfilename':'v1.status', 'resourcefilename':'resource.v1', 'advertise':True, 'ownerinformation':'', 'status':'Fresh'}
-  
-  # take a small share for our own testing, etc. (~20%)
-  vessel2 = {'userkeys':[], 'ownerkey':seattlepubkey, 'oldmetadata':None, 'stopfilename':'v2.stop', 'logfilename':'v2.log', 'statusfilename':'v2.status', 'resourcefilename':'resource.v2', 'advertise':True, 'ownerinformation':'', 'status':'Fresh'}
-
-  vesseldict = {'v1':vessel1, 'v2':vessel2}
-
-  print "Writing vessel dictionary..."
-  # write out the vessel dictionary...
-  persist.commit_object(vesseldict,"vesseldict")
-
-
-  # make the vessel dirs...
-  try:
-    os.mkdir('v1')
-  except OSError,e:
-    if e[0] == 17:
-      # directory exists
-      pass
-    else:
-      raise
-
-  try:
-    os.mkdir('v2')
-  except OSError,e:
-    if e[0] == 17:
-      # directory exists
-      pass
-    else:
-      raise
-
-
-  # write the offcut file...
-  outfo = open("resources.offcut","w")
-  outfo.write("""# BUG: How do we come up with these values dynamically?
+offcutresourcedata ="""# BUG: How do we come up with these values dynamically?
 resource cpu .002
 resource memory 1000000   # 1 MiB
 resource diskused 100000 # .1 MiB
@@ -114,14 +53,9 @@ resource loopsend 0  # would change with prompt functionality (?)
 resource looprecv 0
 resource lograte 100 # the monitor might log something
 resource random 0    # Shouldn't generate random numbers on our own
-""")
-  outfo.close()
+"""
 
-
-
-#### write the first vessel's resource file...
-  outfo = open("resource.v1","w")
-  outfo.write("""resource cpu .08
+bigresourcedata = """resource cpu .08
 resource memory 100000000   # 100 MiB
 resource diskused 80000000 # 80 MiB
 resource events 50
@@ -190,14 +124,9 @@ call removefile allow                   # They can remove the files they create
 call randomfloat allow                  # can get random numbers
 call getruntime allow                   # can get the elapsed time
 call getlock allow                      # can get a mutex
-""")
-  outfo.close()
-  
+"""
 
-
-#### write the second vessel's resource file...
-  outfo = open("resource.v2","w")
-  outfo.write("""resource cpu .02
+smallresourcedata = """resource cpu .02
 resource memory 30000000   # 30 MiB
 resource diskused 20000000 # 20 MiB
 resource events 15
@@ -258,8 +187,84 @@ call removefile allow                   # They can remove the files they create
 call randomfloat allow                  # can get random numbers
 call getruntime allow                   # can get the elapsed time
 call getlock allow                      # can get a mutex
-""")
+"""
+
+
+
+
+
+def make_vessel(vesselname, pubkey, resourcedata):
+  retdict = {'userkeys':[], 'ownerkey':pubkey, 'oldmetadata':None, 'stopfilename':vesselname+'.stop', 'logfilename':vesselname+'.log', 'statusfilename':vesselname+'.status', 'resourcefilename':'resource.'+vesselname, 'advertise':True, 'ownerinformation':'', 'status':'Fresh'}
+
+  # make the vessel dirs...
+  try:
+    os.mkdir(vesselname)
+  except OSError,e:
+    if e[0] == 17:
+      # directory exists
+      pass
+    else:
+      raise
+
+
+  #### write the vessel's resource file...
+  outfo = open(retdict['resourcefilename'],"w")
+  outfo.write(resourcedata)
   outfo.close()
+  
+  return retdict
+
+
+
+# lots of little things need to be initialized...   
+def initialize_state():
+
+  # initialize my configuration file.   This involves a few variables:
+  #    pollfrequency --  the amount of time to sleep after a check when "busy
+  #                      waiting".   This trades CPU load for responsiveness.
+  #    ports         --  the ports the node manager could listen on.
+  #    publickey     --  the public key used to identify the node...
+  #    privatekey    --  the corresponding private key for the node...
+  configuration = {}
+
+  configuration['pollfrequency'] = 1.0
+
+  # NOTE: I chose these randomly (they will be uniform across all NMs)...   
+  # Was this wise?
+  configuration['ports'] = [1224, 2888, 9625, 10348, 39303, 48126, 52862, 57344, 64310]
+
+  print "Generating key..."
+  keys = rsa_gen_pubpriv_keys(100)
+  configuration['publickey'] = keys[0]
+  configuration['privatekey'] = keys[1]
+
+
+  print "Writing config file..."
+  # write the config file...
+  persist.commit_object(configuration,"nodeman.cfg")
+
+  # write the offcut file...
+  outfo = open("resources.offcut","w")
+  outfo.write(offcutresourcedata)
+  outfo.close()
+
+  vessel1 = make_vessel('v1',controllerpubkey,bigresourcedata) 
+  vessel2 = make_vessel('v2',seattlepubkey,smallresourcedata) 
+  vessel3 = make_vessel('v3',ivanpubkey,smallresourcedata) 
+  
+
+  vesseldict = {'v1':vessel1, 'v2':vessel2, 'v3':vessel3}
+
+  print "Writing vessel dictionary..."
+  # write out the vessel dictionary...
+  persist.commit_object(vesseldict,"vesseldict")
+
+
+
+
+
+
+
 
 
 
