@@ -9,6 +9,7 @@ def do_nothing(*args):
 nanny.tattle_quantity = do_nothing
 nanny.tattle_add_item = do_nothing
 nanny.tattle_remove_item = do_nothing
+nanny.tattle_check = do_nothing
 restrictions.assertisallowed = do_nothing
 from emulmisc import *
 from emulcomm import *
