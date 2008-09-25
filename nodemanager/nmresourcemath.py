@@ -15,6 +15,8 @@ This is where we worry about the offcut resources...
 
 # need to know what resources are supported
 from nanny import known_resources
+# need to know what resources are supported
+from nanny import individual_item_resources
 
 # What we throw when getting an invalid resource / restriction file
 class ResourceParseError(Exception):
@@ -32,6 +34,9 @@ class ResourceParseError(Exception):
 def read_resources_from_file(filename):
 
   retdict = {}
+  for individual_item_resource in individual_item_resources:
+    retdict[individual_item_resource] = set()
+
   # much of this is adopted from restrictions.py.   If you find bugs here, 
   # check there as well
   for line in open(filename):
@@ -59,15 +64,22 @@ def read_resources_from_file(filename):
     if tokenlist[1] not in known_resources:
       raise ResourceParseError, "Line '"+line+"' has an unknown resource '"+tokenlist[1]+"' in '"+filename+"'"
 
-    # and that resource should not have been previously assigned
-    if tokenlist[1] in retdict:
-      raise ResourceParseError, "Line '"+line+"' has a duplicate resource rule for '"+tokenlist[1]+"' in '"+filename+"'"
 
     # and the last item should be a valid float
     try:
       float(tokenlist[2])
     except ValueError:
       raise ResourceParseError, "Line '"+line+"' has an invalid resource value '"+tokenlist[2]+"' in '"+filename+"'"
+
+    # let's handle individual resources now...
+    if tokenlist[1] in individual_item_resources:
+      retdict[tokenlist[1]].add(float(tokenlist[2]))
+      continue
+
+
+    # non individual resources should not have been previously assigned
+    if tokenlist[1] in retdict:
+      raise ResourceParseError, "Line '"+line+"' has a duplicate resource rule for '"+tokenlist[1]+"' in '"+filename+"'"
 
     # Finally, we assign it to the dictionary
     retdict[tokenlist[1]] = float(tokenlist[2])

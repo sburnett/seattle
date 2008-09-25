@@ -13,6 +13,7 @@ resource loopsend 1000000
 resource looprecv 1000000
 resource lograte 30000
 resource random 100
+resource messport 34612   # use for getting an NTP update
 
 call gethostbyname_ex allow
 call sendmess allow 	# the local port type

@@ -136,44 +136,30 @@ resource loopsend 1000000
 resource looprecv 1000000
 resource lograte 30000
 resource random 100
+resource messport 11111
+resource messport 12222
+resource messport 13333
+resource messport 14444
+resource messport 15555
+resource messport 16666
+resource messport 17777
+resource messport 18888
+resource messport 19999
+resource connport 11111
+resource connport 12222
+resource connport 13333
+resource connport 14444
+resource connport 15555
+resource connport 16666
+resource connport 17777
+resource connport 18888
+resource connport 19999
 
 call gethostbyname_ex allow
-call sendmess arg 1 is 11111 allow
-call sendmess arg 1 is 12222 allow
-call sendmess arg 1 is 13333 allow
-call sendmess arg 1 is 14444 allow
-call sendmess arg 1 is 15555 allow
-call sendmess arg 1 is 16666 allow
-call sendmess arg 1 is 17777 allow
-call sendmess arg 1 is 18888 allow
-call sendmess arg 1 is 19999 allow
-call recvmess arg 1 is 11111 allow
-call recvmess arg 1 is 12222 allow
-call recvmess arg 1 is 13333 allow
-call recvmess arg 1 is 14444 allow
-call recvmess arg 1 is 15555 allow
-call recvmess arg 1 is 16666 allow
-call recvmess arg 1 is 17777 allow
-call recvmess arg 1 is 18888 allow
-call recvmess arg 1 is 19999 allow
-call openconn arg 1 is 11111 allow
-call openconn arg 1 is 12222 allow
-call openconn arg 1 is 13333 allow
-call openconn arg 1 is 14444 allow
-call openconn arg 1 is 15555 allow
-call openconn arg 1 is 16666 allow
-call openconn arg 1 is 17777 allow
-call openconn arg 1 is 18888 allow
-call openconn arg 1 is 19999 allow
-call waitforconn arg 1 is 11111 allow
-call waitforconn arg 1 is 12222 allow
-call waitforconn arg 1 is 13333 allow
-call waitforconn arg 1 is 14444 allow
-call waitforconn arg 1 is 15555 allow
-call waitforconn arg 1 is 16666 allow
-call waitforconn arg 1 is 17777 allow
-call waitforconn arg 1 is 18888 allow
-call waitforconn arg 1 is 19999 allow
+call sendmess allow
+call recvmess allow
+call openconn allow
+call waitforconn allow
 call stopcomm allow                     # it doesn't make sense to restrict
 call socket.close allow                 # let's not restrict
 call socket.send allow                  # let's not restrict
@@ -226,28 +212,22 @@ resource loopsend 1000000
 resource looprecv 1000000
 resource lograte 30000
 resource random 100
+resource messport 21111
+resource messport 22222
+resource messport 23333
+resource messport 24444
+resource messport 25555
+resource connport 21111
+resource connport 22222
+resource connport 23333
+resource connport 24444
+resource connport 25555
 
 call gethostbyname_ex allow
-call sendmess arg 1 is 21111 allow
-call sendmess arg 1 is 22222 allow
-call sendmess arg 1 is 23333 allow
-call sendmess arg 1 is 24444 allow
-call sendmess arg 1 is 25555 allow
-call recvmess arg 1 is 21111 allow
-call recvmess arg 1 is 22222 allow
-call recvmess arg 1 is 23333 allow
-call recvmess arg 1 is 24444 allow
-call recvmess arg 1 is 25555 allow
-call openconn arg 1 is 21111 allow
-call openconn arg 1 is 22222 allow
-call openconn arg 1 is 23333 allow
-call openconn arg 1 is 24444 allow
-call openconn arg 1 is 25555 allow
-call waitforconn arg 1 is 21111 allow
-call waitforconn arg 1 is 22222 allow
-call waitforconn arg 1 is 23333 allow
-call waitforconn arg 1 is 24444 allow
-call waitforconn arg 1 is 25555 allow
+call sendmess allow
+call recvmess allow
+call openconn allow
+call waitforconn allow
 call stopcomm allow                     # it doesn't make sense to restrict
 call socket.close allow                 # let's not restrict
 call socket.send allow                  # let's not restrict
