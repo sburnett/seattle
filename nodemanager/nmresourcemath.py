@@ -18,16 +18,18 @@ from nanny import known_resources
 # need to know what resources are supported
 from nanny import individual_item_resources
 
+# NOTE: Should I move all of this into nanny and restrictions?   Should I 
+# have restrictions and nanny call this instead?  
+# Duplication is bad, but I'm not sure how best to refactor.
+from restrictions import get_rule
+from restrictions import known_calls
+from restrictions import valid_actions
+
 # What we throw when getting an invalid resource / restriction file
 class ResourceParseError(Exception):
   pass
 
 
-# BUG: There is a big open problem here.   How are restrictions handled when
-# combining resources / restrictions?   
-# I'm currently punting this and going with the assumption that the owner of 
-# the resource can control the restrictions absolutely.   This may or may
-# not hold once I put in better resource trading...
 
 # reads a restrictions file (tossing the non-resource lines and returning a 
 # dict of the resources)
@@ -88,24 +90,64 @@ def read_resources_from_file(filename):
 
 
 
+
+# reads a restrictions file (tossing the resource lines and returning a 
+# string with all of the restrictions data)
+def read_restrictionsstring_from_data(restrictionsdata):
+
+  retstring = ''
+
+
+  for line in restrictionsdata.split('\n'):
+    # remove any comments
+    noncommentline = line.split('#')[0]
+
+    tokenlist = noncommentline.split()
+   
+#    if len(tokenlist) == 0:
+#      # This was a blank or comment line
+#      continue
+
+    # append call lines
+    if len(tokenlist) == 0 or tokenlist[0] != 'resource':
+      retstring = retstring + line+'\n'
+ 
+    #Ignore resource lines, etc.
+
+  return retstring
+
+
+
+
+
 def write_resource_dict(resourcedict, filename):
   outfo = open(filename,"w")
   for resource in resourcedict:
-    print >> outfo, "resource "+resource+" "+str(resourcedict[resource])
+    if type(resourcedict[resource]) == set:
+      for item in resourcedict[resource]:
+        print >> outfo, "resource "+resource+" "+str(item)
+    else:
+      print >> outfo, "resource "+resource+" "+str(resourcedict[resource])
 
   outfo.close()
 
 
 def check_for_negative_resources(newdict):
   for resource in newdict:
-    if newdict[resource] < 0.0:
+    if type(newdict[resource]) != set and newdict[resource] < 0.0:
       raise ResourceParseError, "Insufficient quantity: Resource '"+resource+"' has a negative quantity"
+
 
 def add(dict1, dict2):
   retdict = dict1.copy()
 
   # then look at resourcefile1
   for resource in dict2:
+
+    # if this is a set, then get the union
+    if type(retdict[resource]) == set:
+      retdict[resource] = retdict[resource].union(dict2[resource])
+      continue
 
     # empty if not preexisting
     if resource not in retdict:

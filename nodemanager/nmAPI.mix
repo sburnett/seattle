@@ -482,6 +482,8 @@ def get_new_vessel_name():
   return 'v'+str(lastusednumber)
 
 
+
+
 # Private.   Creates a new vessel's state in the dictionary and on disk
 def setup_vessel(vesselname, examplevessel):
   if vesselname in vesseldict:
@@ -513,6 +515,19 @@ def setup_vessel(vesselname, examplevessel):
     item['advertise'] = vesseldict[examplevessel]['advertise']
     item['ownerinformation'] = vesseldict[examplevessel]['ownerinformation']
 
+    # let's copy restrictions from the other vessel...
+
+    # get the old restrictions...
+    resourcefo = open(vesseldict[examplevessel]['resourcefilename'])
+    restrictionsdata = resourcefo.read()
+    resourcefo.close()
+    restrictionsstring = nmresourcemath.read_restrictionsstring_from_data(restrictionsdata)
+
+    # append to the resource file...
+    outfo = open(item['resourcefilename'],"a")
+    outfo.write(restrictionsstring)
+    outfo.close()
+
   # create the directory on the file system
   os.mkdir(vesselname)
 
@@ -531,8 +546,6 @@ def destroy_vessel(vesselname):
   item = vesseldict[vesselname]
   del vesseldict[vesselname]
 
-  if item['status'] == 'Started':
-    raise BadRequest("Attempting to destroy a running vessel")
 
   shutil.rmtree(vesselname)
   if os.path.exists(item['logfilename']):
@@ -554,6 +567,9 @@ def splitvessel(vesselname, resourcedata):
   if vesselname not in vesseldict:
     raise BadRequest, "No such vessel"
   
+  if vesseldict[vesselname]['status'] == 'Started':
+    raise BadRequest("Attempting to split a running vessel")
+
   # get the new name
   newname1 = get_new_vessel_name()
   newname2 = get_new_vessel_name()
@@ -590,6 +606,8 @@ def joinvessels(vesselname1, vesselname2):
   if vesseldict[vesselname1]['ownerkey'] != vesseldict[vesselname2]['ownerkey']:
     raise BadRequest("Vessels must have the same owner")
   
+  if vesseldict[vesselname1]['status'] == 'Started' or vesseldict[vesselname2]['status'] == 'Started':
+    raise BadRequest("Attempting to join a running vessel")
   
   # get the new name
   newname = get_new_vessel_name()
@@ -604,6 +622,37 @@ def joinvessels(vesselname1, vesselname2):
   return "\nSuccess"
 
     
+
+def setrestrictions(vesselname, restrictionsdata):
+  if vesselname not in vesseldict:
+    raise BadRequest, "No such vessel '"+vesselname1+"'"
+
+  if vesseldict[vesselname]['status'] == 'Started':
+    raise BadRequest("Attempting to SetRestrictions for a running vessel")
+  
+  # Now we read the resources for the vessel...
+  resourcedata = nmresourcemath.read_resources_from_file(vesseldict[vesselname]['resourcefilename'])
+ 
+  # I think that all we really want to do is write out the restrictions file 
+  # (assuming it contains no resource entries)...
+
+  restrictionsstring = nmresourcemath.read_restrictionsstring_from_data(restrictionsdata)
+
+  # write the new file...
+  nmresourcemath.write_resource_dict(resourcedata, "resource.temp")
+  outfo = open("resource.temp","a")
+  outfo.write(restrictionsstring)
+  outfo.close()
+ 
+  os.remove(vesseldict[vesselname]['resourcefilename'])
+  os.rename("resource.temp",vesseldict[vesselname]['resourcefilename'])
+  
+  return "\nSuccess"
+
+    
+
+
+
 
 
 

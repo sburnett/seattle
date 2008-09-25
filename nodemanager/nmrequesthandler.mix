@@ -140,7 +140,8 @@ API_dict = { \
   'ChangeOwnerInformation': (2, 'Owner', nmAPI.changeownerinformation), \
   'ChangeAdvertise': (2, 'Owner', nmAPI.changeadvertise), \
   'SplitVessel': (2, 'Owner', nmAPI.splitvessel), \
-  'JoinVessels': (2, 'Owner', nmAPI.joinvessels) \
+  'JoinVessels': (2, 'Owner', nmAPI.joinvessels), \
+  'SetRestrictions': (2, 'Owner', nmAPI.setrestrictions) \
 }
 
 
