@@ -141,16 +141,14 @@ resource loopsend 1000000
 resource looprecv 1000000
 resource lograte 30000
 resource random 100
-resource messport 21111
-resource messport 22222
-resource messport 23333
-resource messport 24444
-resource messport 25555
-resource connport 21111
-resource connport 22222
-resource connport 23333
-resource connport 24444
-resource connport 25555
+resource messport %s
+resource messport %s
+resource messport %s
+resource messport %s
+resource connport %s
+resource connport %s
+resource connport %s
+resource connport %s
 
 call gethostbyname_ex allow
 call sendmess allow
@@ -193,7 +191,7 @@ call getlock allow                      # can get a mutex
 
 
 
-def make_vessel(vesselname, pubkey, resourcedata):
+def make_vessel(vesselname, pubkey, resourcetemplate, resourceargs):
   retdict = {'userkeys':[], 'ownerkey':pubkey, 'oldmetadata':None, 'stopfilename':vesselname+'.stop', 'logfilename':vesselname+'.log', 'statusfilename':vesselname+'.status', 'resourcefilename':'resource.'+vesselname, 'advertise':True, 'ownerinformation':'', 'status':'Fresh'}
 
   # make the vessel dirs...
@@ -209,7 +207,8 @@ def make_vessel(vesselname, pubkey, resourcedata):
 
   #### write the vessel's resource file...
   outfo = open(retdict['resourcefilename'],"w")
-  outfo.write(resourcedata)
+  # write the args into the resource data template
+  outfo.write(resourcetemplate % resourceargs)
   outfo.close()
   
   return retdict
@@ -248,9 +247,9 @@ def initialize_state():
   outfo.write(offcutresourcedata)
   outfo.close()
 
-  vessel1 = make_vessel('v1',controllerpubkey,bigresourcedata) 
-  vessel2 = make_vessel('v2',seattlepubkey,smallresourcedata) 
-  vessel3 = make_vessel('v3',ivanpubkey,smallresourcedata) 
+  vessel1 = make_vessel('v1',controllerpubkey,bigresourcedata, []) 
+  vessel2 = make_vessel('v2',seattlepubkey,smallresourcedata, ('20000','20001', '20002','20003','20000','20001','20002','20003')) 
+  vessel3 = make_vessel('v3',ivanpubkey,smallresourcedata, ('30000','30001', '30002','30003','30000','30001','30002','30003')) 
   
 
   vesseldict = {'v1':vessel1, 'v2':vessel2, 'v3':vessel3}
