@@ -54,6 +54,7 @@ class UserError(Exception):
   pass
 
 
+
 # remove duplicates (turn the list into an ordered set)
 def uniq(a):
   retlist = []
@@ -136,6 +137,34 @@ def add_vessel(longname, keyname, vesselhandle):
   targets['%all'].append(longname)
 
   return myid
+
+
+
+
+def copy_vessel(longname, newvesselname):
+  newhandle = nmclient_duplicatehandle(vesselinfo[longname]['handle'])
+  newlongname = vesselinfo[longname]['IP']+":"+str(vesselinfo[longname]['port'])+":"+newvesselname
+  add_vessel(newlongname,vesselinfo[longname]['keyname'],newhandle)
+  return newlongname
+
+def delete_vessel(longname):
+  # remove the item...
+  del vesselinfo[longname]
+
+  # remove the targets that reference it...
+  for target in targets.copy():
+    # if in my list...
+    if longname in targets[target]:
+      # if this is the %num entry or longname entry...
+      if ('%' in target and target != '%all') or longname == target:
+        del targets[target]
+        continue
+      # otherwise remove the item from the list...
+      targets[target].remove(longname)
+    
+
+  
+
 
 
   
@@ -250,8 +279,8 @@ delete remotefn             -- Delete a file
 run file [args ...]    -- Shortcut for upload a file and start
 start file [args ...] -- Start an experiment
 stop               -- Stop an experiment
-!split resourcefn            -- Split off of each vessel another vessel
-!join                        -- Join vessels on the same node
+split resourcefn            -- Split another vessel off of each vessel
+join                        -- Join vessels on the same node
 help [help | set | show ]    -- help information 
 exit                         -- exits the shell
 """
@@ -278,6 +307,8 @@ show targets    -- Display a list of targets
 show identities -- Display the known identities
 show keys       -- Display the known keys
 show log        -- Display the log from the node (*)
+show resources  -- Display the resources / restrictions for the vessel (*)
+show offcut     -- Display the offcut resource for the node (*)
 
 (*) No need to update prior, the command contacts the nodes anew
 """
@@ -461,6 +492,75 @@ update             -- Update information about the vessels
             print "Added group 'loggood' with "+str(len(targets['loggood']))+" targets and 'logfail' with "+str(len(targets['logfail']))+" targets"
 
           continue
+
+
+
+
+# show resources  -- Display the resources / restrictions for the vessel (*)
+        elif userinputlist[1] == 'resource' or userinputlist[1] == 'resources':
+
+          if not currenttarget:
+            raise UserError,"Error, command requires a target"
+
+          # print the vessel resource information...
+          faillist = []
+          goodlist = []
+          for longname in targets[currenttarget]:
+            vesselname = vesselinfo[longname]['vesselname']
+            try:
+              resourcedata = nmclient_rawsay(vesselinfo[longname]['handle'],"GetVesselResources",vesselname)
+            except NMClientException, e:
+              print "failure:",e
+              faillist.append(longname)
+            else:
+              print "Resource data for '"+longname+"':"
+              print resourcedata
+              goodlist.append(longname)
+  
+          # and display it...
+          if faillist:
+            print "Failures on "+str(len(faillist))+" targets: "+", ".join(faillist)
+          if goodlist and faillist:
+            targets['resourcegood'] = goodlist
+            targets['resourcefail'] = faillist
+            print "Added group 'resourcegood' with "+str(len(targets['resourcegood']))+" targets and 'resourcefail' with "+str(len(targets['resourcefail']))+" targets"
+
+          continue
+
+
+
+# show offcut     -- Display the offcut resource for the node (*)
+        elif userinputlist[1] == 'offcut':
+
+          if not currenttarget:
+            raise UserError,"Error, command requires a target"
+
+          # print the node offcut information...
+          faillist = []
+          goodlist = []
+          checkedlist = []
+          for longname in targets[currenttarget]:
+            vesselname = vesselinfo[longname]['vesselname']
+            nodename = vesselinfo[longname]['IP']+":"+str(vesselinfo[longname]['port'])
+            # check each node once...
+            if nodename in checkedlist:
+              continue
+            checkedlist.append(nodename)
+
+            try:
+              offcutdata = nmclient_rawsay(vesselinfo[longname]['handle'],"GetOffcutResources")
+            except NMClientException, e:
+              print "failure:",e
+              faillist.append(longname)
+            else:
+              print "Resource data for '"+nodename+"':"
+              print offcutdata
+              goodlist.append(longname)
+  
+          continue
+
+
+
 
 
 
@@ -1258,6 +1358,155 @@ update             -- Update information about the vessels
   
         continue
   
+
+
+
+
+
+#split resourcefn            -- Split off of each vessel another vessel
+
+      elif userinputlist[0] == 'split':
+        if len(userinputlist)==2:
+          resourcefn = userinputlist[1]
+        else:
+          raise UserError, "Usage: split resourcefn"
+
+        if not currenttarget:
+          raise UserError, "Must specify a target"
+
+        resourcefo = open(resourcefn)
+        resourcedata = resourcefo.read()
+        resourcefo.close() 
+  
+
+        faillist = []
+        goodlist1 = []
+        goodlist2 = []
+        for longname in targets[currenttarget]:
+          vesselname = vesselinfo[longname]['vesselname']
+          try:
+            newvesselnames = nmclient_signedsay(vesselinfo[longname]['handle'], "SplitVessel", vesselname, resourcedata)
+          except NMClientException, e:
+            print "Failure '"+str(e)+"' splitting",longname
+            faillist.append(longname)
+          else:
+            newname1 = copy_vessel(longname, newvesselnames.split()[0])
+            newname2 = copy_vessel(longname, newvesselnames.split()[1])
+            delete_vessel(longname)
+            goodlist1.append(newname1)
+            goodlist2.append(newname2)
+            print longname+" -> ("+newname1+", "+newname2+")"
+
+        # update the groups
+        if goodlist1 and goodlist2 and faillist:
+          targets['split1'] = goodlist1
+          targets['split2'] = goodlist2
+          targets['splitfail'] = faillist
+          print "Added group 'split1' with "+str(len(targets['split1']))+" targets, 'split2' with "+str(len(targets['split2']))+" targets and 'splitfail' with "+str(len(targets['splitfail']))+" targets"
+        elif goodlist1 and goodlist2:
+          targets['split1'] = goodlist1
+          targets['split2'] = goodlist2
+          print "Added group 'split1' with "+str(len(targets['split1']))+" targets and 'split2' with "+str(len(targets['split2']))+" targets"
+
+  
+        continue
+
+
+
+
+#join                        -- Join vessels on the same node
+
+      elif userinputlist[0] == 'join':
+        if len(userinputlist)!=1:
+          raise UserError, "Usage: join"
+
+        if not currenttarget:
+          raise UserError, "Must specify a target"
+
+        if not currentkeyname or not keys[currentkeyname]['publickey'] or not keys[currentkeyname]['privatekey']:
+          raise UserError, "Must specify an identity with public and private keys..."
+
+        nodedict = {}
+        skipstring = ''
+        # Need to group vessels by node...
+        for longname in targets[currenttarget]:
+          if keys[currentkeyname]['publickey'] != vesselinfo[longname]['ownerkey']:
+            skipstring = skipstring + longname+" "
+            continue
+
+          nodename = vesselinfo[longname]['IP']+":"+str(vesselinfo[longname]['port'])
+          if nodename not in nodedict:
+            nodedict[nodename] = []
+
+          nodedict[nodename].append(longname)
+
+        # if we skip nodes, explain why
+        if skipstring:
+          print "Skipping "+skipstring+" because the current identity is not the owner."
+          print "If you are trying to join vessels with different owners, you need"
+          print "to change ownership to the same owner first"
+
+
+        faillist = []
+        goodlist = []
+
+        for nodename in nodedict:
+ 
+          if len(nodedict[nodename]) < 2:
+            # not enough vessels...
+            continue
+            
+
+          # I'll iterate through the vessels, joining one with the current 
+          # (current starts as the first vessel and becomes the "new vessel")
+          currentvesselname = vesselinfo[nodedict[nodename][0]]['vesselname']
+          currentlongname = nodedict[nodename][0]
+
+          for longname in nodedict[nodename][1:]:
+            vesselname = vesselinfo[longname]['vesselname']
+            try:
+              newvesselname = nmclient_signedsay(vesselinfo[longname]['handle'], "JoinVessels", currentvesselname, vesselname)
+            except NMClientException, e:
+              print "Failure '"+str(e)+"' on",longname
+              faillist.append(longname)
+              break
+            else:
+              newname = copy_vessel(longname, newvesselname)
+              delete_vessel(longname)
+              delete_vessel(currentlongname)
+              if currentlongname in goodlist:
+                goodlist.remove(currentlongname)
+              goodlist.append(newname)
+              currentlongname = newname
+              currentvesselname = newvesselname
+          else:
+            print currentlongname,"<- ("+", ".join(nodedict[nodename])+")"
+
+        # update the groups
+        if goodlist and faillist:
+          targets['joingood'] = goodlist
+          targets['joinfail'] = faillist
+          print "Added group 'joingood' with "+str(len(targets['joingood']))+" targets and 'joinfail' with "+str(len(targets['joinfail']))+" targets"
+        elif goodlist:
+          targets['joingood'] = goodlist
+          targets['joinfail'] = faillist
+          print "Added group 'joingood' with "+str(len(targets['joingood']))+" targets"
+
+  
+        continue
+
+
+
+
+#join                        -- Join vessels on the same node
+
+
+
+
+
+
+
+
 
 
 # set                 -- Changes the state of the targets (use 'help set')

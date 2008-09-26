@@ -1,0 +1,18 @@
+resource cpu .01
+resource memory 15000000   # 15 MiB
+resource diskused 1000000 # 1 MiB
+resource events 3
+resource filewrite 10000
+resource fileread 10000
+resource filesopened 1
+resource insockets 1
+resource outsockets 1
+resource netsend 1000
+resource netrecv 1000
+resource loopsend 10000
+resource looprecv 10000
+resource lograte 3000
+resource random 10
+resource messport 20003
+resource connport 20003
+
