@@ -197,7 +197,7 @@ def startvessel(vesselname, argstring):
     newstatus, newtimestamp = statusstorage.read_status(vesseldict[vesselname]['statusfilename'])
     # Great!   The timestamp was updated...   The new status is the result of 
     # our work.   Let's tell the user what happened...
-    if newtimestamp != oldtimestamp:
+    if newtimestamp != oldtimestamp and newstatus != None:
       break
 
     # sleep while busy waiting...
