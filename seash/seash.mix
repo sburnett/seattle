@@ -1074,7 +1074,8 @@ update             -- Update information about the vessels
         for longname in goodlist:
           if vesselinfo[longname]['status'] not in statusdict:
             # create a list with this element...
-            statusdict[vesselinfo[longname]['status']] = [longname]
+            statusdict[vesselinfo[longname]['status']] = []
+          statusdict[vesselinfo[longname]['status']].append(longname)
 
         if len(statusdict) > 1:
           print "Added group",
