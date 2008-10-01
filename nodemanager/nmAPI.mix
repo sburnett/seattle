@@ -44,6 +44,9 @@ import time
 # used in startvessel and stopvessel
 import statusstorage
 
+# used in startvessel and stopvessel
+import nmstatusmonitor
+
 # used to check file size restrictions...
 import misc
 
@@ -176,15 +179,6 @@ def startvessel(vesselname, argstring):
  
   commandstring = "python repy.py --logfile "+vesseldict[vesselname]['logfilename']+" --stop "+vesseldict[vesselname]['stopfilename']+" --status "+vesseldict[vesselname]['statusfilename']+" "+vesseldict[vesselname]['resourcefilename']+" "+vesselname+'/'+argstring
 
-  # BUG: there is a bit of oddness with starting experiments.   
-  # The command needs to be run in another thread or else Windows refuses to 
-  # close the socket.   I also need to wait long enough that the socket has
-  # had a chance to close...
-
-#  tobj = threading.Timer(10.0, start_task, (commandstring,))
-#  tobj.start()
-#  return "\nSuccess (will start in 10 seconds)"
-
   # I'm going to capture the status and timestamp and then check the see if
   # the timestamp is updated...
   oldstatus, oldtimestamp = statusstorage.read_status(vesseldict[vesselname]['statusfilename'])
@@ -206,9 +200,11 @@ def startvessel(vesselname, argstring):
   else:
     return "Did not start in a timely manner\nWarning"
 
-  # BUG: Hmm, the status thread may not have noticed this yet.   This means
-  # that we would report something different than the status thread if a 
-  # GetVessels call occurs.   Do we care?   Is this important?
+  # We need to update the status in the table because the status thread might
+  # not notice this before our next request... (else occasional failures on XP)
+  nmstatusmonitor.update_status(vesseldict, vesselname, newstatus, newtimestamp)
+
+
   return newstatus+"\nSuccess"
 
 

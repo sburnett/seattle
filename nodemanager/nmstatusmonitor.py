@@ -25,21 +25,37 @@ import time
 # dead...
 updatebound = 15
 
+timestampdict = {}
 
-# This reads the status file that is written by the client sandbox.   
-def read_status(statusfilename):
+# I use this lock to prevent multiple checks of the status timestamp, etc.
+statuslock = threading.Lock()
 
-  retdict = {}
-  for line in open(statusfilename,"r"):
-    linelist = line.split()
-    if len(linelist) ==0:
-      continue
-    if len(linelist) != 2:
-      raise ValueError, "Don't understand status file '"+statusfilename+"' line '"+line+"'"
 
-    retdict[linelist[0]] = linelist[1]
+def update_status(statusdict, vesselname, status, timestamp):
 
-  return retdict
+  # always acquire the lock and then release when done...
+  statuslock.acquire()
+
+  try:
+
+    # If this is older than the previous, we're done...
+    if vesselname in timestampdict and timestamp < timestampdict[vesselname]:
+      return
+
+    timestampdict[vesselname] = timestamp
+
+    try:
+      # set the status
+      statusdict[vesselname]['status'] = status
+    except KeyError:
+      # It must have been deleted in the meantime... (see race notes below)
+      return
+  finally:
+    statuslock.release()
+  
+
+
+
 
 
 class statusthread(threading.Thread):
@@ -85,7 +101,7 @@ class statusthread(threading.Thread):
             continue
         
         # The status has a timestamp in case the process is killed harshly and 
-        # needs to be restarted
+        # needs to be restarted.   This allows ordering of status reports
         staleness = time.time() - timestamp
 
         if staleness < 0:
@@ -102,18 +118,14 @@ class statusthread(threading.Thread):
             # BUG: What happens if we're wrong and it's alive?   What do we do?
             # How do we detect and fix this safely?
             newstatus = 'Stale'
+            # We set the timestamp so that our update happens in the table...
+            timestamp = time.time() - updatebound
 
         else:
           # it seems to be okay.   Use the given status
           newstatus = status
           
-
-        # now we update the dictionary so that it has the current status
-        try:
-          self.statusdict[vesselname]['status'] = newstatus
-        except KeyError:
-          # It must have been deleted in the meantime... (see race notes above)
-          continue
+        update_status(self.statusdict, vesselname, newstatus, timestamp)
 
       time.sleep(self.sleeptime)
 
