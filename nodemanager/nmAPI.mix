@@ -177,12 +177,26 @@ def startvessel(vesselname, argstring):
     if char not in allowedchars:
       raise BadRequest("Character '"+char+"' not allowed in arguments")
  
-  commandstring = "python repy.py --logfile "+vesseldict[vesselname]['logfilename']+" --stop "+vesseldict[vesselname]['stopfilename']+" --status "+vesseldict[vesselname]['statusfilename']+" "+vesseldict[vesselname]['resourcefilename']+" "+vesselname+'/'+argstring
-
   # I'm going to capture the status and timestamp and then check the see if
   # the timestamp is updated...
   oldstatus, oldtimestamp = statusstorage.read_status(vesseldict[vesselname]['statusfilename'])
-  start_task(commandstring)
+
+  # fixing a bug (thanks Brent!) that I was in the wrong directory when 
+  # writing files...
+
+  # change directory so that the sandboxes current directory is in its dir...
+  os.chdir(vesselname)
+
+  # ... but always reset it...
+  try:
+    # architecturally, I'm unsure prepending ../ is the best solution...
+    commandstring = "python ../repy.py --logfile ../"+vesseldict[vesselname]['logfilename']+" --stop ../"+vesseldict[vesselname]['stopfilename']+" --status ../"+vesseldict[vesselname]['statusfilename']+" ../"+vesseldict[vesselname]['resourcefilename']+" "+argstring
+
+    start_task(commandstring)
+
+  finally:
+    # reset the path
+    os.chdir('..')
 
   starttime = time.time()
 
