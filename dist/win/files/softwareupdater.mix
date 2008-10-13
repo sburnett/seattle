@@ -1,0 +1,431 @@
+""" 
+Author: Justin Cappos
+
+Start Date: August 4, 2008
+
+Description:
+A software updater for the node manager.   The focus is to make it secure, 
+robust, and simple (in that order).
+
+Usage:  ./softwareupdater.py
+
+"""
+
+
+
+import sys
+
+import urllib      # to retrieve updates
+import os   # needed for remove and path.exists
+import subprocess   # used to start an experiment
+import time  # used to sleep after a stop so that we don't lie about stopping
+import random
+import shutil
+import socket   # we'll make it so we don't hang...
+import tempfile
+
+include signeddata.repy
+
+# MIX: fix the fact that I don't have or need the getruntime() call...
+def time_gettime():
+  return time_seconds_from_1900_to_1970 + time.time()
+
+
+# where I log my errors to
+logfileobj = None
+
+
+softwareurl = "http://www.cs.arizona.edu/people/justin/seattle/"
+
+# embedded this because it seems easier to update it along with this file
+nodemanagerpublickey = {'e':90828751313604138861138199375516065418794160799843599128558705100285394924191002288444206024669046851496823164408997538063597164575888556545759466459359562498107740756089920043807948902332473328246320686052784108549174961107584377257390484702552802720358211058670482304929480676775120529587723588725818443641, 'n':525084957612029403526131505174200975825703127251864132403159502859804160822964990468591281636411242654674747961575351961726000088901250174303367500864513464050509705219791304838934936387279630515658887485539659961265009321421059720176716708947162824378626801571847650024091762061008172625571327893613638956683252812460872115308998220696100462293803622250781016906532481844303936075489212041575353921582380137171487898138857279657975557703960397669255944572586836026330351201015911407019810196881844728252349871706989352500746246739934128633728161609865084795375265234146710503588616865119751368455059611417010662656542444610089402595766154466648593383612532447541139354746065164116466397617384545008417387953347319292748418523709382954073684016573202764322260104572053850324379711650017898301648724851941758431577684732732530974197468849025690865821258026893591314887586229321070660394639970413202824699842662167602380213079609311959732523089738843316936618119004887003333791949492468210799866238487789522341147699931943938995266536008571314911956415053855180789361316551568462200352674864453587775619457628440845266789022527127587740754838521372486723001413117245220232426753242675828177576859824828400218235780387636278112824686701}
+
+
+
+def log(data):
+  print >> sys.stderr, time.time(),data
+  sys.stderr.flush()
+
+
+def get_file_hash(filename):
+  fileobj = file(filename)
+  filedata = fileobj.read()
+  fileobj.close()
+
+  return sha_hexhash(filedata)
+
+
+
+# We'll use this to get a file.   If it doesn't download in a reasonable time, 
+# we'll fail. (BUG: doesn't do this yet.   I use timeouts, but they don't
+# always work)
+def safe_download(serverpath, filename, destdir, filesize):
+  try:
+    urllib.urlretrieve(serverpath+filename,destdir+filename)
+    return True
+  except Exception,e:
+    log(e)
+    return False
+ 
+#  # how much we have left to download
+#  remainingsize = filesize
+#
+#  # get a file-like object for the URL...
+#  safefo = urllib.urlopen(filename)
+#
+#  # always close after this...
+#  try:
+#    # download up to "filesize" worth of data...   
+#    # BUG: We also should check to see if this is too slow...
+#    mydata
+#  
+#  
+#  finally:
+#    try:
+#      safefo.close()
+#    except:
+#      pass
+
+
+
+
+################### Begin Rsync ################### 
+# I'd love to be able to put this in a separate module or repyify it, but 
+# I'd need urllib...
+
+class RsyncError(Exception):
+  pass
+
+
+
+
+def do_rsync(serverpath, destdir, tempdir):
+  # Returns a list of updated files.
+
+
+  # get the metainfo (like a directory listing)
+  safe_download(serverpath, "metainfo", tempdir, 1024*32)
+
+  # read the file data into a string
+  newmetafileobject = file(tempdir+"metainfo")
+  newmetafiledata = newmetafileobject.read()
+  newmetafileobject.close()
+
+  # Incorrectly signed, we don't update...
+  if not signeddata_issignedcorrectly(newmetafiledata, nodemanagerpublickey):
+    return []
+
+  try:
+    # read in the old file
+    oldmetafileobject = file(destdir+"metainfo")
+    oldmetafiledata = oldmetafileobject.read()
+    oldmetafileobject.close()
+  except:
+    # The old file has problems.   We'll use the new one since it's signed
+    pass
+
+  else:
+    # they're both good.   Let's compare them...
+    shoulduse, reasons = signeddata_shouldtrust(oldmetafiledata,newmetafiledata,nodemanagerpublickey)
+
+    if shoulduse == True:
+      # great!   All is well...
+      pass
+    elif shoulduse == None:
+      # hmm, a warning...   
+      if len(reasons) == 1 and reasons[0] == 'Cannot check expiration':
+        # we should probably allow this.  The node may be offline 
+        log("Warning:"+str(reasons))
+        pass
+      elif 'Timestamps match' in reasons:
+        # Already seen this one...
+        log(reasons)
+        return []
+
+    elif shoulduse == False:
+      # Let's assume this is a bad thing and exit
+      log(reasons)
+      return []
+    
+
+  # now it's time to update
+  updatedfiles = [ "metainfo" ]
+
+  for line in file(tempdir+"metainfo"):
+
+    # skip comments
+    if line[0] == '#':
+      continue
+ 
+    # skip signature parts
+    if line[0] == '!':
+      continue
+ 
+    # skip blank lines
+    if line.strip() == '':
+      continue
+
+    linelist = line.split()
+    if len(linelist)!= 3:
+      raise RsyncError, "Malformed metainfo line: '"+line+"'"
+
+    filename, filehash, filesize = linelist
+    
+    # if the file is missing or the hash is different, we want to download...
+    if not os.path.exists(destdir+filename) or get_file_hash(destdir+filename) != filehash:
+      # get the file
+      safe_download(serverpath, filename, tempdir, filesize)
+
+      # oh crap!   The hash doesn't match what we thought
+      if get_file_hash(tempdir+filename) != filehash:
+        log("Hash mismatch on file '"+filename+"'")
+        raise RsyncError, "Hash of file '"+filename+"' does not match information in metainfo file"
+
+      # put this file in the list of files we need to update
+      updatedfiles.append(filename)
+
+
+  # copy the files to the local dir...
+  for filename in updatedfiles:
+    print "copying "+tempdir+filename+" to "+destdir+filename
+    shutil.copy(tempdir+filename, destdir+filename)
+    
+  # done!   We updated the files
+  return updatedfiles
+  
+################### End Rsync ################### 
+
+
+
+
+
+# MUTEX  (how I prevent multiple copies)
+# a new copy writes an "OK" file. if it's written the previous can exit.   
+# a previous copy writes a "stop" file. if it's written the new copy must exit
+# each new program has its own stop and OK files (listed by mutex number)
+# 
+# first program (fresh_software_updater)
+#              clean all mutex files
+#
+# old program (restart_software_updater)
+#              find an unused mutex 
+#              starts new with arg that is the mutex
+#              wait for some time
+#              if "OK" file exists, remove it and exit
+#              else write "stop" file
+#              continue normal operation
+#
+# new program: (software_updater_start)
+#              initializes
+#              if "stop" file exists, then exit
+#              write "OK" file
+#              while "OK" file exists
+#                 if "stop" file exists, then exit
+#              start normal operation
+#
+
+
+def init():
+
+  # set up logging, etc.
+  sys.stdout.close()
+  sys.stdin.close()
+  sys.stderr.close()
+
+  if not os.path.exists("softwareupdater.logfile") or os.path.getsize("softwareupdater.logfile") > 1024*1024:
+    # kill the log file if it's > 1MB, create if it doesn't exist
+    sys.stderr = open("softwareupdater.logfile","w")
+  else:
+    # or append otherwise
+    sys.stderr = open("softwareupdater.logfile","a")
+
+  # don't hang if the socket is slow (in some ways, this doesn't always work)
+  # BUG: http://mail.python.org/pipermail/python-list/2008-January/471845.html
+  socket.setdefaulttimeout(10)
+  
+  # remove any old / broken test dirs...
+  if os.path.exists("download.test"):
+    shutil.rmtree("download.test")
+  
+  # create the test dir...
+  os.mkdir("download.test")
+
+  # copy my metainfo file into there
+  shutil.copy("metainfo","download.test")
+
+  # do an update to that directory.   If I don't see an unexpected error, we 
+  # should be in good shape
+  tempdir = tempfile.mkdtemp()+"/"
+  try:
+    do_rsync(softwareurl, "download.test/",tempdir)
+  finally:
+    shutil.rmtree(tempdir)
+      
+  # remove the test directory
+  shutil.rmtree("download.test")
+
+  # time to handle startup (with respect to other copies of the updater
+  if len(sys.argv) == 1:
+    # I was called with no arguments, must be a fresh start...
+    fresh_software_updater()
+  else:
+    # the first argument is our mutex number...
+    software_updater_start(sys.argv[1])
+
+
+def software_updater_start(mutexname):
+  # if "stop" file exists, then exit
+  if os.path.exists("softwareupdater.stop."+mutexname):
+    sys.exit(1)
+
+  # write "OK" file
+  file("softwareupdater.OK."+mutexname,"w").close()
+  
+  # while "OK" file exists
+  while os.path.exists("softwareupdater.OK."+mutexname):
+    # if "stop" file exists, then exit
+    if os.path.exists("softwareupdater.stop."+mutexname):
+      sys.exit(1)
+
+  # start normal operation
+  return
+
+
+# this is called by either the installer or the program that handles starting
+# up on boot
+def fresh_software_updater():
+  # clean all mutex files
+  for filename in os.listdir('.'):
+    # Remove any outdated stop or OK files...
+    if filename.startswith('softwareupdater.OK.') or filename.startswith('softwareupdater.stop.'):
+      os.remove(filename)
+
+  # Should be ready to go...
+
+
+
+def get_mutex():
+  # do this until we find an unused file mutex.   we should find one 
+  # immediately with overwhelming probability
+  while True:
+    randtoken = str(random.random())
+    if not os.path.exists("softwareupdater.OK."+randtoken) and not os.path.exists("softwareupdater.stop."+randtoken):
+      return randtoken
+  
+
+def restart_software_updater():
+  """This will exit if the new program seems to start correctly and return otherwise.   It should prevent multiple copies from running"""
+
+  # find an unused mutex 
+  thismutex = get_mutex()
+
+  # starts new with arg that is the mutex 
+  junkupdaterobject = subprocess.Popen(["python","nodemanager.py",thismutex])
+
+  # wait for some time (1 minute) for them to init and stop them if they don't
+  for junkcount in range(30):
+    do_sleep(2.0)
+
+    # if "OK" file exists, remove it and exit
+    if os.path.exists("softwareupdater.OK."+thismutex):
+      os.remove("softwareupdater.OK."+thismutex)
+      # I'm happy, it is taking over
+      sys.exit(10)
+
+  # else write "stop" file because it failed...
+  file("softwareupdater.stop."+thismutex,"w").close()
+
+  # I continue normal operation
+  return
+
+
+
+def restart_client(filenamelist):
+  # create a stop file
+  clientfo = file("client.stop","w")
+  for filename in filenamelist:
+    print >> clientfo, filename
+  clientfo.close()
+
+  # run the node manager.   I rely on it to do the smart thing (handle multiple
+  # instances, etc.)
+  junkprocessobject = subprocess.Popen(["python","nodemanager.py"])
+  
+  # I don't do anything with the processobject.  The process will run for some 
+  # time, perhaps outliving me (if I'm updated first)
+
+# sleep for a specified time.  Don't return early (no matter what)
+def do_sleep(waittime):
+
+  # there might be a race here
+  endtime = time.time() + waittime
+  sleeptime = endtime - time.time()
+  while sleeptime>0:
+    time.sleep(sleeptime)
+    sleeptime = endtime - time.time()
+
+      
+
+
+def main():
+
+
+  # This is similar to init only:
+  #   1) we loop / sleep
+  #   2) we restart ourselves if we are updated
+  #   3) we restart our client if they are updated
+
+
+  # If this is true, I need to be restarted...   Once True it will never be 
+  # False again
+  restartme = False
+
+  while True:
+    # sleep for 5-55 minutes 
+    do_sleep(1800+random.randint(-1500,1500))
+
+    # where I'll put files...
+    tempdir = tempfile.mkdtemp()+"/"
+
+    # I'll clean this up in a minute
+    try:
+      updatedlist = do_rsync(softwareurl, "./",tempdir)
+    except RsyncError:
+      # oops, hopefully this will be fixed next time...
+      continue
+
+    finally:
+      shutil.rmtree(tempdir)
+
+    # no updates   :)   Let's wait again...
+    if updatedlist == []:
+      continue
+    
+    # if there were updates, the metainfo file should be one of them...
+    assert('metainfo' in updatedlist)
+
+    clientlist = updatedlist[:]
+
+    if 'softwareupdater.py' in clientlist:
+      restartme = True
+      clientlist.remove('softwareupdater.py')
+
+    # if the client software changed, let's update it!
+    if clientlist != []:
+      restart_client(clientlist)
+
+    # oh! I've changed too.   I should restart...   search for MUTEX for info
+    if restartme:
+      restart_software_updater()
+
+if __name__ == '__main__':
+  # problems here are fatal.   If they occur, the old updater won't stop...
+  init()
+
+  # in case there is an unexpected exception, continue (we'll sleep first thing
+  # in main)
+  while True:
+    try:
+      main()
+    except:
+      pass

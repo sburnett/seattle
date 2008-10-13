@@ -1,0 +1,8 @@
+include nmclient.repy
+
+if callfunc == 'initialize':
+  nmhandle = nmclient_createhandle(getmyip(), 1224)
+
+  # what do I do to check?
+  nmclient_rawsay(nmhandle, "GetOffcutResources")
+

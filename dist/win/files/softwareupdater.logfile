@@ -1,0 +1,12 @@
+Traceback (most recent call last):
+  File "softwareupdatertest.py", line 1599, in <module>
+    init()
+  File "softwareupdatertest.py", line 1498, in init
+    shutil.copy("metainfo","download.test")
+  File "/usr/local/lib/python2.5/shutil.py", line 80, in copy
+    copyfile(src, dst)
+  File "/usr/local/lib/python2.5/shutil.py", line 46, in copyfile
+    fsrc = open(src, 'rb')
+IOError: [Errno 2] No such file or directory: 'metainfo'
+
+
