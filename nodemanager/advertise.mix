@@ -1,0 +1,64 @@
+""" 
+Author: Justin Cappos
+
+Start Date: October 14, 2008
+
+Description:
+A stub that allows different announcement types.   I'd make this smarter, but
+the user won't configure it, right?
+
+"""
+
+from repyportability import *
+
+import openDHTadvertise
+include centralizedadvertise.repy
+
+skipDHT = 0
+previousDHTskip = 1
+skipcentral = 0
+previouscentralskip = 1
+
+def announce(key, value, ttlval):
+  global skipDHT
+  global previousDHTskip
+  global skipcentral
+  global previouscentralskip
+
+  
+  if skipcentral == 0:
+    try:
+      centralizedadvertise_announce(key, value, ttlval)
+      previouscentralskip = 1
+    except Exception, e:
+      print 'centralized:',e
+      skipcentral = previouscentralskip + 1
+      previouscentralskip = min(previouscentralskip * 2, 16)
+      
+  else:
+    skipcentral = skipcentral - 1
+
+
+  if skipDHT==0:
+    try:
+      openDHTadvertise.announce(key, value, ttlval)
+      previousDHTskip = 1
+    except Exception, e:
+      print 'openDHT:',e
+      skipDHT = previousDHTskip + 1
+      previousDHTskip = min(previousDHTskip * 2, 16)
+  else:
+    skipDHT = skipDHT - 1
+
+
+
+
+def lookup(key, maxvals=100):
+  try:
+    ans = centralizedadvertise_lookup(key, maxvals)
+    print ans
+    return ans
+  except Exception, e:
+    return openDHTadvertise.lookup(key, maxvals)
+
+

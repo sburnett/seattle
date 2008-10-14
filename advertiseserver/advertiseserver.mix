@@ -1,0 +1,109 @@
+""" 
+Author: Justin Cappos
+
+Start Date: July 8, 2008
+
+Description:
+Advertisements to a central server (similar to openDHT)
+
+
+"""
+
+include session.repy
+include time.repy
+
+serverport = 10101
+
+
+hashtable = {}
+
+def expire_hashtable_items():
+  now = time_gettime()
+  for key in hashtable:
+    # copying the list, so I can remove elements...
+    for valuetimepair in hashtable[key][:]:
+      if valuetimepair[1] < now:
+        # if time has expired, remove it...
+        hashtable[key].remove(valuetimepair)
+
+
+
+def insert_hashtable(key, value, expiretime):
+  if key not in hashtable:
+    hashtable[key] = []
+
+  # copying the list, so I can remove elements...
+  for valuetimepair in hashtable[key][:]:
+    if valuetimepair[0] == value:
+      # if there is already a value, remove it...
+      hashtable[key].remove(valuetimepair)
+    
+  hashtable[key].append((value,expiretime))
+      
+
+def read_hashtable(key, maxkeys):
+  if key not in hashtable:
+    return []
+
+  retlist = []
+  for item in hashtable[key]:
+    retlist.append(item[0])
+
+  return retlist[:maxkeys]
+
+
+
+def handlerequest(remoteIP, remoteport, sockobj, ch, mainch):
+  expire_hashtable_items()
+  try:
+    try:
+      request = session_recvmessage(sockobj)
+    except ValueError,e:
+      print e
+      return
+
+    requestlist = request.split('|')
+  
+    if requestlist[0] == 'PUT':
+      if len(requestlist) != 4:
+        session_sendmessage(sockobj, "Error, incorrect number of args")
+        return
+      
+      try:
+        insert_hashtable(requestlist[1], requestlist[2], int(requestlist[3])+time_gettime())
+        insert_hashtable('%all', requestlist[2], int(requestlist[3])+time_gettime())
+      except ValueError:
+        session_sendmessage(sockobj, "Error, last arg must be a number")
+        return
+      
+      session_sendmessage(sockobj, "OK")
+      return
+
+    elif requestlist[0] == 'GET':
+
+      if len(requestlist) != 3:
+        session_sendmessage(sockobj, "Error, incorrect number of args")
+        return
+      
+      try:
+        readlist = read_hashtable(requestlist[1], int(requestlist[2]))
+      except ValueError:
+        session_sendmessage(sockobj, "Error, last arg must be a number")
+        return
+
+      session_sendmessage(sockobj, ",".join(readlist)+"OK")
+      return
+
+    else:
+      session_sendmessage(sockobj, "Error, unknown request type")
+      return
+  
+  finally:
+    sockobj.close()
+
+
+
+if callfunc=='initialize':
+  print "Started"
+  time_updatetime(34612)
+  waitforconn(getmyip(),serverport,handlerequest)
