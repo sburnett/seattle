@@ -2,15 +2,17 @@
 
 :check_os
 REM Check for Vista or XP
-IF "%ALLUSERSPROFILE%"=="C:\ProgramData" GOTO set_vista
+IF "%ALLUSERSPROFILE%"=="%HOMEDRIVE%\ProgramData" GOTO set_vista
 GOTO set_xp
 
 :set_vista
+echo Vista
 set PROG_PATH=%HOMEDRIVE%%HOMEPATH%\Documents\seattle_repy
 set STARTUP_FOLDER=%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup
 GOTO :check_seattle_installed
 
 :set_xp
+echo XP
 set PROG_PATH=%HOMEDRIVE%%HOMEPATH%\My Documents\seattle_repy
 set STARTUP_FOLDER=%HOMEDRIVE%%HOMEPATH%\Start Menu\Programs\Startup
 GOTO :check_seattle_installed
@@ -24,6 +26,7 @@ ECHO seattle is already installed on your computer.
 GOTO failure
 
 :seattle_not_installed
+echo Installing seattle...
 GOTO copy_files
 
 :check_for_python
@@ -64,19 +67,29 @@ GOTO extensions_not_installed
 GOTO copy_files
 
 :copy_files
+echo Creating install directory...
 mkdir "%PROG_PATH%"
-xcopy "files\*" "%PROG_PATH%\" /E /Y > nul 2> nul
+echo Done.
+echo Copying python dependencies...
 xcopy "python\*" "%PROG_PATH%\" /E /Y > nul 2> nul
+echo Done.
+echo Copying seattle files...
+xcopy "files\*" "%PROG_PATH%\" /E /Y > nul 2> nul
+echo Done.
 GOTO add_to_startup
 
 :add_to_startup
+echo Adding seattle to startup...
 echo @echo off > seattle.bat
-echo "%PROG_PATH%\python.exe" "%PROG_PATH%\nmmain.py" >> seattle.bat
+echo cd "%PROG_PATH%" >> seattle.bat
+echo start /min pythonw.exe nmmain.py >> seattle.bat
 echo exit >> seattle.bat
 copy seattle.bat "%STARTUP_FOLDER%\" > nul
+echo Done.
 GOTO generate_uninstaller
 
 :generate_uninstaller
+echo Generating uninstaller...
 echo @echo off > uninstall.bat
 echo IF EXIST "%TMP%\uninstall.bat" GOTO already_copied >> uninstall.bat
 echo GOTO copy >> uninstall.bat
@@ -90,6 +103,7 @@ echo rmdir /s /q "%PROG_PATH%" ^> nul 2^> nul >> uninstall.bat
 echo GOTO end >> uninstall.bat
 echo :end >> uninstall.bat
 copy uninstall.bat "%PROG_PATH%\" > nul 2> nul
+echo Done.
 GOTO success
 
 :extensions_not_installed
@@ -107,7 +121,8 @@ GOTO end
 
 :success
 echo seattle was successfully installed on your computer.
-"%STARTUP_FOLDER%\seattle.bat"
+cd %PROG_PATH%
+start /min pythonw.exe nmmain.py
 GOTO end
 
 :end
