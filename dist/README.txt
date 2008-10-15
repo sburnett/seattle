@@ -1,0 +1,41 @@
+Info on changes that were made to the Python directory on a Windows machine.
+
+Removed:
+psTTS-wininst.log
+pywin32-wininst.log
+README.txt
+RemoveChat Server.exe
+RemoveMySQL-python.exe
+Removenumpy.exe
+RemovePIL.exe
+RemovepyTTS.exe
+Removepywin32.exe
+Chat Server-winist.log
+MySQL-python-wininst.log
+NEWS.txt
+numpy-wininst.log
+PIL-wininst.log
+DLLs/*.ico
+DLLs/sqlite3.dll
+DLLs/tcl84.dll
+DLLs/tclpip84.dll
+tcl/
+Doc/
+Tools/
+Lib/curses/
+Lib/email
+Lib/idelib/
+Lib/sqlite3/
+Lib/xml/
+Lib/wsgiref/
+Lib/encodings/
+Lib/site-packages/adodbapi/
+Lib/site-packages/isapi/
+Lib/site-packages/PIL/
+Lib/site-packages/pyTTS/
+Lib/site-packages/wx-stuff/
+
+Copied from System32:
+python25.dll
+msvcr71.dll
+pywintypes25.dll to Lib\site-packages\win32\pywintypes25.dll
