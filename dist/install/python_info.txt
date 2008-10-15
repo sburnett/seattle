@@ -1,4 +1,4 @@
-Info on changes that were made to the Python directory on a Windows machine.
+The python directory in the seattle distribution has been specially modified to save as much space as possible, and to run successfully independent of other computer settings. This is a record of the modifications made to it.
 
 Removed:
 psTTS-wininst.log
@@ -35,7 +35,7 @@ Lib/site-packages/PIL/
 Lib/site-packages/pyTTS/
 Lib/site-packages/wx-stuff/
 
-Copied from System32:
+Copied from C:\Windows\System32:
 python25.dll
 msvcr71.dll
 pywintypes25.dll to Lib\site-packages\win32\pywintypes25.dll
