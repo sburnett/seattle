@@ -210,15 +210,31 @@ call getlock allow                      # can get a mutex
 def make_vessel(vesselname, pubkey, resourcetemplate, resourceargs):
   retdict = {'userkeys':[], 'ownerkey':pubkey, 'oldmetadata':None, 'stopfilename':vesselname+'.stop', 'logfilename':vesselname+'.log', 'statusfilename':vesselname+'.status', 'resourcefilename':'resource.'+vesselname, 'advertise':True, 'ownerinformation':'', 'status':'Fresh'}
 
-  # make the vessel dirs...
   try:
-    os.mkdir(vesselname)
-  except OSError,e:
-    if e[0] == 17:
-      # directory exists
-      pass
-    else:
-      raise
+    WindowsError
+
+  except NameError: # not on windows...
+    # make the vessel dirs...
+    try:
+      os.mkdir(vesselname)
+    except OSError,e:
+      if e[0] == 17:
+        # directory exists
+        pass
+      else:
+        raise
+
+  else: # on Windows...
+
+    # make the vessel dirs...
+    try:
+      os.mkdir(vesselname)
+    except (OSError,WindowsError),e:
+      if e[0] == 17 or e[0] == 183:
+        # directory exists
+        pass
+      else:
+        raise
 
 
   #### write the vessel's resource file...
