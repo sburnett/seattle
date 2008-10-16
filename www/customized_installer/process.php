@@ -6,15 +6,16 @@ if (isset($_POST)) {
 		$user = new User($username);
 		
 		if (is_uploaded_file($_FILES["publickey"]["tmp_name"])) {
-			move_uploaded_file($_FILES["publickey"]["tmp_name"], "uploaded_keys/" . $user->getName() . ".txt");
+			move_uploaded_file($_FILES["publickey"]["tmp_name"], "keys/" . $user->getName() . ".public");
 			$user->setUploaded(true);
-			$user->readPublicKey("uploaded_keys/" . $user->getName() . ".txt");
+			$user->readPublicKey("keys/" . $user->getName() . ".public");
 		
 		} else {
 			$user->setUploaded(false);
 			$user->generateKeys();
+			$user->writeKeys();
 		}
-		echo $user->getName() . " is added. private key is " . $user->getPrivateKey() ;
+		echo $user->getName() . " is added.";
 	}
 }
 
@@ -48,9 +49,14 @@ class User {
 	
 	public function generateKeys () {
 		// $keys = explode(" ", exec("keygen.py"));
-		$keys = array("public_dfajk22f3", "private_23f3bc8");
+		$keys = array("dfajk22f3", "a23f3bc8");
 		$this->public_key = $keys[0];
 		$this->private_key = $keys[1];
+	}
+	
+	public function writeKeys () {
+		file_put_contents("keys/" . $this->name . ".public", $this->public_key);
+		file_put_contents("keys/" . $this->name . ".private", $this->private_key);
 	}
 	
 	public function getPublicKey () {
@@ -61,6 +67,21 @@ class User {
 		return $this->private_key;
 	}
  
+}
+
+class Vessel {
+	
+	private $id;
+	private $percentage;
+	private $owner;
+	private $users = array();
+	
+	public function __construct ($id) {
+		$this->id = $id;
+	}
+	
+	
+
 }
 
 

@@ -88,6 +88,10 @@ span.user {
 	float: left;
 }
 
+span.user:hover {
+	cursor: move;
+}
+
 a.close {
 	margin: 2px 4px;
 }
