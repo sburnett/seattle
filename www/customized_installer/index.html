@@ -1,0 +1,40 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
+"http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<!--
+Index Page for Research Project
+-->
+
+
+	<head>
+	    <title>Customized Installer Interface</title>
+	    <link rel="stylesheet" type="text/css" href="style.css" />
+		<script src="scripts/prototype.js" type="text/javascript"></script>
+		<script src="scripts/scriptaculous.js" type="text/javascript"></script>
+		<script src="scripts/index.js" type="text/javascript"></script>
+	</head>
+
+	<body>
+		<div id="content"> 
+			<h1 id="header"> Seattle </h1>
+			<div id="main"> 
+				<div id="users">
+					<div id="names"></div>
+					<div id="input">
+						<form method="post" enctype="multipart/form-data" action="process.php" id="form" name="form" target="target">
+							<input type="text" name="username" id="username" value="user_1" size="12" />
+							<input type="hidden" name="action" value="adduser" />
+							<input type="file" name="publickey" id="publickey" size="6" />
+							<input type="submit" name="add" id="add" value="Add" />
+							<iframe id="target" name="target" src="" style="width:0; height:0; visibility:hidden; border:none;"></iframe>
+						</form>
+					</div>
+				</div>
+				<div id="Pluses"> </div>
+				<div id="VesselList"> </div>
+				
+			</div>
+		</div>
+	</body>
+</html>
