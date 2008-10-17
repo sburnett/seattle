@@ -412,6 +412,12 @@ def changeowner(vesselname, newkeystring):
 
   vesseldict[vesselname]['ownerkey'] = newkey 
 
+  # Must reset the owner information because it's used for service security.
+  vesseldict[vesselname]['ownerinformation'] = ''
+
+  # Reset the advertise flag so the owner can find the node...
+  vesseldict[vesselname]['advertise'] = True
+
   persist.commit_object(vesseldict, "vesseldict")
   return "\nSuccess"
   
