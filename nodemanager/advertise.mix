@@ -52,13 +52,26 @@ def announce(key, value, ttlval):
 
 
 
+def uniq(a):
+  retlist = []
+  for item in a:
+    if item not in retlist:
+      retlist.append(item)
+
+  return retlist
+
+
 
 def lookup(key, maxvals=100):
   try:
-    ans = centralizedadvertise_lookup(key, maxvals)
-    print ans
-    return ans
+    centralans = centralizedadvertise_lookup(key, maxvals)
   except Exception, e:
-    return openDHTadvertise.lookup(key, maxvals)
+    centralans = []
 
+  try:
+    dhtans = openDHTadvertise.lookup(key, maxvals)
+  except Exception, e:
+    dhtans = []
+
+  return uniq(centralans + dhtans)
 

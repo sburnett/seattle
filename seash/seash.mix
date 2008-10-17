@@ -55,14 +55,6 @@ class UserError(Exception):
 
 
 
-# remove duplicates (turn the list into an ordered set)
-def uniq(a):
-  retlist = []
-  for item in a:
-    if item not in retlist:
-      retlist.append(item)
-
-  return retlist
 
 
 
@@ -801,9 +793,6 @@ update             -- Update information about the vessels
           raise UserError, "Error, must load a public key to browse"
   
         nodelist = advertise.lookup(keys[currentkeyname]['publickey'])
-
-        # remove duplicates (don't want to look at a node more than once)
-        nodelist = uniq(nodelist)
 
         # we'll output a message about the new keys later...
         newidlist = []
