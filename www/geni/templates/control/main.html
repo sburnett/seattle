@@ -95,15 +95,23 @@
 			</div>
 			<div id="window4" class="window">
 			  <!-- Shared Resources -->
-				<table class="donation_table">
-					<caption> Shared </caption>
-					<tr> <th> User ID </th> <th> Percentage </th> </tr>
-					{% for share in shares %}
-					<tr> <td> {{ share.to_user.www_user.username }} </td> <td> {{ share.percent }} </td> </tr>
-					{% endfor %}
-				</table> 
-				<br/>
-				<button> Add New </button> <button> Update </button>
+				<form method="POST" action="privatekey.url" target="#">
+					<table class="donation_table">
+						<caption> Shared </caption>
+						<tr> <th> User ID </th> <th> Percentage </th> </tr>
+						{% for share in shares %}
+						<tr> <td> {{ share.to_user.www_user.username }} </td> <td> {{ share.percent }} </td> </tr>
+						{% endfor %}
+					</table> 
+					<br/>
+					<button> Update </button>
+				</form>
+				<form method="POST" action="privatekey.url" target="#">
+					<p> User ID: <input type="text" name="UserID"/> <br/>
+						Percent: <input type="text" name="Percent"/> <br/>
+						<input type="submit" value="Add New"/>
+					</p>
+				</form>
 			</div>
 		</div>
 		

@@ -18,6 +18,16 @@ img {
 	border: none;
 }
 
+.center {
+	text-align: center;
+}
+
+.submit {
+	margin-left: 600px;
+	font-size: 14pt;
+	margin-top: 20px;
+}
+
 #content {
 	margin: 5px;
 	padding: 5px;
@@ -25,8 +35,10 @@ img {
 }
 
 h2 {
-	
+	text-align: center;
+	margin-bottom: 40px;
 }
+
 h1 {
 	margin-top: 10px;
 	font-size: 32pt;
@@ -129,6 +141,7 @@ th, td {
 	border: 1px solid black;
 	margin-left: auto;
 	margin-right: auto;
+	text-align: center;
 }
 
 .sideWindow {
@@ -155,3 +168,10 @@ th, td {
 .icons {
 	margin: 15px;
 }
+
+#update {
+	margin-top: 50px;
+	font-size: 15pt;
+	width: 200px;
+}
+
