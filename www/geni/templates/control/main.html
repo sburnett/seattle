@@ -1,0 +1,113 @@
+{% include "common/header.html" %}
+
+<a href="/geni/accounts/logout/">Logout</a>
+
+	<body>
+	  <div id="content"> 
+	    {% include "common/banner.html" %}
+
+			<div id="Tabs"> 
+				<ul>
+					<li id="tab1" class="tab highlighted"> User Information </li>
+					<li id="tab2" class="tab"> Donations </li>
+					<li id="tab3" class="tab"> Used Resources </li>
+					<li id="tab4" class="tab"> Shared Resources </li>
+				</ul>
+			
+			</div>
+			
+			<div id="window1" class="window"> 
+			  <!-- User Information -->
+				<p> Username: {{ user.username }}</p>
+				<p> Affiliation: {{ geni_user.affiliation }}</p>
+				<p> Port: {{ geni_user.port }}</p>
+				
+				<p> Public Key: <a href="publickey.url"> <button> Download </button> </a> </p>
+				<p> 
+					Private Key: <a href="privatekey.url"> <button> Download </button> </a>
+					<form method="POST" action="mainscript.url" target="#"> 
+						<input type="hidden" name="keyToDelete" value="Something"> </input>
+						<input type="submit" value="Delete"> </input> 
+					</form>
+				</p>
+			
+			</div>
+			
+			<div id="window2" class="window">
+			  <!-- Donations -->
+				<div class="tables">
+					<table class="donation_table">
+						<caption> My Donations </caption>
+						<tr> <th> IP Address </th> <th> Time Added </th> </tr>
+						{% for donation in donations %}
+						<tr> <td> {{ donation.ip }} </td> <td> {{ donation.port }} </td> </tr>
+						{% endfor %}
+					</table> 
+					<br/>
+					<table class="donation_table">
+						<caption> Donations to Me </caption>
+						<tr> <th> Username </th> <th> Percentage </th> </tr>
+						<tr> <td> Item 1 </td> <td> Item 2 </td> </tr>
+					</table>
+				</div>
+				<div class="sideWindow"> 
+				  <br><br>
+					<h2> Your Installers </h2>
+					<a href="Installers.url"> <button id="installerLink"> Installers Page </button> </a> <br/>
+					<a class="icons" href="windows.exe"> <img src="{{ MEDIA_URL }}win.jpg" alt="windows"/> </a>
+					<a class="icons" href="mac.exe"> <img src="{{ MEDIA_URL }}osx.png" alt="mac"/> </a>
+					<a class="icons" href="linux.exe"> <img src="{{ MEDIA_URL }}linux.jpg" alt="linux" /> </a> 
+				</div>
+			</div>
+			
+			<div id="window3" class="window">
+			  <!-- Used Resources -->
+				<div class="tables">
+					<table class="donation_table">
+						<caption> Mine </caption>
+						<tr> <th> IP Address </th> <th> Port </th> </tr>
+						<tr> <td> Item 1 </td> <td> Item 2 </td> </tr>
+					</table> 
+					<br/>
+					<table class="donation_table">
+						<caption> Shared </caption>
+						<tr> <th> Username </th> <th> IP Address </th> <th> Port </th> </tr>
+						<tr> <td> Item 1 </td> <td> Item 2 </td> <td> Item 3 </td> </tr>
+					</table>
+				</div>
+				<div class="sideWindow">
+				  <br><br>
+					<h2> Get More </h2>
+					<form method="POST" action="privatekey.url" target="#">
+						<p> #
+							<select name="number"> 
+								<option> 1 </option>
+							</select>
+							<select name="Lan_Option">  
+								<option> LAN </option>
+								<option> WAN </option>
+								<option> RAND </option>
+							</select>
+							<input type="submit" value="GET"/>
+						</p>
+					</form>
+				</div>
+			</div>
+			<div id="window4" class="window">
+			  <!-- Shared Resources -->
+				<table class="donation_table">
+					<caption> Shared </caption>
+					<tr> <th> User ID </th> <th> Percentage </th> </tr>
+					{% for share in shares %}
+					<tr> <td> {{ share.to_user.www_user.username }} </td> <td> {{ share.percent }} </td> </tr>
+					{% endfor %}
+				</table> 
+				<br/>
+				<button> Add New </button> <button> Update </button>
+			</div>
+		</div>
+		
+	</body>
+</html>
+
+{% include "common/footer.html" %}

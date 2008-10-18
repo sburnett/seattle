@@ -1,0 +1,157 @@
+* {
+	margin: 0;
+	padding: 0;
+}
+
+body {
+	background-color: #fff;
+	font-size: 14pt;
+	font-weight: bold;
+	font-family: "Segoe UI", "Lucida Grande", "Helvetica" , sans-serif;
+}
+
+a {
+	text-decoration: none;
+}
+
+img {
+	border: none;
+}
+
+#content {
+	margin: 5px;
+	padding: 5px;
+	width: 1250px;
+}
+
+h2 {
+	
+}
+h1 {
+	margin-top: 10px;
+	font-size: 32pt;
+	margin-bottom: 25px;
+	border-bottom: 2px solid #000;
+	padding-left: 20px;
+}
+
+#main {
+	padding: 10px auto;
+}
+
+ul li {
+	border-bottom: 1px solid #CED7E5;
+	border-left: 1px solid #CED7E5;
+	border-right: 1px solid #CED7E5;
+	background-color: #FFF;
+	font-size: 14pt;
+	margin-top: 2px;
+	height: 40px;
+	display: inline;
+	list-style: none;
+	padding-left: 20px;
+	padding-right: 20px;
+	text-align: center;
+}
+
+#Tabs {
+	width: 1000px;
+	margin-left: auto;
+	margin-right: auto;
+	text-align: center;
+	margin-bottom: 5px;
+}
+
+#window1{
+	width: 1000px;
+	height: 1000px;
+	margin-left: auto;
+	margin-right: auto;
+}
+
+#window2 {
+	display:none;
+	width: 1000px;
+	height: 1000px;
+	margin-left: auto;
+	margin-right: auto;
+}
+
+.donation_table {
+	font-size: 14pt;
+	text-align: center;
+	border: solid 2px black;
+	margin-left: auto;
+	margin-right:auto;
+}
+
+.highlighted {
+	background-color: green;
+}
+
+th, td {
+	padding-left: 20px;
+	border: solid 2px black;
+	padding-right: 20px;
+}
+#window1 {
+	padding-top: 20px;
+	font-size: 18pt;
+	width: 1000px;
+	height: 500px;
+	margin-left: auto;
+	margin-right: auto;
+	border: 1px solid black;
+}
+
+#window2 {
+	display:none;
+	width: 1000px;
+	height: 500px;
+	margin-left: auto;
+	border: 1px solid black;
+	margin-right: auto;
+}
+
+#window3 {
+	display:none;
+	width: 1000px;
+	height: 500px;
+	margin-left: auto;
+	margin-right: auto;
+	border: 1px solid black;
+}
+
+#window4 {
+	display:none;
+	width: 1000px;
+	height: 500px;
+	border: 1px solid black;
+	margin-left: auto;
+	margin-right: auto;
+}
+
+.sideWindow {
+	width:400px;
+	height:500px;
+	position: absolute;
+	left: 735px;
+	top: 137px;
+	border-left: solid 2px black;
+	text-align: center;
+}
+.tables {
+	width: 600px;
+}
+
+#installerLink {
+	font-size: 16pt;
+	width: 200px;
+	height: 50px;
+	margin-top: 50px;
+	margin-bottom: 50px;
+}
+
+.icons {
+	margin: 15px;
+}

@@ -1,0 +1,31 @@
+{% include "common/header.html" %}
+{% block content %}
+
+<body>
+{% include "common/banner.html" %}
+
+<div id="Tabs"> 
+  
+  
+  <form method="post" action=".">
+    <h3>Login</h3><br><br>
+    {% if err %}
+    <p><font color="red">{{ err }}</font></p><br>
+    {% endif %}
+  
+    {{ form.username.label_tag }} {{ form.username }}<br>
+    {{ form.password.label_tag }} {{ form.password }} <br>
+    <input type="submit" value="login" />
+    <input type="hidden" name="next" value="{{ next }}" />
+  </form>
+
+  
+  <br><b>OR</b><br><br>
+  
+  <a href="/geni/accounts/register/">Register for a New Account</a>
+  
+</div>
+</body>
+{% endblock %}
+
+{% include "common/footer.html" %}

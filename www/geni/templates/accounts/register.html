@@ -1,0 +1,29 @@
+{% include "common/header.html" %}
+{% block content %}
+
+<body>
+{% include "common/banner.html" %}
+
+<div id="Tabs"> 
+
+  <h3>Register for a GENI account</h3><br>
+
+  <form action="." method="POST">
+    {% for field in form %}
+    <div class="fieldWrapper">
+      {{ field.errors }}
+      {{ field.label_tag }}: {{ field }}
+    </div>
+    {% endfor %}
+    <p><input type="submit" value="Register" /></p>
+  </form>
+
+  <br><b>OR</b><br><br>
+
+  <a href="/geni/accounts/login/">Log In</a>
+
+</div>
+</body>
+
+{% endblock %}
+{% include "common/footer.html" %}
