@@ -279,6 +279,9 @@ def addfiletovessel(vesselname,filename, filedata):
     assert_is_allowed_filename(filename)
   except TypeError, e:
     raise BadRequest(str(e))
+    
+  if filename=="":
+    raise BadRequest("Filename is empty")
 
   writefo = open(vesselname+"/"+filename,"w")
   writefo.write(filedata)
