@@ -1,0 +1,11 @@
+Procedure for building Windows installer (will be automated soon):
+If any changes have been made to the seattle code itself: 
+1. Run preparetest.py with the seattle_files directory as its target.
+2. Go to the seattle_files directory and run nminit.py.
+3. Go through the files in this directory and delete unnecessary ones as listed in preparetest_files.txt.
+Regardless of what changes have been made:
+4. Copy the partial_win.zip file and rename it to whatever you want the install zip file to be called.
+5. Add install.bat and install.py to the folder "seattle_repy" inside the zip file. 
+5. Add the FILES from the scripts directory and the seattle_files directory to this zip file - it is important that you add the files themselves, and not the folders.
+
+You're finished! The win.zip file should now have a whole bunch of files and then a few folders related to Python (DLLs/, include/, Lib/, libs/) in it.
