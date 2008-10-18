@@ -1,14 +1,16 @@
 var counter;
 vesselLengths = [1056, 0, 0, 0, 0, 0, 0, 0]
 vesselOwners = ["","","","","","","",""]
-vessel1Users = []
-vessel2Users = []
-vessel3Users = []
-vessel4Users = []
-vessel5Users = []
-vessel6Users = []
-vessel7Users = []
-vessel8Users = []
+vesselUsers = createArray();
+userTally = [0, 0, 0, 0, 0, 0, 0, 0];
+
+function createArray() {
+	var temp = new Array(8);
+	for (i = 0; i < temp.length; ++i) {
+		temp[i] = new Array(200);
+	}
+	return temp;
+};
 
 window.onload = function () {
 	counter = 1;
@@ -30,6 +32,7 @@ window.onload = function () {
 			var index = (Number)(parent.id[8]);
 			if (draggable.id.substring(0, 4) == "owner") {
 				var defaultNode = document.createElement("li");
+				vesselOwners[index] = "";
 				defaultNode.textContent = "Add Owner";
 				defaultNode.id = "owner" + index;
 				parent.appendChild(defaultNode);
@@ -40,6 +43,8 @@ window.onload = function () {
 				adds[index].style.height = (parseInt(adds[index].style.height) + 53) + "px";
 				adds[index].style.lineHeight = (parseInt(adds[index].style.lineHeight) + 53) + "px";
 				draggable.remove();
+				vesselUsers[index][userTally[index]] = "";
+				userTally[index]--;
 				//fixheights(adds);
 			}	
 			
@@ -256,6 +261,8 @@ function addUserToList(draggable, droppable) {
 	var vessels = $$(".vessel");
 	var addBox = createAddUserBox(lastheight);
 	droppable.appendChild(addBox);	
+	vesselUsers[index][userTally[index]] = (draggable.textContent.substring(0, length-1));
+	userTally[index]++;
 }
 
 function updateVessels() {
