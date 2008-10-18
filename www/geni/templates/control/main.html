@@ -26,7 +26,7 @@
 				<p> 
 					Private Key: <a href="privatekey.url"> <button> Download </button> </a>
 					<form method="POST" action="mainscript.url" target="#"> 
-						<input type="hidden" name="keyToDelete" value="Something"> </input>
+						<input type="hidden" name="keyToDelete" value={{ user.username }}> </input>
 						<input type="submit" value="Delete"> </input> 
 					</form>
 				</p>
@@ -100,13 +100,13 @@
 						<caption> Shared </caption>
 						<tr> <th> User ID </th> <th> Percentage </th> </tr>
 						{% for share in shares %}
-						<tr> <td> {{ share.to_user.www_user.username }} </td> <td> {{ share.percent }} </td> </tr>
+						<tr> <td> {{ share.to_user.www_user.username }} </td> <td> <input type="text" value={{ share.percent }}/> </td> </tr>
 						{% endfor %}
 					</table> 
 					<br/>
 					<button> Update </button>
 				</form>
-				<form method="POST" action="privatekey.url" target="#">
+				<form method="POST" action="privatekey.url/" target="#">
 					<p> User ID: <input type="text" name="UserID"/> <br/>
 						Percent: <input type="text" name="Percent"/> <br/>
 						<input type="submit" value="Add New"/>
