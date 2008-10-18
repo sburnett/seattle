@@ -1,0 +1,46 @@
+""" 
+Author: Justin Cappos
+
+Module: Node Manager key pair initializer.  
+
+Start date: October 17rd, 2008
+
+Adapted from nminit.py
+
+"""
+
+# need repy portability 
+from repyportability import *
+
+# need to generate a public key
+include rsa.repy
+
+
+import persist
+
+
+
+
+# init the keys...
+def initialize_keys():
+
+  # initialize my configuration file.   This involves a few variables:
+  #    pollfrequency --  the amount of time to sleep after a check when "busy
+  #                      waiting".   This trades CPU load for responsiveness.
+  #    ports         --  the ports the node manager could listen on.
+  #    publickey     --  the public key used to identify the node...
+  #    privatekey    --  the corresponding private key for the node...
+  #
+  # Only the public key and private key are set here...
+  configuration = persist.restore_object('nodeman.cfg')
+
+  keys = rsa_gen_pubpriv_keys(640)
+  configuration['publickey'] = keys[0]
+  configuration['privatekey'] = keys[1]
+
+
+  persist.commit_object(configuration,"nodeman.cfg")
+
+
+if __name__ == '__main__':
+  initialize_keys() 
