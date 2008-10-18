@@ -2,6 +2,10 @@ include time.repy
 include nmclient.repy
 include rsa.repy
 
+# needs to be done once...
+def initialize_time():
+  time_updatetime(34612)
+
 
 def changeusers(userpubkeylist, nmip, nmport, vesselname, nodepubkey, nodeprivkey):
 
