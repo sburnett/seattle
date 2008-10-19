@@ -23,7 +23,7 @@
 				<p> Port: {{ geni_user.port }}</p>
 				
 				<p> Public Key: <a href="publickey.url"> <button> Download </button> </a> </p>
-				<p> 
+				<p id="inline"> 
 					Private Key: <a href="privatekey.url"> <button> Download </button> </a>
 					<form method="POST" action="mainscript.url" target="#"> 
 						<input type="hidden" name="keyToDelete" value={{ user.username }}> </input>
