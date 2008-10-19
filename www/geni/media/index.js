@@ -9,11 +9,11 @@ window.onload = function() {
 	}
 	alert(BrowserDetect.OS);
 	if (BrowserDetect.OS == "Windows") {
-		$("win").src = "{{ MEDIA URL }}bigwin.jpg";
+		$("win").src = "/geni/media/bigwin.jpg";
 	} else if (BrowserDetect.OS == "Mac") {
-		$("osx").src = "{{ MEDIA URL }}bigosx.jpg";
+		$("osx").src = "/geni/media/bigosx.jpg";
 	} else if (BrowserDetect.OS == "Linux") {
-		$("linux").src = "{{ MEDIA URL }}biglinux.jpg";
+		$("linux").src = "/geni/media/biglinux.jpg";
 	} else {
 	}
 	$("checkAll").onclick = checkAll;
