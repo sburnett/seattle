@@ -204,6 +204,14 @@ th, td {
 	text-align: center;
 }
 
+#table1 {
+	width: 300px;
+}
+
+#table2 {
+	width: 280px;
+}
+
 .red {
 	color: red;
 	font-size: 14pt;
