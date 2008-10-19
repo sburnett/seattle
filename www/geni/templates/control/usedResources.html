@@ -1,0 +1,54 @@
+{% include "common/header.html" %}
+
+<a href="/geni/accounts/logout/">Logout</a>
+
+	<body>
+		<div id="content"> 
+			{% include "common/banner.html" %}
+			<p id="startingTab"> 1 </p>
+			<div id="Tabs"> 
+				<ul>
+					<li id="tab1" class="tab highlighted"> <a href="userInfo.html"> User Info </a> </li>
+					<li id="tab2" class="tab"> <a href="donations.html"> Donations </a> </li>
+					<li id="tab3" class="tab"> <a href="usedResources"> Used Resources </a> </li>
+				</ul>
+			
+			</div>
+			<div id="window2" class="window"> 
+			<!-- Used Resources -->
+				<div class="tables">
+					<table class="donation_table">
+						<caption> Mine </caption>
+						<tr> <th> IP Address </th> <th> Port </th> <th> Expiration </th> <th>Vessel Name </th> </tr>
+						<tr> <td> Item 1 </td> <td> Item 2 </td> <td> Item 3 </td> <td> Item 4 </td> </tr>
+					</table> 
+					<br/>
+					<table class="donation_table">
+						<caption> Shared </caption>
+						<tr> <th> Username </th> <th> IP Address </th> <th> Port </th> <th> Expiration </th> <th>Vessel Name </th> </tr>
+						<tr> <td> Item 1 </td> <td> Item 2 </td> <td> Item 3 </td> <td> Item 4 </td> <td> Item 5</td> </tr>
+					</table>
+				</div>
+				<div class="sideWindow">
+				  <br><br>
+					<h2> Get More </h2>
+					<form method="POST" action="privatekey.url" target="#">
+						<p> #
+							<select name="number"> 
+								<option> 1 </option>
+							</select>
+							<select name="Lan_Option">  
+								<option> LAN </option>
+								<option> WAN </option>
+								<option> RAND </option>
+							</select>
+							<input type="submit" value="GET"/>
+						</p>
+					</form>
+				</div>
+			</div>
+		</div>
+	</body>
+</html>
+
+{% include "common/footer.html" %}

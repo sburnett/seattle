@@ -1,14 +1,8 @@
 var count1 = 0;
 var count2 = 0;
 var count3 = 0;
-var hideWhenNumber = 5
 
 window.onload = function() {
-	var tabs = $$(".tab");
-	for (var i = 0;i < tabs.length;i++) {
-		tabs[i].onclick = switchTab;
-	}
-	alert(BrowserDetect.OS);
 	if (BrowserDetect.OS == "Windows") {
 		$("win").src = "/geni/media/bigwin.jpg";
 	} else if (BrowserDetect.OS == "Mac") {

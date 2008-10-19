@@ -1,0 +1,71 @@
+{% include "common/header.html" %}
+
+<a href="/geni/accounts/logout/">Logout</a>
+
+	<body>
+		<div id="content"> 
+			{% include "common/banner.html" %}
+			<p id="startingTab"> 1 </p>
+			<div id="Tabs"> 
+				<ul>
+					<li id="tab1" class="tab highlighted"> <a href="userInfo.html"> User Info </a> </li>
+					<li id="tab2" class="tab"> <a href="donations.html"> Donations </a> </li>
+					<li id="tab3" class="tab"> <a href="usedResources"> Used Resources </a> </li>
+				</ul>
+			
+			</div>
+			<!-- Donations -->
+				<p id="maximizer1"> </p>
+				<div class="tables">
+					<table id="table1" class="donation_table">
+						<caption> My Donations </caption>
+						<tr> <th> IP Address </th> <th> Time Added </th> </tr>
+						{% for donation in donations %}
+						<tr class="table1row"> <td> {{ donation.ip }} </td> <td> {{ donation.port }} </td> </tr>
+						{% endfor %}
+					</table> 
+					<br/>
+					<p id="maximizer2"> </p>
+					<table id="table2" class="donation_table">
+						<caption> Donations to Me </caption>
+						<tr> <th> Username </th> <th> Percentage </th> </tr>
+						<tr class="table2row"> <td> Item 1 </td> <td> Item 2 </td> </tr>
+					</table>
+				</div>
+				<!-- Shared Resources -->
+				<div id="window3" class="window">
+				<p id="maximizer3"> </p>
+				<div id="sharedResources">
+					<form method="POST" action="privatekey.url" target="#">
+						<table class="donation_table">
+							<caption> Shared </caption>
+							<tr> <th> Remove </th> <th> User ID </th> <th> Percentage </th> </tr>
+							{% for share in shares %}
+							<tr class="table3row"> <td> <input class="check" type="checkbox" name="deleteshare"/> </td> <td> {{ share.to_user.www_user.username }} </td> <td> <input type="text" value={{ share.percent }}/> </td> </tr>
+							{% endfor %}
+						</table> 
+						<button id="checkAll"> Check All </button>
+						<br/>
+						<button> Update </button>
+					</form>
+					<form method="POST" action="privatekey.url/" target="#">
+						<p> User ID: <input type="text" name="UserID"/> <br/>
+							Percent: <input type="text" name="Percent"/> <br/>
+							<input type="submit" value="Add New"/>
+						</p>
+					</form>
+				</div>
+				<div class="sideWindow"> 
+				  <br><br>
+					<h2> Your Installers </h2>
+					<a href="Installers.html"> <button id="installerLink"> Installers Page </button> </a> <br/>
+					<a class="icons" href="windows.exe"> <img id="win" src="{{ MEDIA_URL }}win.jpg" alt="windows"/> </a>
+					<a class="icons" href="mac.exe"> <img id="osx" src="{{ MEDIA_URL }}osx.jpg" alt="mac"/> </a>
+					<a class="icons" href="linux.exe"> <img id="linux" src="{{ MEDIA_URL }}linux.jpg" alt="linux" /> </a> 
+				</div>
+			</div>
+		</div>
+	</body>
+</html>	
+
+{% include "common/footer.html" %}
