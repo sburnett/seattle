@@ -8,26 +8,26 @@
 
   <h3>Register for a GENI account</h3><br>
 	<div id="registration">
-	  <form action="." method="POST">
+	  <form action="." method="POST" enctype="multipart/form-data">
 
-	    {% if form.username.errors or form.password1.errors or form.password2.errors %}
-	    <p><font size=3 color="red">
+	    {% if form.username.errors or form.password1.errors or form.password2.errors or form.affiliation.errors or form.pubkey.errors %}
+	    <p><font color="red">
 		Please correct the following:
 		{{ form.username.errors }}
 		{{ form.password1.errors }}
 		{{ form.password2.errors }}
+		{{ form.affiliation.errors }}
+		{{ form.pubkey.errors }}
 	    </font></p><br>
 	    {% endif %}
 	    
-	    {{ form.username.label_tag }} {{ form.username }}<br>
-	    {{ form.password1.label_tag }} {{ form.password1 }}<br>
-	    {{ form.password2.label_tag }} {{ form.password2 }}<br>
-		<div class="fieldWrapper">
-		  <p> Affiliation <input name="affiliation" type="text"/> </p>
-		</div>
-		<div class="fieldWrapper">
-		  <p> Public Key <input name="pubkey" type="file"/> </p>
-		</div>
+	    {{ form.username.label_tag }}<font color="red">*</font> {{ form.username }}<br>
+	    {{ form.password1.label_tag }}<font color="red">*</font> {{ form.password1 }}<br>
+	    {{ form.password2.label_tag }}<font color="red">*</font> {{ form.password2 }}<br>
+	    {{ form.affiliation.label_tag }}<font color="red">*</font> {{ form.affiliation }}<br>
+	    <div class="fieldWrapper">
+	      <p> Public Key <input name="pubkey" type="file"/> </p>
+	    </div>
 	    <p><input type="submit" value="Register" /></p>
 	  </form>
 	</div>

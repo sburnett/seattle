@@ -4,21 +4,31 @@ from django.http import HttpResponse
 from django.contrib.auth import authenticate, login
 import django.contrib.auth as auth
 from django.views.generic.simple import direct_to_template
-from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.forms import AuthenticationForm
+import forms
+from geni.control.models import User
 
 def register(request):
     '''
     User registration page
     '''
     if request.method == 'POST':
-        form = UserCreationForm(request.POST)
+        form = forms.UserCreationForm(request.POST, request.FILES)
         if form.is_valid():
+            txt_pubkey = ""
+            if 'pubkey' in request.FILES:
+                file = request.FILES['pubkey']
+                if file.size > 2048:
+                    return HttpResponse("Public key too large, file size limit is 2048 bytes")
+                txt_pubkey = file.read()
             # this saves the user's record to the database
             new_user = form.save()
+            # this creates and saves the geni user in the database
+            geni_user = User(www_user = new_user, port=9112, affiliation=form.cleaned_data['affiliation'], pubkey=txt_pubkey, privkey="")
+            geni_user.save_new_user()
             return HttpResponseRedirect("/geni/accounts/login/")
     else:
-        form = UserCreationForm()
+        form = forms.UserCreationForm()
     return direct_to_template(request,'accounts/register.html', {'form' : form})
 
 def login(request):

@@ -20,15 +20,26 @@
 				<p> Username: {{ user.username }}</p>
 				<p> Affiliation: {{ geni_user.affiliation }}</p>
 				<p> Port: {{ geni_user.port }}</p>
-				
-				<p> Public Key: <a href="publickey.url"> <button> Download </button> </a> </p>
-				<p id="inline"> 
-					<form method="POST" action="mainscript.url" target="#"> 
+
+				<form method="POST" action="/geni/control/keys/dlpub" target="#"> 
+					<p> Public Key: <a href="publickey.url"> <button> Download </button> </a> </p>
+					<p id="inline">
+				</form>
+
+				{% ifequal geni_user.priv "" %}
+					<form method="POST" action="/geni/control/keys/dlpriv" target="#"> 
 						Private Key: <a href="privatekey.url"> <button> Download </button> </a>
-						<input type="hidden" name="keyToDelete" value={{ user.username }}> </input>
-						<input type="submit" value="Delete"> </input> 
-						<p class="red"> It is recommended you remove the private key from the server for your security </p>
 					</form>
+					<form method="POST" action="/geni/control/keys/delpriv" target="#"> 
+						<input type="hidden" name="keyToDelete" value={{ user.username }}> </input>
+						<input type="submit" value="Delete"> </input>
+					</form>
+					  <p class="red"> For better
+					    security we recommend that you
+					    download and remove your private key
+					    from the server. Alway store your
+					    private key in a secure location. </p>
+				{% endifequal %}
 				</p>
 			
 			</div>

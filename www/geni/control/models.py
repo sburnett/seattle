@@ -1,5 +1,18 @@
 from django.db import models
 from django.contrib.auth.models import User as DjangoUser
+from django.db import connection
+
+def pop_key():
+    cursor = connection.cursor()
+    cursor.execute("BEGIN")
+    cursor.execute("SELECT id,pub,priv FROM keygen.keys_512 limit 1")
+    row = cursor.fetchone()
+    if row == ():
+        cursor.execute("ABORT")
+        return []
+    cursor.execute("DELETE from keygen.keys_512 WHERE id=%d"%(row[0]))
+    cursor.execute("COMMIT")
+    return [row[1],row[2]]
 
 class User(models.Model):
     # link GENI user to django user record which authenticates users
@@ -9,8 +22,20 @@ class User(models.Model):
     port = models.IntegerField("User's port")
     # affiliation
     affiliation = models.CharField("Affiliation", max_length=1024)
+    # public key
+    pubkey = models.CharField("Public Key", max_length=2048)
+    # private key
+    privkey = models.CharField("Private Key", max_length=4096)
     def __unicode__(self):
         return self.www_user.username
+
+    def save_new_user(self):
+        if self.pubkey == "":
+            pubpriv=pop_key()
+            if pubpriv == []:
+                return
+            self.pubkey,self.privkey = pubpriv
+        self.save()
     
 class Donation(models.Model):
     # user donating

@@ -2,6 +2,7 @@ from django.http import Http404
 import datetime
 from models import User,Donation,Vessel,VesselMap,Share
 from django.http import HttpResponseRedirect
+from django.http import HttpResponse
 from django.core.urlresolvers import reverse
 from django.shortcuts import render_to_response, get_object_or_404
 from django.views.generic.simple import direct_to_template
@@ -15,12 +16,10 @@ import sys
 @login_required()
 def main(request):
     try:
-        #user = request.user.get_profile()
         geni_user = User.objects.get(www_user = request.user)
     except User.DoesNotExist:
-        # TODO: except DoesNotExist -- where is this exception defined?
-        geni_user = User(www_user = request.user, port=9112 , affiliation="UW")
-        geni_user.save()
+        # this should never happen if the user registered -- show server error of some kind
+        return HttpResponse("User registration for this user is incomplete [auth records exists, but user profile is absent], please contact seattle-help@cs.washington.edu.")
 
     mydonations = Donation.objects.filter(user = geni_user)
     myvessels = VesselMap.objects.filter(user = geni_user)
