@@ -217,3 +217,7 @@ th, td {
 	color: red;
 	font-size: 14pt;
 }
+
+#maximizer1, #maximizer2, #maximizer3 {
+	color: blue;
+}
