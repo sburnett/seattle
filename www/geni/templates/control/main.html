@@ -64,14 +64,14 @@
 					</table>
 				</div>
 				<!-- Shared Resources -->
-				
+				<p id="maximizer3"> </p>
 				<div id="sharedResources">
 					<form method="POST" action="privatekey.url" target="#">
 						<table class="donation_table">
 							<caption> Shared </caption>
 							<tr> <th> Remove </th> <th> User ID </th> <th> Percentage </th> </tr>
 							{% for share in shares %}
-							<tr> <td> <input class="check" type="checkbox" name="deleteshare"/> </td> <td> {{ share.to_user.www_user.username }} </td> <td> <input type="text" value={{ share.percent }}/> </td> </tr>
+							<tr class="table3row"> <td> <input class="check" type="checkbox" name="deleteshare"/> </td> <td> {{ share.to_user.www_user.username }} </td> <td> <input type="text" value={{ share.percent }}/> </td> </tr>
 							{% endfor %}
 						</table> 
 						<button id="checkAll"> Check All </button>

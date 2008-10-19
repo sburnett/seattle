@@ -158,14 +158,15 @@ th, td {
 }
 .tables {
 	width: 700px;
-	bottom: 100px;
+	margin-bottom: 100px;
 }
 
 #sharedResources {
-	padding-top: 50px;
+	padding-top: 20px;
 	border-top: 2px solid black;
 	text-align: center;
 	width: 700px;
+	display: none;
 }
 
 #installerLink {

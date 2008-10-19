@@ -1,5 +1,6 @@
 var count1 = 0;
 var count2 = 0;
+var count3 = 0;
 
 window.onload = function() {
 	var tabs = $$(".tab");
@@ -18,11 +19,26 @@ window.onload = function() {
 	var count = tally();
 	$("maximizer1").textContent = "+" + "   " + count1 + " Machines";
 	$("maximizer2").textContent = "+" + "   " + count2 + " Machines";
+	$("maximizer3").textContent = "+" + "   " + count3 + " Machines";
+	try { if(!maximizer3.innerText) maximizer3.innerText = maximizer3.textContent; } catch(e) {}
 	try { if(!maximizer1.innerText) maximizer1.innerText = maximizer1.textContent; } catch(e) {}
 	try { if(!maximizer2.innerText) maximizer2.innerText = maximizer2.textContent; } catch(e) {}
 	$("maximizer1").onclick = table1unhide;
 	$("maximizer2").onclick = table2unhide;
+	$("maximizer3").onclick = table3unhide;
 };
+
+function table1unhide() {
+	$("sharedResources").style.display = "block";
+	$("maximizer3").textContent = "-" + "   " + count3 + " Machines";
+	try { if(!maximizer3.innerText) maximizer3.innerText = maximizer3.textContent; } catch(e) {}
+	$("maximizer3").onclick = function() {
+		$("sharedResources").style.display = "none";
+		$("maximizer3").textContent = "+" + "   " + count3 + " Machines";
+		try { if(!maximizer3.innerText) maximizer3.innerText = maximizer3.textContent; } catch(e) {}
+		$("maximizer1").onclick = table3unhide;
+	}
+}
 
 function table1unhide() {
 	$("table1").style.display = "block";
@@ -51,11 +67,15 @@ function table2unhide() {
 function tally() {
 	var list1 = $$(".table1row");
 	var list2 = $$(".table2row");
+	var list3 = $$(".table3row");
 	for (var i = 0;i < list1.length;i++) {
 		count1++;
 	}
 	for (var j = 0;j < list2.length;j++) {
 		count2++;
+	}
+	for (var i = 0;i < list2.length;i++) {
+		count3++;
 	}
 }
 
