@@ -157,7 +157,7 @@ th, td {
 	border-left: solid 2px black;
 	text-align: center;
 }
-.tables, #sharedResources {
+.tables {
 	width: 600px;
 }
 
