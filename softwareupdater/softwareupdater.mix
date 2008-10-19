@@ -25,6 +25,7 @@ import socket   # we'll make it so we don't hang...
 import tempfile
 
 include signeddata.repy
+include sha.repy
 
 # MIX: fix the fact that I don't have or need the getruntime() call...
 def time_gettime():
@@ -35,10 +36,12 @@ def time_gettime():
 logfileobj = None
 
 
-softwareurl = "http://www.cs.arizona.edu/people/justin/seattle/"
+softwareurl = "http://seattle.cs.washington.edu/couvb/updater/"
 
 # embedded this because it seems easier to update it along with this file
-nodemanagerpublickey = {'e':90828751313604138861138199375516065418794160799843599128558705100285394924191002288444206024669046851496823164408997538063597164575888556545759466459359562498107740756089920043807948902332473328246320686052784108549174961107584377257390484702552802720358211058670482304929480676775120529587723588725818443641, 'n':525084957612029403526131505174200975825703127251864132403159502859804160822964990468591281636411242654674747961575351961726000088901250174303367500864513464050509705219791304838934936387279630515658887485539659961265009321421059720176716708947162824378626801571847650024091762061008172625571327893613638956683252812460872115308998220696100462293803622250781016906532481844303936075489212041575353921582380137171487898138857279657975557703960397669255944572586836026330351201015911407019810196881844728252349871706989352500746246739934128633728161609865084795375265234146710503588616865119751368455059611417010662656542444610089402595766154466648593383612532447541139354746065164116466397617384545008417387953347319292748418523709382954073684016573202764322260104572053850324379711650017898301648724851941758431577684732732530974197468849025690865821258026893591314887586229321070660394639970413202824699842662167602380213079609311959732523089738843316936618119004887003333791949492468210799866238487789522341147699931943938995266536008571314911956415053855180789361316551568462200352674864453587775619457628440845266789022527127587740754838521372486723001413117245220232426753242675828177576859824828400218235780387636278112824686701}
+# Every computer running Seattle will have this same public key, and will trust
+# files signed by this key.
+softwareupdatepublickey = {'e':13221289395445914976130679314453626168966276217387787137080871341273852287573185994316352310444900014240262985628610006672282068241549946863146960020013171, 'n':1589456940628178955622789749467545098429716176817312937418225345848632319292218339145226317399290629352674850322043552215595238300420898593467248333987806485667943573607695797169463632993260829462338883909633640668087994191157092930310301121714211922849471156670352177769152675051338521583192110381238628036973343453550038815066340543971127144267796668792727916870140829333544141931409253248778119440181349458837376093509047447913691446118992104354729154198141235419080987635709890725086481369056205089476633891607372392333981127723122192237324181348217014560722397261768689966319923830564263221938291067470882342071}
 
 
 
@@ -112,7 +115,7 @@ def do_rsync(serverpath, destdir, tempdir):
   newmetafileobject.close()
 
   # Incorrectly signed, we don't update...
-  if not signeddata_issignedcorrectly(newmetafiledata, nodemanagerpublickey):
+  if not signeddata_issignedcorrectly(newmetafiledata, softwareupdatepublickey):
     return []
 
   try:
@@ -126,7 +129,7 @@ def do_rsync(serverpath, destdir, tempdir):
 
   else:
     # they're both good.   Let's compare them...
-    shoulduse, reasons = signeddata_shouldtrust(oldmetafiledata,newmetafiledata,nodemanagerpublickey)
+    shoulduse, reasons = signeddata_shouldtrust(oldmetafiledata,newmetafiledata,softwareupdatepublickey)
 
     if shoulduse == True:
       # great!   All is well...
@@ -136,15 +139,18 @@ def do_rsync(serverpath, destdir, tempdir):
       if len(reasons) == 1 and reasons[0] == 'Cannot check expiration':
         # we should probably allow this.  The node may be offline 
         log("Warning:"+str(reasons))
+        print "Warning:"+str(reasons)
         pass
       elif 'Timestamps match' in reasons:
         # Already seen this one...
         log(reasons)
+        print str(reasons)
         return []
 
     elif shoulduse == False:
       # Let's assume this is a bad thing and exit
       log(reasons)
+      print str(reasons)
       return []
     
 
@@ -179,10 +185,12 @@ def do_rsync(serverpath, destdir, tempdir):
       # oh crap!   The hash doesn't match what we thought
       if get_file_hash(tempdir+filename) != filehash:
         log("Hash mismatch on file '"+filename+"'")
+        print 'Hash download: '+str(filehash)
+        print 'Hash computed: '+str(get_file_hash(tempdir+filename))
         raise RsyncError, "Hash of file '"+filename+"' does not match information in metainfo file"
 
       # put this file in the list of files we need to update
-      updatedfiles.append(filename)
+      updatedfiles.append(filename)      
 
 
   # copy the files to the local dir...
@@ -258,6 +266,10 @@ def init():
   tempdir = tempfile.mkdtemp()+"/"
   try:
     do_rsync(softwareurl, "download.test/",tempdir)
+  except:
+     # We continue if this happens later, 
+     # so we should do so now as well
+     pass
   finally:
     shutil.rmtree(tempdir)
       
@@ -320,7 +332,7 @@ def restart_software_updater():
   thismutex = get_mutex()
 
   # starts new with arg that is the mutex 
-  junkupdaterobject = subprocess.Popen(["python","nodemanager.py",thismutex])
+  junkupdaterobject = subprocess.Popen(["python","nmmain.py",thismutex])
 
   # wait for some time (1 minute) for them to init and stop them if they don't
   for junkcount in range(30):
@@ -349,7 +361,7 @@ def restart_client(filenamelist):
 
   # run the node manager.   I rely on it to do the smart thing (handle multiple
   # instances, etc.)
-  junkprocessobject = subprocess.Popen(["python","nodemanager.py"])
+  junkprocessobject = subprocess.Popen(["python","nmmain.py"])
   
   # I don't do anything with the processobject.  The process will run for some 
   # time, perhaps outliving me (if I'm updated first)
@@ -417,6 +429,7 @@ def main():
     # oh! I've changed too.   I should restart...   search for MUTEX for info
     if restartme:
       restart_software_updater()
+    
 
 if __name__ == '__main__':
   # problems here are fatal.   If they occur, the old updater won't stop...
