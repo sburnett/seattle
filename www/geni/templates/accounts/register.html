@@ -7,23 +7,23 @@
 <div id="Tabs"> 
 
   <h3>Register for a GENI account</h3><br>
-
-  <form action="." method="POST">
-    {% for field in form %}
-    <div class="fieldWrapper">
-      {{ field.errors }}
-      {{ field.label_tag }}: {{ field }}
-    </div>
-    {% endfor %}
-	<div class="fieldWrapper">
-		<p> Affiliation: <input name="id_affiliation" type="text"/> </p>
+	<div id="registration>
+	  <form action="." method="POST">
+	    {% for field in form %}
+	    <div class="fieldWrapper">
+	      {{ field.errors }}
+	      {{ field.label_tag }}: {{ field }}
+	    </div>
+	    {% endfor %}
+		<div class="fieldWrapper">
+			<p> Affiliation: <input name="id_affiliation" type="text"/> </p>
+		</div>
+		<div class="fieldWrapper">
+			<p> Public Key: <input name="id_publickey" type="file"/> </p>
+		</div>
+	    <p><input type="submit" value="Register" /></p>
+	  </form>
 	</div>
-	<div class="fieldWrapper">
-		<p> Public Key: <input name="id_publickey" type="file"/> </p>
-	</div>
-    <p><input type="submit" value="Register" /></p>
-  </form>
-
   <br><b>OR</b><br><br>
 
   <a href="/geni/accounts/login/">Log In</a>
