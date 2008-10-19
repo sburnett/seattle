@@ -1,6 +1,6 @@
 Procedure for building Windows installer (will be automated soon):
 If any changes have been made to the seattle code itself: 
-1. Run preparetest.py with the seattle_files directory as its target.
+1. Run preparetest.py with the seattle_repy directory as its target.
 2. Go to the seattle_files directory and run nminit.py.
 3. Go through the files in this directory and delete unnecessary ones as listed in preparetest_files.txt.
 Regardless of what changes have been made:

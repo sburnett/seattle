@@ -69,8 +69,8 @@ def main():
                     starter_script_f = open(startup + "\\" + STARTER_SCRIPT_NAME, "w")
                     script_lines = []
                     script_lines.append("@echo off\n")
-                    script_lines.append("start /min " + prog_path + "\\pythonw.exe " + prog_path + "\\softwareupdater.py\n")
-                    script_lines.append("start /min " + prog_path + "\\pythonw.exe " + prog_path + "\\nmmain.py\n")
+                    script_lines.append("start /min \"" + prog_path + "\\pythonw.exe\" \"" + prog_path + "\\softwareupdater.py\"\n")
+                    script_lines.append("start /min \"" + prog_path + "\\pythonw.exe\" \"" + prog_path + "\\nmmain.py\"\n")
                     script_lines.append("exit\n")
                     starter_script_f.writelines(script_lines)
                     starter_script_f.close()
@@ -81,7 +81,7 @@ def main():
                     uninstaller_f = open("uninstall.bat", "w")
                     script_lines = []
                     script_lines.append("@echo off\n")
-                    script_lines.append("del " + startup + "\\start_seattle.bat\n")
+                    script_lines.append("del \"" + startup + "\\start_seattle.bat\"\n")
                     script_lines.append("echo Removed seattle from startup.\n")
                     script_lines.append("echo If you wish, you may now delete this directory.\n")
                     uninstaller_f.writelines(script_lines)
