@@ -162,7 +162,7 @@ th, td {
 }
 
 #sharedResources {
-	margin-top: 100px;
+	padding-top: 50px;
 	border-top: 2px solid black;
 	text-align: center;
 	width: 700px;
