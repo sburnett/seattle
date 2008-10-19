@@ -37,11 +37,11 @@ function table1unhide() {
 }
 
 function table2unhide() {
-	$("sharedResources").style.display = "block";
+	$("table2").style.display = "block";
 	$("maximizer2").textContent = "-" + "   " + count2 + " Machines";
 	try { if(!maximizer2.innerText) maximizer2.innerText = maximizer2.textContent; } catch(e) {}
 	$("maximizer2").onclick = function() {
-		$("sharedResources").style.display = "none";
+		$("table2").style.display = "none";
 		$("maximizer2").textContent = "+" + "   " + count2 + " Machines";
 		try { if(!maximizer2.innerText) maximizer2.innerText = maximizer2.textContent; } catch(e) {}
 		$("maximizer2").onclick = table2unhide;
