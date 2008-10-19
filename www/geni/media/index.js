@@ -36,7 +36,7 @@ function table3unhide() {
 		$("sharedResources").style.display = "none";
 		$("maximizer3").textContent = "+" + "   " + count3 + " Machines";
 		try { if(!maximizer3.innerText) maximizer3.innerText = maximizer3.textContent; } catch(e) {}
-		$("maximizer1").onclick = table3unhide;
+		$("maximizer3").onclick = table3unhide;
 	}
 }
 
@@ -74,7 +74,7 @@ function tally() {
 	for (var j = 0;j < list2.length;j++) {
 		count2++;
 	}
-	for (var i = 0;i < list2.length;i++) {
+	for (var i = 0;i < list3.length;i++) {
 		count3++;
 	}
 }
