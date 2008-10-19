@@ -18,11 +18,11 @@ def main():
     try:
         # Check that we're running a supported version of Python
         version = sys.version.split(" ")[0].split(".")
-        if version[0] != 2 or version[1] != 5:
+        if version[0] != '2' or version[1] != '5':
             # If we're not, display an error and fail
             # TODO: This should be more robust - perhaps it can install the
             # correct version of Python, like the Windows installer
-            output("Sorry, we don't support your version of Python (Python " + version.join(".") + ").")
+            output("Sorry, we don't support your version of Python (Python " + ".".join(version) + ").")
             output("Please install Python 2.5 and try again.")
             raise InstallFailed
 
@@ -43,12 +43,13 @@ def main():
         output("Adding to startup...")
         # First, generate a temp file with the user's crontab plus
         # our task
-        cron_line = '*/10 * * * * "' + os.getcwd() + '/' + STARTER_SCRIPT_NAME + '"' + os.linesep
+        cron_line = '*/10 * * * * "' + os.getcwd() + '/' + STARTER_SCRIPT_NAME + '" &> "' + os.getcwd() + '/cron_log.txt"' +  os.linesep
         crontab_f = os.popen("crontab -l")
         temp_f = open("temp.txt", "w")
         for line in crontab_f:
             temp_f.write(line)
         temp_f.write(cron_line)
+        temp_f.close()
         # Then, replace the crontab with that file
         os.popen('crontab "' + os.getcwd() + '/temp.txt"')
         output("Done.")
@@ -57,10 +58,21 @@ def main():
         output("Generating node key pair (may take a few minutes)...")
         os.popen("python createnodekeys.py > /dev/null")
         output("Done.")
-        
-        # Start the program
+
+        # Then, setup the starter script with the name of the installation
+        # directory
         output("Starting seattle...")
-        os.popen("./" + STARTER_SCRIPT_NAME + " &")
+        starter_f = open(STARTER_SCRIPT_NAME, "r")
+        lines = []
+        for line in starter_f:
+            lines.append(re.sub("%PROG_PATH%", os.getcwd(), line))
+        starter_f.close()
+        starter_f = open(STARTER_SCRIPT_NAME, "w")
+        starter_f.writelines(lines)
+        starter_f.close()
+                
+        # Start the program
+        os.popen("./" + STARTER_SCRIPT_NAME + ' "$PWD"&')
         output("Started!")
         
         # Inform the user of what happened

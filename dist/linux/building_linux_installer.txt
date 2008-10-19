@@ -2,7 +2,8 @@ To build the linux installer (will be automated soon):
 1. Go to trunk and run 'python preparetest.py dist/linux/seattle_repy'
 2. Go to the seattle_repy folder and run 'python nminit.py'
 3. Clean up the seattle_repy folder as instructed in preparetest_files.txt (found in the parent directory)
-4. Run 'cp scripts/* seattle_files/*'.
-5. Run 'tar -czvf seattle_linx.tgz seattle_repy/'
+4. Goto the dist/linux directory and run 'cp scripts/* seattle_repy/'.
+5. Run 'tar -czvf seattle_linux.tgz seattle_repy/'
+6. Delete the seattle_repy/ directory.
 
 You're good to go!

@@ -16,6 +16,7 @@ def main():
         else:
             found = True
     if found:
+        temp_f.close()
         crontab_f.close()
         os.popen('crontab "' + os.getcwd() + '/temp.txt"') 
         
@@ -23,6 +24,7 @@ def main():
         output("Seattle has been uninstalled.")
         output("If you wish, you may now delete this directory.")
     else:
+        temp_f.close()
         output("Could not detect a seattle installation on your computer.")
     
     os.popen("rm -f temp.txt")
