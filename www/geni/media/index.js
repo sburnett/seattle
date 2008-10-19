@@ -29,7 +29,7 @@ function table1unhide() {
 	$("maximizer1").textContent = "-" + "   " + count1 + " Machines";
 	try { if(!maximizer1.innerText) maximizer1.innerText = maximizer1.textContent; } catch(e) {}
 	$("maximizer1").onclick = function() {
-		$("maximizer1").style.display = "none";
+		$("table1").style.display = "none";
 		$("maximizer1").textContent = "+" + "   " + count1 + " Machines";
 		try { if(!maximizer1.innerText) maximizer1.innerText = maximizer1.textContent; } catch(e) {}
 		$("maximizer1").onclick = table1unhide();
@@ -44,7 +44,7 @@ function table2unhide() {
 		$("sharedResources").style.display = "none";
 		$("maximizer2").textContent = "+" + "   " + count2 + " Machines";
 		try { if(!maximizer2.innerText) maximizer2.innerText = maximizer2.textContent; } catch(e) {}
-		$("maximizer2").onclick = table1unhide();
+		$("maximizer2").onclick = table2unhide();
 	}
 }
 
