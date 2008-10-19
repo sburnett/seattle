@@ -8,7 +8,7 @@ window.onload = function() {
 		tabs[i].onclick = switchTab;
 	}
 	alert(BrowserDetect.OS);
-	if (BrowserDetect.OS == "Win") {
+	if (BrowserDetect.OS == "Windows") {
 		$("win").src = "{{ MEDIA URL }}bigwin.jpg";
 	} else if (BrowserDetect.OS == "Mac") {
 		$("osx").src = "{{ MEDIA URL }}bigosx.jpg";
