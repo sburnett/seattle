@@ -51,7 +51,7 @@ def log(data):
 
 
 def get_file_hash(filename):
-  fileobj = file(filename)
+  fileobj = file(filename, 'rb')
   filedata = fileobj.read()
   fileobj.close()
 
