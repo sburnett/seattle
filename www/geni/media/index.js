@@ -17,9 +17,9 @@ window.onload = function() {
 	}
 	$("checkAll").onclick = checkAll;
 	var count = tally();
-	$("maximizer1").textContent = "+" + "   " + count1 + " Machines";
-	$("maximizer2").textContent = "+" + "   " + count2 + " Machines";
-	$("maximizer3").textContent = "+" + "   " + count3 + " Machines";
+	$("maximizer1").textContent = count1 + " Machines Donated (click to expand)";
+	$("maximizer2").textContent = count2 + " Machines Donated (click to expand)";
+	$("maximizer3").textContent = count3 + " Shares (click to expand)";
 	try { if(!maximizer3.innerText) maximizer3.innerText = maximizer3.textContent; } catch(e) {}
 	try { if(!maximizer1.innerText) maximizer1.innerText = maximizer1.textContent; } catch(e) {}
 	try { if(!maximizer2.innerText) maximizer2.innerText = maximizer2.textContent; } catch(e) {}
@@ -30,11 +30,11 @@ window.onload = function() {
 
 function table3unhide() {
 	$("sharedResources").style.display = "block";
-	$("maximizer3").textContent = "-" + "   " + count3 + " Machines";
+	$("maximizer3").textContent = count3 + " Shares (click to hide)";
 	try { if(!maximizer3.innerText) maximizer3.innerText = maximizer3.textContent; } catch(e) {}
 	$("maximizer3").onclick = function() {
 		$("sharedResources").style.display = "none";
-		$("maximizer3").textContent = "+" + "   " + count3 + " Machines";
+		$("maximizer3").textContent = count3 + " Shares (click to expand)";
 		try { if(!maximizer3.innerText) maximizer3.innerText = maximizer3.textContent; } catch(e) {}
 		$("maximizer3").onclick = table3unhide;
 	}
@@ -42,11 +42,11 @@ function table3unhide() {
 
 function table1unhide() {
 	$("table1").style.display = "block";
-	$("maximizer1").textContent = "-" + "   " + count1 + " Machines";
+	$("maximizer1").textContent = count1 + " Machines (click to hide)";
 	try { if(!maximizer1.innerText) maximizer1.innerText = maximizer1.textContent; } catch(e) {}
 	$("maximizer1").onclick = function() {
 		$("table1").style.display = "none";
-		$("maximizer1").textContent = "+" + "   " + count1 + " Machines";
+		$("maximizer1").textContent = count1 + " Machines (click to expand)";
 		try { if(!maximizer1.innerText) maximizer1.innerText = maximizer1.textContent; } catch(e) {}
 		$("maximizer1").onclick = table1unhide;
 	}
@@ -54,11 +54,11 @@ function table1unhide() {
 
 function table2unhide() {
 	$("table2").style.display = "block";
-	$("maximizer2").textContent = "-" + "   " + count2 + " Machines";
+	$("maximizer2").textContent = count2 + " Machines (click to hide)";
 	try { if(!maximizer2.innerText) maximizer2.innerText = maximizer2.textContent; } catch(e) {}
 	$("maximizer2").onclick = function() {
 		$("table2").style.display = "none";
-		$("maximizer2").textContent = "+" + "   " + count2 + " Machines";
+		$("maximizer2").textContent = count2 + " Machines (click to expand)";
 		try { if(!maximizer2.innerText) maximizer2.innerText = maximizer2.textContent; } catch(e) {}
 		$("maximizer2").onclick = table2unhide;
 	}
