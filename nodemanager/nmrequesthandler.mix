@@ -31,6 +31,8 @@ import socket
 # for logging informative errors
 import traceback
 
+# for using time_updatetime
+from repyportability import *
 
 def initialize(myip, publickey, version):
   
@@ -204,6 +206,19 @@ def process_API_call(fullrequest):
 # Raise a BadRequest exception if it's not correctly signed...
 def ensure_is_correctly_signed(fullrequest, allowedkeys, oldmetadata):
 
+  # check if time_updatetime has been called, if not, call it
+  try:
+    time_gettime()
+  except TimeError:
+    time_updatetime(34612)
+  
+  #check if request is still valid and has not expired
+  #this code has been added to resolve an issue where we are not checking of the request is expired in the case that there is no old metadata
+  thesigneddata, signature = fullrequest.rsplit('!',1)
+  junk, rawpublickey, junktimestamp, expiration, junksequenceno, junkdestination = thesigneddata.rsplit('!',5)
+  if not signeddata_iscurrent(float(expiration)):
+    raise nmAPI.BadRequest,"Bad Signature on '"+fullrequest+"'"
+    
   # ensure it's correctly signed, if not report this and exit
   if not signeddata_issignedcorrectly(fullrequest):
     raise nmAPI.BadRequest,"Bad Signature on '"+fullrequest+"'"
