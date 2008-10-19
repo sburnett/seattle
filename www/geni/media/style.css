@@ -153,8 +153,12 @@ th, td {
 	border-left: solid 2px black;
 	text-align: center;
 }
-.tables {
+.tables, #sharedResources {
 	width: 600px;
+}
+
+#sharedResources {
+	border-top: 2px solid black;
 }
 
 #installerLink {
