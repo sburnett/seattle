@@ -186,3 +186,7 @@ th, td {
 #inline {
 	display: inline;
 }
+
+.red {
+	color: red;
+}
