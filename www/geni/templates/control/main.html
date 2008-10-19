@@ -11,7 +11,6 @@
 					<li id="tab1" class="tab highlighted"> User Information </li>
 					<li id="tab2" class="tab"> Donations </li>
 					<li id="tab3" class="tab"> Used Resources </li>
-					<li id="tab4" class="tab"> Shared Resources </li>
 				</ul>
 			
 			</div>
@@ -24,8 +23,8 @@
 				
 				<p> Public Key: <a href="publickey.url"> <button> Download </button> </a> </p>
 				<p id="inline"> 
-					Private Key: <a href="privatekey.url"> <button> Download </button> </a>
 					<form method="POST" action="mainscript.url" target="#"> 
+						Private Key: <a href="privatekey.url"> <button> Download </button> </a>
 						<input type="hidden" name="keyToDelete" value={{ user.username }}> </input>
 						<input type="submit" value="Delete"> </input> 
 						<p class="red"> It is recommended you remove the private key from the server for your security </p>

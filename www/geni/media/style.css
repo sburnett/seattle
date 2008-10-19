@@ -163,6 +163,8 @@ th, td {
 
 #sharedResources {
 	border-top: 2px solid black;
+	text-align: center;
+	width: 700px;
 }
 
 #installerLink {
@@ -197,4 +199,5 @@ th, td {
 
 .red {
 	color: red;
+	font-size: 14pt;
 }
