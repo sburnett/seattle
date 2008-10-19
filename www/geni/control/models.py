@@ -42,15 +42,20 @@ class Donation(models.Model):
     user = models.ForeignKey(User)
     # machine identifier
     pubkey = models.CharField("Host public key", max_length=1024)
-    # machine ip
+    # machine ip (last IP known)
     ip = models.IPAddressField("Host IP address")
-    # node manager port
+    # node manager port (last port known)
     port = models.IntegerField("Host node manager's port")
     # date this donation was added to the db
     date_added = models.DateTimeField("Date host added", auto_now_add=True)
     # date we last heard from this machine, this field will be updated
     # every time the object is saved
     last_heard = models.DateTimeField("Last time machine responded", auto_now=True)
+    # status: "Initializing, etc"
+    status = models.CharField("Node status", max_length=1024)
+    # node's seattle version
+    version = models.CharField("Node Version", max_length=64)
+    
     def __unicode__(self):
         return "%s:%s:%d"%(self.user.www_user.username, self.ip, self.port)
         

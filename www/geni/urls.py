@@ -10,7 +10,7 @@ urlpatterns = patterns('',
                        (r'^accounts/register/$', 'geni.accounts.views.register'),
                        (r'^accounts/login/$', 'geni.accounts.views.login'), 
                        (r'^accounts/logout/$', 'django.contrib.auth.views.logout_then_login'),
-                       (r'^control/$', include('geni.control.urls')),
+                       (r'^control/', include('geni.control.urls')),
                        
                        # Uncomment the admin/doc line below and add 'django.contrib.admindocs' 
                        # to INSTALLED_APPS to enable admin documentation:

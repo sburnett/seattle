@@ -27,6 +27,9 @@ import advertise
 # for time.sleep 
 import time
 
+# db api
+import genidb
+
 
 
 # the "happy meal" resources we will use...
@@ -96,8 +99,12 @@ def pollvessels():
 
 #(might need to wrap the nodekey in rsa_publickey_to_string)
       nodeID = retdict['nodekey']
-# IVAN: looking up the donor info using the public key.
+
+      # IVAN: looking up the donor info using the public key.
+      donor_dict = genidb.lookup_donor(donorID)
+      
 # I'm treating the donor table as a dict keyed by nodeID
+      
       # We should do this if either the node is new, or if the node
       # failed during init last time
       if nodeID not in donor_dict or donor_dict[nodeID]['status'] == 'Initializing':

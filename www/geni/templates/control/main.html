@@ -78,9 +78,20 @@
 						<br/>
 						<button> Update </button>
 					</form>
-					<form method="POST" action="privatekey.url/" target="#">
-						<p> User ID: <input type="text" name="UserID"/> <br/>
-							Percent: <input type="text" name="Percent"/> <br/>
+					{% if share_form %}
+					<form method="POST" action=".">
+					{% else %}
+					<form method="POST" action="add_share/">
+					  {% endif %}
+					  {% if share_form.username.errors or share_form.percent.errors %}
+					  <p><font color="red">
+					      Please correct the following:
+					      {{ share_form.username.errors }}
+					      {{ share_form.percent.errors }}
+					  </font></p><br>
+					  {% endif %}
+					  {{ share_form.username.label_tag }} {{ share_form.username }} <br/>
+					  {{ share_form.percent.label_tag }} {{ share_form.percent }} <br/>
 							<input type="submit" value="Add New"/>
 						</p>
 					</form>
