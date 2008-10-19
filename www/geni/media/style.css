@@ -148,7 +148,7 @@ th, td {
 }
 
 .sideWindow {
-	width:400px;
+	width:300px;
 	height:500px;
 	position: absolute;
 	left: 735px;
@@ -157,7 +157,8 @@ th, td {
 	text-align: center;
 }
 .tables {
-	width: 600px;
+	width: 700px;
+	bottom: 100px;
 }
 
 #sharedResources {
