@@ -28,7 +28,7 @@ window.onload = function() {
 	$("maximizer3").onclick = table3unhide;
 };
 
-function table1unhide() {
+function table3unhide() {
 	$("sharedResources").style.display = "block";
 	$("maximizer3").textContent = "-" + "   " + count3 + " Machines";
 	try { if(!maximizer3.innerText) maximizer3.innerText = maximizer3.textContent; } catch(e) {}
