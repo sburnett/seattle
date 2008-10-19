@@ -162,6 +162,7 @@ th, td {
 }
 
 #sharedResources {
+	margin-top: 100px;
 	border-top: 2px solid black;
 	text-align: center;
 	width: 700px;
@@ -205,11 +206,11 @@ th, td {
 }
 
 #table1 {
-	width: 300px;
+	width: 280px;
 }
 
 #table2 {
-	width: 280px;
+	width: 240px;
 }
 
 .red {
