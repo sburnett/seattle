@@ -24,7 +24,7 @@ window.onload = function() {
 	$("maximizer2").onclick = table2unhide;
 };
 
-table1unhide() {
+function table1unhide() {
 	$("table1").display = "block";
 	$("maximizer1").textContent = "-" + "   " + count1 + " Machines";
 	try { if(!maximizer1.innerText) maximizer1.innerText = maximizer1.textContent; } catch(e) {}
@@ -36,7 +36,7 @@ table1unhide() {
 	}
 }
 
-table2unhide() {
+function table2unhide() {
 	$("sharedResources").display = "block";
 	$("maximizer2").textContent = "-" + "   " + count2 + " Machines";
 	try { if(!maximizer2.innerText) maximizer2.innerText = maximizer2.textContent; } catch(e) {}
