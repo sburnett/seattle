@@ -1,3 +1,6 @@
+var count1 = 0;
+var count2 = 0;
+
 window.onload = function() {
 	var tabs = $$(".tab");
 	for (var i = 0;i < tabs.length;i++) {
@@ -12,7 +15,49 @@ window.onload = function() {
 	} else {
 	}
 	$("checkAll").onclick = checkAll;
+	var count = tally();
+	$("maximizer1").textContent = "+" + "   " + count1 + " Machines";
+	$("maximizer2").textContent = "+" + "   " + count2 + " Machines";
+	try { if(!maximizer1.innerText) maximizer1.innerText = maximizer1.textContent; } catch(e) {}
+	try { if(!maximizer2.innerText) maximizer2.innerText = maximizer2.textContent; } catch(e) {}
+	$("maximizer1").onclick = table1unhide;
+	$("maximizer2").onclick = table2unhide;
 };
+
+table1unhide() {
+	$("table1").display = "block";
+	$("maximizer1").textContent = "-" + "   " + count1 + " Machines";
+	try { if(!maximizer1.innerText) maximizer1.innerText = maximizer1.textContent; } catch(e) {}
+	$("maximizer1").onclick = function() {
+		$("maximizer1").display = "none";
+		$("maximizer1").textContent = "+" + "   " + count1 + " Machines";
+		try { if(!maximizer1.innerText) maximizer1.innerText = maximizer1.textContent; } catch(e) {}
+		$("maximizer1").onclick = table1unhide();
+	}
+}
+
+table2unhide() {
+	$("sharedResources").display = "block";
+	$("maximizer2").textContent = "-" + "   " + count2 + " Machines";
+	try { if(!maximizer2.innerText) maximizer2.innerText = maximizer2.textContent; } catch(e) {}
+	$("maximizer2").onclick = function() {
+		$("sharedResources").display = "none";
+		$("maximizer2").textContent = "+" + "   " + count2 + " Machines";
+		try { if(!maximizer2.innerText) maximizer2.innerText = maximizer2.textContent; } catch(e) {}
+		$("maximizer2").onclick = table1unhide();
+	}
+}
+
+function tally() {
+	var list1 = $$(".table1row");
+	var list2 = $$(".table2row");
+	for (var i = 0;i < list1.length;i++) {
+		count1++;
+	}
+	for (var j = 0;j < list2.length;j++) {
+		count2++;
+	}
+}
 
 function switchTab() {
 	var index = (Number)(this.id[3]);

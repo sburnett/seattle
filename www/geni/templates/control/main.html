@@ -36,22 +36,24 @@
 			
 			<div id="window2" class="window">
 			  <!-- Donations -->
-				<div class="tables">
+				<p id="maximizer1"> </p>
+				<div id="table1" class="tables">
 					<table class="donation_table">
 						<caption> My Donations </caption>
 						<tr> <th> IP Address </th> <th> Time Added </th> </tr>
 						{% for donation in donations %}
-						<tr> <td> {{ donation.ip }} </td> <td> {{ donation.port }} </td> </tr>
+						<tr class="table1row"> <td> {{ donation.ip }} </td> <td> {{ donation.port }} </td> </tr>
 						{% endfor %}
 					</table> 
 					<br/>
 					<table class="donation_table">
 						<caption> Donations to Me </caption>
 						<tr> <th> Username </th> <th> Percentage </th> </tr>
-						<tr> <td> Item 1 </td> <td> Item 2 </td> </tr>
+						<tr class="table2row"> <td> Item 1 </td> <td> Item 2 </td> </tr>
 					</table>
 				</div>
 				<!-- Shared Resources -->
+				<p id="maximizer2"> </p>
 				<div id="sharedResources>
 					<form method="POST" action="privatekey.url" target="#">
 						<table class="donation_table">
