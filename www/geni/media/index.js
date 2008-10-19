@@ -3,6 +3,15 @@ window.onload = function() {
 	for (var i = 0;i < tabs.length;i++) {
 		tabs[i].onclick = switchTab;
 	}
+	if (BrowserDetect.OS == "Win") {
+		$("win").src = "{{ MEDIA URL }}bigwin.jpg";
+	} else if (BrowserDetect.OS == "Mac") {
+		$("osx").src = "{{ MEDIA URL }}bigosx.jpg";
+	} else if (BrowserDetect.OS == "Linux") {
+		$("linux").src = "{{ MEDIA URL }}biglinux.jpg";
+	} else {
+	}
+	$("checkAll").onclick = checkAll;
 };
 
 function switchTab() {
@@ -18,6 +27,12 @@ function switchTab() {
 	
 }
 
+function checkAll() {
+	var checkboxes = $$("check");
+	for (var i = 0;i < checkboxes.length;i++) {
+		checkboxes[i].checked = "true";
+	}
+}
 
 /*Free online downloaded script that can return OS, Browser Name, and Browser Version, used for browser compatibility purposes*/
 var BrowserDetect = {

@@ -56,11 +56,12 @@
 					<form method="POST" action="privatekey.url" target="#">
 						<table class="donation_table">
 							<caption> Shared </caption>
-							<tr> <th> User ID </th> <th> Percentage </th> </tr>
+							<tr> <th> Remove </th> <th> User ID </th> <th> Percentage </th> </tr>
 							{% for share in shares %}
-							<tr> <td> {{ share.to_user.www_user.username }} </td> <td> <input type="text" value={{ share.percent }}/> </td> </tr>
+							<tr> <td> <input class="check" type="checkbox" name="deleteshare"/> </td> <td> {{ share.to_user.www_user.username }} </td> <td> <input type="text" value={{ share.percent }}/> </td> </tr>
 							{% endfor %}
 						</table> 
+						<button id="checkAll"> Check All </button>
 						<br/>
 						<button> Update </button>
 					</form>
