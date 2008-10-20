@@ -274,6 +274,7 @@ function updateVessels() {
 			$("vessel" + i).style.display = "none";
 		}
 	}
+	alert(vesselLengths);
 }
 
 function addUser () {
