@@ -81,7 +81,7 @@ def main():
                     uninstaller_f = open("uninstall.bat", "w")
                     script_lines = []
                     script_lines.append("@echo off\n")
-                    script_lines.append('start /min pythonw "' + os.getcwd() + '\\seattlestopper.py"')
+                    script_lines.append('start /min pythonw "' + os.getcwd() + '\\seattlestopper.py"\n')
                     script_lines.append("del \"" + startup + "\\start_seattle.bat\"\n")
                     script_lines.append("echo Removed seattle from startup.\n")
                     script_lines.append("echo If you wish, you may now delete this directory.\n")
