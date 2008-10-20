@@ -1,0 +1,73 @@
+# Instructions for the clean_folder.py program to clean up the folder
+# created by preparetest
+# A file on a line starting with 'req' will be required
+# in the folder or an error message will print.
+# If 'req' is followed by a comma-separated series of filenames,
+# at least one of those files with be required.
+# A file on a line starting with 'del' will be deleted.
+# You may use wildcards: * for any number of characters, 
+# ? for exactly one
+
+del *.pyc
+del *.mix
+del *.publickey
+del *.privatekey
+del nmtest*
+del foo.py
+del foowrite.py
+del generatekeys.py
+del newvessel.resources
+del restrictions.test
+del softwareupdater.logfile
+
+req advertise.py
+req centralizedadvertise.repy
+req emulcomm.py
+req emulfile.py
+req emulmisc.py
+req emultimer.py
+req fakelinecache.py
+req idhelper.py
+req logging.py
+req math.repy
+req metainfo
+req misc.py
+req nanny.py
+req nmAPI.py
+req nmadvertise.py
+req nmclient.repy
+req nmconnectionmanager.py
+req nminit.py
+req nmmain,py
+req nmrequesthandler.py
+req nmresourcemath.py
+req nmstatusmonitor.py
+req nonportable.py
+req openDHTadvertise.py
+req persist.py
+req pskill.exe
+req pssuspend.exe
+req random.repy
+req repy.py
+req repyportability.py
+req repypp.py
+req restrictions.py
+req rsa.repy
+req safe.py
+req seash.py
+req session.repy
+req sha.repy
+req signeddata.repy
+req sockettimeout.repy
+req softwareupdater.py
+req statusstorage.py
+req stopfilewatcher.py
+req time.repy
+req timeutil.py
+req tracebackrepy.py
+req win_cpu_nanny
+req seattlestopper.py
+req testrunonce.py
+req createnodekeys.py
+req runonce.py
+req writemetainfo.py
