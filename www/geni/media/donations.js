@@ -4,6 +4,14 @@ var count3 = 0;
 var hideWhenNumber = 5;
 
 window.onload = function() {
+	if (BrowserDetect.OS == "Windows") {
+		$("win").src = "/geni/media/bigwin.jpg";
+	} else if (BrowserDetect.OS == "Mac") {
+		$("osx").src = "/geni/media/bigosx.jpg";
+	} else if (BrowserDetect.OS == "Linux") {
+		$("linux").src = "/geni/media/biglinux.jpg";
+	} else {
+	}
 	$("checkAll").onclick = checkAll;
 	var count = tally();
 	$("maximizer1").textContent = count1 + " Machines Donated (click to expand)";
