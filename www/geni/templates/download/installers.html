@@ -1,9 +1,11 @@
 {% include "common/header.html" %}
-
-	
+	<script src="{{ MEDIA_URL }}installers.js" type="text/javascript"></script>
 	</head>
-	<h1>Hello {{ username }}! </h1>
+	<h1>Installers for {{ username }}</h1>
 	<body>
-		
+		<a id="suggested" href="{% url installers user.username %}win.zip"> <img id="optimal" src="{{ MEDIA_URL }}bigwin.jpg" alt="windows"/> </a>
+		<a class="icons" href="{% url installers user.username %}win.zip"> <img id="win" src="{{ MEDIA_URL }}midwin.jpg" alt="windows"/> </a>
+		<a class="icons" href="{% url installers user.username %}mac.tgz"> <img id="osx" src="{{ MEDIA_URL }}midosx.jpg" alt="mac"/> </a>
+		<a class="icons" href="{% url installers user.username %}linux.tgz"> <img id="linux" src="{{ MEDIA_URL }}midlinux.jpg" alt="linux" /> </a> 
 	</body>
 </html>

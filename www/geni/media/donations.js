@@ -5,11 +5,11 @@ var hideWhenNumber = 5;
 
 window.onload = function() {
 	if (BrowserDetect.OS == "Windows") {
-		$("win").src = "/geni/media/bigwin.jpg";
+		$("win").src = "/geni/media/midwin.jpg";
 	} else if (BrowserDetect.OS == "Mac") {
-		$("osx").src = "/geni/media/bigosx.jpg";
+		$("osx").src = "/geni/media/midosx.jpg";
 	} else if (BrowserDetect.OS == "Linux") {
-		$("linux").src = "/geni/media/biglinux.jpg";
+		$("linux").src = "/geni/media/midlinux.jpg";
 	} else {
 	}
 	$("checkAll").onclick = checkAll;
