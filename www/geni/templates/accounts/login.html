@@ -7,7 +7,7 @@
 <div id="Tabs"> 
   
   
-  <form method="post" action=".">
+  <form method="post" action="{% url login %}">
     <h3>Login</h3><br><br>
     {% if err %}
     <p><font color="red">{{ err }}</font></p><br>
@@ -22,7 +22,7 @@
   
   <br><b>OR</b><br><br>
   
-  <a href="/geni/accounts/register/">Register for a New Account</a>
+  <a href="{% url register %}">Register for a New Account</a>
   
 </div>
 </body>

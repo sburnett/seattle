@@ -8,21 +8,8 @@ from django.shortcuts import render_to_response, get_object_or_404
 from django.views.generic.simple import direct_to_template
 from django.contrib.auth.decorators import login_required
 #from django.core.exceptions import ObjectDoesNotExist
-#import django.models as models
-#from  django.db.models import Model
 import sys
 import forms
-
-def main_user(request,geni_user,share_form=None):
-    mydonations = Donation.objects.filter(user = geni_user)
-    myvessels = VesselMap.objects.filter(user = geni_user)
-    myshares = Share.objects.filter(from_user = geni_user)
-
-    # donations_to_me = 
-    
-    if share_form is None:
-        share_form = forms.AddShareForm()
-    return direct_to_template(request,'control/main.html', {'geni_user' : geni_user, 'donations' : mydonations, 'vessels' : myvessels, 'shares' : myshares, 'share_form' : share_form})
 
 def validate_guser(request):
     try:
@@ -34,13 +21,36 @@ def validate_guser(request):
         return ret,False
 
 @login_required()
-def main(request):
+def donations(request):
     ret,success = validate_guser(request)
     if not success:
         return ret
     geni_user = ret
-    return main_user(request,geni_user)
 
+    mydonations = Donation.objects.filter(user = geni_user)
+    myshares = Share.objects.filter(from_user = geni_user)
+    share_form = forms.AddShareForm()
+    return direct_to_template(request,'control/donations.html', {'geni_user' : geni_user, 'donations' : mydonations, 'shares' : myshares, 'share_form' : share_form})
+
+@login_required()
+def used_resources(request):
+    ret,success = validate_guser(request)
+    if not success:
+        return ret
+    geni_user = ret
+
+    myvessels = VesselMap.objects.filter(user = geni_user)
+    return direct_to_template(request,'control/used_resources.html', {'geni_user' : geni_user, 'vessels' : myvessels})
+
+@login_required()
+def user_info(request):
+    ret,success = validate_guser(request)
+    if not success:
+        return ret
+    geni_user = ret
+
+    return direct_to_template(request,'control/user_info.html', {'geni_user' : geni_user})
+    
 @login_required()
 def add_share(request):
     ret,success = validate_guser(request)

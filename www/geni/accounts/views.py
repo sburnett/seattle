@@ -7,6 +7,7 @@ from django.views.generic.simple import direct_to_template
 from django.contrib.auth.forms import AuthenticationForm
 import forms
 from geni.control.models import User
+from django.core.urlresolvers import reverse
 
 def register(request):
     '''
@@ -26,10 +27,13 @@ def register(request):
             # this creates and saves the geni user in the database
             geni_user = User(www_user = new_user, port=9112, affiliation=form.cleaned_data['affiliation'], pubkey=txt_pubkey, privkey="")
             geni_user.save_new_user()
-            return HttpResponseRedirect("/geni/accounts/login/")
+            return HttpResponseRedirect("/geni/accounts/login")
     else:
         form = forms.UserCreationForm()
     return direct_to_template(request,'accounts/register.html', {'form' : form})
+
+def login_redirect(request):
+    return HttpResponseRedirect("/geni/accounts/login")
 
 def login(request):
     '''
@@ -58,7 +62,7 @@ def login(request):
                 #except:
                 #    pass
                 # Redirect to a success page.
-                return HttpResponseRedirect("/geni/control/")
+                return HttpResponseRedirect(reverse("user_info"))
             else:
                 # Return a 'disabled account' error message
                 err = "This account has been disabled."

@@ -1,6 +1,6 @@
 {% include "common/header.html" %}
 
-<a href="/geni/accounts/logout/">Logout</a>
+<a href="{% url logout %}">Logout</a>
 
 	<body>
 		<div id="content"> 
@@ -8,9 +8,9 @@
 			<p id="startingTab"> 1 </p>
 			<div id="Tabs"> 
 				<ul>
-					<li id="tab1" class="tab highlighted"> <a href="userInfo.html"> User Info </a> </li>
-					<li id="tab2" class="tab"> <a href="donations.html"> Donations </a> </li>
-					<li id="tab3" class="tab"> <a href="usedResources"> Used Resources </a> </li>
+					<li id="tab1" class="tab"> <a href="user_info">User Info </a></li>
+					<li id="tab2" class="tab highlighted"> Donations </li>
+					<li id="tab3" class="tab"> <a href="used_resources"> Used Resources </a> </li>
 				</ul>
 			
 			</div>
