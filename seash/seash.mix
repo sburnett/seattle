@@ -794,6 +794,11 @@ update             -- Update information about the vessels
   
         nodelist = advertise.lookup(keys[currentkeyname]['publickey'])
 
+        # If there are no vessels for a user, the lookup may return ''
+        for nodename in nodelist[:]:
+          if nodename == '':
+            nodelist.remove(nodename)
+
         # we'll output a message about the new keys later...
         newidlist = []
 
