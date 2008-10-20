@@ -19,7 +19,7 @@ if (isset($_POST)) {
 		echo $user->getName() . " is added.";
 	} else if ($_POST['action'] == 'createinstaller') {
 		$content = json_decode($_POST['content']);
-		echo "hello";
+		// echo "hello";
 		print_r($content);	
 	}
 	
@@ -77,7 +77,6 @@ class User {
 
 class Vessel {
 	
-	private $id;
 	private $percentage;
 	private $owner;
 	private $users = array();
