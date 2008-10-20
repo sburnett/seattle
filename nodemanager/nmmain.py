@@ -46,6 +46,11 @@ import persist
 
 import misc
 
+import runonce
+
+# for harshexit...
+import nonportable 
+
 
 # One problem we need to tackle is should we wait to restart a failed service
 # or should we constantly restart it.   For advertisement and status threads, 
@@ -224,8 +229,22 @@ def start_status_thread(vesseldict,sleeptime):
 def main():
 
   global configuration
-  # I'll grab the necessary information first...
+
+
+  # ensure that only one instance is running at a time...
+  gotlock = runonce.getprocesslock("seattlenodemanager")
+  if gotlock == True:
+    # I got the lock.   All is well...
+    pass
+  else:
+    if gotlock:
+      print "Another node manager process (pid: "+str(gotlock)+") is running"
+    else:
+      print "Another node manager process is running"
+    return
+
   
+  # I'll grab the necessary information first...
   print "loading config"
   # BUG: Do this better?   Is this the right way to engineer this?
   configuration = persist.restore_object("nodeman.cfg")
@@ -271,6 +290,10 @@ def main():
     if should_start_waitable_thread('status','Status Monitoring Thread'):
       print "At ",time.time(),"restarting status..."
       start_status_thread(vesseldict,configuration['pollfrequency'])
+
+    if not runonce.stillhaveprocesslock("seattlenodemanager"):
+      print "The node manager lost the process lock..."
+      nonportable.harshexit(55)
 
     time.sleep(configuration['pollfrequency'])
 
