@@ -14,9 +14,6 @@ improvements or a rewrite.
 
 
 """
-
-
-
 include time.repy
 include nmclient.repy
 include rsa.repy
@@ -29,8 +26,6 @@ import time
 
 # db api
 import genidb
-
-
 
 # the "happy meal" resources we will use...
 baseresources = """
@@ -55,20 +50,8 @@ resource connport %s
 resource connport %s
 """
 
-
-
-
 # or load with rsa_file_to_publickey('genilookupkey.publickey')
 genilookuppubkey = {'e':105218563213892243899209189701795214728063009020190852991629121981430129648590559454805294602863437180197383200157929797560056350651679990894183323458702862383371519103715161824514423932881746333116028227752248782962849181124520405658625393671898781069029621867416896240848133246870330371456213657364326213813, 'n':312714756092727515598780292379395872371276579078748109351554518254514481793368058883800678614580459772002765797032260325722225376614522500847276562927611577356613250215335341049455959290730180509179381157215997103098273389151149413304651001604934784742532791625955088398372313329455355494987750365806646536736636469629655380899143568352774219563065173996594667744415518391700387531919897253828997026843423501056159275468434318826550727964420829405894564122992335715124500381230290658083672331257499145017512885259835129381157750762124840076790791959202427846549512062536039325580240373309487741134319467890746673599741871268148060727018149256387697190931523693175768595351239154192239059676450669982991614136056253025495132755577907582430428560957011063839801600705947720544745078362907393070987536242330969100531923153182335864179094051994566951914233193211513835463083579669213012962131981383521706159377642531633316767375065073795772235104272775823159971873875983352843528481287521146512180790378064962825824780897817649973221317403460404503674474228769268269759375408409701974795615072086988269846532097319019681202860566295633729260133667739837481809185531026939053693396561388528361977535344851490021470007393713971344577027977}
-
-
-
-
-
-
-
-
-
 
 def pollvessels():
 
@@ -100,22 +83,25 @@ def pollvessels():
 #(might need to wrap the nodekey in rsa_publickey_to_string)
       nodeID = retdict['nodekey']
 
-      # IVAN: looking up the donor info using the public key.
-      donor_dict = genidb.lookup_donor(donorID)
+      # look up the node info using its key.
+      node = genidb.lookup_node(nodeID)
       
 # I'm treating the donor table as a dict keyed by nodeID
-      
+
       # We should do this if either the node is new, or if the node
       # failed during init last time
-      if nodeID not in donor_dict or donor_dict[nodeID]['status'] == 'Initializing':
+      if node is None or node.status == 'Initializing':
 
-        # this will be a new row in the donor table.   We'll write all at once
-        # below after filling it in here!
-        newentry = {}
-# IVAN: I might have the fields wrong.   Please feel free to edit as needed.
-        newentry['version'] = retdict['version']
-        newentry['lastIP'] = host
-        newentry['lastport'] = port
+        # this will be a new row in the donor table or an update of an
+        # 'Initializing' (previously failed initialization) node
+        # record.  We'll write this out at the very end with a tx.
+        newnode = {}
+        newnode['version'] = retdict['version']
+        newnode['ip'] = host
+        newnode['port'] = port
+
+        # all known public donor keys
+        donor_keys = genidb.get_donor_keys()
 
         vesselstoconfigure = []
         # Now I need to look at the vessels on the node...
@@ -131,9 +117,15 @@ def pollvessels():
               print "Unknown donor key: "+thisvessel['ownerkey']+" with userkey indicating donation"
               continue
 
-# look up the donor keys here (the public key is thisvessel['ownerkey']...
-            donor_key['privatekey'] =  ???
-            donor_key['publickey'] = thisvessel['ownerkey']
+            # look up the donor keys here (the public key is thisvessel['ownerkey']...
+            donor_privkey = genidb.get_donor_privkey(thisvessel['ownerkey'])
+            
+            if donor_privkey == None:
+              print "Could not find a matching donot private key for vessel's owner key"
+# should we raise some kind of error and die here? (fatal)
+            else:
+              donor_key['privatekey'] =  donor_privkey
+              donor_key['publickey'] = thisvessel['ownerkey']
 
             if thisvessel['advertise'] == False:
               # why aren't we advertising?   (not fatal)
@@ -142,7 +134,6 @@ def pollvessels():
             if thisvessel['status'] == "Started":
               # why is something running?   (not fatal)
               print "Running program in donated vessel on: "+nodeID+"!"
-
 
 # Donors are per computer now.   They really should be per vessel instead...
             vesselstoconfigure.append(vesselname)
@@ -163,63 +154,38 @@ def pollvessels():
         else: # len(vesselstoconfigure) == 1:
 
           # if we were not interrupted during init last time, get a node key...
-          if nodeID not in donor_dict:
-# IVAN: need a key to use as the owner for this node's resources...
-# add this key to a table
-            (nodeownerkey[nodeID]['publickey'], nodeownerkey[nodeID]['privatekey']) = get_new_keys_somehow()
+          if node is None:
+            ret_new_keys = genidb.get_new_keys()
+            if ret_new_keys == None:
+              print "no more keys available in the genidb -- get_new_keys() failed"
+# raise an error? (fatal)
+              (newnode['owner_pubkey'], newnode['owner_privkey']) = ret_new_keys
 
-          # Okay, my owner keys for this node should be in the nodeownerkey 
-          # table under my nodeID.
-            
           # Okay, I'm there with bells on.   Let's init!
-          newentry['status'] = 'Initializing'
-# IVAN: actually add the data here (all at once, as a transaction)...
-          donor_dict[nodeID] = newentry
+          newnode['status'] = 'Initializing'
+
+          # TX 1 -- update or add the node record before performing setupnode
+          node = genidb.create_update_node(node,newnode,donor_key)
+
+          (vessellist,extravessel) = setupnode(thisnmhandle,vesselstoconfigure[0],
+                                               donor_key['publickey'], donor_key['privatekey'],
+                                               newnode['owner_pubkey'], newnode['owner_privkey'])
           
-          (vessellist,extravessel) = setupnode(thisnmhandle,vesselstoconfigure[0],donor_key['publickey'], donor_key['privatekey'],nodeownerkey[nodeID]['publickey'], nodeownerkey[nodeID]['privatekey'])
+          # TX 2 -- update status of node to 'Ready' and vessel-list only 
+          genidb.add_node_vessels(node,'Ready',vessellist,extravessel)
+          
 
-# IVAN: You also should add the "extra vessel" to the node somewhere...
-          donor_dict[nodeID]['extravessel'] = extravessel ???
-# IVAN: You need to add all of the vessels for the node to the system...
-          vessel_dict[nodeID]['vessels'].append(vessellist) ???
-
-          donor_dict[nodeID]['status'] = 'Ready'
-# IVAN: Write some timestamp here?
-          donor_dict[nodeID]['createtime'] = time.time()
-          donor_dict[nodeID]['alivetime'] = time.time()
-
-
-
-
-
-
-
-      elif donor_dict[nodeID]['status'] == 'Ready' or donor_dict[nodeID]['status'] == 'Broken': 
+      elif node.status == 'Ready' or node.status == 'Broken':
         # alive and well (apparently)
-        donor_dict[nodeID]['alivetime'] = time.time()
-        donor_dict[nodeID]['status'] = 'Ready'
+        genidb.update_node('Ready')
         continue
-
-
-
-
 
       else:
         # unknown status!!!
-        print "Unknown status "+donor_dict[nodeID]['status']+" of node "+nodeID
-
-
+        print "Unknown status "+node.status+" of node "+nodeID
 
     finally:
       nmclient_destroyhandle(thisnmhandle)
-
-
-
-
-
-
-
-
 
 
 def setupnode(nmhandle, vesselname, oldpubkey, oldprivkey, newpubkey, newprivkey):
@@ -321,8 +287,6 @@ def main():
   while True:
     pollvessels()
     time.sleep(???)
-
-
 
 
 if __name__ == '__main__':
