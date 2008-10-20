@@ -23,6 +23,7 @@ import random
 import shutil
 import socket   # we'll make it so we don't hang...
 import tempfile
+import runonce
 
 include signeddata.repy
 include sha.repy
@@ -332,7 +333,7 @@ def restart_software_updater():
   thismutex = get_mutex()
 
   # starts new with arg that is the mutex 
-  junkupdaterobject = subprocess.Popen(["python","nmmain.py",thismutex])
+  junkupdaterobject = subprocess.Popen(["python","softwareupdater.py",thismutex])
 
   # wait for some time (1 minute) for them to init and stop them if they don't
   for junkcount in range(30):
