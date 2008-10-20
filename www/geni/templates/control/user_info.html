@@ -15,21 +15,25 @@
 				</ul>	
 		</div>
 		<div id="window1" class="window"> 
-  <!-- User Information -->
+		  <!-- User Information -->
+
+		  {% ifnotequal msg "" %}
+		  <p><font color="red">{{ msg }}</font></p>
+		  {% endifnotequal %}
 				<p> Username: {{ user.username }}</p>
 				<p> Affiliation: {{ geni_user.affiliation }}</p>
 				<p> Port: {{ geni_user.port }}</p>
 
-				<form method="POST" action="/geni/control/keys/dlpub" target="#"> 
-					<p> Public Key: <a href="publickey.url"> <button> Download </button> </a> </p>
+				<form method="POST" action="{% url pub_key %}"> 
+					<p> Public Key: <input type="submit" value="Download" /></p>
 					<p id="inline">
 				</form>
 
-				{% ifequal geni_user.priv "" %}
-					<form method="POST" action="/geni/control/keys/dlpriv" target="#"> 
-						Private Key: <a href="privatekey.url"> <button> Download </button> </a>
+				{% ifnotequal geni_user.privkey "" %}
+					<form method="POST" action="{% url priv_key %}"> 
+						Private Key: <input type="submit" value="Download" /></p>
 					</form>
-					<form method="POST" action="/geni/control/keys/delpriv" target="#"> 
+					<form method="POST" action="{% url del_priv %}" target="#"> 
 						<input type="hidden" name="keyToDelete" value={{ user.username }}> </input>
 						<input type="submit" value="Delete"> </input>
 					</form>
@@ -38,7 +42,7 @@
 					    download and remove your private key
 					    from the server. Alway store your
 					    private key in a secure location. </p>
-				{% endifequal %}
+				{% endifnotequal %}
 				</p>
 			</div>
 		</div>

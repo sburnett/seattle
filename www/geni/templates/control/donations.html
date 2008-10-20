@@ -17,45 +17,70 @@
 			</div>
 			<div id="window3" class="window">
 			<!-- Donations -->
-				<p id="maximizer1"> </p>
-				<div class="tables">
-					<table id="table1" class="donation_table">
-						<caption> My Donations </caption>
-						<tr> <th> IP Address </th> <th> Time Added </th> </tr>
-						{% for donation in donations %}
+			<div class="tables">
+			  <p id="maximizer1"> </p>
+			  <table id="table1" class="donation_table">
+				{% ifequal has_donations "False" %}
+					<p>No donations from others</p>
+				{% else %}
+					<caption> My Donations </caption>
+					<tr> <th> IP Address </th> <th> Time Added </th> </tr>
+					{% for donation in donations %}
 						<tr class="table1row"> <td> {{ donation.ip }} </td> <td> {{ donation.port }} </td> </tr>
-						{% endfor %}
-					</table> 
-					<br/>
-					<p id="maximizer2"> </p>
-					<table id="table2" class="donation_table">
-						<caption> Donations to Me </caption>
-						<tr> <th> Username </th> <th> Percentage </th> </tr>
-						<tr class="table2row"> <td> Item 1 </td> <td> Item 2 </td> </tr>
+						
+					{% endfor %}
+				{% endifequal %}
+			  </table>					
+			  <br/>
+			  <p id="maximizer2"> </p>
+			  <table id="table2" class="donation_table">
+				{% ifequal has_donations_from_others "False" %}
+					<p>No donations</p>
+				{% else %}
+					<caption> Donations to Me </caption>
+					<tr> <th> Username </th> <th> Percentage </th> </tr>
+					{% for donation in donations_to_me %}
+						<tr class="table2row"> <td> {{ donation.username }} </td> <td> {{ donation.percentage }} </td> </tr>
+					{% endfor %}
+				{% endifequal %}
 					</table>
 				</div>
 				<!-- Shared Resources -->
-				<p id="maximizer3"> </p>
-				<div id="sharedResources">
-					<form method="POST" action="privatekey.url" target="#">
-						<table class="donation_table">
+			<p id="maximizer3"> </p>
+
+			<div id="sharedResources">
+
+			    {# {% ifequal has_shares "False" %} #}
+			  {# <p>No shares</p> #}
+			 {#  {% else %} #}
+
+					<form method="POST" action="{% url donations %}" target="#">
+					  <table class="donation_table">
 							<caption> Shared </caption>
 							<tr> <th> Remove </th> <th> User ID </th> <th> Percentage </th> </tr>
 							{% for share in shares %}
-							<tr class="table3row"> <td> <input class="check" type="checkbox" name="deleteshare"/> </td> <td> {{ share.to_user.www_user.username }} </td> <td> <input type="text" value={{ share.percent }}/> </td> </tr>
+							  <tr class="table3row"> <td> <input class="check" type="checkbox" name="deleteshare_{{ share.to_user.www_user.username }}"/> </td> 
+							  <td> {{ share.to_user.www_user.username }} </td> <td> <input type="text" name="percent_{{ share.to_user.www_user.username }}" value={{ share.percent }}%> </td> </tr>
 							{% endfor %}
-						</table> 
-						<button id="checkAll"> Check All </button>
-						<br/>
-						<button> Update </button>
+							<tr><td>
+						<button id="checkAll"> Check All </button></td>
+							  <td colspan=2><input name="update_shares" type="submit" value="Update" /></td></tr>
+					  </table>
 					</form>
-					<form method="POST" action="privatekey.url/" target="#">
-						<p> User ID: <input type="text" name="UserID"/> <br/>
-							Percent: <input type="text" name="Percent"/> <br/>
-							<input type="submit" value="Add New"/>
+
+			   {# {% endifequal %} #}
+
+			<font color="red">  {{ share_form.username.errors }}</font><br>
+			<font color="red">{{ share_form.percent.errors }}</font>
+					<form method="POST" action="{% url donations %}" target="#">
+					{{ share_form.username.label }}{{ share_form.username }}<br>
+					{{ share_form.percent.label }}{{ share_form.percent }}<br>
+					<input type="hidden" name="new_share">
+					<input type="submit" value="Add New"/>
 						</p>
 					</form>
-				</div>
+			</div>
+			
 				<div class="sideWindow"> 
 				  <br><br>
 					<h2> Your Installers </h2>

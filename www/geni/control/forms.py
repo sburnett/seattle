@@ -2,12 +2,6 @@ import django.forms as forms
 from django.contrib.auth.models import User as djUser
 from models import User,Donation,Vessel,VesselMap,Share
 
-class AffiliationField(forms.Field):
-    def clean(self,value):
-        if value == "":
-            raise forms.ValidationError, "Affiliation cannot be blank"
-        return value
-
 # TODO: make pub-key into a custom class
 # class PubKeyField(forms.FileField):
 #     def clean(self,value,initial):
@@ -20,8 +14,17 @@ class AffiliationField(forms.Field):
 #         # TODO: validate public key as a valid Seattle key
 #         return pubkey
 
+def gen_GetVesselsForm(num_choices,req_post=None):
+    class GetVesselsForm(forms.Form):
+        num = forms.ChoiceField(choices=num_choices)
+        env = forms.ChoiceField(choices=((1,'LAN'),(2,'WAN'),(3,'RAND')))
+    if req_post is None:
+        return GetVesselsForm()
+    return GetVesselsForm(req_post)
+
 class AddShareForm(forms.Form):
     username = forms.CharField(max_length=32,min_length=3,error_messages={'required': 'Please enter a username'})
+    # username=forms.ChoiceField(queryset=User.objects.all())
     percent = forms.DecimalField(min_value=1,max_value=100,error_messages={'required': 'Please enter a percentage'})
 
     def clean_username(self):
@@ -36,6 +39,8 @@ class AddShareForm(forms.Form):
             raise forms.ValidationError, "Username invalid -- inconsistency between auth and geni user records"
         if to_guser == self.guser:
             raise forms.ValidationError, "Cannot share with yourself"
+        if len(Share.objects.filter(from_user=self.guser,to_user=to_guser)) != 0:
+            raise forms.ValidationError, "For users you already share with, update the table above"
         return to_guser
 
     def set_user(self,user):
