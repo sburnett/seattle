@@ -43,8 +43,8 @@ def donations(request):
     if not success:
         return ret
     geni_user = ret
-
-
+    
+    
     share_form = forms.AddShareForm()
     if request.method == 'POST' and request.POST.has_key('new_share'):
         share_form = forms.AddShareForm(request.POST)
@@ -94,7 +94,15 @@ def used_resources(request):
         return ret
     geni_user = ret
 
-    max_num = 5
+        
+    # TODO: use vessel flow graph. for now a limit of 10 vessels per user
+    myvessels = VesselMap.objects.filter(user = geni_user)
+    if len(myvessels) > 10:
+        print "ERROR : len(myvessels) > 10!"
+        max_num = 0
+    else:
+        max_num = 10 - len(myvessels)
+
     get_vessel_choices = zip(range(1,max_num+1),range(1,max_num+1))
     get_form = forms.gen_GetVesselsForm(get_vessel_choices)
     
@@ -104,8 +112,7 @@ def used_resources(request):
         if get_form.is_valid():
             # commit to db and notify Seattle
             pass
-
-    myvessels = VesselMap.objects.filter(user = geni_user)
+        
     # TODO
     shvessels = []
     return direct_to_template(request,'control/used_resources.html', {'geni_user' : geni_user, 'my_vessels' : myvessels, 'sh_vessels' : shvessels, 'get_form' : get_form})

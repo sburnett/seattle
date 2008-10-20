@@ -17,7 +17,7 @@ from models import User,Donation,Vessel,VesselMap,Share
 def gen_GetVesselsForm(num_choices,req_post=None):
     class GetVesselsForm(forms.Form):
         num = forms.ChoiceField(choices=num_choices)
-        env = forms.ChoiceField(choices=((1,'LAN'),(2,'WAN'),(3,'RAND')))
+        env = forms.ChoiceField(choices=((1,'LAN'),(2,'WAN'),(3,'Random')))
     if req_post is None:
         return GetVesselsForm()
     return GetVesselsForm(req_post)
