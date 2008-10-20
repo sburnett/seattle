@@ -22,7 +22,7 @@ img {
 	border: none;
 }
 
-.center {
+.center, h1 {
 	text-align: center;
 }
 
@@ -206,4 +206,10 @@ th, td {
 
 #maximizer1, #maximizer2, #maximizer3 {
 	color: blue;
+}
+
+#installers {
+	width: 500px;
+	height: 700px;
+	text-align: center;
 }
