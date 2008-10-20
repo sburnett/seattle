@@ -13,6 +13,7 @@ urlpatterns = patterns('',
                        (r'^%saccounts/login$'%(prefix), 'geni.accounts.views.login',{},'login'), 
                        (r'^%saccounts/logout$'%(prefix), 'django.contrib.auth.views.logout_then_login',{},'logout'),
                        (r'^%scontrol/'%(prefix), include('geni.control.urls')),
+                       (r'^%sdownload/'%(prefix), include('geni.download.urls')),
                        
                        # Uncomment the admin/doc line below and add 'django.contrib.admindocs' 
                        # to INSTALLED_APPS to enable admin documentation:
