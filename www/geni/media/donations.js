@@ -20,17 +20,17 @@ window.onload = function() {
 	try { if(!maximizer3.innerText) maximizer3.innerText = maximizer3.textContent; } catch(e) {}
 	try { if(!maximizer1.innerText) maximizer1.innerText = maximizer1.textContent; } catch(e) {}
 	try { if(!maximizer2.innerText) maximizer2.innerText = maximizer2.textContent; } catch(e) {}
-	if (count1 < hideWhenNumber) {
+	if (count1 >= hideWhenNumber) {
 		$("maximizer1").onclick = table1unhide;
 	} else {
 		table1unhide();
 	}
-	if (count2 < hideWhenNumber) {
+	if (count2 >= hideWhenNumber) {
 		$("maximizer2").onclick = table2unhide;
 	} else {
 		table2unhide();
 	}
-	if (count3 < hideWhenNumber) {
+	if (count3 >= hideWhenNumber) {
 		$("maximizer3").onclick = table3unhide;
 	} else {
 		table3unhide();
