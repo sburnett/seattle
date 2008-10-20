@@ -39,6 +39,7 @@ window.onload = function() {
 
 function table3unhide() {
 	$("sharedResources").style.display = "block";
+	var maximizer3 = $("maximizer3");
 	$("maximizer3").textContent = count3 + " Shares (click to hide)";
 	try { if(!maximizer3.innerText) maximizer3.innerText = maximizer3.textContent; } catch(e) {}
 	$("maximizer3").onclick = table3hide;
@@ -46,6 +47,7 @@ function table3unhide() {
 
 function table3hide() {
 	$("sharedResources").style.display = "none";
+	var maximizer3 = $("maximizer3");
 	$("maximizer3").textContent = count3 + " Shares (click to expand)";
 	try { if(!maximizer3.innerText) maximizer3.innerText = maximizer3.textContent; } catch(e) {}
 	$("maximizer3").onclick = table3unhide;
@@ -53,6 +55,7 @@ function table3hide() {
 
 function table1unhide() {
 	$("table1").style.display = "block";
+	var maximizer1 = $("maximizer1");
 	$("maximizer1").textContent = count1 + " Machines (click to hide)";
 	try { if(!maximizer1.innerText) maximizer1.innerText = maximizer1.textContent; } catch(e) {}
 	$("maximizer1").onclick = table1hide;
@@ -60,6 +63,7 @@ function table1unhide() {
 
 function table1hide() {
 	$("table1").style.display = "none";
+	var maximizer1 = $("maximizer1");
 	$("maximizer1").textContent = count1 + " Machines (click to expand)";
 	try { if(!maximizer1.innerText) maximizer1.innerText = maximizer1.textContent; } catch(e) {}
 	$("maximizer1").onclick = table1unhide;
@@ -67,6 +71,7 @@ function table1hide() {
 
 function table2hide() {
 	$("table2").style.display = "none";
+	var maximizer2 = $("maximizer2");
 	$("maximizer2").textContent = count2 + " Machines (click to expand)";
 	try { if(!maximizer2.innerText) maximizer2.innerText = maximizer2.textContent; } catch(e) {}
 	$("maximizer2").onclick = table2unhide;
@@ -74,6 +79,7 @@ function table2hide() {
 
 function table2unhide() {
 	$("table2").style.display = "block";
+	var maximizer2 = $("maximizer2");
 	$("maximizer2").textContent = count2 + " Machines (click to hide)";
 	try { if(!maximizer2.innerText) maximizer2.innerText = maximizer2.textContent; } catch(e) {}
 	$("maximizer2").onclick = table2hide;
