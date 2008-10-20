@@ -1,6 +1,7 @@
 var count1 = 0;
 var count2 = 0;
 var count3 = 0;
+var hideWhenNumber = 5;
 
 window.onload = function() {
 	$("checkAll").onclick = checkAll;
