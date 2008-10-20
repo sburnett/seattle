@@ -3,6 +3,8 @@
 # That is, if you want to produce the files "seattlex.x.x_win.zip",
 # "seattlex.x.x_mac.tgz", and "seattlex.x.x_linux.tgz", just run
 # "python build_installers.zip seattlex.x.x".
+# NOTE: This script is not portable, and will only run on Linux (or
+# probably OSX)
 
 import sys
 import os
@@ -21,8 +23,8 @@ def main(dist_name):
     for dist in DISTS:
         output("Creating " + dist + " distribution...")
         prog_dir = dist + os.sep + INSTALL_DIR
+        os.system("mkdir " + prog_dir + " &> /dev/null")
         os.chdir("..")
-        print("Running preparetest.py on dist" + os.sep + prog_dir)
         os.system("python preparetest.py dist" + os.sep + prog_dir)
         # Next, do an initial cleaning of the directory created
         os.chdir("dist")
