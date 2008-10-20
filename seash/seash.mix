@@ -714,7 +714,7 @@ update             -- Update information about the vessels
 # contact host:port[:vessel] -- Communicate with a node
       elif userinputlist[0] == 'contact':
         if currentkeyname == None or not keys[currentkeyname]['publickey']:
-          raise UserError, "Error, must load a public key to contact a vessel"
+          raise UserError, "Error, must contact as an identity"
 
         if len(userinputlist)>2:
           raise UserError, "Error, usage is contact host:port[:vessel]"
@@ -790,7 +790,7 @@ update             -- Update information about the vessels
 # browse                               -- Find experiments I can control
       elif userinputlist[0] == 'browse':
         if currentkeyname == None or not keys[currentkeyname]['publickey']:
-          raise UserError, "Error, must load a public key to browse"
+          raise UserError, "Error, must browse as an identity with a public key"
   
         nodelist = advertise.lookup(keys[currentkeyname]['publickey'])
 
