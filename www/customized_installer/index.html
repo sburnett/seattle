@@ -10,6 +10,7 @@ Index Page for Research Project
 	<head>
 	    <title>Customized Installer Interface</title>
 	    <link rel="stylesheet" type="text/css" href="style.css" />
+		<script src="scripts/json.js" type="text/javascript"></script>
 		<script src="scripts/prototype.js" type="text/javascript"></script>
 		<script src="scripts/scriptaculous.js" type="text/javascript"></script>
 		<script src="scripts/index.js" type="text/javascript"></script>
@@ -27,13 +28,13 @@ Index Page for Research Project
 							<input type="hidden" name="action" value="adduser" />
 							<input type="file" name="publickey" id="publickey" size="6" />
 							<input type="submit" name="add" id="add" value="Add" />
-							<iframe id="target" name="target" src="" style="width:0; height:0; border:none; visibility: hidden"></iframe>
+							<iframe id="target" name="target" src="" style="width:0; height:0; border:none; visibility: none"></iframe>
 						</form>
 					</div>
 				</div>
 				<div id="Pluses"> </div>
 				<div id="VesselList"> </div>
-				
+				<button name="installer" id="installer">Installer</button>
 			</div>
 		</div>
 	</body>

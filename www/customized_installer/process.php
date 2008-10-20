@@ -2,7 +2,8 @@
 
 if (isset($_POST)) {
 	if ($_POST['action'] == 'adduser') {
-		$username = $_POST['username'];
+		$username = strtolower(trim($_POST['username']));
+		$username = preg_replace("/\s/", "_", $username);
 		$user = new User($username);
 		
 		if (is_uploaded_file($_FILES["publickey"]["tmp_name"])) {
@@ -16,7 +17,12 @@ if (isset($_POST)) {
 			$user->writeKeys();
 		}
 		echo $user->getName() . " is added.";
+	} else if ($_POST['action'] == 'createinstaller') {
+		$content = json_decode($_POST['content']);
+		echo "hello";
+		print_r($content);	
 	}
+	
 }
 
 
@@ -75,10 +81,6 @@ class Vessel {
 	private $percentage;
 	private $owner;
 	private $users = array();
-	
-	public function __construct ($id) {
-		$this->id = $id;
-	}
 	
 	
 

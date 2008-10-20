@@ -1,8 +1,8 @@
 var counter;
-vesselLengths = [1056, 0, 0, 0, 0, 0, 0, 0]
-vesselOwners = ["","","","","","","",""]
-vesselUsers = createArray();
-userTally = [0, 0, 0, 0, 0, 0, 0, 0];
+var vesselLengths = [1056, 0, 0, 0, 0, 0, 0, 0];
+var vesselOwners = ["","","","","","","",""];
+var vesselUsers = createArray();
+var userTally = [0, 0, 0, 0, 0, 0, 0, 0];
 
 function createArray() {
 	var temp = new Array(8);
@@ -23,6 +23,11 @@ window.onload = function () {
 			this.value = "user_" + counter;
 		}
 	}
+	$("publickey").onfocus = function () {
+		this.value = "";
+	}
+	$("add").onclick = resetForm;
+	
 	Initialize();
 	updateVessels();
 	Droppables.add("content", {
@@ -50,6 +55,7 @@ window.onload = function () {
 			
 		}
 	});
+	$("installer").onclick = createInstaller;
 };
 
 function fixheights(adds) {
@@ -274,7 +280,6 @@ function updateVessels() {
 			$("vessel" + i).style.display = "none";
 		}
 	}
-	alert(vesselLengths);
 }
 
 function addUser () {
@@ -309,15 +314,158 @@ function addUser () {
 	}
 	if (BrowserDetect.browser == "Explorer") {
 		$("staticvessel").style.top = ($("VesselList").offsetTop + 20) + "px";
-	} else { 5
+	} else {
 		$("staticvessel").style.top = ($("VesselList").offsetTop + 15) + "px";
 	}
 }
 
 
-function resetForm (event) {
-	$("publickey").value = "";
+function resetForm () {
+	// $("publickey").value = "";
 	$("username").value = "user_" + counter;
+}
+
+function createInstaller () {
+	var json = {"vessels": [
+		{
+			"percentage": vesselLengths[0] / 132,
+			"owner": vesselOwners[0],
+		 	"users": 	
+				[
+					vesselUsers[0][0],
+					vesselUsers[0][1],
+					vesselUsers[0][2],
+					vesselUsers[0][3],
+					vesselUsers[0][4],
+					vesselUsers[0][5],
+					vesselUsers[0][6],
+					vesselUsers[0][7]
+				]
+		},
+		{
+			"percentage": vesselLengths[1] / 132,
+			"owner": vesselOwners[1],
+			"users": 	
+				[
+					vesselUsers[1][0],
+					vesselUsers[1][1],
+					vesselUsers[1][2],
+					vesselUsers[1][3],
+					vesselUsers[1][4],
+					vesselUsers[1][5],
+					vesselUsers[1][6],
+					vesselUsers[1][7]
+				]
+		},
+		{
+			"percentage": vesselLengths[2] / 132,
+			"owner": vesselOwners[2],
+			"users": 	
+				[
+					vesselUsers[2][0],
+					vesselUsers[2][1],
+					vesselUsers[2][2],
+					vesselUsers[2][3],
+					vesselUsers[2][4],
+					vesselUsers[2][5],
+					vesselUsers[2][6],
+					vesselUsers[2][7]
+				]
+		},
+		{
+			"percentage": vesselLengths[3] / 132,
+			"owner": vesselOwners[3],
+			"users": 	
+				[
+					vesselUsers[3][0],
+					vesselUsers[3][1],
+					vesselUsers[3][2],
+					vesselUsers[3][3],
+					vesselUsers[3][4],
+					vesselUsers[3][5],
+					vesselUsers[3][6],
+					vesselUsers[3][7]
+				]
+		},
+		{
+			"percentage": vesselLengths[4] / 132,
+			"owner": vesselOwners[4],
+			"users": 	
+				[
+					vesselUsers[4][0],
+					vesselUsers[4][1],
+					vesselUsers[4][2],
+					vesselUsers[4][3],
+					vesselUsers[4][4],
+					vesselUsers[4][5],
+					vesselUsers[4][6],
+					vesselUsers[4][7]
+				]
+		},
+		{
+			"percentage": vesselLengths[5] / 132,
+			"owner": vesselOwners[5],
+			"users": 	
+				[
+					vesselUsers[5][0],
+					vesselUsers[5][1],
+					vesselUsers[5][2],
+					vesselUsers[5][3],
+					vesselUsers[5][4],
+					vesselUsers[5][5],
+					vesselUsers[5][6],
+					vesselUsers[5][7]
+				]
+		},
+		{
+			"percentage": vesselLengths[6] / 132,
+			"owner": vesselOwners[6],
+			"users": 	
+				[
+					vesselUsers[6][0],
+					vesselUsers[6][1],
+					vesselUsers[6][2],
+					vesselUsers[6][3],
+					vesselUsers[6][4],
+					vesselUsers[6][5],
+					vesselUsers[6][6],
+					vesselUsers[6][7]
+				]
+		},
+		{
+			"percentage": vesselLengths[7] / 132,
+			"owner": vesselOwners[7],
+			"users": 	
+				[
+					vesselUsers[7][0],
+					vesselUsers[7][1],
+					vesselUsers[7][2],
+					vesselUsers[7][3],
+					vesselUsers[7][4],
+					vesselUsers[7][5],
+					vesselUsers[7][6],
+					vesselUsers[7][7]
+				]
+		}		
+	]};
+	
+	var jsonString = json.toJSONString();
+	// alert(jsonString);
+	new Ajax.Request('process.php',
+	{
+		method: "post",
+		parameters: {action: "createinstaller", content: jsonString},
+		onSuccess: finish
+	});
+}
+
+function finish (ajax) {
+	var notice = document.createElement("div");
+	notice.id = "notice";
+	notice.textContent = "Congratulations, you installers are successfully generated.\n" + ajax.responseText;
+	notice.style.display = "none";
+	$("names").appendChild(notice);
+	new Effect.Appear(notice.id);
 }
 
 
