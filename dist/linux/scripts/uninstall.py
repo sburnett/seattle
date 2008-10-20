@@ -1,5 +1,6 @@
 import re
 import os
+import seattlestopper
 
 STARTER_SCRIPT_NAME = "start_seattle.sh"
 
@@ -7,6 +8,8 @@ def output(text):
     print text
 
 def main():
+    # Kill seattle
+    seattlestopper.main()
     crontab_f = os.popen("crontab -l")
     temp_f = open("temp.txt", "w")
     found = False
@@ -26,7 +29,6 @@ def main():
     else:
         temp_f.close()
         output("Could not detect a seattle installation on your computer.")
-    
     os.popen("rm -f temp.txt")
 
 if __name__ == "__main__":
