@@ -1,12 +1,12 @@
 window.onload = function() {
 	if (BrowserDetect.OS == "Windows") {
-		$("optimal").src = "/geni/media/bigwin.jpg";
+		$("optimal").src = "{{ MEDIA_URL }}bigwin.jpg";
 		$("suggested").href = "{% url installers user.username %}win.zip"
 	} else if (BrowserDetect.OS == "Mac") {
-		$("optimal").src = "/geni/media/bigosx.jpg";
+		$("optimal").src = "{{ MEDIA_URL }}bigosx.jpg";
 		$("suggested").href = "{% url installers user.username %}osx.tgz"
 	} else if (BrowserDetect.OS == "Linux") {
-		$("optimal").src = "/geni/media/biglinux.jpg";
+		$("optimal").src = "{{ MEDIA_URL }}biglinux.jpg";
 		$("suggested").href = "{% url installers user.username %}linux.tgz"
 	} else {
 	}
