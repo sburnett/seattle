@@ -24,6 +24,7 @@ window.onload = function() {
 	if (count1 >= hideWhenNumber) {
 		$("maximizer1").onclick = table1unhide;
 	} else if (count1 <= dontDisplay) {
+		table1unhide();
 		$("maximizer1").style.display = "none";
 	} else {
 		$("maximizer1").style.display = "block";
@@ -32,6 +33,7 @@ window.onload = function() {
 	if (count2 >= hideWhenNumber) {
 		$("maximizer2").onclick = table2unhide;
 	} else if (count2 <= dontDisplay) {
+		table2unhide();
 		$("maximizer2").style.display = "none";
 	} else {
 		$("maximizer2").style.display = "block";
@@ -40,6 +42,7 @@ window.onload = function() {
 	if (count3 >= hideWhenNumber) {
 		$("maximizer3").onclick = table3unhide;
 	} else if (count3 <= dontDisplay) {
+		table3unhide();
 		$("maximizer3").style.display = "none";
 	} else {
 		$("maximizer3").style.display = "block";
