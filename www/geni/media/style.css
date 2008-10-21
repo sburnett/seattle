@@ -141,20 +141,20 @@ th, td {
 	text-align: center;
 }
 .tables {
-	width: 56%;
+	width: 70%;
 }
 
 #sharedResources {
 	padding-top: 20px;
 	border-top: 2px solid black;
 	text-align: center;
-	width: 56%;
+	width: 70%;
 	display: none;
 }
 
 #installerLink {
 	font-size: 16pt;
-	width: 200px;
+	width: 20%;
 	height: 50px;
 	margin-top: 50px;
 	margin-bottom: 50px;
