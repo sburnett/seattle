@@ -114,7 +114,9 @@ th, td {
 
 #window3 {
 	width: 80%;
-	height: 1000px;
+	height: 70%;
+	min-height: 350px;
+	min-width: 350px;
 	margin-left: auto;
 	margin-right: auto;
 	position: absolute;
