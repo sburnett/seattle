@@ -72,7 +72,7 @@ ul li {
 
 #Tabs {
 	width: 80%;
-	min-width: 400px;
+	min-width: 425px;
 	margin-left: 10%;
 	margin-right: 10%;
 	text-align: center;
@@ -116,8 +116,8 @@ th, td {
 #window3 {
 	width: 80%;
 	height: 70%;
-	min-height: 400px;
-	min-width: 400px;
+	min-height: 425px;
+	min-width: 425px;
 	margin-left: auto;
 	margin-right: auto;
 	position: absolute;
