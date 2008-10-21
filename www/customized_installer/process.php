@@ -2,8 +2,7 @@
 
 if (isset($_POST)) {
 	if ($_POST['action'] == 'adduser') {
-		$username = strtolower(trim($_POST['username']));
-		$username = preg_replace("/\s/", "_", $username);
+		$username = standarize($_POST['username']);	
 		$user = new User($username);
 		
 		if (is_uploaded_file($_FILES["publickey"]["tmp_name"])) {
@@ -17,14 +16,42 @@ if (isset($_POST)) {
 			$user->writeKeys();
 		}
 		echo $user->getName() . " is added.";
-	} else {//($_POST['action'] == 'createinstaller') {
-		//$content = json_decode($_POST['content']);
-		print "hello";
-		//print_r($content);	
+	} else if ($_POST['action'] == 'createinstaller') {
+		$vessels = json_decode(stripslashes($_POST['content']), true);
+		foreach ($vessels as &$vessel) {
+			$vessel['owner'] = getPublicKeyPath(standarize($vessel['owner']));
+			foreach ($vessel['users'] as &$user) {
+				$user = getPublicKeyPath(standarize($user));
+			}
+			unset($user);
+		}
+		unset($vessel);
+		
+		file_put_contents("vesselsinfo.txt", outputVesselsInfo($vessels));
+		// exec("python writecustominstallerinfo.py vesselsinfo.txt")
 	}
 	
 }
 
+function outputVesselsInfo ($vessels) {
+	$output = '';
+	foreach ($vessels as $vessel) {
+		$output .= "Percent " . $vessel['percentage'] . "\n";
+		$output .= "Owner " . $vessel['owner'] . "\n";
+		foreach ($vessel['users'] as $user) {
+			$output .= "User " . $user . "\n";
+		}	
+	}
+	return $output;
+}
+
+function standarize ($username) {
+	return preg_replace("/\s/", "_", strtolower(trim($username)));
+}
+
+function getPublicKeyPath ($username) {
+	return "keys/" . $username . ".public";
+}
 
 class User {
 
@@ -55,6 +82,7 @@ class User {
 	
 	public function generateKeys () {
 		// $keys = explode(" ", exec("keygen.py"));
+		// !!this line needs to be replaced
 		$keys = array("dfajk22f3", "a23f3bc8");
 		$this->public_key = $keys[0];
 		$this->private_key = $keys[1];
@@ -69,20 +97,7 @@ class User {
 		return $this->public_key;
 	}
 	
-	public function getPrivateKey () {
-		return $this->private_key;
-	}
  
-}
-
-class Vessel {
-	
-	private $percentage;
-	private $owner;
-	private $users = array();
-	
-	
-
 }
 
 

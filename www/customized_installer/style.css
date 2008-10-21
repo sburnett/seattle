@@ -146,10 +146,9 @@ h1 {
 }
 
 #installer {
-	margin-top: 550px;
+	margin-top: 450px;
 	margin-left: 1000px;
 	float: right;
-	z-index: 1000;
 }
 
 #notice {
@@ -162,4 +161,5 @@ h1 {
 	font-size: 16pt;
 	text-align: center;
 	vertical-align: center;
+	z-index: 20;
 }

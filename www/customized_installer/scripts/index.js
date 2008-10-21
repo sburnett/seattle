@@ -26,7 +26,7 @@ window.onload = function () {
 	$("publickey").onfocus = function () {
 		this.value = "";
 	}
-	$("add").onclick = resetForm;
+	// $("add").onclick = resetForm;
 	
 	Initialize();
 	updateVessels();
@@ -38,7 +38,7 @@ window.onload = function () {
 			if (draggable.id.substring(0, 4) == "owner") {
 				var defaultNode = document.createElement("li");
 				vesselOwners[index] = "";
-				defaultNode.textContent = "Add Owner";
+				defaultNode.textContent = "Drag User Here to Create Owner";
 				defaultNode.id = "owner" + index;
 				parent.appendChild(defaultNode);
 				draggable.remove();
@@ -326,143 +326,62 @@ function resetForm () {
 }
 
 function createInstaller () {
-	var json = {"vessels": [
+	var json = [
 		{
 			"percentage": vesselLengths[0] / 132,
 			"owner": vesselOwners[0],
-		 	"users": 	
-				[
-					vesselUsers[0][0],
-					vesselUsers[0][1],
-					vesselUsers[0][2],
-					vesselUsers[0][3],
-					vesselUsers[0][4],
-					vesselUsers[0][5],
-					vesselUsers[0][6],
-					vesselUsers[0][7]
-				]
-		},
-		{
+		 	"users": vesselUsers[0]
+		}, {
 			"percentage": vesselLengths[1] / 132,
 			"owner": vesselOwners[1],
-			"users": 	
-				[
-					vesselUsers[1][0],
-					vesselUsers[1][1],
-					vesselUsers[1][2],
-					vesselUsers[1][3],
-					vesselUsers[1][4],
-					vesselUsers[1][5],
-					vesselUsers[1][6],
-					vesselUsers[1][7]
-				]
-		},
-		{
+			"users": vesselUsers[1]
+		}, {
 			"percentage": vesselLengths[2] / 132,
 			"owner": vesselOwners[2],
-			"users": 	
-				[
-					vesselUsers[2][0],
-					vesselUsers[2][1],
-					vesselUsers[2][2],
-					vesselUsers[2][3],
-					vesselUsers[2][4],
-					vesselUsers[2][5],
-					vesselUsers[2][6],
-					vesselUsers[2][7]
-				]
-		},
-		{
+			"users": vesselUsers[2]
+		}, {
 			"percentage": vesselLengths[3] / 132,
 			"owner": vesselOwners[3],
-			"users": 	
-				[
-					vesselUsers[3][0],
-					vesselUsers[3][1],
-					vesselUsers[3][2],
-					vesselUsers[3][3],
-					vesselUsers[3][4],
-					vesselUsers[3][5],
-					vesselUsers[3][6],
-					vesselUsers[3][7]
-				]
-		},
-		{
+			"users": vesselUsers[3]
+		}, {
 			"percentage": vesselLengths[4] / 132,
 			"owner": vesselOwners[4],
-			"users": 	
-				[
-					vesselUsers[4][0],
-					vesselUsers[4][1],
-					vesselUsers[4][2],
-					vesselUsers[4][3],
-					vesselUsers[4][4],
-					vesselUsers[4][5],
-					vesselUsers[4][6],
-					vesselUsers[4][7]
-				]
-		},
-		{
+			"users": vesselUsers[4]
+		}, {
 			"percentage": vesselLengths[5] / 132,
 			"owner": vesselOwners[5],
-			"users": 	
-				[
-					vesselUsers[5][0],
-					vesselUsers[5][1],
-					vesselUsers[5][2],
-					vesselUsers[5][3],
-					vesselUsers[5][4],
-					vesselUsers[5][5],
-					vesselUsers[5][6],
-					vesselUsers[5][7]
-				]
-		},
-		{
+			"users": vesselUsers[5]
+		}, {
 			"percentage": vesselLengths[6] / 132,
 			"owner": vesselOwners[6],
-			"users": 	
-				[
-					vesselUsers[6][0],
-					vesselUsers[6][1],
-					vesselUsers[6][2],
-					vesselUsers[6][3],
-					vesselUsers[6][4],
-					vesselUsers[6][5],
-					vesselUsers[6][6],
-					vesselUsers[6][7]
-				]
-		},
-		{
+			"users": vesselUsers[6]
+		}, {
 			"percentage": vesselLengths[7] / 132,
 			"owner": vesselOwners[7],
-			"users": 	
-				[
-					vesselUsers[7][0],
-					vesselUsers[7][1],
-					vesselUsers[7][2],
-					vesselUsers[7][3],
-					vesselUsers[7][4],
-					vesselUsers[7][5],
-					vesselUsers[7][6],
-					vesselUsers[7][7]
-				]
-		}		
-	]};
+			"users": vesselUsers[7]
+		}
+	];
 	
-	var jsonString = json.toJSONString();
-	// alert(jsonString);
-	new Ajax.Request("process.php",
-	{
-		method: "post",
-		parameters: {action: "createinstaller", content: jsonString},
-		onSuccess: finish
-	});
+	for (var i = 7; i >= 0; i--) {
+		if (json[i].percentage == 0) {
+			json.splice(i, 1);
+		}
+	}
+	
+	var jsonString =  Object.toJSON(json);
+	new Ajax.Request('process.php',
+		{
+			method: "post",
+			parameters: {action: "createinstaller", content: jsonString},
+			onSuccess: finish
+		}
+	);
 }
 
 function finish (ajax) {
 	var notice = document.createElement("div");
 	notice.id = "notice";
-	notice.textContent = "Congratulations, you installers are successfully generated.\n" + ajax.responseText;
+	notice.textContent = "Congratulations, you installers are successfully generated.";
 	notice.style.display = "none";
 	$("names").appendChild(notice);
 	new Effect.Appear(notice.id);
