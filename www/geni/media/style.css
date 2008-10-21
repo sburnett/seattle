@@ -22,7 +22,7 @@ img {
 	border: none;
 }
 
-.center, h1 {
+.center, #installersheader {
 	text-align: center;
 }
 
@@ -106,7 +106,7 @@ th, td {
 
 #window2 {
 	width: 80%;
-	height: 70%;
+	height: 1000px;
 	margin-left: auto;
 	border: 1px solid black;
 	margin-right: auto;

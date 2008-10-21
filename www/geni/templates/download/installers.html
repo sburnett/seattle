@@ -1,7 +1,7 @@
 {% include "common/header.html" %}
 	<script src="{{ MEDIA_URL }}installers.js" type="text/javascript"></script>
 	</head>
-	<h1>Installers for {{ username }}</h1>
+	<h1 id="installersheader">Installers for {{ username }}</h1>
 	<body>
 		<div id="Installers">
 		<a id="suggested" href="{% url installers user.username %}win.zip"> <img id="optimal" src="{{ MEDIA_URL }}bigwin.jpg" alt="windows"/> </a> <br/> <br/> <br/>
