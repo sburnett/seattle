@@ -11,7 +11,8 @@ body {
 }
 
 table {
-	border-collapse: none;
+	border-collapse: collapse;
+	border: solid 2px black;
 }
 
 a {
@@ -92,9 +93,9 @@ ul li {
 
 th, td {
 	padding-left: 20px;
-	border: solid 2px black;
 	padding-right: 20px;
 }
+
 #window1 {
 	padding-top: 20px;
 	font-size: 18pt;
