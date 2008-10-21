@@ -15,7 +15,8 @@ import django.forms as forms
 
 class UserCreationForm(django_UserCreationForm):
     affiliation = forms.CharField(min_length=2,max_length=64,error_messages={'required': 'Please enter an Affiliation'})
-    pubkey = forms.FileField(required=False)
+    pubkey = forms.FileField(label="My Public Key",required=False)
+    gen_upload_choice = forms.ChoiceField(label="",choices=((1,'Generate key pairs for me'),(2,'Let me upload my public key')))
     #password1.error_messages['required'] = 'Please enter a password'
     
     def clean_password1(self):

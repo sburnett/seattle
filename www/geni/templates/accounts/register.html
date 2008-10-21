@@ -21,15 +21,15 @@
 		{{ form.pubkey.errors }}
 	    </font></p><br>
 	    {% endif %}
-	    
-	    {{ form.username.label_tag }}<font color="red">*</font> {{ form.username }}<br>
-	    {{ form.password1.label_tag }}<font color="red">*</font> {{ form.password1 }}<br>
-	    {{ form.password2.label_tag }}<font color="red">*</font> {{ form.password2 }}<br>
-	    {{ form.affiliation.label_tag }}<font color="red">*</font> {{ form.affiliation }}<br>
-	    <div class="fieldWrapper">
-	      <p> Public Key <input name="pubkey" type="file"/> </p>
-	    </div>
-	    <p><input type="submit" value="Register" /></p>
+
+	    <table>
+	      <tr><td> {{ form.username.label_tag }}<font color="red">*</font></td><td> {{ form.username }}</td></tr>
+	      <tr><td>{{ form.password1.label_tag }}<font color="red">*</font></td><td> {{ form.password1 }}</td></tr>
+	      <tr><td>{{ form.password2.label_tag }}<font color="red">*</font></td><td> {{ form.password2 }}</td></tr>
+	      <tr><td>{{ form.affiliation.label_tag }}<font color="red">*</font></td><td> {{ form.affiliation }}</td></tr>
+	      <tr><td>{{ form.pubkey.label_tag }}</td><td>{{ form.gen_upload_choice }}<br>{{ form.pubkey }}</td></tr>
+	      <tr><td colspan=2><input align="center" type="submit" value="Register" /></td></tr>
+	    </table>
 	  </form>
 	</div>
   <br><br><br><b>OR</b><br><br>

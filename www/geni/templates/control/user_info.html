@@ -17,8 +17,8 @@
 		<div id="window1" class="window"> 
 		  <!-- User Information -->
 
-		  {% ifnotequal msg "" %}
-		  <p><font color="red">{{ msg }}</font></p>
+		  {% ifnotequal info "" %}
+		  <p><font color="red">{{ info }}</font></p>
 		  {% endifnotequal %}
 				<p> Username: {{ user.username }}</p>
 				<p> Affiliation: {{ geni_user.affiliation }}</p>
@@ -43,6 +43,9 @@
 					    from the server. Alway store your
 					    private key in a secure location. </p>
 				{% endifnotequal %}
+			        <form method="POST" action="{% url gen_new_key %}"> 
+				  <input type="submit" value="Generate a new public-private key pair" />
+				</form>
 				</p>
 			</div>
 		</div>

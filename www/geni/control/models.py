@@ -40,13 +40,22 @@ class User(models.Model):
         if self.pubkey == "":
             pubpriv=pop_key()
             if pubpriv == []:
-                return
+                return False
             self.pubkey,self.privkey = pubpriv
         pubpriv2=pop_key()
         if pubpriv2 == []:
-            return
+            return False
         self.donor_pubkey,self.donor_privkey = pubpriv2
         self.save()
+        return True
+
+    def gen_new_key(self):
+        pubpriv=pop_key()
+        if pubpriv == []:
+            return False
+        self.pubkey,self.privkey = pubpriv
+        self.save()
+        return True
     
 class Donation(models.Model):
     # user donating

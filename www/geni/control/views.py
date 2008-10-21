@@ -1,6 +1,9 @@
+#from repyportability import * # in portability dir
+#from changeusers import *
+
 from django.http import Http404
 import datetime
-from models import User,Donation,Vessel,VesselMap,Share
+from models import User,Donation,Vessel,VesselMap,Share,pop_key
 from django.http import HttpResponseRedirect
 from django.http import HttpResponse
 from django.core.urlresolvers import reverse
@@ -118,31 +121,54 @@ def used_resources(request):
     return direct_to_template(request,'control/used_resources.html', {'geni_user' : geni_user, 'my_vessels' : myvessels, 'sh_vessels' : shvessels, 'get_form' : get_form})
 
 @login_required()
-def user_info(request,msg=""):
+def user_info(request,info=""):
     ret,success = __validate_guser__(request)
     if not success:
         return ret
     geni_user = ret
-    return direct_to_template(request,'control/user_info.html', {'geni_user' : geni_user, 'msg' : msg })
+    return direct_to_template(request,'control/user_info.html', {'geni_user' : geni_user, 'info' : info })
     
 @login_required()
 def del_priv(request):
+    if not request.method == 'POST':
+        return user_info(request)
+    
     ret,success = __validate_guser__(request)
     if not success:
         return ret
     geni_user = ret
+    
     if geni_user.privkey == "":
         del_msg = "Private key has already been deleted"
     else:
         geni_user.privkey = ""
         geni_user.save()
         del_msg = "Private key successfully deleted"
-    return user_info(request,msg=del_msg)
+    return user_info(request,info=del_msg)
 
 @login_required()
 def dl_pub_key(request):
+    if not request.method == 'POST':
+        return user_info(request)
     return __dl_key__(request,True)
 
 @login_required()
 def dl_priv_key(request):
+    if not request.method == 'POST':
+        return user_info(request)
     return __dl_key__(request,False)
+
+@login_required()
+def gen_new_key(request):
+    if not request.method == 'POST':
+        return user_info(request)
+        
+    ret,success = __validate_guser__(request)
+    if not success:
+        return ret
+    geni_user = ret
+    if geni_user.gen_new_key():
+        info = "New public-private key pair generated"
+    else:
+        info = "Failed to generate a new public-private key pair (server error)"
+    return user_info(request,info=info)
