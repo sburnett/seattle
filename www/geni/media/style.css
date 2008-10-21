@@ -121,8 +121,7 @@ th, td {
 	height: 70%;
 	min-height: 425px;
 	min-width: 440px;
-	margin-left: 10%;
-	margin-right: 10%;
+	margin-left: 9%;
 	border: 1px solid black;
 }
 
@@ -140,7 +139,7 @@ th, td {
 	height:70%;
 	position: absolute;
 	left: 66%;
-	top: 31%;
+	top: 30%;
 	border-left: solid 2px black;
 	text-align: center;
 }
