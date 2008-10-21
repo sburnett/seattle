@@ -134,7 +134,7 @@ th, td {
 	height:40%;
 	position: absolute;
 	left: 67%;
-	top: 182px;
+	top: 15%;
 	border-left: solid 2px black;
 	text-align: center;
 }
@@ -146,7 +146,7 @@ th, td {
 	padding-top: 20px;
 	border-top: 2px solid black;
 	text-align: center;
-	width: 700px;
+	width: 56%;
 	display: none;
 }
 
@@ -209,7 +209,7 @@ th, td {
 }
 
 #installers {
-	width: 500px;
-	height: 700px;
+	width: 40%px;
+	height: 56%px;
 	text-align: center;
 }
