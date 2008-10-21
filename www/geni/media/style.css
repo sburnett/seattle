@@ -192,6 +192,7 @@ th, td {
 
 #table1, #table2 {
 	display: none;
+	border-bottom: 1px solid black;
 	margin-left: auto;
 	margin-right: auto;
 	text-align: center;
