@@ -19,3 +19,8 @@ while True:
     print "I have the mutex"
   else:
     print "I do not have the mutex"
+
+  time.sleep(2)
+  print "releasing mutex (if possible)"
+  runonce.releaseprocesslock(lockname)
+

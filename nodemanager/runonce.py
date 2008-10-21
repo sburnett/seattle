@@ -15,7 +15,8 @@ import platform
 # NOTE: one must call stillhaveprocesslock periodically to guard against a user
 # deleting the tmp file
 def stillhaveprocesslock(lockname):
-  return getprocesslock(lockname) == os.getpid()
+  val =  getprocesslock(lockname) 
+  return val == os.getpid()
 
 def getprocesslock(lockname):
   ostype = platform.system()
@@ -33,17 +34,42 @@ def getprocesslock(lockname):
     raise Exception, 'Unknown operating system:'+ostype
 
 
+def releaseprocesslock(lockname):
+  ostype = platform.system()
+  if ostype == 'Windows' or ostype == 'Microsoft':
+    return releaseprocesslockmutex(lockname)
+  elif ostype == 'Linux' or ostype == 'Darwin' or 'BSD' in ostype:
+    # unfortunately, it seems *NIXes differ on whether O_EXLOCK is supported
+    try:
+      os.O_EXLOCK
+    except AttributeError:
+      return releaseprocesslockflock(lockname)   
+    else:
+      return releaseprocesslocko_exlock(lockname)
+  else:
+    raise Exception, 'Unknown operating system:'+ostype
+
+
 
 ###### MAC / LINUX section ########
 
+# NOTE: In order to avoid leaking file descriptors, if I've tried to get the
+# process lock before I'll close the old one on success or the new one on 
+# failure
+oldfiledesc = None
+
 # this works on a smattering of systems...
 def getprocesslocko_exlock(lockname):
+  global oldfiledesc
   # the file we'll use
   lockfn = "/tmp/runoncelock."+lockname
     
   try:
     fd = os.open(lockfn,os.O_CREAT | os.O_RDWR | os.O_EXLOCK | os.O_NONBLOCK)
     os.write(fd,str(os.getpid()))
+    if oldfiledesc:
+      os.close(oldfiledesc)
+    oldfiledesc = fd
     return True
   except (OSError,IOError), e:
     if e[0] == errno.EACCES or e[0] == errno.EAGAIN:
@@ -61,27 +87,56 @@ def getprocesslocko_exlock(lockname):
 
 
 def getprocesslockflock(lockname):
+  global oldfiledesc
   # the file we'll use
   lockfn = "/tmp/runoncelock."+lockname
     
   try:
     fd = os.open(lockfn,os.O_CREAT | os.O_RDWR | os.O_NONBLOCK)
-    import fcntl
-    fcntl.flock(fd,fcntl.LOCK_EX | fcntl.LOCK_NB)
-    os.write(fd,str(os.getpid()))
-    return True
   except (OSError, IOError), e:
     if e[0] == errno.EACCES or e[0] == errno.EAGAIN:
       # okay, they must have started already.   
       pass
     else:
-      # we weren't expecting this...
       raise
+  else:
+    try:
+      import fcntl
+      fcntl.flock(fd,fcntl.LOCK_EX | fcntl.LOCK_NB)
+      os.write(fd,str(os.getpid()))
+      if oldfiledesc:
+        os.close(oldfiledesc)
+      oldfiledesc = fd
+      return True
+    except (OSError, IOError), e:
+      os.close(fd)
+      if e[0] == errno.EACCES or e[0] == errno.EAGAIN:
+        # okay, they must have started already.   
+        pass
+      else:
+        # we weren't expecting this...
+        raise
+
   # Let's return the PID
   fo = open(lockfn)
   pidstring = fo.read()
   fo.close()
   return int(pidstring)
+
+
+def releaseprocesslocko_exlock(lockname):
+  global oldfiledesc
+  if oldfiledesc != None:
+    os.close(oldfiledesc)
+  oldfiledesc = None
+
+def releaseprocesslockflock(lockname):
+  global oldfiledesc
+  if oldfiledesc != None:
+    os.close(oldfiledesc)
+  oldfiledesc = None
+
+
 
 
 
@@ -163,6 +218,7 @@ def getprocesslockmutex(lockname):
       except EnvironmentError,e:                                          
         print thekey, regkeyname, 0, _winreg.REG_SZ, os.getpid()
         print "Encountered problems writing into the Registry..."+str(e)
+        raise
        
       _winreg.CloseKey(thekey)
       _winreg.CloseKey(registryconn)
@@ -197,3 +253,13 @@ def getprocesslockmutex(lockname):
   finally:
     _winreg.CloseKey(thekey)
     _winreg.CloseKey(registryconn)
+
+
+
+
+def releaseprocesslockmutex(lockname):
+  global mutexhandle
+  if mutexhandle != None:
+    from win32event import ReleaseMutex
+    ReleaseMutex(mutexhandle)
+  mutexhandle = None
