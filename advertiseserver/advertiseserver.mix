@@ -58,7 +58,7 @@ def handlerequest(remoteIP, remoteport, sockobj, ch, mainch):
   try:
     try:
       request = session_recvmessage(sockobj)
-    except ValueError,e:
+    except Exception,e:
       print e
       return
 
@@ -97,6 +97,9 @@ def handlerequest(remoteIP, remoteport, sockobj, ch, mainch):
     else:
       session_sendmessage(sockobj, "Error, unknown request type")
       return
+
+  except Exception,e:
+    print "While handling request, received: ",e
   
   finally:
     sockobj.close()
