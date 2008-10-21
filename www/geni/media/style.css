@@ -71,7 +71,7 @@ ul li {
 }
 
 #Tabs {
-	width: 1000px;
+	width: 80%;
 	margin-left: auto;
 	margin-right: auto;
 	text-align: center;
@@ -97,32 +97,32 @@ th, td {
 #window1 {
 	padding-top: 20px;
 	font-size: 18pt;
-	width: 1000px;
-	height: 500px;
+	width: 80%;
+	height: 40%;
 	margin-left: auto;
 	margin-right: auto;
 	border: 1px solid black;
 }
 
 #window2 {
-	width: 1000px;
-	height: 500px;
+	width: 80%;
+	height: 40%;
 	margin-left: auto;
 	border: 1px solid black;
 	margin-right: auto;
 }
 
 #window3 {
-	width: 1000px;
-	height: 500px;
+	width: 80%;
+	height: 40%;
 	margin-left: auto;
 	margin-right: auto;
 	border: 1px solid black;
 }
 
 #window4 {
-	width: 1000px;
-	height: 500px;
+	width: 80%;
+	height: 40%;
 	border: 1px solid black;
 	margin-left: auto;
 	margin-right: auto;
@@ -130,8 +130,8 @@ th, td {
 }
 
 .sideWindow {
-	width:300px;
-	height:500px;
+	width:30%;
+	height:40%;
 	position: absolute;
 	left: 835px;
 	top: 182px;
@@ -139,7 +139,7 @@ th, td {
 	text-align: center;
 }
 .tables {
-	width: 700px;
+	width: 50%;
 }
 
 #sharedResources {
