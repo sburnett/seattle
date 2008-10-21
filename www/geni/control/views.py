@@ -41,31 +41,52 @@ def __dl_key__(request,pubkey=True):
     return response
 
 @login_required()
-def donations(request):
+def del_share(request):
+    if not request.method == 'POST':
+        return donations(request)
+    
     ret,success = __validate_guser__(request)
     if not success:
         return ret
     geni_user = ret
-    
-    
-    share_form = forms.AddShareForm()
-    if request.method == 'POST' and request.POST.has_key('new_share'):
-        share_form = forms.AddShareForm(request.POST)
-        share_form.set_user(geni_user)
-        if share_form.is_valid():
-            # commit to db
-            s = Share(from_user=geni_user,to_user=share_form.cleaned_data['username'],percent=share_form.cleaned_data['percent'])
-            s.save()
-            share_form = forms.AddShareForm()
+
+    myshares = Share.objects.filter(from_user = geni_user)
+    for s in myshares:
+        if request.POST.has_key('deleteshare_%s'%(s.to_user.www_user.username)):
+            s.delete()
             
-    elif request.method == 'POST' and request.POST.has_key('update_shares'):
-        myshares = Share.objects.filter(from_user = geni_user)
-        for s in myshares:
-            if request.POST.has_key('deleteshare_%s'%(s.to_user.www_user.username)):
-                s.delete()
-#             if request.POST.has_key('percent_%s'%(s.to_user.www_user.username)) and \
-#                s.percent != request.POST['percent_%s']:
-#                 s.percent = int(request.POST['percent_%s'])
+    return donations(request)
+    
+@login_required()
+def new_share(request):
+    if not request.method == 'POST':
+        return donations(request)
+
+    ret,success = __validate_guser__(request)
+    if not success:
+        return ret
+    geni_user = ret
+
+    share_form = forms.AddShareForm(request.POST)
+    share_form.set_user(geni_user)
+    if share_form.is_valid():
+        # commit to db
+        s = Share(from_user=geni_user,to_user=share_form.cleaned_data['username'],percent=share_form.cleaned_data['percent'])
+        s.save()
+        share_form = None
+        
+    return donations(request,share_form)
+    
+
+@login_required()
+def donations(request,share_form=None):
+    ret,success = __validate_guser__(request)
+    if not success:
+        return ret
+    geni_user = ret
+
+    if share_form == None:
+        share_form = forms.AddShareForm()
             
     mydonations = Donation.objects.filter(user = geni_user)
     myshares = Share.objects.filter(from_user = geni_user)
