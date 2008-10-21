@@ -11,7 +11,7 @@ body {
 }
 
 table {
-	border-collapse: collapse;
+	border-collapse: none;
 }
 
 a {
