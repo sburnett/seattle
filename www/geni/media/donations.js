@@ -12,7 +12,7 @@ window.onload = function() {
 		$("linux").src = "/geni/media/midlinux.jpg";
 	} else {
 	}
-	$("checkAll").onclick = checkAll;
+	//$("checkAll").onclick = checkAll;
 	var count = tally();
 	$("maximizer1").textContent = count1 + " Machines Donated (click to expand)";
 	$("maximizer2").textContent = count2 + " Machines Donated (click to expand)";
