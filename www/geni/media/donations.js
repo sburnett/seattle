@@ -25,7 +25,7 @@ window.onload = function() {
 		$("maximizer1").onclick = table1unhide;
 	} else if (count1 <= dontDisplay) {
 		$("maximizer1").style.display = "none";
-	} else 
+	} else {
 		$("maximizer1").style.display = "block";
 		table1unhide();
 	}
