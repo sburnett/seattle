@@ -451,7 +451,7 @@ function createInstaller () {
 	
 	var jsonString = json.toJSONString();
 	// alert(jsonString);
-	new Ajax.Request('process.php',
+	new Ajax.Request("process.php",
 	{
 		method: "post",
 		parameters: {action: "createinstaller", content: jsonString},

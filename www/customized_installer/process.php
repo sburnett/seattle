@@ -17,10 +17,10 @@ if (isset($_POST)) {
 			$user->writeKeys();
 		}
 		echo $user->getName() . " is added.";
-	} else if ($_POST['action'] == 'createinstaller') {
-		$content = json_decode($_POST['content']);
-		// echo "hello";
-		print_r($content);	
+	} else {//($_POST['action'] == 'createinstaller') {
+		//$content = json_decode($_POST['content']);
+		print "hello";
+		//print_r($content);	
 	}
 	
 }
