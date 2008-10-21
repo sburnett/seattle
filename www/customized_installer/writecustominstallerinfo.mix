@@ -15,6 +15,8 @@ This is a bit of a mess, but the work is really a bunch of little things...
 # need to load public keys
 include rsa.repy
 
+import sys
+
 import os
 
 import persist
@@ -182,3 +184,31 @@ def create_installer_state(vesselcreationinfo, targetdirectory):
 
 
 
+def read_vesselinfo_from_file(filename):
+  retvesselinfo = []
+  lastvesseldata = None
+  for line in open(filename):
+
+    if line.split()[0] == 'Percent':
+      if lastvesseldata:
+        if lastvesseldata[1] == None:
+          raise Exception, "Error, must have Owner for each vessel"
+        retvesselinfo.append(lastvesseldata)
+      lastvesseldata = [int(line.split()[1]), None, []]
+    elif line.split()[0] == 'Owner':
+      lastvesseldata[1] = line.split()[1]
+    elif line.split()[0] == 'User':
+      lastvesseldata[2].append(line.split()[1])
+ 
+
+  retvesselinfo.append(lastvesseldata)
+  return retvesselinfo
+
+if __name__ == '__main__':
+  if len(sys.argv) != 3:
+    print "Wrong number of arguments"
+    print "Usage: python writecustominstallerinfo.py datafile targetdir"
+    sys.exit(1)
+  
+
+  create_installer_state(read_vesselinfo_from_file(sys.argv[1], sys.argv[2]))
