@@ -133,10 +133,10 @@ th, td {
 
 .sideWindow {
 	width:30%;
-	height:60%;
+	height:70%;
 	position: absolute;
 	left: 67%;
-	top: 30%;
+	top: 20%;
 	border-left: solid 2px black;
 	text-align: center;
 }
