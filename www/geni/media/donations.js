@@ -1,7 +1,8 @@
 var count1 = 0;
 var count2 = 0;
 var count3 = 0;
-var hideWhenNumber = 5;
+var hideWhenNumber = 8;
+var dontDisplay = 3;
 
 window.onload = function() {
 	if (BrowserDetect.OS == "Windows") {
@@ -22,17 +23,26 @@ window.onload = function() {
 	try { if(!maximizer2.innerText) maximizer2.innerText = maximizer2.textContent; } catch(e) {}
 	if (count1 >= hideWhenNumber) {
 		$("maximizer1").onclick = table1unhide;
-	} else {
+	} else if (count1 <= dontDisplay) {
+		$("maximizer1").style.display = "none";
+	} else 
+		$("maximizer1").style.display = "block";
 		table1unhide();
 	}
 	if (count2 >= hideWhenNumber) {
 		$("maximizer2").onclick = table2unhide;
+	} else if (count2 <= dontDisplay) {
+		$("maximizer2").style.display = "none";
 	} else {
+		$("maximizer2").style.display = "block";
 		table2unhide();
 	}
 	if (count3 >= hideWhenNumber) {
 		$("maximizer3").onclick = table3unhide;
+	} else if (count3 <= dontDisplay) {
+		$("maximizer3").style.display = "none";
 	} else {
+		$("maximizer3").style.display = "block";
 		table3unhide();
 	}
 };
