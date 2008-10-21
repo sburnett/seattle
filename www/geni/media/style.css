@@ -117,6 +117,8 @@ th, td {
 	height: 70%;
 	margin-left: auto;
 	margin-right: auto;
+	position: absolute;
+	left: 10%;
 	border: 1px solid black;
 }
 
@@ -134,7 +136,7 @@ th, td {
 	height:70%;
 	position: absolute;
 	left: 67%;
-	top: 15%;
+	top: 30%;
 	border-left: solid 2px black;
 	text-align: center;
 }
