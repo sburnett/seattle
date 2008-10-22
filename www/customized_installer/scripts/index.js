@@ -74,9 +74,9 @@ function fixheights(adds) {
 }
 
 function removeVessel() {
-	new Effect.Fade(this);
+	this.style.display = "none";
 	var index = (Number)((this.id)[6]+"");
-	new Effect.Appear($("plus"+index));
+	$("plus"+index).style.display = "block";
 	var previousIndex = findNumberOfJumpsBack(index-1);
 	vesselLengths[index-previousIndex] += vesselLengths[index];
 	vesselLengths[index] = 0;
@@ -84,9 +84,9 @@ function removeVessel() {
 }
 
 function addVessel() {
-	new Effect.Fade(this);
+	this.style.display = "none";
 	var index = (Number)((this.id)[4]+"");
-	new Effect.Appear($("remove"+index));
+	$("remove"+index).style.display = "block";
 	var multiplier = findNumberOfJumps(index);
 	vesselLengths[index] = (multiplier * 132) ;
 	var previousIndex = findNumberOfJumpsBack(index-1);
