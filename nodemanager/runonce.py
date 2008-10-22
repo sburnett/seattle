@@ -56,20 +56,19 @@ def releaseprocesslock(lockname):
 # NOTE: In order to avoid leaking file descriptors, if I've tried to get the
 # process lock before I'll close the old one on success or the new one on 
 # failure
-oldfiledesc = None
+oldfiledesc = {}
 
 # this works on a smattering of systems...
 def getprocesslocko_exlock(lockname):
-  global oldfiledesc
   # the file we'll use
   lockfn = "/tmp/runoncelock."+lockname
     
   try:
     fd = os.open(lockfn,os.O_CREAT | os.O_RDWR | os.O_EXLOCK | os.O_NONBLOCK)
     os.write(fd,str(os.getpid()))
-    if oldfiledesc:
-      os.close(oldfiledesc)
-    oldfiledesc = fd
+    if lockname in oldfiledesc:
+      os.close(oldfiledesc[lockname])
+    oldfiledesc[lockname] = fd
     return True
   except (OSError,IOError), e:
     if e[0] == errno.EACCES or e[0] == errno.EAGAIN:
@@ -104,9 +103,9 @@ def getprocesslockflock(lockname):
       import fcntl
       fcntl.flock(fd,fcntl.LOCK_EX | fcntl.LOCK_NB)
       os.write(fd,str(os.getpid()))
-      if oldfiledesc:
-        os.close(oldfiledesc)
-      oldfiledesc = fd
+      if lockname in oldfiledesc:
+        os.close(oldfiledesc[lockname])
+      oldfiledesc[lockname] = fd
       return True
     except (OSError, IOError), e:
       os.close(fd)
@@ -125,16 +124,15 @@ def getprocesslockflock(lockname):
 
 
 def releaseprocesslocko_exlock(lockname):
-  global oldfiledesc
-  if oldfiledesc != None:
-    os.close(oldfiledesc)
-  oldfiledesc = None
+  if lockname in oldfiledesc:
+    os.close(oldfiledesc[lockname])
+    del oldfiledesc[lockname]
+  
 
 def releaseprocesslockflock(lockname):
-  global oldfiledesc
-  if oldfiledesc != None:
-    os.close(oldfiledesc)
-  oldfiledesc = None
+  if lockname in oldfiledesc:
+    os.close(oldfiledesc[lockname])
+    del oldfiledesc[lockname]
 
 
 
@@ -147,7 +145,7 @@ def releaseprocesslockflock(lockname):
 
 # I need to ensure I don't close the handle to the mutex.   I'll make it a
 # global so it isn't cleaned up.
-mutexhandle = None
+mutexhandle = {}
 
 
 # this is a helper function that opens the right location in the registry
@@ -180,7 +178,6 @@ def getprocesslockmutex(lockname):
   from win32api import GetLastError
   from winerror import ERROR_ALREADY_EXISTS
   import _winreg
-  global mutexhandle
   regkeyname = r"runonce."+lockname
 
   # traverse registry path
@@ -188,13 +185,13 @@ def getprocesslockmutex(lockname):
 
   # need to ensure that the mutexhandle is not garbage collected...
   try:
-    mutexhandle = CreateMutex(None, 1, 'Global\\runonce.'+lockname)
+    mutexhandle[lockname] = CreateMutex(None, 1, 'Global\\runonce.'+lockname)
   except Exception,e:
     if e[0] == 5:
       # NOTE: happens when the process is owned by another user
       #Traceback (most recent call last):
       #  File "b.py", line 7, in <module>
-      #      mutexhandle = CreateMutex(None, 1, 'Global\\runonce.'+lockname)
+      #      mhandle = CreateMutex(None, 1, 'Global\\runonce.'+lockname)
       #      pywintypes.error: (5, 'CreateMutex', 'Access is denied.')
      
       # figure out where the lock is held
@@ -258,8 +255,7 @@ def getprocesslockmutex(lockname):
 
 
 def releaseprocesslockmutex(lockname):
-  global mutexhandle
-  if mutexhandle != None:
+  if lockname in mutexhandle:
     from win32event import ReleaseMutex
-    ReleaseMutex(mutexhandle)
-  mutexhandle = None
+    ReleaseMutex(mutexhandle[lockname])
+    del mutexhandle[lockname]
