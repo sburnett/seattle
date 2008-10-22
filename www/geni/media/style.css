@@ -23,6 +23,10 @@ img {
 	border: none;
 }
 
+.underlined {
+	text-decoration: underline;
+}
+
 .center, #installersheader, #Installers {
 	text-align: center;
 }
@@ -92,7 +96,7 @@ ul li {
 	background-color: green;
 }
 
-th, td {
+th, td , tr{
 	padding-left: 20px;
 	padding-right: 20px;
 	border: none;
