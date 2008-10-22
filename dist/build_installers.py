@@ -9,6 +9,7 @@
 import sys
 import os
 import clean_folder
+import shutil
 
 DISTS = ["win", "linux"]
 INSTALL_DIR = "seattle_repy"
@@ -28,17 +29,16 @@ def main(dist_name):
         os.system("python preparetest.py dist" + os.sep + prog_dir)
         # Next, do an initial cleaning of the directory created
         os.chdir("dist")
-        clean_folder.main("preparetest_pre_init.fi", prog_dir)
+        clean_folder.main("preparetest.fi", prog_dir)
         # Generate the metainfo file
         os.chdir(prog_dir)
         os.system("python writemetainfo.py .." + os.sep + ".." + os.sep + UPDATER_PRIV_KEY + " .." + os.sep + ".." + os.sep + UPDATER_PUB_KEY)
-        # Run nminit.py
-        os.system("python nminit.py")
+
+        # Copy the nodeman.cfg file from the dist directory
+        shutil.copyfile(".." + os.sep + ".." + os.sep + "nodeman.cfg", "nodeman.cfg")
         
-        # Do a secondary cleaning of the directory
         os.chdir(".." + os.sep + "..")
-        clean_folder.main("preparetest_post_init.fi", prog_dir)
-        
+                
         output("Done!")
         
     # Package up the Windows installer
