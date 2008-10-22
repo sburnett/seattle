@@ -70,6 +70,9 @@ def main():
         starter_f = open(STARTER_SCRIPT_NAME, "w")
         starter_f.writelines(lines)
         starter_f.close()
+        
+        # Set permission on the starter script
+        os.popen("chmod u+x " + STARTER_SCRIPT_NAME) 
                 
         # Start the program
         os.popen("./" + STARTER_SCRIPT_NAME + ' "$PWD"&')
