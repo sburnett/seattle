@@ -381,10 +381,11 @@ function createInstaller () {
 function finish (ajax) {
 	var notice = document.createElement("div");
 	notice.id = "notice";
-	notice.textContent = "Congratulations, you installers are successfully generated.";
+	notice.textContent = "Congratulations, you installers are successfully generated. Redirecting to the download page...";
 	notice.style.display = "none";
 	$("names").appendChild(notice);
 	new Effect.Appear(notice.id);
+	setTimeout(function () { location.href = "links.html" }, 2000);
 }
 
 

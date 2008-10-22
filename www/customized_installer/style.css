@@ -161,5 +161,25 @@ h1 {
 	font-size: 16pt;
 	text-align: center;
 	vertical-align: center;
-	z-index: 20;
+}
+
+#links {
+	margin: 20px 50px;
+	width: 300px;
+	height: 150px;
+	font-size: 14pt;
+	background-color: #EEF9EB;
+	border: 2px solid #24973E;
+	padding: 20px 50px;
+	line-height: 28pt;
+}
+
+#links ul li {
+	border: none;
+	background-color: #EEF9EB;
+	list-style: disc;
+}
+
+#links ul li a {
+	color: #333;
 }
