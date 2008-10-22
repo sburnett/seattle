@@ -40,7 +40,7 @@ function outputVesselsInfo ($vessels) {
 		$output .= "Owner " . $vessel['owner'] . "\n";
 		foreach ($vessel['users'] as $user) {
 			$output .= "User " . $user . "\n";
-		}	
+		}
 	}
 	return $output;
 }
