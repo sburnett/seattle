@@ -84,7 +84,7 @@
 			
 				<div class="sideWindow"> 
 					<h2> Your Installers </h2>
-					<a href="{% url installers user.username %}"> <button id="installerLink"> Installers Page </button> </a> <br/>
+					<a href="{% url installers user.username %}"> <p id="installerLink"> Installers Page </p> </a> <br/>
 					<a class="icons" href="{% url installers user.username %}win.zip"> <img id="win" src="{{ MEDIA_URL }}win.jpg" alt="windows"/> </a>
 					<a class="icons" href="{% url installers user.username %}mac.tgz"> <img id="osx" src="{{ MEDIA_URL }}osx.jpg" alt="mac"/> </a>
 					<a class="icons" href="{% url installers user.username %}linux.tgz"> <img id="linux" src="{{ MEDIA_URL }}linux.jpg" alt="linux" /> </a> 
