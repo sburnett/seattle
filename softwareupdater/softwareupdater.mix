@@ -24,6 +24,7 @@ import shutil
 import socket   # we'll make it so we don't hang...
 import tempfile
 import runonce
+import nonportable  # Used for sys.exit
 
 include signeddata.repy
 include sha.repy
@@ -214,39 +215,65 @@ def do_rsync(serverpath, destdir, tempdir):
 # each new program has its own stop and OK files (listed by mutex number)
 # 
 # first program (fresh_software_updater)
+#              get softwareupdater.new mutex
 #              clean all mutex files
+#              once in main, take softwareupdater.old, release softwareupdater.new
+#              exit if we ever lose softwareupdater.old
 #
 # old program (restart_software_updater)
 #              find an unused mutex 
 #              starts new with arg that is the mutex
 #              wait for some time
-#              if "OK" file exists, remove it and exit
+#              if "OK" file exists, release softwareupdater.old, remove it and exit
 #              else write "stop" file
 #              continue normal operation
 #
 # new program: (software_updater_start)
+#              take softwareupdater.new mutex
 #              initializes
 #              if "stop" file exists, then exit
 #              write "OK" file
 #              while "OK" file exists
 #                 if "stop" file exists, then exit
+#              take softwareupdater.old, release softwareupdater.new
 #              start normal operation
 #
 
 
 def init():
+#  print 'Starting at the very beginning...'
+  gotlock = runonce.getprocesslock("softwareupdater.new")
+  if gotlock == True:
+    # I got the lock.   All is well...
+    pass
+  else:
+    # didn't get the lock, and we like to be real quiet, so lets 
+    # exit quietly
+    sys.exit(55)
+
+#  print 'Right before closure...'
 
   # set up logging, etc.
-  sys.stdout.close()
   sys.stdin.close()
+  # close C's stdout stream
+#  sys.stdout.close()
+#  os.close(1)
   sys.stderr.close()
 
   if not os.path.exists("softwareupdater.logfile") or os.path.getsize("softwareupdater.logfile") > 1024*1024:
     # kill the log file if it's > 1MB, create if it doesn't exist
     sys.stderr = open("softwareupdater.logfile","w")
+    #pass
   else:
     # or append otherwise
     sys.stderr = open("softwareupdater.logfile","a")
+    #pass
+
+ # sys.stdout = sys.stderr
+
+#  sys.stderr.write('Starting init')
+
+#  print 'done with stderr stuffs'
 
   # don't hang if the socket is slow (in some ways, this doesn't always work)
   # BUG: http://mail.python.org/pipermail/python-list/2008-January/471845.html
@@ -258,13 +285,13 @@ def init():
   
   # create the test dir...
   os.mkdir("download.test")
-
   # copy my metainfo file into there
   shutil.copy("metainfo","download.test")
 
   # do an update to that directory.   If I don't see an unexpected error, we 
   # should be in good shape
   tempdir = tempfile.mkdtemp()+"/"
+#  sys.stderr.write('Gonna do rsync test')
   try:
     do_rsync(softwareurl, "download.test/",tempdir)
   except:
@@ -276,6 +303,8 @@ def init():
       
   # remove the test directory
   shutil.rmtree("download.test")
+
+#  sys.stderr.write('Gonna get started now!')
 
   # time to handle startup (with respect to other copies of the updater
   if len(sys.argv) == 1:
@@ -289,7 +318,7 @@ def init():
 def software_updater_start(mutexname):
   # if "stop" file exists, then exit
   if os.path.exists("softwareupdater.stop."+mutexname):
-    sys.exit(1)
+    sys.exit(2)
 
   # write "OK" file
   file("softwareupdater.OK."+mutexname,"w").close()
@@ -298,8 +327,23 @@ def software_updater_start(mutexname):
   while os.path.exists("softwareupdater.OK."+mutexname):
     # if "stop" file exists, then exit
     if os.path.exists("softwareupdater.stop."+mutexname):
-      sys.exit(1)
+      sys.exit(3)
 
+  # Get the process lock for the main part of the program.
+  gotlock = runonce.getprocesslock("softwareupdater.old")
+  # Release the lock on the initialization part of the program
+  runonce.releaseprocesslock('softwareupdater.new')
+  if gotlock == True:
+    # I got the lock.   All is well...
+    pass
+  else:
+    if gotlock:
+      sys.stderr.write("Another software updater old process (pid: "+str(gotlock)+") is running")
+      sys.exit(55)
+    else:
+      sys.stderr.write("Another software updater old process is running")
+      sys.exit(55)
+  
   # start normal operation
   return
 
@@ -313,6 +357,20 @@ def fresh_software_updater():
     if filename.startswith('softwareupdater.OK.') or filename.startswith('softwareupdater.stop.'):
       os.remove(filename)
 
+  # Get the process lock for the main part of the program.
+  gotlock = runonce.getprocesslock("softwareupdater.old")
+  # Release the lock on the initialization part of the program
+  runonce.releaseprocesslock('softwareupdater.new')
+  if gotlock == True:
+    # I got the lock.   All is well...
+    pass
+  else:
+    if gotlock:
+      sys.stderr.write("Another software updater old process (pid: "+str(gotlock)+") is running")
+      sys.exit(55)
+    else:
+      sys.stderr.write("Another software updater old process is running")
+      sys.exit(55)
   # Should be ready to go...
 
 
@@ -328,7 +386,7 @@ def get_mutex():
 
 def restart_software_updater():
   """This will exit if the new program seems to start correctly and return otherwise.   It should prevent multiple copies from running"""
-
+#  std.stderr.write('Gonna restart!')
   # find an unused mutex 
   thismutex = get_mutex()
 
@@ -339,8 +397,9 @@ def restart_software_updater():
   for junkcount in range(30):
     do_sleep(2.0)
 
-    # if "OK" file exists, remove it and exit
+    # if "OK" file exists, release softwareupdater.old, remove OK file and exit
     if os.path.exists("softwareupdater.OK."+thismutex):
+      runonce.releaseprocesslock('softwareupdater.old')
       os.remove("softwareupdater.OK."+thismutex)
       # I'm happy, it is taking over
       sys.exit(10)
@@ -394,11 +453,22 @@ def main():
   restartme = False
 
   while True:
+#    sys.stderr.write('Before main sleep')
     # sleep for 5-55 minutes 
     do_sleep(1800+random.randint(-1500,1500))
 
+#    sys.stderr('After main sleep')
+
+    # Make sure we still have the process lock.
+    # If not, we should exit
+    if not runonce.stillhaveprocesslock('softwareupdater.old'):
+      sys.stderr.write('We no longer have the processlock\n')
+      sys.exit(55)
+
     # where I'll put files...
     tempdir = tempfile.mkdtemp()+"/"
+
+#    sys.stderr.write('gonna update!')
 
     # I'll clean this up in a minute
     try:
@@ -413,7 +483,9 @@ def main():
     # no updates   :)   Let's wait again...
     if updatedlist == []:
       continue
-    
+
+#    sys.stderr.write('Updated something!')
+   
     # if there were updates, the metainfo file should be one of them...
     assert('metainfo' in updatedlist)
 
@@ -441,5 +513,9 @@ if __name__ == '__main__':
   while True:
     try:
       main()
+    except SystemExit:
+      # If there is a SystemExit exception, we should probably actually exit...
+      raise
     except:
+      # Otherwise we will keep on trucking
       pass
