@@ -15,7 +15,7 @@ if (isset($_POST)) {
 			$user->generateKeys();
 			$user->writeKeys();
 		}
-		echo $user->getName() . " is added.";
+		// echo $user->getName() . " is added.";
 	} else if ($_POST['action'] == 'createinstaller') {
 		$vessels = json_decode(stripslashes($_POST['content']), true);
 		foreach ($vessels as &$vessel) {
@@ -29,8 +29,12 @@ if (isset($_POST)) {
 		
 		file_put_contents("vesselsinfo.txt", outputVesselsInfo($vessels));
 		// exec("python writecustominstallerinfo.py vesselsinfo.txt")
+	} else if ($_POST['action'] == 'resetform') {
+		$username = standarize($_POST['username']);
+		if (file_exists(getPublicKeyPath($username)) && !preg_match("/^user_\d$/", $username)) {
+			echo "custom";
+		}
 	}
-	
 }
 
 function outputVesselsInfo ($vessels) {

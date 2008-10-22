@@ -26,7 +26,6 @@ window.onload = function () {
 	$("publickey").onfocus = function () {
 		this.value = "";
 	}
-	// $("add").onclick = resetForm;
 	
 	Initialize();
 	updateVessels();
@@ -283,7 +282,6 @@ function updateVessels() {
 }
 
 function addUser () {
-	// $("publickey").value = "";
 	if ($("username").value == "") {
 		$("username").value = "user_" + counter;
 	}
@@ -291,8 +289,6 @@ function addUser () {
 	if (name == "user_" + counter) {
 		counter++;
 	}
-	// $("username").value = "user_" + counter;
-	
 	var user = document.createElement("span");
 	var close = document.createElement("a");
 	user.addClassName("user");
@@ -317,12 +313,24 @@ function addUser () {
 	} else {
 		$("staticvessel").style.top = ($("VesselList").offsetTop + 15) + "px";
 	}
+	new Ajax.Request('process.php',
+		{
+			method: "post",
+			parameters: {action: "resetform", username: name},
+			onSuccess: resetForm
+		}
+	);
 }
 
 
-function resetForm () {
-	// $("publickey").value = "";
-	$("username").value = "user_" + counter;
+function resetForm (ajax) {
+	if (ajax.responseText == "custom") {
+		$("username").value = "";
+		$("publickey").value = "";
+	} else {
+		$("username").value = "user_" + counter;
+		$("publickey").value = "";
+	}
 }
 
 function createInstaller () {
