@@ -26,9 +26,12 @@ if (isset($_POST)) {
 			unset($user);
 		}
 		unset($vessel);
-		
-		file_put_contents("vesselsinfo.txt", outputVesselsInfo($vessels));
-		// exec("python writecustominstallerinfo.py vesselsinfo.txt")
+		$mypid = getmypid();
+                $vesselinfopy = "/home/ivan/trunk/test/writecustominstallerinfo.py"
+                $prefix = "/var/www/customized_installer/download"
+                exec("mkdir $prefix/$mypid");
+                file_put_contents("$prefix/vesselsinfo_$mypid.txt", outputVesselsInfo($vessels)); 
+                exec("python $vesselinfopy $prefix/vesselsinfo_$mypid.txt $prefix/$mypid/")
 	} else if ($_POST['action'] == 'resetform') {
 		$username = standarize($_POST['username']);
 		if (file_exists(getPublicKeyPath($username)) && !preg_match("/^user_\d$/", $username)) {
