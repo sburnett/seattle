@@ -23,6 +23,10 @@ img {
 	border: none;
 }
 
+.logout {
+	margin-left: 49%;
+}
+
 .underlined {
 	text-decoration: underline;
 }
@@ -82,8 +86,7 @@ ul li {
 #Tabs {
 	width: 80%;
 	min-width: 450px;
-	margin-left: 10%;
-	margin-right: 10%;
+	margin-left: 9%;
 	text-align: center;
 	margin-bottom: 5px;
 }
