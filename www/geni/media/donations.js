@@ -13,6 +13,20 @@ window.onload = function() {
 		$("linux").src = "/geni/media/midlinux.jpg";
 	} else {
 	}
+	if (BrowserDetect.Browser == "Explorer") {
+		var parent = $("installerLink").parentNode();
+		$("installerLink").remove();
+		var element = document.createElement("p");
+		element.textContent = "Installers Page";
+		try { if(!element.innerText) element.innerText = element.textContent; } catch(e) {}
+		element.id = "installerLink";
+		element.style.margin-left = "15%";
+		element.style.font-size = "18pt";
+		element.style.border = "1px solid black";
+		parent.appendChild(element);	
+	} else {
+		$("installerLink").style.height = "50px";
+	}
 	//$("checkAll").onclick = checkAll;
 	var count = tally();
 	$("maximizer1").textContent = count1 + " Machines Donated (click to expand)";
