@@ -26,7 +26,6 @@ img {
 .logout {
 	margin-left: 47%;
 	padding-left: 7px;
-	margin-bottom: 40px;
 }
 
 .underlined {
@@ -94,6 +93,7 @@ ul li {
 	width: 80%;
 	min-width: 450px;
 	margin-left: 9%;
+	margin-top: 10px;
 	text-align: center;
 	margin-bottom: 5px;
 }
