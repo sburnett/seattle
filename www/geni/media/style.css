@@ -37,6 +37,10 @@ img {
 	margin-top: 20px;
 }
 
+#welcome {
+	margin: 0px;
+}
+
 #content {
 	margin: 5px;
 	padding: 5px;
