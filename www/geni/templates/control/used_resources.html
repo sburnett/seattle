@@ -5,6 +5,8 @@
 
 	<body>
 			{% include "common/banner.html" %}
+			<h2 id="welcome"> Welcome {{ username }} </h2> 
+			<a class="logout" href="{% url logout %}">Logout</a>
 			<p id="startingTab"> 1 </p>
 			<div id="Tabs"> 
 				<ul>
