@@ -20,7 +20,7 @@ window.onload = function() {
 		element.textContent = "Installers Page";
 		try { if(!element.innerText) element.innerText = element.textContent; } catch(e) {}
 		element.id = "installerLink";
-		element.style.margin-left = "15%";
+		element.style.marginLeft = "15%";
 		element.style.font-size = "18pt";
 		element.style.border = "1px solid black";
 		parent.appendChild(element);	
