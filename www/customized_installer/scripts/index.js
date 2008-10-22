@@ -384,6 +384,7 @@ function createInstaller () {
 			onSuccess: finish
 		}
 	);
+	$("installer").disabled = true;
 }
 
 function finish (ajax) {

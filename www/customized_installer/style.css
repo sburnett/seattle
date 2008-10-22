@@ -50,7 +50,6 @@ h1 {
 	font-size: 18pt;
 }
 
-
 ul li {
 	border-bottom: 1px solid #CED7E5;
 	border-left: 1px solid #CED7E5;
@@ -152,15 +151,15 @@ h1 {
 }
 
 #notice {
-	width: 400px;
-	height: 100px;
+	width: 450px;
+	height: 300px;
 	border: 1px solid #24973E;
 	background-color: #EEF9EB;
 	color: #24973E;
 	font-weight: bold;
 	font-size: 16pt;
 	text-align: center;
-	vertical-align: center;
+	padding: 30px 50px;
 }
 
 #links {
