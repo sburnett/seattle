@@ -1,12 +1,13 @@
 {% include "common/header.html" %}
 	<script src="{{ MEDIA_URL }}donations.js" type="text/javascript"></script>
 	</head>
-<h2 id="welcome"> Welcome {{ username }} </h2> <br/>
-<a class="logout" href="{% url logout %}">Logout</a>
+
 
 	<body>
 		<div id="content"> 
 			{% include "common/banner.html" %}
+			<h2 id="welcome"> Welcome {{ username }} </h2> <br/>
+			<a class="logout" href="{% url logout %}">Logout</a>
 			<p id="startingTab"> 1 </p>
 			<div id="Tabs"> 
 				<ul>
