@@ -131,7 +131,7 @@ function Initialize() {
 		ownerheader.addClassName("ownerheader");
 		try { if(!ownerheader.innerText) ownerheader.innerText = ownerheader.textContent; } catch(e) {}
 		var owner = document.createElement("li");
-		owner.textContent = "Add Owner";
+		owner.textContent = "Drag Owner Here";
 		owner.id = "owner" + i;
 		try { if(!owner.innerText) owner.innerText = owner.textContent; } catch(e) {}
 		var userlist = document.createElement("ul");
@@ -225,7 +225,7 @@ function addOwnerToList(draggable, droppable) {
 
 function createAddUserBox(lastheight) {
 	var user = document.createElement("li");
-	user.textContent = "Drag Users Here To Add";
+	user.textContent = "Drag Users Here";
 	try { if(!user.innerText) user.innerText = user.textContent; } catch(e) {}
 	user.className = "addusers";
 	if (lastheight < 53) {
@@ -394,7 +394,7 @@ function finish (ajax) {
 	notice.style.display = "none";
 	$("names").appendChild(notice);
 	new Effect.Appear(notice.id);
-	setTimeout(function () { location.href = "links.html" }, 2000);
+	setTimeout(function () { location.href = "links.php?pid=" + ajax.responseText }, 2000);
 }
 
 

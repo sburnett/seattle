@@ -1,3 +1,10 @@
+<?php
+if (isset($_GET['pid'])) {
+	$mypid = $_GET['pid'];
+}
+
+?>
+
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
 "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
@@ -18,9 +25,9 @@ Links Page for Research Project
 			<div id="main"> 
 				<div id="links">
 					<ul>
-						<li><a href="downloads/win_installer.zip" title="Windows Installer" target="_blank">Windows Installer</a></li>
-						<li><a href="downloads/mac_installer.dmg" title="Mac Installer" target="_blank">Mac OS X Installer</a></li>
-						<li><a href="downloads/linux_installer.tar.gz" title="Linux Installer" target="_blank">Linux Installer</a></li>
+						<li><a href="download/<?php echo $mypid ?>/seattle_win.zip" title="Windows Installer" target="_blank">Windows Installer</a></li>
+						<li><a href="download/<?php echo $mypid ?>/seattle_mac.tgz" title="Mac Installer" target="_blank">Mac OS X Installer</a></li>
+						<li><a href="download/<?php echo $mypid ?>/seattle_linux.tgz" title="Linux Installer" target="_blank">Linux Installer</a></li>
 					</ul>
 				</div>
 			</div>
