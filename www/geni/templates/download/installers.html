@@ -4,14 +4,21 @@
 	<h1 id="installersheader">Installers for {{ username }}</h1>
 	<body>
 		<p class="center"> Below you will find the installer links for the GENI distributed systems, blah blah blah </p>
-		<div id="Installers">
-		<a id="suggested" href="{% url installers user.username %}win.zip"> <img id="optimal" src="{{ MEDIA_URL }}bigwin.jpg" alt="windows"/> </a> <br/> <br/> <br/>
-		<a class="icons" href="{% url installers user.username %}win.zip"> <img id="win" src="{{ MEDIA_URL }}midwin.jpg" alt="windows"/> </a>
-		<a class="icons" href="{% url installers user.username %}mac.tgz"> <img id="osx" src="{{ MEDIA_URL }}midosx.jpg" alt="mac"/> </a>
-		<a class="icons" href="{% url installers user.username %}linux.tgz"> <img id="linux" src="{{ MEDIA_URL }}midlinux.jpg" alt="linux" /> </a> 
-		</div>
-		<p class="center"> Installation Instructions: The Installer suggested for your OS appears centered above, 
-		if you wish to download installers for a different OS, they are also provided. After downloading the installer, 
-		blah blah blah... </p>
+		<table id="Installers">
+		<tr> 
+		<td> <a class="icons" id="iconwin" href="{% url installers user.username %}win.zip"> <img id="win" src="{{ MEDIA_URL }}win.jpg" alt="windows"/> </a> </td>
+		<td> <a class="icons" id="iconosx" href="{% url installers user.username %}mac.tgz"> <img id="osx" src="{{ MEDIA_URL }}osx.jpg" alt="mac"/> </a> </td>
+		<td> <a class="icons" id="iconlinux" href="{% url installers user.username %}linux.tgz"> <img id="linux" src="{{ MEDIA_URL }}linux.jpg" alt="linux" /> </a> </td>
+		</tr>
+		<tr> <td> Windows </td> <td> Mac </td> <td>  Linux </td> </tr>
+		<tr> 
+			<td> Windows Installation Instructions, Blah Blah Blah
+			</td> 
+			<td> Mac Installation Instructions, Blah Blah Blah
+			</td> 
+			<td> Linux Installation Instructions, Blah Blah Blah
+			</td> 
+		</tr>
+		</table>
 	</body>
 </html>

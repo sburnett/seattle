@@ -1,13 +1,13 @@
 window.onload = function() {
 	if (BrowserDetect.OS == "Windows") {
-		$("optimal").src = "/geni/media/bigwin.jpg";
-		$("suggested").href = "{% url installers user.username %}win.zip"
+		$("win").src = "/geni/media/midwin.jpg";
+		$("iconwin").href = "{% url installers user.username %}win.zip"
 	} else if (BrowserDetect.OS == "Mac") {
-		$("optimal").src = "/geni/media/bigosx.jpg";
-		$("suggested").href = "{% url installers user.username %}osx.tgz"
+		$("osx").src = "/geni/media/midosx.jpg";
+		$("iconosx").href = "{% url installers user.username %}osx.tgz"
 	} else if (BrowserDetect.OS == "Linux") {
-		$("optimal").src = "/geni/media/biglinux.jpg";
-		$("suggested").href = "{% url installers user.username %}linux.tgz"
+		$("linux").src = "/geni/media/midlinux.jpg";
+		$("iconlinux").href = "{% url installers user.username %}linux.tgz"
 	} else {
 	}
 
