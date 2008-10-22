@@ -131,6 +131,8 @@ def releaseprocesslocko_exlock(lockname):
 
 def releaseprocesslockflock(lockname):
   if lockname in oldfiledesc:
+    import fcntl
+    fcntl.flock(oldfiledesc[lockname],fcntl.LOCK_UN)
     os.close(oldfiledesc[lockname])
     del oldfiledesc[lockname]
 
