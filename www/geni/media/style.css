@@ -218,6 +218,12 @@ th, td , tr{
 	margin-right: auto;
 }
 
+#delete {
+	position: absolute;
+	top: 20%;
+	left: 20%
+}
+
 .inline {
 	display: inline;
 }

@@ -31,15 +31,13 @@
 				</form>
 
 				{% ifnotequal geni_user.privkey "" %}
-					<div class="inline">
-						<form method="POST" action="{% url priv_key %}"> 
-							Private Key: <input type="submit" value="Download" /></p>
-						</form>
-						<form method="POST" action="{% url del_priv %}" target="#"> 
-							<input type="hidden" name="keyToDelete" value={{ user.username }}> </input>
-							<input type="submit" value="Delete"> </input>
-						</form>
-					</div>
+					<form method="POST" action="{% url priv_key %}"> 
+						Private Key: <input type="submit" value="Download" /></p>
+					</form>
+					<form method="POST" action="{% url del_priv %}" target="#"> 
+						<input type="hidden" name="keyToDelete" value={{ user.username }}> </input>
+						<input id="delete" type="submit" value="Delete"> </input>
+					</form>
 					  <p class="red"> For better
 					    security we recommend that you
 					    download and remove your private key
