@@ -71,9 +71,11 @@ def main():
         starter_f.writelines(lines)
         starter_f.close()
         
-        # Set permission on the starter script
+        # Set permission on the starter script and
+        # uninstall script
         os.popen("chmod u+x " + STARTER_SCRIPT_NAME) 
-                
+        os.popen("chmod u+x uninstall.sh")
+
         # Start the program
         os.popen("./" + STARTER_SCRIPT_NAME + ' "$PWD"&')
         output("Started!")
