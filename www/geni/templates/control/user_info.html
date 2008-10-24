@@ -20,7 +20,7 @@
 		  <!-- User Information -->
 			<div id="usercontent">
 		  {% ifnotequal info "" %}
-		  <p><font color="red">{{ info }}</font></p>
+		  <p class="info"> {{ info }} </p>
 		  {% endifnotequal %}
 				<p> Username: {{ user.username }}</p>
 				<p> Affiliation: {{ geni_user.affiliation }}</p>
@@ -28,14 +28,13 @@
 
 				<form method="POST" action="{% url pub_key %}"> 
 					<p> Public Key: <input type="submit" value="Download" /></p>
-					<p id="inline">
 				</form>
 
 				{% ifnotequal geni_user.privkey "" %}
 					<form method="POST" action="{% url priv_key %}"> 
 						Private Key: <input type="submit" value="Download" /></p>
 					</form>
-					<form method="POST" action="{% url del_priv %}" target="#"> 
+					<form class="inline" method="POST" action="{% url del_priv %}" target="#"> 
 						<input type="hidden" name="keyToDelete" value={{ user.username }}> </input>
 						<input type="submit" value="Delete"> </input>
 					</form>

@@ -101,6 +101,14 @@ ul li {
 #usercontent {
 }
 
+.info {
+	color: blue;
+}
+
+.error {
+	color: red;
+}
+
 .donation_table {
 	font-size: 13pt;
 	text-align: center;
@@ -210,7 +218,7 @@ th, td , tr{
 	margin-right: auto;
 }
 
-#inline {
+.inline {
 	display: inline;
 }
 
