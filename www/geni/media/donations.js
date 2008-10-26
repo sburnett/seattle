@@ -28,7 +28,7 @@ window.onload = function() {
 		element.style.marginLeft = "15%";
 		element.style.fontSize = "18pt";
 		element.style.border = "1px solid black";
-		//parent.appendChild(element);	
+		parent.innerHTML = element;	
 	} else {
 		$("installerLink").style.height = "50px";
 	}
