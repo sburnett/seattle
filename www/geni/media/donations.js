@@ -14,6 +14,7 @@ window.onload = function() {
 	} else {
 	}
 	if (BrowserDetect.Browser == "Explorer") {
+		alert("test");
 		var notices = $$(".notices");
 		for (var i = 0;i < notices.length;i++) {
 			notices.style.position = "absolute";
