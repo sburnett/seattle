@@ -19,7 +19,7 @@ window.onload = function() {
 			notices[i].style.position = "absolute";
 			notices[i].style.left = "20%";
 		}
-		//var parent = $("installerLink").parentNode();
+		var parent = $("installerLink").parentNode;
 		$("installerLink").remove();
 		var element = document.createElement("p");
 		element.textContent = "Installers Page";
