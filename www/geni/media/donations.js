@@ -41,6 +41,7 @@ window.onload = function() {
 	try { if(!maximizer3.innerText) maximizer3.innerText = maximizer3.textContent; } catch(e) {}
 	try { if(!maximizer1.innerText) maximizer1.innerText = maximizer1.textContent; } catch(e) {}
 	try { if(!maximizer2.innerText) maximizer2.innerText = maximizer2.textContent; } catch(e) {}
+	alert("hi");
 	if (count1 >= hideWhenNumber) {
 		$("maximizer1").onclick = table1unhide;
 	} else if (count1 <= dontDisplay) {
@@ -64,6 +65,7 @@ window.onload = function() {
 	} else if (count3 <= dontDisplay) {
 		table3unhide();
 		$("maximizer3").style.display = "none";
+		alert("hello");
 	} else {
 		$("maximizer3").style.display = "block";
 		table3unhide();
