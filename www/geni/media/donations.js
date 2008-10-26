@@ -17,8 +17,8 @@ window.onload = function() {
 		alert("test");
 		var notices = $$(".notices");
 		for (var i = 0;i < notices.length;i++) {
-			notices.style.position = "absolute";
-			notices.style.left = "20%";
+			notices[i].style.position = "absolute";
+			notices[i].style.left = "20%";
 		}
 		var parent = $("installerLink").parentNode();
 		$("installerLink").remove();
