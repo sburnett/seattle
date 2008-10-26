@@ -23,7 +23,7 @@
 			  <p id="maximizer1"> </p>
 			  <table id="table1">
 				{% ifequal has_donations "False" %}
-					<p>No donations from others</p>
+					<p class="notices">No donations from others</p>
 				{% else %}
 					<caption> My Donations </caption>
 					<tr> <th> IP Address </th> <th> Time Added </th> </tr>
@@ -37,7 +37,7 @@
 			  <p id="maximizer2"> </p>
 			  <table id="table2">
 				{% ifequal has_donations_from_others "False" %}
-					<p>No donations</p>
+					<p class="notices">No donations</p>
 				{% else %}
 					<caption> Donations to Me </caption>
 					<tr> <th> Username </th> <th> Percentage </th> </tr>
@@ -52,9 +52,9 @@
 
 			<div id="sharedResources">
 
-			    {# {% ifequal has_shares "False" %} #}
-			  {# <p>No shares</p> #}
-			 {#  {% else %} #}
+			     {% ifequal has_shares "False" %} 
+			   <p class="notices">No shares</p> 
+			   {% else %} 
 
 							<caption> Shared </caption>
 							<tr> <th> </th> <th> User ID </th> <th> Percentage </th> </tr>

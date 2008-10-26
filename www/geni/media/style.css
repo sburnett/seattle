@@ -24,8 +24,12 @@ img {
 }
 
 .logout {
-	margin-left: 47%;
-	padding-left: 7px;
+	margin-right: 52%;
+	
+}
+
+.notices {
+	text-align: center;
 }
 
 .underlined {
