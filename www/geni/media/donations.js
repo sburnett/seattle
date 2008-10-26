@@ -25,7 +25,7 @@ window.onload = function() {
 		element.textContent = "Installers Page";
 		try { if(!element.innerText) element.innerText = element.textContent; } catch(e) {}
 		element.id = "installerLink";
-		element.style.marginLeft = "5%";
+		element.style.marginLeft = "0%";
 		element.style.fontSize = "18pt";
 		element.style.border = "1px solid black";	
 	} else {
