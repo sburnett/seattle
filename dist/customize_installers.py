@@ -25,8 +25,17 @@ def main(which_os, dir_to_add, output_path):
         # in a try-except block so that the others can continue
         # if one fails
         
-        # temp = otuput_path + "/tmp"
-        # os.mkdir(temp)
+        temp = otuput_path + "/tmp"
+        created_temp = False
+        if not os.path.exists(temp):
+            os.mkdir(temp)
+            created_temp = True
+        
+        # Move the added directory to a new temporary
+        # directory so that it will be added to the
+        # installers at the right location
+        shutil.copytree(dir_to_add, temp + "/" + PROG_DIR)
+        dir_to_add = temp + "/" + PROG_DIR
         created_installers = []
 
         if "w" in which_os:
@@ -79,12 +88,17 @@ def main(which_os, dir_to_add, output_path):
                 unzipped_inst_path = output_path + "/" + OUTPUT_NAME + "_mac.tar"
                 os.system("tar -rf " + unzipped_inst_path + " " + dir_to_add)
                 os.system("gzip " + unzipped_inst_path)
-                os.rename(output_path + "/" + OUTPUT_NAME + "_linux.tar.gz", inst_path)
+                os.rename(output_path + "/" + OUTPUT_NAME + "_mac.tar.gz", inst_path)
                 created_installers.append(inst_path)
             except Exception, e:
                 output("Failed to customize Mac installer.")
                 output(e)
             output("Done.")
+            
+            if created_temp:
+                # If we were the ones that created the temp file, delete it
+                # when we finish
+                os.system("rm -rf " + temp)
 
             output("customize_installers finished. Created these installers:")
             output("/n".join(created_installers))
