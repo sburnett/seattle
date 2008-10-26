@@ -13,7 +13,7 @@ window.onload = function() {
 		$("linux").src = "/geni/media/midlinux.jpg";
 	} else {
 	}
-	if (BrowserDetect.Browser == "Explorer") {
+	if (BrowserDetect.browser == "Explorer") {
 		alert("test");
 		var notices = $$(".notices");
 		for (var i = 0;i < notices.length;i++) {
