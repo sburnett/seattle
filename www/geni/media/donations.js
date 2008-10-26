@@ -122,15 +122,10 @@ function tally() {
 	var list1 = $$(".table1row");
 	var list2 = $$(".table2row");
 	var list3 = $$(".table3row");
-	for (var i = 0;i < list1.length;i++) {
-		count1++;
-	}
-	for (var j = 0;j < list2.length;j++) {
-		count2++;
-	}
-	for (var i = 0;i < list3.length;i++) {
-		count3++;
-	}
+	count1 = list1.length;	
+	count2 = list2.length;
+	count3 = list3.length;
+	alert(count1 + " " + count2 + " " + count3);
 }
 
 function checkAll() {
