@@ -88,7 +88,7 @@ function table3hide() {
 }
 
 function table1unhide() {
-	if ($"table1") {
+	if ($("table1")) {
 		$("table1").style.display = "block";
 	}
 	var maximizer1 = $("maximizer1");
