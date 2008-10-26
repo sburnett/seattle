@@ -14,6 +14,10 @@ window.onload = function() {
 	} else {
 	}
 	if (BrowserDetect.Browser == "Explorer") {
+		var notices = $$(".notices");
+		for (var i = 0;i < notices.length;i++) {
+			notices.style.marginLeft = "0px";
+		}
 		var parent = $("installerLink").parentNode();
 		$("installerLink").remove();
 		var element = document.createElement("p");
