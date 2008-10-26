@@ -21,11 +21,13 @@ window.onload = function() {
 		}
 		var parent = $("installerLink").parentNode;
 		$("installerLink").remove();
+		element = $("installerLink2");
+		element.textContent = "Installers Page";
 		try { if(!element.innerText) element.innerText = element.textContent; } catch(e) {}
-		parent.style.marginLeft = "15%";
-		parent.style.fontSize = "18pt";
-	    parent.style.border = "1px solid black";
-		parent.innerHTML = "<a id=\"installerLink\"> Installers Page </a>";	
+		element.id = "installerLink";
+		element.style.marginLeft = "15%";
+		element.style.fontSize = "18pt";
+		element.style.border = "1px solid black";	
 	} else {
 		$("installerLink").style.height = "50px";
 	}
