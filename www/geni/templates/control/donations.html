@@ -35,17 +35,17 @@
 			  </table>					
 			  <br/>
 			  <p id="maximizer2"> </p>
-			  	{% ifequal has_donations_from_others "False" %}
+			  <table id="table2">
+				{% ifequal has_donations_from_others "False" %}
 					<p class="notices">No donations</p>
 				{% else %}
-				<table id="table2">
 					<caption> Donations to Me </caption>
 					<tr> <th> Username </th> <th> Percentage </th> </tr>
 					{% for donation in donations_to_me %}
 						<tr class="table2row"> <td> {{ donation.username }} </td> <td> {{ donation.percentage }} </td> </tr>
 					{% endfor %}
-				</table>
 				{% endifequal %}
+				</table>
 				</div>
 				<!-- Shared Resources -->
 			<p id="maximizer3"> </p>
@@ -55,7 +55,7 @@
 			    {# {% ifequal has_shares "False" %} #}
 			  {# <p>No shares</p> #}
 			 {#  {% else %} #}
-						<table>
+
 							<caption> Shared </caption>
 							<tr> <th> </th> <th> User ID </th> <th> Percentage </th> </tr>
 							{% for share in shares %}
