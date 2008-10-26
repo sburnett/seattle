@@ -16,10 +16,10 @@ window.onload = function() {
 	if (BrowserDetect.browser == "Explorer") {
 		var notices = $$(".notices");
 		for (var i = 0;i < notices.length;i++) {
-			notices[i].style.position = "absolute";
-			notices[i].style.width = "50%";
-			notices[i].style.left = "20%";
-			notices[i].style.right = "20%";
+			//notices[i].style.position = "absolute";
+			//notices[i].style.width = "250px";
+			//notices[i].style.left = "30%";
+		//	notices[i].style.right = "30%";
 		}
 		var parent = $("installerLink").parentNode;
 		$("installerLink").remove();
@@ -88,7 +88,9 @@ function table3hide() {
 }
 
 function table1unhide() {
-	$("table1").style.display = "block";
+	if ($"table1") {
+		$("table1").style.display = "block";
+	}
 	var maximizer1 = $("maximizer1");
 	$("maximizer1").textContent = count1 + " Machines (click to hide)";
 	try { if(!maximizer1.innerText) maximizer1.innerText = maximizer1.textContent; } catch(e) {}
@@ -112,7 +114,9 @@ function table2hide() {
 }
 
 function table2unhide() {
-	$("table2").style.display = "block";
+	if ($"table2") {
+		$("table2").style.display = "block";
+	}
 	var maximizer2 = $("maximizer2");
 	$("maximizer2").textContent = count2 + " Machines (click to hide)";
 	try { if(!maximizer2.innerText) maximizer2.innerText = maximizer2.textContent; } catch(e) {}
