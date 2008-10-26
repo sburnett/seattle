@@ -16,7 +16,8 @@ window.onload = function() {
 	if (BrowserDetect.Browser == "Explorer") {
 		var notices = $$(".notices");
 		for (var i = 0;i < notices.length;i++) {
-			notices.style.marginLeft = "0px";
+			notices.style.position = "absolute";
+			notices.style.left = "20%";
 		}
 		var parent = $("installerLink").parentNode();
 		$("installerLink").remove();
