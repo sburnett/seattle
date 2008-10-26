@@ -17,7 +17,7 @@ window.onload = function() {
 		var notices = $$(".notices");
 		for (var i = 0;i < notices.length;i++) {
 			notices[i].style.position = "absolute";
-			notices[i].style.width = "250px";
+			notices[i].style.width = "50%";
 			notices[i].style.left = "20%";
 			notices[i].style.right = "20%";
 		}
