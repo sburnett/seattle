@@ -26,9 +26,9 @@ img {
 .logout {
 	text-align: center;
 	top: 24%;
-	width: 12%;
-	left: 44%;
-	right: 44%;
+	width: 10%;
+	left: 45%;
+	right: 45%;
 	position: absolute;
 }
 
@@ -49,6 +49,7 @@ img {
 	left: 20%;
 	right: 20%;
 	border: 1px solid black;
+	position: absolute;
 }
 
 .submit {
