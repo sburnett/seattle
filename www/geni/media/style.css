@@ -25,6 +25,7 @@ img {
 
 .logout {
 	text-align: center;
+	top: 10%;
 	width: 15%;
 	left: 40%;
 	right: 40%;
@@ -62,7 +63,7 @@ img {
 
 #welcome {
 	margin: 0px;
-	margin-bottom: 15px;
+	margin-bottom: 40px;
 }
 
 #content {
