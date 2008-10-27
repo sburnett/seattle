@@ -36,7 +36,7 @@ img {
 	text-decoration: underline;
 }
 
-.center, #installersheader, #Installers {
+.center, #installersheader, #Installers, #table3 {
 	text-align: center;
 }
 
@@ -232,7 +232,7 @@ th, td , tr{
 	display: inline;
 }
 
-#table1, #table2 {
+#table1, #table2{
 	display: none;
 	margin-left: auto;
 	margin-right: auto;
