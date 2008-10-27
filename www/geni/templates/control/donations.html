@@ -53,9 +53,7 @@
 
 			<div id="sharedResources">
 
-			    {# {% ifequal has_shares "False" %} #}
-			  {# <p>No shares</p> #}
-			 {#  {% else %} #}
+			  
 						<table>
 							<caption> Shared </caption>
 							<tr> <th> </th> <th> User ID </th> <th> Percentage </th> </tr>
@@ -69,9 +67,9 @@
 							{% endfor %}
 							
 							  <!-- <td colspan=2><input name="update_shares" type="submit" value="Update" /> --> 
-					  
+						</table>
 
-			   {# {% endifequal %} #}
+			
 
 			<font color="red">  {{ share_form.username.errors }}</font><br>
 			<font color="red">{{ share_form.percent.errors }}</font>
