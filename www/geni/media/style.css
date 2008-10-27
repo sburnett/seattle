@@ -25,13 +25,9 @@ img {
 
 .logout {
 	text-align: center;
-	top: 24%;
-	bottom: 76%;
-	width: 8.5%;
-	left: 46.5%;
+	width: 100%;
+	margin-left: 46.5%;
 	right: 46.5%;
-	position: absolute;
-	height: 1%;
 	min-width: 85px;
 }
 
@@ -65,7 +61,7 @@ img {
 
 #welcome {
 	margin: 0px;
-	margin-bottom: 45px;
+	margin-bottom: 5px;
 	min-width: 992px;
 }
 
@@ -109,7 +105,7 @@ ul li {
 
 #Tabs {
 	width: 80%;
-	min-width: 450px;
+	min-width: 788px;
 	margin-left: 9%;
 	margin-top: 10px;
 	text-align: center;
