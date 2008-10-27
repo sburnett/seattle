@@ -196,9 +196,9 @@ function Initialize() {
 	staticvessel.style.position = "absolute";
 	staticvessel.style.textAlign = "center";
 	if (BrowserDetect.browser == "Explorer") {
-		staticvessel.style.top = ($("VesselList").offsetTop) + "px";
+		staticvessel.style.top = "103%";//($("VesselList").offsetTop) + "px";
 	} else {
-		staticvessel.style.top = ($("VesselList").offsetTop) + "px";
+		staticvessel.style.top = "103%";//($("VesselList").offsetTop) + "px";
 	}
 	staticvessel.style.left = "1063px";
 	staticvessel.style.border = "1px solid black";
@@ -308,12 +308,12 @@ function addUser () {
 		$("plus" + i).style.top = ($("VesselList").offsetTop - 7) + "px";
 		$("remove" + i).style.top = ($("VesselList").offsetTop - 2) + "px";
 	}
-	if (BrowserDetect.browser == "Explorer") {
+	/*if (BrowserDetect.browser == "Explorer") {
 		$("staticvessel").style.top = ($("VesselList").offsetTop + 20) + "px";
 	} else {
 		$("staticvessel").style.top = ($("VesselList").offsetTop + 15) + "px";
 	}
-	new Ajax.Request('process.php',
+*/	new Ajax.Request('process.php',
 		{
 			method: "post",
 			parameters: {action: "resetform", username: name},
