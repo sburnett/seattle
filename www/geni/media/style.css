@@ -24,11 +24,11 @@ img {
 }
 
 .logout {
+
+}
+
+#top {
 	text-align: center;
-	width: 100%;
-	margin-left: 46.5%;
-	right: 46.5%;
-	min-width: 85px;
 }
 
 .notices {
@@ -60,9 +60,7 @@ img {
 }
 
 #welcome {
-	margin: 0px;
-	margin-bottom: 5px;
-	min-width: 992px;
+	
 }
 
 #content {
