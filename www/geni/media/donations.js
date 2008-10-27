@@ -114,7 +114,7 @@ function table2hide() {
 }
 
 function table2unhide() {
-	if (($"table2")) {
+	if ($("table2")) {
 		$("table2").style.display = "block";
 	}
 	var maximizer2 = $("maximizer2");
