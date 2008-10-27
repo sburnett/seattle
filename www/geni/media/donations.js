@@ -15,12 +15,7 @@ window.onload = function() {
 	}
 	if (BrowserDetect.browser == "Explorer") {
 		var notices = $$(".notices");
-		for (var i = 0;i < notices.length;i++) {
-			//notices[i].style.position = "absolute";
-			//notices[i].style.width = "250px";
-			//notices[i].style.left = "30%";
-		//	notices[i].style.right = "30%";
-		}
+		$("table3").marginLeft = "0%";
 		var parent = $("installerLink").parentNode;
 		$("installerLink").remove();
 		element = $("installerLink2");
