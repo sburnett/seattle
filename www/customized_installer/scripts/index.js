@@ -10,22 +10,22 @@ function createArray() {
 		temp[i] = new Array(200);
 	}
 	return temp;
-};
+}
 
 window.onload = function () {
 	counter = 1;
 	$("form").onsubmit = addUser;
 	$("username").onfocus = function () {
 		this.value = "";
-	}
+	};
 	$("username").onblur = function () {
-		if (this.value == "") {
+		if (this.value === "") {
 			this.value = "user_" + counter;
 		}
-	}
+	};
 	$("publickey").onfocus = function () {
 		this.value = "";
-	}
+	};
 	
 	Initialize();
 	updateVessels();
@@ -196,9 +196,9 @@ function Initialize() {
 	staticvessel.style.position = "absolute";
 	staticvessel.style.textAlign = "center";
 	if (BrowserDetect.browser == "Explorer") {
-		staticvessel.style.top = "354px";
+		staticvessel.style.top = ($("VesselList").offsetTop) + "px";
 	} else {
-		staticvessel.style.top = "349px";
+		staticvessel.style.top = ($("VesselList").offsetTop) + "px";
 	}
 	staticvessel.style.left = "1063px";
 	staticvessel.style.border = "1px solid black";
