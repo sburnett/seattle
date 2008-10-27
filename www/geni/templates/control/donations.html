@@ -73,16 +73,16 @@
 						</table>
 
 			   {# {% endifequal %} #}
-
-			<font color="red">  {{ share_form.username.errors }}</font><br>
-			<font color="red">{{ share_form.percent.errors }}</font>
-					<form method="POST" action="{% url new_share %}" target="#">
+			<div id="bottom">
+				<font color="red">  {{ share_form.username.errors }}</font><br>
+				<font color="red">{{ share_form.percent.errors }}</font>
+				<form method="POST" action="{% url new_share %}" target="#">
 					{{ share_form.username.label }}{{ share_form.username }}<br>
 					{{ share_form.percent.label }}{{ share_form.percent }}<br>
 					<input type="hidden" name="new_share"> </input>
 					<input type="submit" value="Add New"> </input>
-						
-					</form>
+				</form>
+			</div>
 			</div>
 			
 				<div class="sideWindow"> 
