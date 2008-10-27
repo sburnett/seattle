@@ -25,7 +25,9 @@ img {
 
 .logout {
 	text-align: center;
-	
+	width: 15%;
+	left: 40%;
+	right: 40%;
 }
 
 .notices {
