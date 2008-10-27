@@ -44,6 +44,7 @@ img {
 	width: 60%;
 	left: 20%;
 	right: 20%;
+	border: 1px solid black;
 }
 
 .submit {
