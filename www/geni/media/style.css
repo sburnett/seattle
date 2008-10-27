@@ -40,6 +40,12 @@ img {
 	text-align: center;
 }
 
+#table3 {
+	width: 60%;
+	left: 20%;
+	right: 20%;
+}
+
 .submit {
 	margin-left: 600px;
 	font-size: 14pt;
