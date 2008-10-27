@@ -3,7 +3,7 @@ import os
 import sys
 import nonportable
 
-locklist = [ "seattlenodemanager", "seattlesoftwareupdater" ]
+locklist = [ "seattlenodemanager", "softwareupdater.old", "softwareupdater.new" ]
 
 def main():
 
