@@ -24,18 +24,29 @@ def main(which_os, dir_to_add, output_path):
         # Customizing the installer for each os is encapsulated
         # in a try-except block so that the others can continue
         # if one fails
+
+        if dir_to_add[0] != "/":
+            dir_to_add = os.getcwd() + "/" + dir_to_add
         
-        temp = otuput_path + "/tmp"
+        if output_path[0] != "/":
+            output_path = os.getcwd() + "/" + output_path
+        
+        oldpwd = os.getcwd()
+        temp = output_path + "/tmp"
         created_temp = False
         if not os.path.exists(temp):
             os.mkdir(temp)
             created_temp = True
-        
+        os.chdir(temp)
+
+        if os.path.exists(PROG_DIR):
+            shutil.rmtree(PROG_DIR)
+
         # Move the added directory to a new temporary
         # directory so that it will be added to the
         # installers at the right location
-        shutil.copytree(dir_to_add, temp + "/" + PROG_DIR)
-        dir_to_add = temp + "/" + PROG_DIR
+        shutil.copytree(dir_to_add, PROG_DIR)
+        dir_to_add = PROG_DIR
         created_installers = []
 
         if "w" in which_os:
@@ -43,7 +54,7 @@ def main(which_os, dir_to_add, output_path):
             output("Customizing Windows installer...")
             try:
                 base_link = "custom_win_base"
-                if not os.path.exists(BASE_INST_PATH + "" + base_link):
+                if not os.path.exists(BASE_INST_PATH + "/" + base_link):
                     raise Exception("Base Windows installer not found.")
                 inst_path = output_path + "/" + OUTPUT_NAME + "_win.zip"
                 shutil.copyfile(BASE_INST_PATH + "/" + base_link, inst_path)
@@ -95,6 +106,7 @@ def main(which_os, dir_to_add, output_path):
                 output(e)
             output("Done.")
             
+            os.chdir(oldpwd)
             if created_temp:
                 # If we were the ones that created the temp file, delete it
                 # when we finish
@@ -104,6 +116,7 @@ def main(which_os, dir_to_add, output_path):
             output("/n".join(created_installers))
 
 if __name__ == "__main__":
+    print os.getcwd()
     if len(sys.argv) < 4:
         output("usage: python [m|l|w] <directory/to/add> <output/directory>")
     else:
