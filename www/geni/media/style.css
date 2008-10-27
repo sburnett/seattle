@@ -28,6 +28,7 @@ img {
 	width: 15%;
 	left: 40%;
 	right: 40%;
+	position: absolute;
 }
 
 .notices {
