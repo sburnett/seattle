@@ -24,11 +24,12 @@ img {
 }
 
 .logout {
-
+	font-size: 10pt;
 }
 
 #top {
 	text-align: center;
+	width: 50%;
 }
 
 .notices {
@@ -60,7 +61,7 @@ img {
 }
 
 #welcome {
-	
+	margin-bottom: 5px;
 }
 
 #content {
