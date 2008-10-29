@@ -5,9 +5,13 @@
 
 body {
 	background-color: #fff;
-	font-size: 7pt;
+	font-size: 10pt;
 	font-weight: bold;
 	font-family: "Segoe UI", "Lucida Grande", "Helvetica" , sans-serif;
+}
+
+.close {
+	color: blue;
 }
 
 #content {

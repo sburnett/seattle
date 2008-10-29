@@ -1,3 +1,5 @@
+//char limit: 17
+
 var counter;
 var vesselLengths = [1056, 0, 0, 0, 0, 0, 0, 0];
 var vesselOwners = ["","","","","","","",""];
@@ -29,34 +31,33 @@ window.onload = function () {
 	
 	Initialize();
 	updateVessels();
-	Droppables.add("content", {
-		accept: "removable",
-		onDrop: function(draggable) {
-			var parent = draggable.parentNode;
-			var index = (Number)(parent.id[8]);
-			if (draggable.id.substring(0, 4) == "owner") {
+	$("installer").onclick = createInstaller;
+};
+
+function removeelement() {
+			var parent = this.parentNode.parentNode.parentNode;
+			var subparent = this.parentNode.parentNode;
+			if (subparent.id.substring(0, 5) == "owner") {
+				var index = (Number)(parent.id[9]);
 				var defaultNode = document.createElement("li");
 				vesselOwners[index] = "";
 				defaultNode.textContent = "Drag User Here to Create Owner";
 				defaultNode.id = "owner" + index;
 				parent.appendChild(defaultNode);
-				draggable.remove();
+				subparent.remove();
 			} else {
+				var index = (Number)(parent.id[8]);
 				var adds = $$(".addusers");
 				//alert((parseInt(adds[index].style.height)));
 				adds[index].style.height = (parseInt(adds[index].style.height) + 53) + "px";
 				adds[index].style.lineHeight = (parseInt(adds[index].style.lineHeight) + 53) + "px";
-				draggable.remove();
+				subparent.remove();
 				vesselUsers[index][userTally[index]] = "";
 				userTally[index]--;
 				//fixheights(adds);
-			}	
-			
-		}
-	});
-	$("installer").onclick = createInstaller;
-};
-
+			}
+}		
+		
 function fixheights(adds) {
 	var test = true;
 	for (var i = 0;i < adds.length;i++) {
@@ -196,9 +197,9 @@ function Initialize() {
 	staticvessel.style.position = "absolute";
 	staticvessel.style.textAlign = "center";
 	if (BrowserDetect.browser == "Explorer") {
-		staticvessel.style.top = "103%";//($("VesselList").offsetTop) + "px";
+		staticvessel.style.marginTop = "1.1%";//($("Vessel1").offsetTop + 15) + "px";
 	} else {
-		staticvessel.style.top = "103%";//($("VesselList").offsetTop) + "px";
+		staticvessel.style.marginTop = "1.1%";//($("VesselList").offsetTop + 15) + "px";
 	}
 	staticvessel.style.left = "1063px";
 	staticvessel.style.border = "1px solid black";
@@ -215,19 +216,27 @@ function addOwnerToList(draggable, droppable) {
 	var newlyAdded = document.createElement("li");
 	newlyAdded.id = "owner" + index;
 	var length = draggable.textContent.length;
-	newlyAdded.textContent = (draggable.textContent.substring(0, length-1));
+	var content = document.createElement("p");
+	content.addClassName("container");
+	content.textContent = (draggable.textContent.substring(0, length-1));
 	vesselOwners[index] = (draggable.textContent.substring(0, length-1));
-	try { if(!newlyAdded.innerText) newlyAdded.innerText = newlyAdded.textContent; } catch(e) {}
+	try { if(!content.innerText) content.innerText = content.textContent; } catch(e) {}
+	var link = document.createElement("a");
+	link.addClassName("close");
+	link.textContent = "X";
+	link.onclick = removeelement;
+	try { if(!link.innerText) link.innerText = link.textContent; } catch(e) {}
+	content.appendChild(link);
+	newlyAdded.appendChild(content);
 	droppable.appendChild(newlyAdded);
 	newlyAdded.addClassName("removable");
-	new Draggable(newlyAdded, {revert: true, ghosting: true});
 }
 
 function createAddUserBox(lastheight) {
 	var user = document.createElement("li");
 	user.textContent = "Drag Users Here";
 	try { if(!user.innerText) user.innerText = user.textContent; } catch(e) {}
-	user.className = "addusers";
+	user.addClassName("addusers");
 	if (lastheight < 53) {
 		user.style.height = "50px";
 		user.style.lineHeight = "50px";
@@ -249,12 +258,20 @@ function addUserToList(draggable, droppable) {
 	} else {
 		newlyAdded.id = "user" + index + "-1";
 	}
+	var link = document.createElement("a");
+	link.addClassName("close");
+	link.textContent = "X";
+	link.onclick = removeelement;
+	try { if(!link.innerText) link.innerText = link.textContent; } catch(e) {}
+	var content = document.createElement("p");
+	content.addClassName("container");
 	var length = draggable.textContent.length;
-	newlyAdded.textContent = (draggable.textContent.substring(0, length-1));
-	try { if(!newlyAdded.innerText) newlyAdded.innerText = newlyAdded.textContent; } catch(e) {}
+	content.textContent = (draggable.textContent.substring(0, length-1));
+	try { if(!content.innerText) content.innerText = content.textContent; } catch(e) {}
+	content.appendChild(link);
+	newlyAdded.appendChild(content);
 	droppable.appendChild(newlyAdded);
 	newlyAdded.addClassName("removable");
-	new Draggable(newlyAdded, {revert: true, ghosting: true});
 	var adds = $$(".addusers");
 	if (lastheight < 53) {
 		for (var i = 0;i < adds.length;i++) {
