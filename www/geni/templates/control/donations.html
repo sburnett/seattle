@@ -21,76 +21,79 @@
 			</div>
 			<div id="window3" class="window">
 			<!-- Donations -->
-				<div class="sideWindow"> 
-					<h2> Your Installers </h2>
-					<a href="{% url installers user.username %}"> <button id="installerLink"> Installers Page </button> <p id="installerLink2"> </p> </a> <br/>
-					<a class="icons" href="{% url installers user.username %}win.zip"> <img id="win" src="{{ MEDIA_URL }}win.jpg" alt="windows"/> </a>
-					<a class="icons" href="{% url installers user.username %}mac.tgz"> <img id="osx" src="{{ MEDIA_URL }}osx.jpg" alt="mac"/> </a>
-					<a class="icons" href="{% url installers user.username %}linux.tgz"> <img id="linux" src="{{ MEDIA_URL }}linux.jpg" alt="linux" /> </a> 
-				</div>
-			<div class="tables">
-			  <p id="maximizer1"> </p>
-			  {% ifequal has_donations "False" %}
-					<p class="notices">No donations from others</p>
-				{% else %}
-			  <table id="table1">
-					<caption> My Donations </caption>
-					<tr> <th> IP Address </th> <th> Time Added </th> </tr>
-					{% for donation in donations %}
-						<tr class="table1row"> <td> {{ donation.ip }} </td> <td> {{ donation.port }} </td> </tr>
-						
-					{% endfor %}
-			  </table>				
-			  	{% endifequal %}
-			  <br/>
-			  <p id="maximizer2"> </p>
-			  {% ifequal has_donations_from_others "False" %}
-					<p class="notices">No donations</p>
-			{% else %}
-			  <table id="table2">
-					<caption> Donations to Me </caption>
-					<tr> <th> Username </th> <th> Percentage </th> </tr>
-					{% for donation in donations_to_me %}
-						<tr class="table2row"> <td> {{ donation.username }} </td> <td> {{ donation.percentage }} </td> </tr>
-					{% endfor %}
-				
-				</table>
-			{% endifequal %}
-				</div>
-				<!-- Shared Resources -->
-			<p id="maximizer3"> </p>
-
-			<div id="sharedResources">
-
-			    {# {% ifequal has_shares "False" %} #}
-			  {# <p>No shares</p> #}
-			 {#  {% else %} #}
-						<table id="table3">
-							<caption> Shared </caption>
-							<tr> <th> Remove </th> <th> User ID </th> <th> Percentage </th> </tr>
-							{% for share in shares %}
-							<tr class="table3row"> 
-							  <td> <form method="POST" action="{% url del_share %}">
-							      <input type="submit" value="remove"> </input>
-							      <input type="hidden" name="deleteshare_{{ share.to_user.www_user.username }}"> </input>
-							  </form> </td> 
-							  <td> {{ share.to_user.www_user.username }} </td> <td> {{ share.percent }} </td> 
-							</tr>
-							{% endfor %}
+			<div class="sideWindow"> 
+				<h2> Your Installers </h2>
+				<a href="{% url installers user.username %}"> <button id="installerLink"> Installers Page </button> <p id="installerLink2"> </p> </a> <br/>
+				<a class="icons" href="{% url installers user.username %}win.zip"> <img id="win" src="{{ MEDIA_URL }}win.jpg" alt="windows"/> </a>
+				<a class="icons" href="{% url installers user.username %}mac.tgz"> <img id="osx" src="{{ MEDIA_URL }}osx.jpg" alt="mac"/> </a>
+				<a class="icons" href="{% url installers user.username %}linux.tgz"> <img id="linux" src="{{ MEDIA_URL }}linux.jpg" alt="linux" /> </a> 
+			</div>
+			<div id="mainwindow">
+				<div class="tables">
+				  <p id="maximizer1"> </p>
+				  {% ifequal has_donations "False" %}
+						<p class="notices">No donations from others</p>
+					{% else %}
+				  <table id="table1">
+						<caption> My Donations </caption>
+						<tr> <th> IP Address </th> <th> Time Added </th> </tr>
+						{% for donation in donations %}
+							<tr class="table1row"> <td> {{ donation.ip }} </td> <td> {{ donation.port }} </td> </tr>
 							
-							  <!-- <td colspan=2><input name="update_shares" type="submit" value="Update" /> --> 
-						</table>
+						{% endfor %}
+				  </table>				
+				  	{% endifequal %}
+				  <br/>
+				  <p id="maximizer2"> </p>
+				  {% ifequal has_donations_from_others "False" %}
+						<p class="notices">No donations</p>
+				{% else %}
+				  <table id="table2">
+						<caption> Donations to Me </caption>
+						<tr> <th> Username </th> <th> Percentage </th> </tr>
+						{% for donation in donations_to_me %}
+							<tr class="table2row"> <td> {{ donation.username }} </td> <td> {{ donation.percentage }} </td> </tr>
+						{% endfor %}
+					
+					</table>
+				{% endifequal %}
+					
+					</div>
+					<!-- Shared Resources -->
+				<p id="maximizer3"> </p>
 
-					   {# {% endifequal %} #}
-					<div id="bottom">
-						<font color="red">  {{ share_form.username.errors }}</font><br>
-						<font color="red">{{ share_form.percent.errors }}</font>
-						<form method="POST" action="{% url new_share %}" target="#">
-							{{ share_form.username.label }}{{ share_form.username }}<br>
-							{{ share_form.percent.label }}{{ share_form.percent }}<br>
-							<input type="hidden" name="new_share"> </input>
-							<input type="submit" value="Add New"> </input>
-						</form>
+				<div id="sharedResources">
+
+				    {# {% ifequal has_shares "False" %} #}
+				  {# <p>No shares</p> #}
+				 {#  {% else %} #}
+							<table id="table3">
+								<caption> Shared </caption>
+								<tr> <th> Remove </th> <th> User ID </th> <th> Percentage </th> </tr>
+								{% for share in shares %}
+								<tr class="table3row"> 
+								  <td> <form method="POST" action="{% url del_share %}">
+								      <input type="submit" value="remove"> </input>
+								      <input type="hidden" name="deleteshare_{{ share.to_user.www_user.username }}"> </input>
+								  </form> </td> 
+								  <td> {{ share.to_user.www_user.username }} </td> <td> {{ share.percent }} </td> 
+								</tr>
+								{% endfor %}
+								
+								  <!-- <td colspan=2><input name="update_shares" type="submit" value="Update" /> --> 
+							</table>
+
+						   {# {% endifequal %} #}
+						<div id="bottom">
+							<font color="red">  {{ share_form.username.errors }}</font><br>
+							<font color="red">{{ share_form.percent.errors }}</font>
+							<form method="POST" action="{% url new_share %}" target="#">
+								{{ share_form.username.label }}{{ share_form.username }}<br>
+								{{ share_form.percent.label }}{{ share_form.percent }}<br>
+								<input type="hidden" name="new_share"> </input>
+								<input type="submit" value="Add New"> </input>
+							</form>
+						</div>
 					</div>
 				</div>
 				<div class="spacer"> </div>

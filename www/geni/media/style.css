@@ -183,6 +183,11 @@ th, td , tr{
 	text-align: center;
 }
 
+#mainwindow {
+	border-right: 2px solid black;
+	padding-bottom: 5px;
+}
+
 .sideWindow {
 	width:30%;
 	height:100%;
