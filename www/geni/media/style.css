@@ -29,9 +29,7 @@ img {
 
 #top {
 	text-align: center;
-	width: 50%;
-	min-width: 490px;
-	margin-left: 22%;
+	margin: auto;
 }
 
 .notices {
@@ -112,6 +110,7 @@ ul li {
 }
 
 #usercontent {
+	margin: auto;
 }
 
 .info {

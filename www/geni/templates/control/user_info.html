@@ -31,16 +31,18 @@
 				    <form method="POST" action="{% url pub_key %}"> 
 						<input type="submit" value="Download" />
 					</form>
-					</td> </tr>
-
+				</td> </tr>
+				<tr> <td> Private Key: </td> <td>
 				{% ifnotequal geni_user.privkey "" %}
 					<form class="inline" method="POST" action="{% url priv_key %}"> 
-						Private Key: <input type="submit" value="Download" /></p>
+						<input type="submit" value="Download" /></p>
 					</form>
+				</td> <td>
 					<form class="inline" method="POST" action="{% url del_priv %}" target="#"> 
 						<input type="hidden" name="keyToDelete" value={{ user.username }}> </input>
 						<input id="delete" type="submit" value="Delete"> </input>
 					</form>
+				</td> </tr> 
 					  <p class="red"> For better
 					    security we recommend that you
 					    download and remove your private key
@@ -50,7 +52,6 @@
 			        <form method="POST" action="{% url gen_new_key %}"> 
 				  <input type="submit" value="Generate a new public-private key pair" />
 				</form>
-				</p>
 				</div>
 			</div>
 		</div>
