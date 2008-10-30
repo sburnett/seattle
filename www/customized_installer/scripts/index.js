@@ -197,17 +197,18 @@ function Initialize() {
 	staticvessel.style.position = "absolute";
 	staticvessel.style.textAlign = "center";
 	if (BrowserDetect.browser == "Explorer") {
-		staticvessel.style.marginTop = "1.1%";//($("Vessel1").offsetTop + 15) + "px";
+		staticvessel.style.top = ($("VesselList").offsetTop); 
 	} else {
-		staticvessel.style.marginTop = "1.1%";//($("VesselList").offsetTop + 15) + "px";
+		staticvessel.style.top = ($("VesselList").offsetTop);
 	}
-	staticvessel.style.left = "1063px";
+	staticvessel.style.marginTop = "15px";
+	staticvessel.style.marginLeft = "1063px";
 	staticvessel.style.border = "1px solid black";
 	staticvessel.textContent = "2% Resources Reserved";
 	staticvessel.style.fontSize = "18pt";
 	staticvessel.style.backgroundColor = "Gray";
 	try { if(!staticvessel.innerText) staticvessel.innerText = staticvessel.textContent; } catch(e) {}
-	$("content").appendChild(staticvessel);	
+	$("VesselList").appendChild(staticvessel);	
 }
 
 function addOwnerToList(draggable, droppable) {
