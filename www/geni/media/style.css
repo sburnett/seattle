@@ -190,9 +190,9 @@ th, td , tr{
 .sideWindow {
 	width:30%;
 	height:100%;
-	position: absolute;
-	left: 70%;
-	top: 0%;
+	float: right;
+	/*left: 70%;
+	top: 0%;*/
 	border-left: solid 2px black;
 	text-align: center;
 }
