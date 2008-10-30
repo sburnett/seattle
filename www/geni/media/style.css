@@ -192,7 +192,6 @@ th, td , tr{
 	text-align: center;
 }
 .tables {
-	width: 70%;
 }
 
 .spacer {
@@ -203,7 +202,6 @@ th, td , tr{
 	padding-top: 20px;
 	border-top: 2px solid black;
 	text-align: center;
-	width: 70%;
 	display: none;
 }
 
