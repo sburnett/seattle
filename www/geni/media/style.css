@@ -157,20 +157,14 @@ th, td , tr{
 #window2 {
 	width: 80%;
 	height: 70%;
-	min-width: 825px;
-	left: 10%;
-	margin-left: auto;
+	margin: 0px auto;
 	border: 1px solid black;
-	margin-right: auto;
 }
 
 #window3 {
 	width: 80%;
 	height: 70%;
-	min-width: 800px;
-	margin-left: auto;
-	margin-right: auto;
-	left: 10%;
+	margin: 0px auto;
 	border: 1px solid black;
 }
 
@@ -186,6 +180,7 @@ th, td , tr{
 #mainwindow {
 	border-right: 2px solid black;
 	padding-bottom: 5px;
+	width: 70%;
 }
 
 .sideWindow {
@@ -210,7 +205,6 @@ th, td , tr{
 	text-align: center;
 	width: 70%;
 	display: none;
-	border-right: 2px solid black;
 }
 
 #installerLink {
