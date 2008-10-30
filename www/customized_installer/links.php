@@ -1,4 +1,5 @@
 <?php
+// hello world
 if (isset($_GET['pid'])) {
 	$mypid = $_GET['pid'];
 }
