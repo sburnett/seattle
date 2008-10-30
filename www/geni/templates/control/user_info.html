@@ -8,7 +8,7 @@
 	  <div id="content"> 
 	    {% include "common/banner.html" %}
 		<div id="top">
-			<h2 id="welcome"> Welcome {{ username }} </h2> 
+			<h2 id="welcome"> Welcome {{ user.username }} </h2> 
 			<h2 class="logout"> <a href="{% url logout %}">Logout</a> </h2>
 		</div>
 		<div id="Tabs"> 
@@ -24,9 +24,9 @@
 		  {% ifnotequal info "" %}
 		  <p class="info"> {{ info }} </p>
 		  {% endifnotequal %}
-				<p> Username: {{ user.username }}</p>
-				<p> Affiliation: {{ geni_user.affiliation }}</p>
-				<p> Port: {{ geni_user.port }}</p>
+		  <table> <tr>  <td> Username: </td> <td> {{ user.username }} </td> </tr>
+				<tr> <td> Affiliation: </td> <td> {{ geni_user.affiliation }} </td> </tr>
+				<tr> <td> Port: </td>  <td> {{ geni_user.port }} </td> </tr>
 
 				<form method="POST" action="{% url pub_key %}"> 
 					<p> Public Key: <input type="submit" value="Download" /></p>
