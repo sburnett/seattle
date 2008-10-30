@@ -189,7 +189,6 @@ th, td , tr{
 	float: right;
 	/*left: 70%;
 	top: 0%;*/
-	border-left: solid 2px black;
 	text-align: center;
 }
 .tables {
@@ -206,6 +205,7 @@ th, td , tr{
 	text-align: center;
 	width: 70%;
 	display: none;
+	border-right: 2px solid black;
 }
 
 #installerLink {
