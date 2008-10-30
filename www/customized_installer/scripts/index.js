@@ -173,7 +173,7 @@ function Initialize() {
 		plus.onclick = addVessel;
 		/*These try statements are used to make the website work on internet explorer, which doesn't support textContent*/
 		try { if(!plus.innerText) plus.innerText = plus.textContent; } catch(e) {}
-		plus.style.left = ((j * 132) + 1 ) + "px";
+		plus.style.left = ((j * 132) + 8 ) + "px";
 		$("Pluses").appendChild(plus);
 		var remove = document.createElement("p");
 		remove.textContent = "X";
@@ -184,7 +184,7 @@ function Initialize() {
 		remove.style.width = "10px";
 		remove.style.height = "10px";
 		remove.style.position = "absolute";
-		remove.style.left = ((j * 132) + 4 ) + "px";
+		remove.style.left = ((j * 132) + 8 ) + "px";
 		remove.style.top = ($("VesselList").offsetTop - 7) + "px";
 		$("Pluses").appendChild(remove);
 	}
