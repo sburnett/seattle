@@ -157,7 +157,6 @@ th, td , tr{
 #window2 {
 	width: 80%;
 	height: 70%;
-	min-height: 425px;
 	min-width: 825px;
 	left: 10%;
 	margin-left: auto;
@@ -168,7 +167,6 @@ th, td , tr{
 #window3 {
 	width: 80%;
 	height: 70%;
-	min-height: 425px;
 	min-width: 800px;
 	margin-left: auto;
 	margin-right: auto;
@@ -196,6 +194,10 @@ th, td , tr{
 }
 .tables {
 	width: 70%;
+}
+
+.spacer {
+	clear: both;
 }
 
 #sharedResources {
