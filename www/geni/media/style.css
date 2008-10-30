@@ -159,7 +159,6 @@ th, td , tr{
 	height: 70%;
 	min-height: 425px;
 	min-width: 825px;
-	position: absolute;
 	left: 10%;
 	margin-left: auto;
 	border: 1px solid black;
@@ -173,7 +172,6 @@ th, td , tr{
 	min-width: 800px;
 	margin-left: auto;
 	margin-right: auto;
-	position: absolute;
 	left: 10%;
 	border: 1px solid black;
 }
