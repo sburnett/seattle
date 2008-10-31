@@ -22,7 +22,7 @@
 	    </font></p><br>
 	    {% endif %}
 
-	    <table>
+	    <table id="Log-In-Table">
 	      <tr><td> {{ form.username.label_tag }}<font color="red">*</font></td><td> {{ form.username }}</td></tr>
 	      <tr><td>{{ form.password1.label_tag }}<font color="red">*</font></td><td> {{ form.password1 }}</td></tr>
 	      <tr><td>{{ form.password2.label_tag }}<font color="red">*</font></td><td> {{ form.password2 }}</td></tr>
@@ -32,7 +32,7 @@
 	    </table>
 	  </form>
 	</div>
-  <div id="Log-In"> 
+  <div> 
   <b>OR</b>
 
   <a href="{% url login %}">Log In</a>
