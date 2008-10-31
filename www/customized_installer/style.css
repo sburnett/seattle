@@ -6,8 +6,11 @@
 body {
 	background-color: #fff;
 	font-size: 10pt;
-	font-weight: bold;
 	font-family: "Segoe UI", "Lucida Grande", "Helvetica" , sans-serif;
+}
+
+img {
+	border: none;
 }
 
 .close {
@@ -192,4 +195,46 @@ h1 {
 
 #links ul li a {
 	color: #333;
+}
+
+/*	Stylesheet for installer.php	*/
+
+p.comment {
+	margin: 5px 20px;
+
+}
+
+table#installers {
+	border-collapse: collapse;
+	width: 90%;
+	background-color: #eee;
+	margin: 20px;
+}
+
+table#installers tr {
+	border-top: 2px solid #fff;
+}
+
+table#installers tr td {
+	width: 33%;
+	padding:20px;
+	font-weight: normal;
+}
+
+#instruction ol li {
+	list-style-position: inside;
+}
+
+#instruction p {
+	font-weight: bold;
+}
+
+#os {
+	font-weight: bold;
+	font-size: 16pt;
+}
+
+.highlight {
+	border: 3px solid #666;
+	background-color: #fcfcd4;
 }
