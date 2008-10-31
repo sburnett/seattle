@@ -124,6 +124,7 @@ ul li {
 .userinfotable {
 	margin: 0px auto;
 	text-align: left;
+	padding: 10px;
 }
 
 .info {
