@@ -1,3 +1,10 @@
+<?php
+if (isset($_GET['pid'])) {
+	$mypid = $_GET['pid'];
+}
+
+?>
+
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
 "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
@@ -11,6 +18,7 @@ Installer download Page for Research Project
 		<title>Download Installers</title>
 		<link rel="stylesheet" type="text/css" href="style.css" />
 		<script src="scripts/prototype.js" type="text/javascript"></script>
+		<script src="scripts/installers.js" type="text/javascript"></script>
 	</head>
 
 	<body>
@@ -28,9 +36,9 @@ Installer download Page for Research Project
 					<col id="win" /><col id="mac" /><col id="linux" />
 				</colgroup>
 				<tr> 
-					<td> <a href="{% url installers user.username %}win.zip" target="_blank"> <img src="{{ MEDIA_URL }}win.jpg" alt="Windows" /> </a> </td>
-					<td> <a href="{% url installers user.username %}mac.tgz" target="_blank"> <img src="{{ MEDIA_URL }}osx.jpg" alt="Mac" /> </a> </td>
-					<td> <a href="{% url installers user.username %}linux.tgz" target="_blank"> <img src="{{ MEDIA_URL }}linux.jpg" alt="Linux" /> </a> </td>
+					<td> <a href="download/<?php echo $mypid ?>/win.zip" target="_blank"> <img src="images/win.jpg" alt="Windows" /> </a> </td>
+					<td> <a href="download/<?php echo $mypid ?>/mac.tgz" target="_blank"> <img src="images/osx.jpg" alt="Mac" /> </a> </td>
+					<td> <a href="download/<?php echo $mypid ?>/linux.tgz" target="_blank"> <img src="images/linux.jpg" alt="Linux" /> </a> </td>
 				</tr>
 				<tr id="os">
 					<td> Windows </td>
