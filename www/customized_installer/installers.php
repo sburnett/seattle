@@ -10,12 +10,12 @@ if (isset($_GET['pid'])) {
 <html xmlns="http://www.w3.org/1999/xhtml">
 
 <!--
-Links Page for Research Project
+Installer download Page for Research Project
 -->
 
 
 	<head>
-		<title>Installers Download</title>
+		<title>Download Installers</title>
 		<link rel="stylesheet" type="text/css" href="style.css" />
 		<script src="scripts/prototype.js" type="text/javascript"></script>
 		<script src="scripts/installers.js" type="text/javascript"></script>
