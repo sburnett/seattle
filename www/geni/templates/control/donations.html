@@ -83,7 +83,7 @@
 							<font color="red">  {{ share_form.username.errors }}</font><br>
 							<font color="red">{{ share_form.percent.errors }}</font>
 							<form method="POST" action="{% url new_share %}" target="#">
-								<table> <tr> <td> {{ share_form.username.label }} </td>
+								<table class="userinfotable"> <tr> <td> {{ share_form.username.label }} </td>
 								<td> {{ share_form.username }} </td> </tr>
 								<tr> <td> {{ share_form.percent.label }} </td>
 								<td> {{ share_form.percent }} </td> </tr> </table>
