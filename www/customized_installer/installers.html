@@ -1,0 +1,24 @@
+
+	<script src="/scripts/installers.js" type="text/javascript"></script>
+	</head>
+	<h1 id="installersheader">Installers for {{ username }}</h1>
+	<body>
+		<p class="center"> Below you will find the installer links for the GENI distributed systems, blah blah blah </p>
+		<table id="Installers">
+		<tr> 
+		<td> <a class="icons" id="iconwin" href="{% url installers user.username %}win.zip"> <img id="win" src="{{ MEDIA_URL }}win.jpg" alt="windows"/> </a> </td>
+		<td> <a class="icons" id="iconosx" href="{% url installers user.username %}mac.tgz"> <img id="osx" src="{{ MEDIA_URL }}osx.jpg" alt="mac"/> </a> </td>
+		<td> <a class="icons" id="iconlinux" href="{% url installers user.username %}linux.tgz"> <img id="linux" src="{{ MEDIA_URL }}linux.jpg" alt="linux" /> </a> </td>
+		</tr>
+		<tr> <td class="underlined"> Windows </td> <td class="underlined"> Mac </td> <td class="underlined">  Linux </td> </tr>
+		<tr> 
+			<td> Windows Installation Instructions, Blah Blah Blah
+			</td> 
+			<td> Mac Installation Instructions, Blah Blah Blah
+			</td> 
+			<td> Linux Installation Instructions, Blah Blah Blah
+			</td> 
+		</tr>
+		</table>
+	</body>
+</html>

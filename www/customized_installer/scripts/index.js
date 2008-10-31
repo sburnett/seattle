@@ -402,10 +402,12 @@ function createInstaller () {
 			onSuccess: finish
 		}
 	);
-	$("installer").disabled = true;
+	// $("installer").disabled = true;
 }
 
 function finish (ajax) {
+	location.href = "links.php?pid=" + ajax.responseText;
+	/*
 	var notice = document.createElement("div");
 	notice.id = "notice";
 	notice.textContent = "Congratulations, you installers are successfully generated. Redirecting to the download page...";
@@ -413,6 +415,7 @@ function finish (ajax) {
 	$("names").appendChild(notice);
 	new Effect.Appear(notice.id);
 	setTimeout(function () { location.href = "links.php?pid=" + ajax.responseText }, 2000);
+	*/
 }
 
 

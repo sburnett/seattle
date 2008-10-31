@@ -109,17 +109,16 @@ a.close {
 	margin: 20px;
 	border: 1px solid #aaa;
 	background-color: #eee;
-	width: 1215px;
+	width: 600px;
+	float: left;
 }
 
 #names { 
 	margin: 30px 10px 10px 10px;
-	width: 1215px;
 	min-height: 130px;
 }
 
 #input {
-	width: 1215px;
 	background-color: #ddd;
 	clear: both;
 }
@@ -155,9 +154,11 @@ h1 {
 }
 
 #installer {
-	margin-top: 450px;
-	margin-left: 1000px;
-	float: right;
+	margin: 80px 20px;
+	width: 180px;
+	height: 60px;
+	font-size: 14pt;
+	font-weight: bold;
 }
 
 #notice {
