@@ -193,7 +193,8 @@ th, td , tr{
 	top: 0%;*/
 	text-align: center;
 }
-.tables {
+#resourcestable {
+	width: 70%;
 }
 
 .spacer {
