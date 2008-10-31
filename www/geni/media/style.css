@@ -28,9 +28,6 @@ img {
 }
 
 #top {
-	position: absolute;
-	top: 1%;
-	right: 3%;
 }
 
 .notices {
@@ -62,7 +59,7 @@ img {
 }
 
 #welcome {
-	margin-bottom: 5px;
+	margin-left: 90%;
 }
 
 #content {
