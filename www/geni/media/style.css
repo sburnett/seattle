@@ -28,8 +28,9 @@ img {
 }
 
 #top {
-	text-align: center;
-	margin: auto;
+	position: absolute;
+	top: 1%;
+	right: 3%;
 }
 
 .notices {
