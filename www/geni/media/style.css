@@ -284,6 +284,7 @@ th, td , tr{
 
 #maximizer1, #maximizer2, #maximizer3 {
 	color: blue;
+	margin-left: 5px;
 }
 
 #installers {
