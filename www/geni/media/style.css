@@ -115,6 +115,7 @@ ul li {
 
 #userinfotable {
 	margin: 0px auto;
+	text-align: left;
 }
 
 .info {
@@ -263,6 +264,10 @@ th, td , tr{
 .red {
 	color: red;
 	font-size: 14pt;
+	width: 50%;
+	margin: 2px auto;
+	border: 1px solid black;
+	background-color: #FF6633;
 }
 
 #maximizer1, #maximizer2, #maximizer3 {
