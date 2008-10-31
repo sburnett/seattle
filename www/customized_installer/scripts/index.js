@@ -406,16 +406,7 @@ function createInstaller () {
 }
 
 function finish (ajax) {
-	location.href = "links.php?pid=" + ajax.responseText;
-	/*
-	var notice = document.createElement("div");
-	notice.id = "notice";
-	notice.textContent = "Congratulations, you installers are successfully generated. Redirecting to the download page...";
-	notice.style.display = "none";
-	$("names").appendChild(notice);
-	new Effect.Appear(notice.id);
-	setTimeout(function () { location.href = "links.php?pid=" + ajax.responseText }, 2000);
-	*/
+	location.href = "installers.php?pid=" + ajax.responseText;
 }
 
 
