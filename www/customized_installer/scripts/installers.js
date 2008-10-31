@@ -13,8 +13,6 @@ window.onload = function () {
 		default:
 			break;
 	}
-//	alert(platform);
-	
 }
 
 function detectOS () {

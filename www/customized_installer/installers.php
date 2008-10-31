@@ -18,13 +18,17 @@ Links Page for Research Project
 		<title>Installers Download</title>
 		<link rel="stylesheet" type="text/css" href="style.css" />
 		<script src="scripts/prototype.js" type="text/javascript"></script>
-		<script src="scripts/installer.js" type="text/javascript"></script>
+		<script src="scripts/installers.js" type="text/javascript"></script>
 	</head>
 
 	<body>
 		<div id="content"> 
 			<h1 id="header"> Download your installers </h1>
-
+			
+			<p class="comment">
+				<a href="download/public.zip" target="_blank"> Download all public keys </a>&nbsp;&nbsp;
+				<a href="download/private.zip" target="_blank"> Download all private keys </a>
+			</p>
 			<p class="comment"> Below you will find the installer links for the GENI distributed system </p>
 			<p class="comment"> (Click on the image to download your installer)</p>
 			<table id="installers">
@@ -32,9 +36,9 @@ Links Page for Research Project
 					<col id="win" /><col id="mac" /><col id="linux" />
 				</colgroup>
 				<tr> 
-					<td> <a href="download/<?php echo $mypid ?>/win.zip"> <img src="images/win.jpg" alt="Windows" /> </a> </td>
-					<td> <a href="download/<?php echo $mypid ?>/mac.tgz"> <img src="images/osx.jpg" alt="Mac" /> </a> </td>
-					<td> <a href="download/<?php echo $mypid ?>/linux.tgz"> <img src="images/linux.jpg" alt="Linux" /> </a> </td>
+					<td> <a href="download/<?php echo $mypid ?>/win.zip" target="_blank"> <img src="images/win.jpg" alt="Windows" /> </a> </td>
+					<td> <a href="download/<?php echo $mypid ?>/mac.tgz" target="_blank"> <img src="images/osx.jpg" alt="Mac" /> </a> </td>
+					<td> <a href="download/<?php echo $mypid ?>/linux.tgz" target="_blank"> <img src="images/linux.jpg" alt="Linux" /> </a> </td>
 				</tr>
 				<tr id="os">
 					<td> Windows </td>
