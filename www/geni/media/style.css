@@ -110,7 +110,11 @@ ul li {
 }
 
 #usercontent {
-	margin: auto;
+	margin: 0px auto;
+}
+
+#userinfotable {
+	margin: 0px auto;
 }
 
 .info {
