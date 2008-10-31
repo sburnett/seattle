@@ -179,7 +179,7 @@ th, td , tr{
 	text-align: center;
 }
 
-#mainwindow {
+.mainwindow {
 	border-right: 2px solid black;
 	padding-bottom: 5px;
 	width: 70%;
@@ -195,7 +195,6 @@ th, td , tr{
 }
 #resourcestable {
 	width: 70%;
-	border: 2px solid black;
 }
 
 .spacer {

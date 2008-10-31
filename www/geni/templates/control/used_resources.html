@@ -19,35 +19,37 @@
 			</div>
 			<div id="window2" class="window"> 
 			<!-- Used Resources -->
-				<div class="sideWindow">
-				  <br><br>
-					<h2> Get More </h2>
-					<form method="POST" action="{% url used_resources %}" target="#">
-						<p>
-						  <font color="red">  {{ get_form.num.errors }}</font><br>
-						  <font color="red">  {{ get_form.env.errors }}</font><br>
-						  {{ get_form.num.label }} {{ get_form.num }}
-						  {{ get_form.env.label }} {{ get_form.env }}
-						  <input type="submit" value="GET"/>
-						</p>
-					</form>
-				</div>
-				<div id="resourcestable">
-					<table class="donation_table">
-						<caption> Mine </caption>
-						<tr> <th> IP:Port:Status </th> <th> Expiration </th> <th>Vessel Name </th> </tr>
-						{% for v in my_vesels %}
-						<tr> <td> {{ v.vessel.ip }}:{{ v.vessel.port }}:{{ v.vessel.status }} </td> <td> {{ v.vessel.expiration }} </td> <td> {{ v.vessel.name }} </td> </tr>
-						{% endfor %}
-					</table> 
-					<br/>
-					<table class="donation_table">
-						<caption> Shared </caption>
-						<tr> <th> Username </th> <th> IP:Port:Status </th> <th> Expiration </th> <th>Vessel Name </th> </tr>
-						{% for v in sh_vesels %}
-						<tr> <td> {{ v.user.www_user.username }} </td> <td> {{ v.vessel.ip }}:{{ v.vessel.port }}:{{ v.vessel.status }} </td> <td> {{ v.vessel.expiration }} </td> <td> {{ v.vessel.name }} </td> </tr>
-						{% endfor %}
-					</table>
+				<div class="mainwindow">
+					<div class="sideWindow">
+					  <br><br>
+						<h2> Get More </h2>
+						<form method="POST" action="{% url used_resources %}" target="#">
+							<p>
+							  <font color="red">  {{ get_form.num.errors }}</font><br>
+							  <font color="red">  {{ get_form.env.errors }}</font><br>
+							  {{ get_form.num.label }} {{ get_form.num }}
+							  {{ get_form.env.label }} {{ get_form.env }}
+							  <input type="submit" value="GET"/>
+							</p>
+						</form>
+					</div>
+					<div id="resourcestable">
+						<table class="donation_table">
+							<caption> Mine </caption>
+							<tr> <th> IP:Port:Status </th> <th> Expiration </th> <th>Vessel Name </th> </tr>
+							{% for v in my_vesels %}
+							<tr> <td> {{ v.vessel.ip }}:{{ v.vessel.port }}:{{ v.vessel.status }} </td> <td> {{ v.vessel.expiration }} </td> <td> {{ v.vessel.name }} </td> </tr>
+							{% endfor %}
+						</table> 
+						<br/>
+						<table class="donation_table">
+							<caption> Shared </caption>
+							<tr> <th> Username </th> <th> IP:Port:Status </th> <th> Expiration </th> <th>Vessel Name </th> </tr>
+							{% for v in sh_vesels %}
+							<tr> <td> {{ v.user.www_user.username }} </td> <td> {{ v.vessel.ip }}:{{ v.vessel.port }}:{{ v.vessel.status }} </td> <td> {{ v.vessel.expiration }} </td> <td> {{ v.vessel.name }} </td> </tr>
+							{% endfor %}
+						</table>
+					</div>
 				</div>
 				<div class="spacer"> </div>
 			</div>
