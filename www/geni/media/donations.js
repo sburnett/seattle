@@ -5,6 +5,7 @@ var hideWhenNumber = 8;
 var dontDisplay = 3;
 
 window.onload = function() {
+	alert(BrowserDetect.OS);
 	if (BrowserDetect.OS == "Windows") {
 		$("win").src = "/geni/media/midwin.jpg";
 	} else if (BrowserDetect.OS == "Mac") {
