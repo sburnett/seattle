@@ -113,6 +113,10 @@ ul li {
 	min-width: 508px;
 }
 
+#tabs3 {
+	min-width: 727px;
+}
+
 #usercontent {
 	margin: 0px auto;
 }
@@ -165,6 +169,7 @@ th, td , tr{
 	height: 70%;
 	margin: 0px auto;
 	border: 1px solid black;
+	min-width: 727px;
 }
 
 #window3 {
