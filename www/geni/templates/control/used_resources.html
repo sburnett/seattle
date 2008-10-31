@@ -19,6 +19,19 @@
 			</div>
 			<div id="window2" class="window"> 
 			<!-- Used Resources -->
+				<div class="sideWindow">
+				  <br><br>
+					<h2> Get More </h2>
+					<form method="POST" action="{% url used_resources %}" target="#">
+						<p>
+						  <font color="red">  {{ get_form.num.errors }}</font><br>
+						  <font color="red">  {{ get_form.env.errors }}</font><br>
+						  {{ get_form.num.label }} {{ get_form.num }}
+						  {{ get_form.env.label }} {{ get_form.env }}
+						  <input type="submit" value="GET"/>
+						</p>
+					</form>
+				</div>
 				<div id="resourcestable">
 					<table class="donation_table">
 						<caption> Mine </caption>
@@ -35,19 +48,6 @@
 						<tr> <td> {{ v.user.www_user.username }} </td> <td> {{ v.vessel.ip }}:{{ v.vessel.port }}:{{ v.vessel.status }} </td> <td> {{ v.vessel.expiration }} </td> <td> {{ v.vessel.name }} </td> </tr>
 						{% endfor %}
 					</table>
-				</div>
-				<div class="sideWindow">
-				  <br><br>
-					<h2> Get More </h2>
-					<form method="POST" action="{% url used_resources %}" target="#">
-						<p>
-						  <font color="red">  {{ get_form.num.errors }}</font><br>
-						  <font color="red">  {{ get_form.env.errors }}</font><br>
-						  {{ get_form.num.label }} {{ get_form.num }}
-						  {{ get_form.env.label }} {{ get_form.env }}
-						  <input type="submit" value="GET"/>
-						</p>
-					</form>
 				</div>
 				<div class="spacer"> </div>
 			</div>
