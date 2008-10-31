@@ -195,7 +195,7 @@ th, td , tr{
 }
 #resourcestable {
 	width: 70%;
-	margin-right: 2px solid black;
+	border: 2px solid black;
 }
 
 .spacer {
