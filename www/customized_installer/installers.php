@@ -1,8 +1,6 @@
 <?php
-if (isset($_GET['pid'])) {
-	$mypid = $_GET['pid'];
-}
-
+session_start();
+$mypid = session_id();
 ?>
 
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
@@ -26,8 +24,8 @@ Installer download Page for Research Project
 			<h1 id="header"> Download your installers </h1>
 			
 			<p class="comment">
-				<a href="download/public.zip" target="_blank"> Download all public keys </a>&nbsp;&nbsp;
-				<a href="download/private.zip" target="_blank"> Download all private keys </a>
+				<a href="download/<?php echo $mypid ?>/public.zip" target="_blank"> Download all public keys </a>&nbsp;&nbsp;
+				<a href="download/<?php echo $mypid ?>/private.zip" target="_blank"> Download all private keys </a>
 			</p>
 			<p class="comment"> Below you will find the installer links for the GENI distributed system </p>
 			<p class="comment"> (Click on the image to download your installer)</p>
@@ -36,9 +34,9 @@ Installer download Page for Research Project
 					<col id="win" /><col id="mac" /><col id="linux" />
 				</colgroup>
 				<tr> 
-					<td> <a href="download/<?php echo $mypid ?>/win.zip" target="_blank"> <img src="images/win.jpg" alt="Windows" /> </a> </td>
-					<td> <a href="download/<?php echo $mypid ?>/mac.tgz" target="_blank"> <img src="images/osx.jpg" alt="Mac" /> </a> </td>
-					<td> <a href="download/<?php echo $mypid ?>/linux.tgz" target="_blank"> <img src="images/linux.jpg" alt="Linux" /> </a> </td>
+					<td> <a href="download/<?php echo $mypid ?>/seattle_win.zip" target="_blank"> <img src="images/win.jpg" alt="Windows" /> </a> </td>
+					<td> <a href="download/<?php echo $mypid ?>/seattle_mac.tgz" target="_blank"> <img src="images/osx.jpg" alt="Mac" /> </a> </td>
+					<td> <a href="download/<?php echo $mypid ?>/seattle_linux.tgz" target="_blank"> <img src="images/linux.jpg" alt="Linux" /> </a> </td>
 				</tr>
 				<tr id="os">
 					<td> Windows </td>

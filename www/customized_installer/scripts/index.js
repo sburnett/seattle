@@ -406,7 +406,7 @@ function createInstaller () {
 }
 
 function finish (ajax) {
-	location.href = "installers.php?pid=" + ajax.responseText;
+	location.href = "installers.php";
 }
 
 

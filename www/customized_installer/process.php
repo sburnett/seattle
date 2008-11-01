@@ -1,31 +1,31 @@
 <?php
 
 session_start();
-echo session_id() ;
+// echo session_id() ;
 echo $_SESSION['count'];
 
 $prefix = "/var/www/customized_installer";
+$carter_script = "/home/ivan/trunk/dist/customize_installers.py";
 $vesselinfopy = "/home/ivan/trunk/test/writecustominstallerinfo.py";
 $sid = session_id();
 $dl_prefix = "$prefix/download/$sid";
 
-if (!isset($_SESSION['keys'])) {
-	$_SESSION['keys'] = array();
-}
-// print $sid . "\n";
-// echo $_SESSION['keys'];
-    
 if (isset($_POST)) {
 	if ($_POST['action'] == 'adduser') {
 		$username = standarize($_POST['username']);
-		$key = file_get_contents($_FILES["publickey"]["tmp_name"]);
-		$_SESSION['keys'][$username] = $key;
-		echo $_SESSION['keys'][$username];
-
+                if (is_uploaded_file($_FILES["publickey"]["tmp_name"])) {
+			$key = file_get_contents($_FILES["publickey"]["tmp_name"]);
+			$_SESSION[$username] = $key;
+		} else {
+			unset($_SESSION[$username]);
+		}
+		// echo $_SESSION[$username];
 	} else if ($_POST['action'] == 'createinstaller') {
 		$vessels = json_decode(stripslashes($_POST['content']), true);
-		exec("rm $dl_prefix/* && mkdir $dl_prefix && mkdir $dl_prefix/vesselsinfo");
-		
+		exec("rm $dl_prefix/*");
+		exec("mkdir $dl_prefix");
+		exec("mkdir $dl_prefix/vesselsinfo");
+		//file_put_contents("h0","");
 		foreach ($vessels as &$vessel) {
 			genkey($vessel['owner']);
 			$vessel['owner'] = getPublicKeyPath(standarize($vessel['owner']));
@@ -37,12 +37,19 @@ if (isset($_POST)) {
 			unset($user);
 		}
 		Unset($vessel);
-		
+		//file_put_contents("h1","");
                 file_put_contents("$dl_prefix/vesselsinfo.txt", outputVesselsInfo($vessels));
-
+		//file_put_contents("h2","");
                 exec("python $vesselinfopy $dl_prefix/vesselsinfo.txt $dl_prefix/vesselsinfo/");
-                exec("python $prefix/customize_installers.py mlw $dl_prefix/vesselsinfo $dl_prefix/");
-                exec("cp $dl_prefix/seattle_linux.tgz $dl_prefix/seattle_mac.tgz");
+		//file_put_contents("h3","");
+                exec("python $carter_script mlw $dl_prefix/vesselsinfo $dl_prefix/");
+		exec("python $carter_script mlw $dl_prefix/vesselsinfo $dl_prefix/");
+		//file_put_contents("h4","");
+		exec("zip -j $dl_prefix/private.zip $dl_prefix/*.privatekey");
+		//file_put_contents("h5","");
+		exec("zip -j $dl_prefix/public.zip $dl_prefix/*.publickey");
+		//file_put_contents("h6","");
+                //exec("cp $dl_prefix/seattle_linux.tgz $dl_prefix/seattle_mac.tgz");
 	}
 	 /* else if ($_POST['action'] == 'resetform') { */
 /* 		$username = standarize($_POST['username']); */
@@ -53,10 +60,11 @@ if (isset($_POST)) {
 }
 
 function genkey($user) {
-	if (!isset($_SESSION['keys'][$user])) {
-		exec("python $prefix/generatekeys.py $user 128 $dl_prefix/");
+	global $prefix, $dl_prefix;
+	if (array_key_exists($user, $_SESSION)) {
+		file_put_contents(getPublicKeyPath($user), $_SESSION[$user]);
 	} else {
-		file_put_contents("$dl_prefix/" . $user . ".privatekey" , $_SESSION['keys'][$user]);
+		exec("python $prefix/generatekeys.py $user 128 $dl_prefix/");
 	}
 }
 
@@ -77,8 +85,8 @@ function standarize ($username) {
 }
 
 function getPublicKeyPath ($username) {
-        $prefix = "/var/www/customized_installer";
-	return "$prefix/keys/" . $username . ".publickey";
+	global $dl_prefix;
+	return "$dl_prefix/" . $username . ".publickey";
 }
 
 ?>
