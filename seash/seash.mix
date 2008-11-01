@@ -45,13 +45,13 @@ import advertise            #  used to do OpenDHT lookups
 
 
 
-#### Now the bit we use
+#### Helper functions and exception definitions
 
 
   
 # Use this to signal an error we want to print...
 class UserError(Exception):
-  pass
+  """This indicates the user typed an incorrect command"""
 
 
 
@@ -86,7 +86,15 @@ def intersect(a,b):
   return retlist
       
 
-def is_immutable(targetname):
+def uniq(a):
+  retlist = []
+  for item in a:
+    if item not in retlist:
+      retlist.append(item)
+  return retlist
+
+
+def is_immutable_targetname(targetname):
   if targetname.startswith('%') or ':' in targetname:
     return True
   return False
@@ -104,10 +112,24 @@ def fit_string(stringdata, length):
   return stringdata
 
 
+nextidlock = getlock()
+def atomically_get_nextid():
+  global nextid
+
+  # mutex around getting an id
+  nextidlock.acquire()
+
+  myid = nextid
+  nextid = nextid + 1
+
+  nextidlock.release()
+
+  return myid
+    
+  
 
 # adds a vessel and returns the new ID...
 def add_vessel(longname, keyname, vesselhandle):
-  global nextid
   vesselinfo[longname] = {}
   vesselinfo[longname]['handle'] = vesselhandle
   vesselinfo[longname]['keyname'] = keyname
@@ -118,8 +140,7 @@ def add_vessel(longname, keyname, vesselhandle):
   # set up a reference to myself...
   targets[longname] = [longname]
 
-  myid = nextid
-  nextid = nextid + 1
+  myid = atomically_get_nextid()
 
   # add my id...
   targets['%'+str(myid)] = [longname]
@@ -153,12 +174,416 @@ def delete_vessel(longname):
         continue
       # otherwise remove the item from the list...
       targets[target].remove(longname)
+
+
+
+def longnamelist_to_nodelist(longnamelist):
+  
+  retlist = []
+  for longname in longnamelist:
+    nodename = vesselinfo[longname]['IP']+":"+str(vesselinfo[longname]['port'])
+    retlist.append(nodename)
+
+  return retlist
+
+
+def find_handle_for_node(nodename):
+  
+  for longname in vesselinfo:
+    if longname.rsplit(':',1)[0] == nodename:
+      return vesselinfo[longname]['handle']
+  raise IndexError("Cannot find handle for '"+nodename+"'")
+
+
+
+
+
+#################### functions that operate on a target
+
+class ContactWorkerThread(threading.Thread):
+  """
+    <Purpose> 
+      This class represents a thread instance that will contact nodes in an
+      attempt to parallelize node contact / access.
+
+    <Side Effects>
+      Starts a thread when called.   Terminates on its own.
+ 
+    <Usage>
+  """
+
+  # the dictionary we write the answers to...
+  retdict = None
+  # where we read pending requests from
+  inputqueue = None
+  # Our thread number (used to access the status dict)
+  threadnumber = None
+  # How we signal we are finished...
+  statusdict = None
+  # The user function to call
+  func = None
+
+  def __init__(self, s, t, r, i, f, *a):
+    self.statusdict = s
+    self.threadnumber = t
+    self.retdict = r
+    self.inputqueue = i
+    self.func = f
+    self.args = a
+    threading.Thread.__init__(self,name="ContactWorkerThread"+str(self.threadnumber))
+
+  def run(self):
+
+    try:
+      while True:
+        try:
+          mytarget = self.inputqueue.pop()
+        except IndexError:
+          # no more items left, let's stop
+          return
+
+        # parse this item
+        self.retdict[mytarget] = self.func(mytarget,*self.args)
+    finally:
+      del self.statusdict[self.threadnumber]
+
+      
+MAX_CONTACT_WORKER_THREAD_COUNT = 10
+
+
+# This function abstracts out contacting different nodes.   It spawns off 
+# multiple worker threads to handle the clients...
+# by a threaded model in the future...
+# NOTE: entries in targetlist _must_ be unique!
+def contact_targets(targetlist, func,*args):
+  
+  # I need to do this because the threads modify this list and I don't want to 
+  # alter the caller's list (they may not expect it)
+  thetargets = targetlist[:]
+
+  # don't start more threads than there are targets (duh!)
+  threads_to_start = min(MAX_CONTACT_WORKER_THREAD_COUNT, len(thetargets))
+ 
+  # the returned data
+  retdict = {}
+  # this lets me know where the threads are at...
+  statusdict = {}
+  for num in range(threads_to_start):
+    statusdict[num] = True
+    ContactWorkerThread(statusdict, num, retdict, thetargets, func, *args).start()
+
+  
+  # wait for the threads to all finish...
+  while statusdict:
+    sleep(.1)
+
+  return retdict
     
 
+    
+
+# This function abstracts out contacting different nodes.   It is obsoleted by
+# the threaded model...   This code is retained for testing reasons only
+def simple_contact_targets(targetlist, func,*args):
+  retdict = {}
+
+  # do the function on each target, returning a dict of results.
+  for target in targetlist:
+    retdict[target] = func(target,*args)
+
+  return retdict
+    
+
+
+
+
+
+
+# used in show log
+def showlog_target(longname):
+  vesselname = vesselinfo[longname]['vesselname']
+  try:
+    logdata = nmclient_signedsay(vesselinfo[longname]['handle'],"ReadVesselLog",vesselname)
+  except NMClientException, e:
+    return (False, str(e))
+  else:
+    return (True, logdata)
+
+
+
+
+
+# used in show resources
+def showresources_target(longname):
+  vesselname = vesselinfo[longname]['vesselname']
+  try:
+    resourcedata = nmclient_rawsay(vesselinfo[longname]['handle'],"GetVesselResources",vesselname)
+  except NMClientException, e:
+    return (False, str(e))
+  else:
+    return (True, resourcedata)
+
+
+# used in show offcut
+def showoffcut_target(nodename):
+  vesselhandle = find_handle_for_node(nodename)
+  try:
+    offcutdata = nmclient_rawsay(vesselhandle,"GetOffcutResources")
+  except NMClientException, e:
+    return (False, str(e))
+  else:
+    return (True, offcutdata)
   
 
 
 
+
+def browse_target(node, currentkeyname):
+
+  # NOTE: I almost think I should skip those nodes that I know about from 
+  # previous browse commands.   Perhaps I should have an option on the browse
+  # command?
+
+  host, portstring = node.split(':')
+  port = int(portstring)
+
+  # get information about the node's vessels
+  try:
+    nodehandle = nmclient_createhandle(host, port, privatekey = keys[currentkeyname]['privatekey'], publickey = keys[currentkeyname]['publickey'])
+  except NMClientException,e:
+    return (False, str(e))
+
+  try:
+    # need to contact the node to get the list of vessels we can perform
+    # actions on...
+    ownervessels, uservessels = nmclient_listaccessiblevessels(nodehandle,keys[currentkeyname]['publickey'])
+
+    retlist = []
+
+    # we should add anything we can access (whether a user or owner vessel)
+    for vesselname in ownervessels + uservessels:
+      longname = host+":"+str(port)+":"+vesselname
+
+      # if we haven't discovered the vessel previously...
+      if longname not in targets:
+        # set the vesselname in the handle
+        newhandle = nmclient_duplicatehandle(nodehandle)
+        handleinfo = nmclient_get_handle_info(newhandle)
+        handleinfo['vesselname'] = vesselname
+        nmclient_set_handle_info(newhandle, handleinfo)
+
+        # then add the vessel to the target list, etc.
+        # add_vessel has no race conditions as long as longname is unique 
+        # (and it should be unique)
+        id = add_vessel(longname,currentkeyname,newhandle)
+        targets['browsegood'].append(longname)
+
+        # and append some information to be printed...
+        retlist.append('%'+str(id)+"("+longname+")")
+
+
+
+  finally:
+    nmclient_destroyhandle(nodehandle)
+
+  return (True, retlist)
+
+
+def list_or_update_target(longname):
+
+  vesselname = vesselinfo[longname]['vesselname']
+  try:
+    vesseldict = nmclient_getvesseldict(vesselinfo[longname]['handle'])
+  except NMClientException, e:
+    return (False, str(e))
+  else:
+    # updates the dictionary of our node information (dictionary used in show, 
+    # etc.)
+    for key in vesseldict['vessels'][vesselname]:
+      vesselinfo[longname][key] = vesseldict['vessels'][vesselname][key]
+    return (True,)
+
+
+def upload_target(longname, remotefn, filedata):
+  vesselname = vesselinfo[longname]['vesselname']
+  try:
+    # add the file data...
+    nmclient_signedsay(vesselinfo[longname]['handle'], "AddFileToVessel", vesselname, remotefn, filedata)
+  except NMClientException, e:
+    return (False, str(e))
+  else:
+    return (True,)
+
+
+def download_target(longname,localfn,remotefn):
+  vesselname = vesselinfo[longname]['vesselname']
+  try:
+    # get the file data...
+    retrieveddata = nmclient_signedsay(vesselinfo[longname]['handle'], "RetrieveFileFromVessel", vesselname, remotefn)
+
+  except NMClientException, e:
+    return (False, str(e))
+
+  else:
+    writefn = localfn+"."+longname.replace(':','_')
+    # write to the local filename (replacing ':' with '_')...
+    fileobj = open(writefn,"w")
+    fileobj.write(retrieveddata)
+    fileobj.close()
+    # for output...
+    return (True, writefn)
+
+
+
+def delete_target(longname,remotefn):
+  vesselname = vesselinfo[longname]['vesselname']
+  try:
+    # delete the file...
+    nmclient_signedsay(vesselinfo[longname]['handle'], "DeleteFileInVessel", vesselname, remotefn)
+
+  except NMClientException, e:
+    return (False, str(e))
+
+  else:
+    return (True,)
+
+
+def start_target(longname, argstring):
+  vesselname = vesselinfo[longname]['vesselname']
+  try:
+    # start the program
+    nmclient_signedsay(vesselinfo[longname]['handle'], "StartVessel", vesselname, argstring)
+
+  except NMClientException, e:
+    return (False, str(e))
+
+  else:
+    return (True,)
+
+
+def stop_target(longname):
+  vesselname = vesselinfo[longname]['vesselname']
+  try:
+    # stop the programs
+    nmclient_signedsay(vesselinfo[longname]['handle'], "StopVessel", vesselname)
+  except NMClientException, e:
+    return (False, str(e))
+
+  else:
+    return (True,)
+
+
+
+def run_target(longname,filename,filedata, argstring):
+  vesselname = vesselinfo[longname]['vesselname']
+  try:
+    nmclient_signedsay(vesselinfo[longname]['handle'], "AddFileToVessel", vesselname, filename, filedata)
+    nmclient_signedsay(vesselinfo[longname]['handle'], "StartVessel", vesselname, argstring)
+  except NMClientException, e:
+    return (False, str(e))
+  else:
+    return (True,)
+
+
+
+# didn't test...
+def split_target(longname):
+  vesselname = vesselinfo[longname]['vesselname']
+  try:
+    newvesselnames = nmclient_signedsay(vesselinfo[longname]['handle'], "SplitVessel", vesselname, resourcedata)
+  except NMClientException, e:
+    return (False, str(e))
+  else:
+    newname1 = copy_vessel(longname, newvesselnames.split()[0])
+    newname2 = copy_vessel(longname, newvesselnames.split()[1])
+    delete_vessel(longname)
+    goodlist1.append(newname1)
+    goodlist2.append(newname2)
+    return (True,(newname1,newname2))
+
+
+# didn't test...
+def join_target(nodename,nodedict):
+ 
+  if len(nodedict[nodename]) < 2:
+    # not enough vessels, nothing to do
+    return (False, None)
+            
+
+  # I'll iterate through the vessels, joining one with the current 
+  # (current starts as the first vessel and becomes the "new vessel")
+  currentvesselname = vesselinfo[nodedict[nodename][0]]['vesselname']
+  currentlongname = nodedict[nodename][0]
+
+  # keep a list of what I replace...
+  subsumedlist = [currentlongname]
+
+  for longname in nodedict[nodename][1:]:
+    vesselname = vesselinfo[longname]['vesselname']
+    try:
+      newvesselname = nmclient_signedsay(vesselinfo[longname]['handle'], "JoinVessels", currentvesselname, vesselname)
+    except NMClientException, e:
+      return (False, str(e))
+    else:
+      newname = copy_vessel(longname, newvesselname)
+      delete_vessel(longname)
+      delete_vessel(currentlongname)
+      subsumedlist.append(longname)
+      currentlongname = newname
+      currentvesselname = newvesselname
+  else:
+    return (True, (currentlongname,subsumedlist))
+
+
+
+# didn't test...
+def setowner_target(longname,newowner):
+  vesselname = vesselinfo[longname]['vesselname']
+  try:
+    nmclient_signedsay(vesselinfo[longname]['handle'], "ChangeOwner", vesselname, rsa_publickey_to_string(keys[newowner]['publickey']))
+  except NMClientException, e:
+    return (False, str(e))
+  else:
+    return (True,)
+  
+
+
+# didn't test...
+def setadvertise_target(longname,newadvert):
+  vesselname = vesselinfo[longname]['vesselname']
+  try:
+    # do the actual advertisement changes
+    nmclient_signedsay(vesselinfo[longname]['handle'], "ChangeAdvertise", vesselname, newadvert)
+  except NMClientException, e:
+    return (False, str(e))
+  else:
+    return (True,)
+  
+
+def setownerinformation_target(longname,newownerinformation):
+  vesselname = vesselinfo[longname]['vesselname']
+  try:
+    # do the actual advertisement changes
+    nmclient_signedsay(vesselinfo[longname]['handle'], "ChangeOwnerInformation", vesselname, newownerinformation)
+  except NMClientException, e:
+    return (False, str(e))
+  else:
+    return (True,)
+  
+
+def setusers_target(longname,userkeystring):
+  vesselname = vesselinfo[longname]['vesselname']
+  try:
+    nmclient_signedsay(vesselinfo[longname]['handle'], "ChangeUsers", vesselname, userkeystring)
+  except NMClientException, e:
+    return (False, str(e))
+  else:
+    return (True,)
+
+
+
+
+#################### main loop and variables.
   
 # a dict that contains all of the targets (vessels and groups) we know about.
 targets = {'%all':[]}
@@ -172,6 +597,20 @@ nextid = 1
 # a dict that contains all of the key information
 keys = {}
 
+
+
+# The usual way of handling a user request is:
+#   1) parse the arguments the user gives (I do this up front so that I can
+#      give intelligible error messages before doing any work)
+#   2) handle the request.   If the request can be handled with local data, 
+#      it does so.   Otherwise, contact_targets is called with the list of
+#      of targets.   (targets are usually either nodenames or longnames)
+#   3) provide output to the user informing them of what happened.   It is
+#      common to create groups for the user if different targets have different
+#      outcomes
+#
+# Steps 1 and 3 are always done inline (inflating the function length).   Step
+# 2 is commonly done by a function XXX_target(...) listed above
 
 def command_loop():
   # things that may be set herein and used in later commands
@@ -217,7 +656,7 @@ def command_loop():
       if len(userinputlist) >= 2:
         if userinputlist[0] == 'on':
           if userinputlist[1] not in targets:
-            raise UserError, "Error: Unknown target '"+userinputlist[1]+"'"
+            raise UserError("Error: Unknown target '"+userinputlist[1]+"'")
           # set the target and strip the rest...
           currenttarget = userinputlist[1]
           userinputlist = userinputlist[2:]
@@ -234,7 +673,7 @@ def command_loop():
       if len(userinputlist) >= 2:
         if userinputlist[0] == 'as':
           if userinputlist[1] not in keys:
-            raise UserError, "Error: Unknown identity '"+userinputlist[1]+"'"
+            raise UserError("Error: Unknown identity '"+userinputlist[1]+"'")
           # set the target and strip the rest...
           currentkeyname = userinputlist[1]
           userinputlist = userinputlist[2:]
@@ -318,7 +757,7 @@ contact host:port[:vessel] -- Communicate with a node
 update             -- Update information about the vessels
 """
           else:
-            raise UserError, "Usage: help [ set | show ] -- display help"
+            raise UserError("Usage: help [ set | show ] -- display help")
 
 
         continue
@@ -378,7 +817,7 @@ update             -- Update information about the vessels
 # show users      -- Display the user keys for the vessels
         elif userinputlist[1] == 'users':
           if not currenttarget:
-            raise UserError,"Error, command requires a target"
+            raise UserError("Error, command requires a target")
 
           for longname in targets[currenttarget]:
             if 'userkeys' in vesselinfo[longname]:
@@ -404,7 +843,7 @@ update             -- Update information about the vessels
 # show ownerinfo  -- Display owner information for the vessels
         elif userinputlist[1] == 'ownerinfo':
           if not currenttarget:
-            raise UserError,"Error, command requires a target"
+            raise UserError("Error, command requires a target")
 
           for longname in targets[currenttarget]:
             if 'ownerinfo' in vesselinfo[longname]:
@@ -418,7 +857,7 @@ update             -- Update information about the vessels
 # show advertise  -- Display advertisement information about the vessels
         elif userinputlist[1] == 'advertise':
           if not currenttarget:
-            raise UserError,"Error, command requires a target"
+            raise UserError("Error, command requires a target")
 
           for longname in targets[currenttarget]:
             if 'advertise' in vesselinfo[longname]:
@@ -436,7 +875,7 @@ update             -- Update information about the vessels
 # show owner      -- Display a vessel's owner
         elif userinputlist[1] == 'owner':
           if not currenttarget:
-            raise UserError,"Error, command requires a target"
+            raise UserError("Error, command requires a target")
 
           for longname in targets[currenttarget]:
             if 'ownerkey' in vesselinfo[longname]:
@@ -458,22 +897,22 @@ update             -- Update information about the vessels
         elif userinputlist[1] == 'log' or userinputlist[1] == 'logs':
 
           if not currenttarget:
-            raise UserError,"Error, command requires a target"
+            raise UserError("Error, command requires a target")
 
           # print the vessel logs...
-          faillist = []
+          retdict = contact_targets(targets[currenttarget], showlog_target)
+
           goodlist = []
-          for longname in targets[currenttarget]:
-            vesselname = vesselinfo[longname]['vesselname']
-            try:
-              logdata = nmclient_signedsay(vesselinfo[longname]['handle'],"ReadVesselLog",vesselname)
-            except NMClientException, e:
-              print "failure:",e
-              faillist.append(longname)
-            else:
+          faillist = []
+          for longname in retdict:
+            # True means it worked
+            if retdict[longname][0]:
               print "Log from '"+longname+"':"
-              print logdata
+              print retdict[longname][1]
               goodlist.append(longname)
+            else:
+              print "failure:",retdict[longname][1]
+              faillist.append(longname)
   
           # and display it...
           if faillist:
@@ -492,22 +931,20 @@ update             -- Update information about the vessels
         elif userinputlist[1] == 'resource' or userinputlist[1] == 'resources':
 
           if not currenttarget:
-            raise UserError,"Error, command requires a target"
+            raise UserError("Error, command requires a target")
 
-          # print the vessel resource information...
+          retdict = contact_targets(targets[currenttarget], showresources_target)
           faillist = []
           goodlist = []
-          for longname in targets[currenttarget]:
-            vesselname = vesselinfo[longname]['vesselname']
-            try:
-              resourcedata = nmclient_rawsay(vesselinfo[longname]['handle'],"GetVesselResources",vesselname)
-            except NMClientException, e:
-              print "failure:",e
-              faillist.append(longname)
-            else:
+          for longname in retdict:
+            # True means it worked
+            if retdict[longname][0]:
               print "Resource data for '"+longname+"':"
-              print resourcedata
+              print retdict[longname][1]
               goodlist.append(longname)
+            else:
+              print "failure:",retdict[longname][1]
+              faillist.append(longname)
   
           # and display it...
           if faillist:
@@ -525,29 +962,19 @@ update             -- Update information about the vessels
         elif userinputlist[1] == 'offcut':
 
           if not currenttarget:
-            raise UserError,"Error, command requires a target"
+            raise UserError("Error, command requires a target")
 
-          # print the node offcut information...
-          faillist = []
-          goodlist = []
-          checkedlist = []
-          for longname in targets[currenttarget]:
-            vesselname = vesselinfo[longname]['vesselname']
-            nodename = vesselinfo[longname]['IP']+":"+str(vesselinfo[longname]['port'])
-            # check each node once...
-            if nodename in checkedlist:
-              continue
-            checkedlist.append(nodename)
+          
+          # we should only visit a node once...
+          nodelist = uniq(longnamelist_to_nodelist(targets[currenttarget]))
+          retdict = contact_targets(nodelist, showoffcut_target)
 
-            try:
-              offcutdata = nmclient_rawsay(vesselinfo[longname]['handle'],"GetOffcutResources")
-            except NMClientException, e:
-              print "failure:",e
-              faillist.append(longname)
+          for nodename in retdict:
+            if retdict[nodename][0]:
+              print "Offcut resource data for '"+nodename+"':"
+              print retdict[nodename][1]
             else:
-              print "Resource data for '"+nodename+"':"
-              print offcutdata
-              goodlist.append(longname)
+              print "failure:",retdict[nodename][1]
   
           continue
 
@@ -560,7 +987,7 @@ update             -- Update information about the vessels
 
 # show ???      -- oops!
         else:
-          raise UserError, "Error in usage: try 'help show'"
+          raise UserError("Error in usage: try 'help show'")
         continue
 
 
@@ -577,34 +1004,34 @@ update             -- Update information about the vessels
         elif len(userinputlist) == 3:
           source = currenttarget
           if userinputlist[1] != 'to':
-            raise UserError, "Error, command format: add (target) (to group)"
+            raise UserError("Error, command format: add (target) (to group)")
           dest = userinputlist[2]
 
         elif len(userinputlist) == 4:
           source = userinputlist[1]
           if userinputlist[2] != 'to':
-            raise UserError, "Error, command format: add (target) (to group)"
+            raise UserError("Error, command format: add (target) (to group)")
           dest = userinputlist[3]
 
         else:
-          raise UserError,"Error, command format: add (target) (to group)"
+          raise UserError("Error, command format: add (target) (to group)")
  
         # okay, now source and dest are set.   Time to add the nodes in source
         # to the group dest...
         if source not in targets:
-          raise UserError,"Error, unknown target '"+source+"'"
+          raise UserError("Error, unknown target '"+source+"'")
         if dest not in targets:
           if not valid_targetname(dest):
-            raise UserError,"Error, invalid target name '"+dest+"'"
+            raise UserError("Error, invalid target name '"+dest+"'")
           targets[dest] = []
 
-        if is_immutable(dest):
-          raise UserError,"Can't modify the contents of '"+dest+"'"
+        if is_immutable_targetname(dest):
+          raise UserError("Can't modify the contents of '"+dest+"'")
 
         # source - dest has what we should add (items in source but not dest)
         addlist = difference(targets[source],targets[dest])
         if len(addlist) == 0:
-          raise UserError,"No targets to add (the target is already in '"+dest+"')"
+          raise UserError("No targets to add (the target is already in '"+dest+"')")
         
         for item in addlist:
           targets[dest].append(item)
@@ -625,31 +1052,31 @@ update             -- Update information about the vessels
         elif len(userinputlist) == 3:
           source = currenttarget
           if userinputlist[1] != 'from':
-            raise UserError,"Error, command format: remove (target) (from group)"
+            raise UserError("Error, command format: remove (target) (from group)")
           dest = userinputlist[2]
 
         elif len(userinputlist) == 4:
           source = userinputlist[1]
           if userinputlist[2] != 'from':
-            raise UserError,"Error, command format: remove (target) (from group)"
+            raise UserError("Error, command format: remove (target) (from group)")
           dest = userinputlist[3]
 
         else:
-          raise UserError,"Error, command format: remove (target) (from group)"
+          raise UserError("Error, command format: remove (target) (from group)")
  
         # time to check args and do the ops
         if source not in targets:
-          raise UserError,"Error, unknown target '"+source+"'"
+          raise UserError("Error, unknown target '"+source+"'")
         if dest not in targets:
-          raise UserError,"Error, unknown group '"+dest+"'"
+          raise UserError("Error, unknown group '"+dest+"'")
 
-        if is_immutable(dest):
-          raise UserError,"Can't modify the contents of '"+dest+"'"
+        if is_immutable_targetname(dest):
+          raise UserError("Can't modify the contents of '"+dest+"'")
 
         # find the items to remove (the items in both dest and source)
         removelist = intersect(targets[dest],targets[source])
         if len(removelist) == 0:
-          raise UserError,"No targets to remove (no items from '"+source+"' are in '"+dest+"')"
+          raise UserError("No targets to remove (no items from '"+source+"' are in '"+dest+"')")
 
         # it's okay to end up with an empty group.   We'll leave it...
         for item in removelist:
@@ -668,34 +1095,34 @@ update             -- Update information about the vessels
           moving = userinputlist[1]
           source = currenttarget
           if userinputlist[2] != 'to':
-            raise UserError,"Error, command format: move target to group"
+            raise UserError("Error, command format: move target to group")
           dest = userinputlist[3]
 
         else:
-          raise UserError,"Error, command format: move target to group"
+          raise UserError("Error, command format: move target to group")
  
         # check args...
         if source not in targets:
-          raise UserError,"Error, unknown group '"+source+"'"
+          raise UserError("Error, unknown group '"+source+"'")
         if moving not in targets:
-          raise UserError,"Error, unknown group '"+moving+"'"
+          raise UserError("Error, unknown group '"+moving+"'")
         if dest not in targets:
-          raise UserError,"Error, unknown group '"+dest+"'"
+          raise UserError("Error, unknown group '"+dest+"'")
 
 
-        if is_immutable(dest):
-          raise UserError,"Can't modify the contents of '"+source+"'"
+        if is_immutable_targetname(dest):
+          raise UserError("Can't modify the contents of '"+source+"'")
 
-        if is_immutable(dest):
-          raise UserError, "Can't modify the contents of '"+dest+"'"
+        if is_immutable_targetname(dest):
+          raise UserError( "Can't modify the contents of '"+dest+"'")
 
         removelist = intersect(targets[source], targets[moving])
         if len(removelist) == 0:
-          raise UserError, "Error, '"+moving+"' is not in '"+source+"'"
+          raise UserError("Error, '"+moving+"' is not in '"+source+"'")
 
         addlist = difference(removelist, targets[dest])
         if len(addlist) == 0:
-          raise UserError, "Error, the common items between '"+source+"' and '"+moving+"' are already in '"+dest+"'"
+          raise UserError("Error, the common items between '"+source+"' and '"+moving+"' are already in '"+dest+"'")
 
         for item in removelist:
           targets[source].remove(item)
@@ -714,10 +1141,10 @@ update             -- Update information about the vessels
 # contact host:port[:vessel] -- Communicate with a node
       elif userinputlist[0] == 'contact':
         if currentkeyname == None or not keys[currentkeyname]['publickey']:
-          raise UserError, "Error, must contact as an identity"
+          raise UserError("Error, must contact as an identity")
 
         if len(userinputlist)>2:
-          raise UserError, "Error, usage is contact host:port[:vessel]"
+          raise UserError("Error, usage is contact host:port[:vessel]")
 
         if len(userinputlist[1].split(':')) == 2:
           host, portstring = userinputlist[1].split(':')
@@ -727,7 +1154,7 @@ update             -- Update information about the vessels
           host, portstring,vesselname = userinputlist[1].split(':')
           port = int(portstring)
         else:
-          raise UserError, "Error, usage is contact host:port[:vessel]"
+          raise UserError("Error, usage is contact host:port[:vessel]")
         
         # get information about the node's vessels
         thishandle = nmclient_createhandle(host, port, privatekey = keys[currentkeyname]['privatekey'], publickey = keys[currentkeyname]['publickey'], vesselid = vesselname)
@@ -742,7 +1169,7 @@ update             -- Update information about the vessels
             id = add_vessel(longname,currentkeyname,thishandle)
             newidlist.append('%'+str(id)+"("+longname+")")
           else:
-            raise UserError, "Error, cannot access vessel '"+vesselname+"'"
+            raise UserError("Error, cannot access vessel '"+vesselname+"'")
 
         # we should add anything we can access
         else:
@@ -790,7 +1217,7 @@ update             -- Update information about the vessels
 # browse                               -- Find experiments I can control
       elif userinputlist[0] == 'browse':
         if currentkeyname == None or not keys[currentkeyname]['publickey']:
-          raise UserError, "Error, must browse as an identity with a public key"
+          raise UserError("Error, must browse as an identity with a public key")
   
         nodelist = advertise.lookup(keys[currentkeyname]['publickey'])
 
@@ -806,55 +1233,24 @@ update             -- Update information about the vessels
 
         targets['browsegood'] = []
 
-        # check the nodes for vessels to access...
-        for node in nodelist:
-          host, portstring = node.split(':')
-          port = int(portstring)
+        print nodelist
+        # currently, if I browse more than once, I look up everything again...
+        retdict = contact_targets(nodelist,browse_target, currentkeyname)
 
-          # get information about the node's vessels
-          # NOTE: need a try except here
-          try:
-            thishandle = nmclient_createhandle(host, port, privatekey = keys[currentkeyname]['privatekey'], publickey = keys[currentkeyname]['publickey'])
-          except NMClientException,e:
-            # we'll add to the failed list after the for loop...
-            faillist.append(node)
-            continue
-
-          ownervessels, uservessels = nmclient_listaccessiblevessels(thishandle,keys[currentkeyname]['publickey'])
-
-          # we should add anything we can access
-          for vesselname in ownervessels:
-            longname = host+":"+str(port)+":"+vesselname
-            if longname not in targets:
-              # set the vesselname
-              newhandle = nmclient_duplicatehandle(thishandle)
-              handleinfo = nmclient_get_handle_info(newhandle)
-              handleinfo['vesselname'] = vesselname
-              nmclient_set_handle_info(newhandle, handleinfo)
-
-              id = add_vessel(longname,currentkeyname,newhandle)
-              newidlist.append('%'+str(id)+"("+longname+")")
-              targets['browsegood'].append(longname)
-
-          for vesselname in uservessels:
-            longname = host+":"+str(port)+":"+vesselname
-            if longname not in targets:
-              # set the vesselname
-              newhandle = nmclient_duplicatehandle(thishandle)
-              handleinfo = nmclient_get_handle_info(newhandle)
-              handleinfo['vesselname'] = vesselname
-              nmclient_set_handle_info(newhandle, handleinfo)
-
-              id = add_vessel(longname,currentkeyname,newhandle)
-              newidlist.append('%'+str(id)+"("+longname+")")
-              targets['browsegood'].append(longname)
+        # parse the output so we can print out something intelligible
+        for nodename in retdict:
+          
+          if retdict[nodename][0]:
+            newidlist = newidlist + retdict[nodename][1]
+          else:
+            print "Error '",retdict[nodename][1],"' on "+nodename
+            faillist.append(nodename)
 
 
-
+        # tell the user what we did...
         if len(faillist) > 0:
           print "Failed to contact: "+ ", ".join(faillist)
 
-        # tell the user what we did...
         if len(newidlist) == 0:
           print "Could not add any new targets."
         else:
@@ -883,20 +1279,20 @@ update             -- Update information about the vessels
           privkeyfn = keyname+'.privatekey'
         elif len(userinputlist)==4:
           if userinputlist[2] != 'as':
-            raise UserError,"Usage: genkeys filename [len] [as identity]"
+            raise UserError("Usage: genkeys filename [len] [as identity]")
           keylength = 1024
           keyname = userinputlist[3]
           pubkeyfn = userinputlist[1]+'.publickey'
           privkeyfn = userinputlist[1]+'.privatekey'
         elif len(userinputlist)==5:
           if userinputlist[3] != 'as':
-            raise UserError,"Usage: genkeys filename [len] [as identity]"
+            raise UserError("Usage: genkeys filename [len] [as identity]")
           keylength = int(userinputlist[2])
           keyname = userinputlist[4]
           pubkeyfn = userinputlist[1]+'.publickey'
           privkeyfn = userinputlist[1]+'.privatekey'
         else:
-          raise UserError,"Usage: genkeys filename [len] [as identity]"
+          raise UserError("Usage: genkeys filename [len] [as identity]")
   
 
         # do the actual generation (will take a while)
@@ -926,7 +1322,7 @@ update             -- Update information about the vessels
             pubkeyfn = userinputlist[1]+'.publickey'
         elif len(userinputlist)==4:
           if userinputlist[2] != 'as':
-            raise UserError,"Usage: loadpub filename [as identity]"
+            raise UserError("Usage: loadpub filename [as identity]")
 
           # they typed 'loadpub foo.publickey'
           if userinputlist[1].endswith('.publickey'):
@@ -936,7 +1332,7 @@ update             -- Update information about the vessels
             pubkeyfn = userinputlist[1]+'.publickey'
           keyname = userinputlist[3]
         else:
-          raise UserError,"Usage: loadpub filename [as identity]"
+          raise UserError("Usage: loadpub filename [as identity]")
 
         # load the key and update the table...
         pubkey = rsa_file_to_publickey(pubkeyfn)
@@ -964,7 +1360,7 @@ update             -- Update information about the vessels
             privkeyfn = keyname+'.privatekey'
         elif len(userinputlist)==4:
           if userinputlist[2] != 'as':
-            raise UserError,"Usage: loadpriv filename [as identity]"
+            raise UserError("Usage: loadpriv filename [as identity]")
 
           # they typed 'loadpriv foo.privatekey'
           if userinputlist[1].endswith('.privatekey'):
@@ -974,7 +1370,7 @@ update             -- Update information about the vessels
             privkeyfn = userinputlist[1]+'.privatekey'
           keyname = userinputlist[3]
         else:
-          raise UserError,"Usage: loadpriv filename [as identity]"
+          raise UserError("Usage: loadpriv filename [as identity]")
 
         # load the key and update the table...
         privkey = rsa_file_to_privatekey(privkeyfn)
@@ -997,13 +1393,13 @@ update             -- Update information about the vessels
           pubkeyfn = keyname+'.publickey'
         elif len(userinputlist)==4:
           if userinputlist[2] != 'as':
-            raise UserError,"Usage: loadkeys filename [as identity]"
+            raise UserError("Usage: loadkeys filename [as identity]")
 
           keyname = userinputlist[3]
           privkeyfn = userinputlist[1]+'.privatekey'
           pubkeyfn = userinputlist[1]+'.publickey'
         else:
-          raise UserError,"Usage: loadkeys filename [as identity]"
+          raise UserError("Usage: loadkeys filename [as identity]")
 
         # load the keys and update the table...
         privkey = rsa_file_to_privatekey(privkeyfn)
@@ -1025,23 +1421,22 @@ update             -- Update information about the vessels
 #
       elif userinputlist[0] == 'list':
         if len(userinputlist)>1:
-          raise UserError, "Usage: list"
+          raise UserError("Usage: list")
 
         if not currenttarget:
-          raise UserError, "Must specify a target"
+          raise UserError("Must specify a target")
         
         # update information about the vessels...
         faillist = []
         goodlist = []
-        for longname in targets[currenttarget]:
-          vesselname = vesselinfo[longname]['vesselname']
-          try:
-            vesseldict = nmclient_getvesseldict(vesselinfo[longname]['handle'])
-            vesselinfo[longname]['userkeys'] = []
-            for key in vesseldict['vessels'][vesselname]:
-              vesselinfo[longname][key] = vesseldict['vessels'][vesselname][key]
+
+        retdict = contact_targets(targets[currenttarget],list_or_update_target)
+
+        for longname in retdict:
+          if retdict[longname][0]:
             goodlist.append(longname)
-          except NMClientException, e:
+          else:
+            print "Error '"+retdict[longname][1]+"' on "+longname
             faillist.append(longname)
 
         # and display it...
@@ -1084,24 +1479,22 @@ update             -- Update information about the vessels
 # update
       elif userinputlist[0] == 'update':
         if len(userinputlist)>1:
-          raise UserError, "Usage: update"
+          raise UserError("Usage: update")
 
         if not currenttarget:
-          raise UserError, "Must specify a target"
+          raise UserError("Must specify a target")
         
         # update information about the vessels...
         faillist = []
         goodlist = []
-        for longname in targets[currenttarget]:
-          vesselname = vesselinfo[longname]['vesselname']
-          try:
-            vesseldict = nmclient_getvesseldict(vesselinfo[longname]['handle'])
-            # if the key list is empty, nothing is set...
-            vesselinfo[longname]['userkeys'] = []
-            for key in vesseldict['vessels'][vesselname]:
-              vesselinfo[longname][key] = vesseldict['vessels'][vesselname][key]
+
+        retdict = contact_targets(targets[currenttarget],list_or_update_target)
+
+        for longname in retdict:
+          if retdict[longname][0]:
             goodlist.append(longname)
-          except NMClientException, e:
+          else:
+            print "Error '"+retdict[longname][1]+"' on "+longname
             faillist.append(longname)
 
         # and display it...
@@ -1127,10 +1520,10 @@ update             -- Update information about the vessels
           localfn = userinputlist[1]
           remotefn = userinputlist[2]
         else:
-          raise UserError, "Usage: upload localfn (remotefn)"
+          raise UserError("Usage: upload localfn (remotefn)")
 
         if not currenttarget:
-          raise UserError, "Must specify a target"
+          raise UserError("Must specify a target")
   
 
         # read the local file...
@@ -1141,14 +1534,14 @@ update             -- Update information about the vessels
         # add the file to the vessels...
         faillist = []
         goodlist = []
-        for longname in targets[currenttarget]:
-          vesselname = vesselinfo[longname]['vesselname']
-          try:
-            # add the file data...
-            nmclient_signedsay(vesselinfo[longname]['handle'], "AddFileToVessel", vesselname, remotefn, filedata)
+
+        retdict = contact_targets(targets[currenttarget],upload_target, remotefn, filedata)
+
+        for longname in retdict:
+          if retdict[longname][0]:
             goodlist.append(longname)
-          except NMClientException, e:
-            print "Failure '"+str(e)+"' uploading to",longname
+          else:
+            print "Failure '"+retdict[longname][1]+"' uploading to",longname
             faillist.append(longname)
 
         # update the groups
@@ -1171,33 +1564,26 @@ update             -- Update information about the vessels
           localfn = userinputlist[1]
           remotefn = userinputlist[2]
         else:
-          raise UserError, "Usage: download localfn (remotefn)"
+          raise UserError("Usage: download localfn (remotefn)")
 
         if not currenttarget:
-          raise UserError, "Must specify a target"
+          raise UserError("Must specify a target")
   
 
 
         faillist = []
         goodlist = []
-        writestring = ''
-        for longname in targets[currenttarget]:
-          vesselname = vesselinfo[longname]['vesselname']
-          try:
-            # get the file data...
-            retrieveddata = nmclient_signedsay(vesselinfo[longname]['handle'], "RetrieveFileFromVessel", vesselname, remotefn)
 
-            writefn = localfn+"."+longname.replace(':','_')
-            # write to the local filename (replacing ':' with '_')...
-            fileobj = open(writefn,"w")
-            fileobj.write(retrieveddata)
-            fileobj.close()
+        retdict = contact_targets(targets[currenttarget],download_target,localfn,remotefn)
+
+        writestring = ''
+        for longname in retdict:
+          if retdict[longname][0]:
             goodlist.append(longname)
             # for output...
-            writestring = writestring + writefn+ " "
-
-          except NMClientException, e:
-            print "Failure '"+str(e)+"' downloading from",longname
+            writestring = writestring + retdict[longname][1]+ " "
+          else:
+            print "Failure '"+retdict[longname][1]+"' downloading from",longname
             faillist.append(longname)
 
         if writestring:
@@ -1220,24 +1606,22 @@ update             -- Update information about the vessels
         if len(userinputlist)==2:
           remotefn = userinputlist[1]
         else:
-          raise UserError, "Usage: delete remotefn"
+          raise UserError("Usage: delete remotefn")
 
         if not currenttarget:
-          raise UserError, "Must specify a target"
+          raise UserError("Must specify a target")
   
 
         faillist = []
         goodlist = []
-        for longname in targets[currenttarget]:
-          vesselname = vesselinfo[longname]['vesselname']
-          try:
-            # delete the file...
-            nmclient_signedsay(vesselinfo[longname]['handle'], "DeleteFileInVessel", vesselname, remotefn)
 
+        retdict = contact_targets(targets[currenttarget],delete_target, remotefn)
+
+        for longname in retdict:
+          if retdict[longname][0]:
             goodlist.append(longname)
-
-          except NMClientException, e:
-            print "Failure '"+str(e)+"' deleting on",longname
+          else: 
+            print "Failure '"+retdict[longname][1]+"' deleting on",longname
             faillist.append(longname)
 
         # add groups if needed...
@@ -1256,24 +1640,22 @@ update             -- Update information about the vessels
         if len(userinputlist)>1:
           argstring = ' '.join(userinputlist[1:])
         else:
-          raise UserError, "Usage: start file [args ...]"
+          raise UserError("Usage: start file [args ...]")
 
         if not currenttarget:
-          raise UserError, "Must specify a target"
+          raise UserError("Must specify a target")
   
         # need to get the status, etc (or do I just try to start them all?)
         faillist = []
         goodlist = []
-        for longname in targets[currenttarget]:
-          vesselname = vesselinfo[longname]['vesselname']
-          try:
-            # start the program
-            nmclient_signedsay(vesselinfo[longname]['handle'], "StartVessel", vesselname, argstring)
 
+        retdict = contact_targets(targets[currenttarget],start_target, argstring)
+
+        for longname in retdict:
+          if retdict[longname][0]:
             goodlist.append(longname)
-
-          except NMClientException, e:
-            print "Failure '"+str(e)+"' starting ",longname
+          else:
+            print "Failure '"+retdict[longname][1]+"' starting ",longname
             faillist.append(longname)
 
         # add groups if needed...
@@ -1287,25 +1669,25 @@ update             -- Update information about the vessels
 # stop               -- Stop an experiment
       elif userinputlist[0] == 'stop':
         if len(userinputlist)>1:
-          raise UserError, "Usage: stop"
+          raise UserError("Usage: stop")
 
         if not currenttarget:
-          raise UserError, "Must specify a target"
+          raise UserError("Must specify a target")
   
         # need to get the status, etc (or do I just try to stop them all?)
         faillist = []
         goodlist = []
-        for longname in targets[currenttarget]:
-          vesselname = vesselinfo[longname]['vesselname']
-          try:
-            # stop the programs
-            nmclient_signedsay(vesselinfo[longname]['handle'], "StopVessel", vesselname)
 
+        retdict = contact_targets(targets[currenttarget],stop_target)
+
+        for longname in retdict:
+          if retdict[longname][0]:
             goodlist.append(longname)
-
-          except NMClientException, e:
-            print "Failure '"+str(e)+"' stopping ",longname
+          else:
+            print "Failure '"+retdict[longname][1]+"' stopping ",longname
             faillist.append(longname)
+
+
 
         # add groups if needed...
         if goodlist and faillist:
@@ -1321,10 +1703,10 @@ update             -- Update information about the vessels
           filename = userinputlist[1]
           argstring = " ".join(userinputlist[1:])
         else:
-          raise UserError, "Usage: run file [args ...]"
+          raise UserError("Usage: run file [args ...]")
 
         if not currenttarget:
-          raise UserError, "Must specify a target"
+          raise UserError("Must specify a target")
   
 
         # read the local file...
@@ -1334,15 +1716,16 @@ update             -- Update information about the vessels
 
         faillist = []
         goodlist = []
-        for longname in targets[currenttarget]:
-          vesselname = vesselinfo[longname]['vesselname']
-          try:
-            nmclient_signedsay(vesselinfo[longname]['handle'], "AddFileToVessel", vesselname, filename, filedata)
-            nmclient_signedsay(vesselinfo[longname]['handle'], "StartVessel", vesselname, argstring)
+
+        retdict = contact_targets(targets[currenttarget],run_target,filename,filedata, argstring)
+
+        for longname in retdict:
+          if retdict[longname][0]:
             goodlist.append(longname)
-          except NMClientException, e:
-            print "Failure '"+str(e)+"' running on",longname
+          else:
+            print "Failure '"+retdict[longname][1]+"' on ",longname
             faillist.append(longname)
+
 
         # update the groups
         if goodlist and faillist:
@@ -1364,10 +1747,10 @@ update             -- Update information about the vessels
         if len(userinputlist)==2:
           resourcefn = userinputlist[1]
         else:
-          raise UserError, "Usage: split resourcefn"
+          raise UserError("Usage: split resourcefn")
 
         if not currenttarget:
-          raise UserError, "Must specify a target"
+          raise UserError("Must specify a target")
 
         resourcefo = open(resourcefn)
         resourcedata = resourcefo.read()
@@ -1377,20 +1760,18 @@ update             -- Update information about the vessels
         faillist = []
         goodlist1 = []
         goodlist2 = []
-        for longname in targets[currenttarget]:
-          vesselname = vesselinfo[longname]['vesselname']
-          try:
-            newvesselnames = nmclient_signedsay(vesselinfo[longname]['handle'], "SplitVessel", vesselname, resourcedata)
-          except NMClientException, e:
-            print "Failure '"+str(e)+"' splitting",longname
-            faillist.append(longname)
-          else:
-            newname1 = copy_vessel(longname, newvesselnames.split()[0])
-            newname2 = copy_vessel(longname, newvesselnames.split()[1])
-            delete_vessel(longname)
+
+        retdict = contact_targets(targets[currenttarget],split_target)
+
+        for longname in retdict:
+          if retdict[longname][0]:
+            newname1, newname2 = retdict[longname][1]
             goodlist1.append(newname1)
             goodlist2.append(newname2)
             print longname+" -> ("+newname1+", "+newname2+")"
+          else:
+            print "Failure '"+retdict[longname][1]+"' splitting",longname
+            faillist.append(longname)
 
         # update the groups
         if goodlist1 and goodlist2 and faillist:
@@ -1413,13 +1794,13 @@ update             -- Update information about the vessels
 
       elif userinputlist[0] == 'join':
         if len(userinputlist)!=1:
-          raise UserError, "Usage: join"
+          raise UserError("Usage: join")
 
         if not currenttarget:
-          raise UserError, "Must specify a target"
+          raise UserError("Must specify a target")
 
         if not currentkeyname or not keys[currentkeyname]['publickey'] or not keys[currentkeyname]['privatekey']:
-          raise UserError, "Must specify an identity with public and private keys..."
+          raise UserError("Must specify an identity with public and private keys...")
 
         nodedict = {}
         skipstring = ''
@@ -1445,37 +1826,18 @@ update             -- Update information about the vessels
         faillist = []
         goodlist = []
 
-        for nodename in nodedict:
+        retdict = contact_targets(nodedict.keys(),join_target,nodedict)
+
+        for nodename in retdict:
  
-          if len(nodedict[nodename]) < 2:
-            # not enough vessels...
-            continue
-            
-
-          # I'll iterate through the vessels, joining one with the current 
-          # (current starts as the first vessel and becomes the "new vessel")
-          currentvesselname = vesselinfo[nodedict[nodename][0]]['vesselname']
-          currentlongname = nodedict[nodename][0]
-
-          for longname in nodedict[nodename][1:]:
-            vesselname = vesselinfo[longname]['vesselname']
-            try:
-              newvesselname = nmclient_signedsay(vesselinfo[longname]['handle'], "JoinVessels", currentvesselname, vesselname)
-            except NMClientException, e:
-              print "Failure '"+str(e)+"' on",longname
-              faillist.append(longname)
-              break
-            else:
-              newname = copy_vessel(longname, newvesselname)
-              delete_vessel(longname)
-              delete_vessel(currentlongname)
-              if currentlongname in goodlist:
-                goodlist.remove(currentlongname)
-              goodlist.append(newname)
-              currentlongname = newname
-              currentvesselname = newvesselname
+          if retdict[nodename][0]:
+            print retdict[nodename][1][0],"<- ("+", ".join(nodedict[nodename])+")"
+            goodlist = goodlist + nodedict[nodename]
           else:
-            print currentlongname,"<- ("+", ".join(nodedict[nodename])+")"
+            if retdict[nodename][1]:
+              print "Failure '"+retdict[nodename][1]+"' on",nodename
+              faillist = faillist + nodedict[nodename]
+            # Nodes that I only have one vessel on don't get added to a list...
 
         # update the groups
         if goodlist and faillist:
@@ -1493,7 +1855,6 @@ update             -- Update information about the vessels
 
 
 
-#join                        -- Join vessels on the same node
 
 
 
@@ -1518,27 +1879,29 @@ update             -- Update information about the vessels
           if len(userinputlist)==3:
             newowner = userinputlist[2]
           else:
-            raise UserError, "Usage: set owner identity"
+            raise UserError("Usage: set owner identity")
   
           if not currenttarget:
-            raise UserError, "Must specify a target"
+            raise UserError("Must specify a target")
   
           if newowner not in keys:
-            raise UserError, "Unknown identity: '"+newowner+"'"
+            raise UserError("Unknown identity: '"+newowner+"'")
 
           if not keys[newowner]['publickey']:
-            raise UserError, "No public key for '"+newowner+"'"
+            raise UserError("No public key for '"+newowner+"'")
 
           faillist = []
           goodlist = []
-          for longname in targets[currenttarget]:
-            vesselname = vesselinfo[longname]['vesselname']
-            try:
-              nmclient_signedsay(vesselinfo[longname]['handle'], "ChangeOwner", vesselname, rsa_publickey_to_string(keys[newowner]['publickey']))
+          retdict = contact_targets(targets[currenttarget],setowner_target,newadvert)
+
+          for longname in retdict:
+            if retdict[longname][0]:
               goodlist.append(longname)
-            except NMClientException, e:
-              print "Failure '"+str(e)+"' setting owner for",longname
+            else:
+              print "Failure '"+retdict[longname][1]+"' on ",longname
               faillist.append(longname)
+
+
   
           # update the groups
           if goodlist and faillist:
@@ -1559,26 +1922,26 @@ update             -- Update information about the vessels
             elif userinputlist[2] == 'off':
               newadvert = False
             else:
-              raise UserError, "Usage: set advertise [ on | off ]"
+              raise UserError("Usage: set advertise [ on | off ]")
           else:
-            raise UserError, "Usage: set advertise [ on | off ]"
+            raise UserError("Usage: set advertise [ on | off ]")
   
           if not currenttarget:
-            raise UserError, "Must specify a target"
+            raise UserError("Must specify a target")
   
 
           faillist = []
           goodlist = []
-          for longname in targets[currenttarget]:
-            vesselname = vesselinfo[longname]['vesselname']
-            try:
-              # do the actual advertisement changes
-              nmclient_signedsay(vesselinfo[longname]['handle'], "ChangeAdvertise", vesselname, newadvert)
+          retdict = contact_targets(targets[currenttarget],setadvertise_target,newadvert)
+
+          for longname in retdict:
+            if retdict[longname][0]:
               goodlist.append(longname)
-            except NMClientException, e:
-              print "Failure '"+str(e)+"' setting advertise for",longname
+            else:
+              print "Failure '"+retdict[longname][1]+"' on ",longname
               faillist.append(longname)
-  
+
+
           # update the groups
           if goodlist and faillist:
             targets['advertisegood'] = goodlist
@@ -1594,20 +1957,20 @@ update             -- Update information about the vessels
           newdata = " ".join(userinputlist[2:])
   
           if not currenttarget:
-            raise UserError, "Must specify a target"
+            raise UserError("Must specify a target")
   
           faillist = []
           goodlist = []
-          for longname in targets[currenttarget]:
-            vesselname = vesselinfo[longname]['vesselname']
-            try:
-              # do the actual changes
-              nmclient_signedsay(vesselinfo[longname]['handle'], "ChangeOwnerInformation", vesselname, newdata)
+          retdict = contact_targets(targets[currenttarget],setownerinformation_target,newdata)
+
+          for longname in retdict:
+            if retdict[longname][0]:
               goodlist.append(longname)
-            except NMClientException, e:
-              print "Failure '"+str(e)+"' setting ownerinformation for",longname
+            else:
+              print "Failure '"+retdict[longname][1]+"' on ",longname
               faillist.append(longname)
-  
+
+
           # update the groups
           if goodlist and faillist:
             targets['ownerinfogood'] = goodlist
@@ -1624,28 +1987,28 @@ update             -- Update information about the vessels
 
           for identity in userinputlist[2:]:
             if identity not in keys:
-              raise UserError, "Unknown identity: '"+identity+"'"
+              raise UserError("Unknown identity: '"+identity+"'")
 
             if not keys[identity]['publickey']:
-              raise UserError, "No public key for '"+identity+"'"
+              raise UserError("No public key for '"+identity+"'")
           
             userkeys.append(rsa_publickey_to_string(keys[identity]['publickey']))
           # this is the format the NM expects...
           userkeystring = '|'.join(userkeys)
   
           if not currenttarget:
-            raise UserError, "Must specify a target"
+            raise UserError("Must specify a target")
   
 
           faillist = []
           goodlist = []
-          for longname in targets[currenttarget]:
-            vesselname = vesselinfo[longname]['vesselname']
-            try:
-              nmclient_signedsay(vesselinfo[longname]['handle'], "ChangeUsers", vesselname, userkeystring)
+          retdict = contact_targets(targets[currenttarget],setusers_target,userkeystring)
+
+          for longname in retdict:
+            if retdict[longname][0]:
               goodlist.append(longname)
-            except NMClientException, e:
-              print "Failure '"+str(e)+"' setting users for",longname
+            else:
+              print "Failure '"+retdict[longname][1]+"' on ",longname
               faillist.append(longname)
   
           # update the groups
