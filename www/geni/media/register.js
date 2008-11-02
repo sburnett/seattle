@@ -5,7 +5,7 @@ window.onload = function () {
 		$("id_pubkey").style.display = "none";
 	}
 	$("id_gen_upload_choice").onchange = function() {
-		alert("hi");
+		alert("hi" + this + " " + this.value);
 		if (this.value == "1") {
 			$("id_pubkey").style.display = "block";
 		} else {
