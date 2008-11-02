@@ -15,6 +15,7 @@ DISTS = ["win", "linux"]
 INSTALL_DIR = "seattle_repy"
 UPDATER_PRIV_KEY = "updater_keys" + os.sep + "updater.privatekey"
 UPDATER_PUB_KEY = "updater_keys" + os.sep + "updater.publickey"
+DIST_DIR = "/var/www/dist"
 
 def output(text):
     print text
@@ -49,6 +50,7 @@ def main(dist_name):
     os.system("cp partial_win.zip " + win_dist)
     os.system("cp scripts" + os.sep + "* " + INSTALL_DIR)
     os.system("zip -r " + win_dist + " " + INSTALL_DIR)
+    os.system("cp " + win_dist + " " + DIST_DIR)
     output("Created " + win_dist)
     
     # Package up the Linux installer
@@ -58,15 +60,16 @@ def main(dist_name):
     os.system("cp -p scripts" + os.sep + "* " + INSTALL_DIR)
     os.system("rm -f " + linux_dist)
     os.system("tar -czf " + linux_dist + " " + INSTALL_DIR)
+    os.system("cp " + linux_dist + " " + DIST_DIR)
     output("Created " + linux_dist)
 
     # Copy the Linux installer to the Mac directory
     output("Copying linux distribution to mac folder...")
     mac_dist = dist_name + "_mac.tgz"
     os.system("cp " + linux_dist + " .." + os.sep + "mac" + os.sep + mac_dist)
+    os.system("cp " + linux_dist + " " + DIST_DIR + os.sep + mac_dist)
     output("Created " + mac_dist)
 
-        
     
 if __name__ == "__main__":
     dist_name = ""
