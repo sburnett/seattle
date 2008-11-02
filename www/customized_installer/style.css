@@ -219,6 +219,7 @@ table#installers tr td {
 	width: 33%;
 	padding:20px;
 	font-weight: normal;
+	border-right: 1px solid #fff;
 }
 
 #instruction ol li {
