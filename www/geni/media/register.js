@@ -6,7 +6,7 @@ window.onload = function () {
 	}
 	$("id_gen_upload_choice").onchange = function() {
 		alert("hi");
-		if ($("id_gen_upload_choice").lastChild.selected == "selected") {
+		if (this.value == "1") {
 			$("id_pubkey").style.display = "block";
 		} else {
 			$("id_pubkey").style.display = "none";
