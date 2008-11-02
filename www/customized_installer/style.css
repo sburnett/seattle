@@ -112,6 +112,7 @@ a.close {
 	margin: 20px;
 	border: 1px solid #aaa;
 	background-color: #eee;
+	background-image: url(images/bg.gif);
 	width: 650px;
 	float: left;
 }
