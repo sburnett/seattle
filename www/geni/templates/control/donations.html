@@ -31,7 +31,7 @@
 				<div class="tables">
 				  <p id="maximizer1"> </p>
 				  <table id="table1">
-						<caption> My Donations </caption>
+						<caption id="mycaption"> My Donations </caption>
 				  {% ifequal has_donations "False" %}
 						</table>
 						<p class="notices error">No donations from others</p>
@@ -67,7 +67,7 @@
 				  {# <p>No shares</p> #}
 				 {#  {% else %} #}
 							<table id="table3">
-								<caption> Shared </caption>
+								<caption id="sharedcaption"> Shared </caption>
 								<tr> <th> Remove </th> <th> User ID </th> <th> Percentage </th> </tr>
 								{% for share in shares %}
 								<tr class="table3row"> 
