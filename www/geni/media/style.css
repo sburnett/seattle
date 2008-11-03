@@ -184,6 +184,10 @@ th, td , tr{
 	border: none;
 }
 
+#registerbutton {
+	text-align: center;
+}
+
 .loginlabel {
 	padding-left: 0px;
 	padding-right: 0px;
