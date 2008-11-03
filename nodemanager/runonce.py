@@ -10,25 +10,32 @@ import errno
 # need to know the os type...
 import platform
 
+# printing to sys.stderr
+import sys
+
 # returns a process lock (True) or if the lock is held returns the PID of the 
 # process holding the lock
 # NOTE: one must call stillhaveprocesslock periodically to guard against a user
 # deleting the tmp file
 def stillhaveprocesslock(lockname):
+  #print >> sys.stderr, 'Verifying we still have lock for '+lockname
   val =  getprocesslock(lockname) 
   return val == os.getpid()
 
 def getprocesslock(lockname):
   ostype = platform.system()
   if ostype == 'Windows' or ostype == 'Microsoft':
+    #print >> sys.stderr, 'Getting some Windows lockmutex'
     return getprocesslockmutex(lockname)
   elif ostype == 'Linux' or ostype == 'Darwin' or 'BSD' in ostype:
     # unfortunately, it seems *NIXes differ on whether O_EXLOCK is supported
     try:
       os.O_EXLOCK
     except AttributeError:
+      #print >> sys.stderr, 'Getting flock for '+lockname
       return getprocesslockflock(lockname)   
     else:
+      #print >> sys.stderr, 'Getting o_exlock for '+lockname
       return getprocesslocko_exlock(lockname)
   else:
     raise Exception, 'Unknown operating system:'+ostype
@@ -43,8 +50,10 @@ def releaseprocesslock(lockname):
     try:
       os.O_EXLOCK
     except AttributeError:
+      #print >> sys.stderr, 'Releasing flock for '+lockname
       return releaseprocesslockflock(lockname)   
     else:
+      #print >> sys.stderr, 'Releasing o_exlock for '+lockname
       return releaseprocesslocko_exlock(lockname)
   else:
     raise Exception, 'Unknown operating system:'+ostype
@@ -65,22 +74,27 @@ def getprocesslocko_exlock(lockname):
     
   try:
     fd = os.open(lockfn,os.O_CREAT | os.O_RDWR | os.O_EXLOCK | os.O_NONBLOCK)
+    #print >> sys.stderr, 'o_exlock get file descriptor == '+str(fd)
     os.write(fd,str(os.getpid()))
+    #print >> sys.stderr, 'wrote pid('+str(os.getpid())+') to o_exlock file'
     if lockname in oldfiledesc:
       os.close(oldfiledesc[lockname])
     oldfiledesc[lockname] = fd
     return True
   except (OSError,IOError), e:
     if e[0] == errno.EACCES or e[0] == errno.EAGAIN:
-      # okay, they must have started already.   
-      pass
+      # okay, they must have started already.  
+      pass 
+      #print >> sys.stderr, 'Getting o_exlock failed, must have already started'
     else:
       # we weren't expecting this...
+      #print >> sys.stderr, 'badness going down in getting o_exlock'
       raise
   # Let's return the PID
   fo = open(lockfn)
   pidstring = fo.read()
   fo.close()
+  #print >> sys.stderr, 'pid '+pidstring+' has the o_exlock for '+lockname
   return int(pidstring)
 
 
@@ -92,17 +106,21 @@ def getprocesslockflock(lockname):
     
   try:
     fd = os.open(lockfn,os.O_CREAT | os.O_RDWR | os.O_NONBLOCK)
+    #print >> sys.stderr, 'flock get file descriptor == '+str(fd)
   except (OSError, IOError), e:
     if e[0] == errno.EACCES or e[0] == errno.EAGAIN:
-      # okay, they must have started already.   
-      pass
+      # okay, they must have started already.
+      pass   
+      #print >> sys.stderr, 'Getting flock open failed, must have already started'
     else:
+      #print >> sys.stderr, 'badness going down in opening for flock'
       raise
   else:
     try:
       import fcntl
       fcntl.flock(fd,fcntl.LOCK_EX | fcntl.LOCK_NB)
       os.write(fd,str(os.getpid()))
+      #print >> sys.stderr, 'wrote pid ('+str(os.getpid())+') to flocked file'
       if lockname in oldfiledesc:
         os.close(oldfiledesc[lockname])
       oldfiledesc[lockname] = fd
@@ -110,16 +128,19 @@ def getprocesslockflock(lockname):
     except (OSError, IOError), e:
       os.close(fd)
       if e[0] == errno.EACCES or e[0] == errno.EAGAIN:
-        # okay, they must have started already.   
+        # okay, they must have started already.
         pass
+        #print >> sys.stderr, 'Getting flock fcntl.flock failed, must have already started'
       else:
         # we weren't expecting this...
+        #print >> sys.stderr, 'badness going down in fcntl.flock for flock'
         raise
 
   # Let's return the PID
   fo = open(lockfn)
   pidstring = fo.read()
   fo.close()
+  #print >> sys.stderr, 'pid '+pidstring+' has the flock for '+lockname
   return int(pidstring)
 
 
@@ -127,6 +148,7 @@ def releaseprocesslocko_exlock(lockname):
   if lockname in oldfiledesc:
     os.close(oldfiledesc[lockname])
     del oldfiledesc[lockname]
+    #print >> sys.stderr, 'removed o_exlock for '+lockname
   
 
 def releaseprocesslockflock(lockname):
@@ -135,6 +157,7 @@ def releaseprocesslockflock(lockname):
     fcntl.flock(oldfiledesc[lockname],fcntl.LOCK_UN)
     os.close(oldfiledesc[lockname])
     del oldfiledesc[lockname]
+    #print >> sys.stderr, 'removed flock for '+lockname
 
 
 

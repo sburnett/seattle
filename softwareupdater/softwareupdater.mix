@@ -38,7 +38,7 @@ def time_gettime():
 logfileobj = None
 
 
-softwareurl = "http://seattle.cs.washington.edu/couvb/home/updater/"
+softwareurl = "http://seattle.cs.washington.edu/couvb/real/"
 
 # embedded this because it seems easier to update it along with this file
 # Every computer running Seattle will have this same public key, and will trust

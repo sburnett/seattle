@@ -6,11 +6,6 @@ Note:  When running these tests on Windows, be sure to comment out
 the lines invoking ps, as these will obviously fail.  You will have
 to manually look at the task manager instead :(.
 
-Also, currently only either the rsync tests or the restart test can
-be run.  If both are set to run, the restart test will fail.  This
-should probably be fixed at some point, but for now, be sure to 
-comment out the statements in one of the sections.
-
 Usage:
 Run this after having run test_updater and copied the folders made
 there to the update site you supply as an argument here.
@@ -44,19 +39,19 @@ def main():
 	############################
 	
 	# Run the noup test (Nothing should fail, nothing should be updated)
-#	print runRsyncTest('-x', baseurl+'noup/')
+	print runRsyncTest('-x', baseurl+'noup/')
 	
 	# Run the wronghash test(There should be an RsyncError, and no updates)
-#	print runRsyncTest('-e', baseurl+'wronghash/')
+	print runRsyncTest('-e', baseurl+'wronghash/')
 	
 	# Run the badkeysig test (There should be no updates)
-#	print runRsyncTest('-x', baseurl+'badkeysig/')
+	print runRsyncTest('-x', baseurl+'badkeysig/')
 	
 	# Run the corruptmeta test (there should be an RsyncError, and no updates)
-#	print runRsyncTest('-e', baseurl+'corruptmeta/')
+	print runRsyncTest('-e', baseurl+'corruptmeta/')
 
 	# Run the updatenmmain test (only nmmain should get updated)
-#	print runRsyncTest('-u', baseurl+'updatenmmain/', ['nmmain.py', 'metainfo'])
+	print runRsyncTest('-u', baseurl+'updatenmmain/', ['nmmain.py', 'metainfo'])
 	
 	#####################################
 	# Finished running rsync only tests #

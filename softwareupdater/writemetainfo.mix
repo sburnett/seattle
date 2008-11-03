@@ -37,6 +37,9 @@ def get_file_hash(filename):
 
 
 def get_previous_entries():
+  if not os.path.exists('metainfo'):
+    return {}
+    
   returned_dict = {}
   for line in file('metainfo'):
     if line.strip() == '':
