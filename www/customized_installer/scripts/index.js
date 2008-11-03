@@ -30,7 +30,7 @@ window.onload = function () {
 	$("publickey").onfocus = function () {
 		this.value = "";
 	};
-	
+	$("installer").disabled = true;
 	Initialize();
 	updateVessels();
 	$("installer").onclick = createInstaller;
@@ -95,6 +95,7 @@ function addVessel() {
 	var previousIndex = findNumberOfJumpsBack(index-1);
 	vesselLengths[index-previousIndex] -= (multiplier * 132);
 	updateVessels();
+	validate();
 }
 
 function findNumberOfJumpsBack(index) {
@@ -233,6 +234,7 @@ function addOwnerToList(draggable, droppable) {
 	newlyAdded.appendChild(content);
 	droppable.appendChild(newlyAdded);
 	newlyAdded.addClassName("removable");
+	validate();
 }
 
 function createAddUserBox(lastheight) {
@@ -413,11 +415,24 @@ function createInstaller () {
 			onSuccess: finish
 		}
 	);
-	// $("installer").disabled = true;
 }
 
 function finish (ajax) {
 	location.href = "installers.php";
+}
+
+function validate () {
+	var valid = true;
+	for (var i = 0; i < 7; i++) {
+		if (vesselLengths[i] != 0 && vesselOwners[i] == "") {
+			valid = false;
+		}
+	}
+	if (valid) {
+		$("installer").disabled = false;
+	} else {
+		$("installer").disabled = true;
+	}
 }
 
 
