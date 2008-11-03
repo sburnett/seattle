@@ -18,6 +18,7 @@ function createArray() {
 window.onload = function () {
 	counter = 1;
 	$("form").onsubmit = addUser;
+	$("publickey").onchange = updateUsername;
 	$("username").onfocus = function () {
 		this.value = "";
 	};
@@ -342,6 +343,12 @@ function addUser () {
 			onSuccess: resetForm
 		}
 	);
+}
+
+function updateUsername () {
+	if ($("publickey").value != "") {
+		$("username").value = $("publickey").value.substring(0, $("publickey").value.lastIndexOf("."));
+	}
 }
 
 
