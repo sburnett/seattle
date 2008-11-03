@@ -143,6 +143,11 @@ ul li {
 	color: red;
 }
 
+caption {
+	text-align: center;
+	display: block;
+}
+
 .donation_table {
 	font-size: 13pt;
 	text-align: center;
