@@ -27,17 +27,18 @@
 			<div class="mainwindow">
 				<div class="tables">
 				  <p id="maximizer1"> </p>
-				  {% ifequal has_donations "False" %}
-						<p class="notices">No donations from others</p>
-					{% else %}
 				  <table id="table1">
 						<caption> My Donations </caption>
+				  {% ifequal has_donations "False" %}
+						</table>
+						<p class="notices" class="error">No donations from others</p>
+					{% else %}
 						<tr> <th> IP Address </th> <th> Time Added </th> </tr>
 						{% for donation in donations %}
 							<tr class="table1row"> <td> {{ donation.ip }} </td> <td> {{ donation.port }} </td> </tr>
 							
 						{% endfor %}
-				  </table>				
+				  		</table>		
 				  	{% endifequal %}
 				  <br/>
 				  <p id="maximizer2"> </p>
