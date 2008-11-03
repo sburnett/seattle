@@ -17,16 +17,7 @@ window.onload = function() {
 	if (BrowserDetect.browser == "Explorer") {
 		var notices = $$(".notices");
 		$("table3").style.marginLeft = "0%";
-		var parent = $("installerLink").parentNode;
-		$("installerLink").remove();
-		element = $("installerLink2");
-		element.textContent = "Installers Page";
-		try { if(!element.innerText) element.innerText = element.textContent; } catch(e) {}
-		element.id = "installerLink";
-		element.position = "absolute";
-		element.style.left = "10%";
-		element.style.fontSize = "18pt";
-		element.style.border = "1px solid black";	
+		var parent = $("installerLink").parentNode;	
 	} else {
 		$("installerLink").style.height = "50px";
 	}
