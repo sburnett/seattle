@@ -114,7 +114,7 @@ ul li {
 }
 
 #tabs2 {
-	min-width: 508px;
+	min-width: 703px;
 }
 
 #tabs3 {
@@ -138,8 +138,8 @@ ul li {
 
 .compressed-side-window {
 	width: 100%;
-	margin: 0px 0px auto;
-	font-size: 12pt;
+	font-size: 10pt;
+	font-weight: bold;
 }
 
 .info {
@@ -198,7 +198,7 @@ th, td , tr{
 	height: 70%;
 	margin: 0px auto;
 	border: 1px solid black;
-	min-width: 508px;
+	min-width: 703px;
 }
 
 #window4 {
