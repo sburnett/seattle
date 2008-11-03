@@ -19,7 +19,6 @@ window.onload = function() {
 		$("table3").style.marginLeft = "0%";
 		var parent = $("installerLink").parentNode;	
 	} else {
-		$("installerLink").style.height = "50px";
 	}
 	//$("checkAll").onclick = checkAll;
 	var count = tally();
