@@ -25,7 +25,7 @@ def register(request):
             # this saves the user's record to the database
             new_user = form.save()
             # this creates and saves the geni user in the database
-            geni_user = User(www_user = new_user, port=9112, affiliation=form.cleaned_data['affiliation'], pubkey=txt_pubkey, privkey="")
+            geni_user = User(www_user = new_user, affiliation=form.cleaned_data['affiliation'], pubkey=txt_pubkey, privkey="")
             geni_user.save_new_user()
             return HttpResponseRedirect("/geni/accounts/login")
     else:
