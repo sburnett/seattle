@@ -2,6 +2,7 @@
 #from changeusers import *
 
 from django.http import Http404
+import time
 import datetime
 from models import User,Donation,Vessel,VesselMap,Share,pop_key
 from django.http import HttpResponseRedirect
@@ -14,13 +15,16 @@ from django.contrib.auth.decorators import login_required
 import sys
 import forms
 
+# 7 days worth of seconds
+VESSEL_EXPIRE_TIME_SECS = 604800
+
 def __validate_guser__(request):
     try:
         geni_user = User.objects.get(www_user = request.user)
         return geni_user,True
     except User.DoesNotExist:
         # this should never happen if the user registered -- show server error of some kind
-        ret = HttpResponse("User registration for this user is incomplete [auth records exists, but geni user profile is absent], please contact seattle-help@cs.washington.edu.")
+        ret = HttpResponse("User registration for this user is incomplete [auth records exists, but geni user profile is absent], please contact ivan@cs.washington.edu.")
         return ret,False
 
 def __dl_key__(request,pubkey=True):
@@ -133,6 +137,9 @@ def used_resources(request):
     if request.method == 'POST':
         # TODO
         get_form = forms.gen_GetVesselsForm(get_vessel_choices,req_post=request.POST)
+        # expire_time = datetime.datetime.fromtimestamp(time.time() + VESSEL_EXPIRE_TIME_SECS)
+        # expiration = "%s"%(expire_time),
+        
         if get_form.is_valid():
             # commit to db and notify Seattle
             pass

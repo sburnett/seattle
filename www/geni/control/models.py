@@ -1,6 +1,9 @@
+import random
 from django.db import models
 from django.contrib.auth.models import User as DjangoUser
 from django.db import connection
+
+allowed_user_ports = range(63100,63180)
 
 def pop_key():
     cursor = connection.cursor()
@@ -37,15 +40,21 @@ class User(models.Model):
         return self.www_user.username
 
     def save_new_user(self):
+        global allowed_user_ports
+
+        # generate user pub/priv key pair for accessing vessels
         if self.pubkey == "":
             pubpriv=pop_key()
             if pubpriv == []:
                 return False
             self.pubkey,self.privkey = pubpriv
+        # generate user pub/priv key pair for donation trackback
         pubpriv2=pop_key()
         if pubpriv2 == []:
             return False
         self.donor_pubkey,self.donor_privkey = pubpriv2
+        # generate random port for user
+        self.port = random.sample(allowed_user_ports, 1)[0]
         self.save()
         return True
 
@@ -86,10 +95,6 @@ class Donation(models.Model):
 class Vessel(models.Model):
     # corresponding donation
     donation = models.ForeignKey(Donation)
-    # expiration date/time
-    expiration = models.DateTimeField("Vessel expiration date")
-    # vessel's port
-    port = models.IntegerField("Vessel port")
     # vessel's name, e.g. v1..v10
     name = models.CharField("Vessel name", max_length=8)
     # vessle's last status
@@ -99,13 +104,23 @@ class Vessel(models.Model):
     def __unicode__(self):
         return "%s:%s"%(self.donation.ip,self.name)
 
+class VesselPorts(models.Model):
+    # corresponding vessel
+    vessel = models.ForeignKey(Vessel)
+    # vessel's port on this host
+    port = models.IntegerField("Vessel port")
+    def __unicode__(self):
+        return "%s:%s:%s"%(self.vessel.donation.ip, self.vessel.name, self.port)
+
 class VesselMap(models.Model):
     # the vessel being assigned to a user
     vessel = models.ForeignKey(Vessel)
     # the user assigned to the vessel
     user = models.ForeignKey(User)
+    # expiration date/time
+    expiration = models.DateTimeField("Mapping expiration date")
     def __unicode__(self):
-        return "%s:%s"%(self.vessel.name,self.user.www_user.username)
+        return "%s:%s:%s"%(self.vessel.donation.ip, self.vessel.name, self.user.www_user.username)
     
 class Share(models.Model):
     # user giving
