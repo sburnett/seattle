@@ -17,20 +17,17 @@ Installer download Page for Research Project
 		<div id="content"> 
 			<h1 id="header"> Download your installers </h1>
 			
-			<p class="comment">
-				<a href="download/public.zip" target="_blank"> Download all public keys </a>&nbsp;&nbsp;
-				<a href="download/private.zip" target="_blank"> Download all private keys </a>
-			</p>
 			<p class="comment"> Below you will find the installer links for the GENI distributed system </p>
+			<p class="comment"> You can share this page with others so that they can donate resources in your name </p>
 			<p class="comment"> (Click on the image to download your installer)</p>
 			<table id="installers">
 				<colgroup>
 					<col id="win" /><col id="mac" /><col id="linux" />
 				</colgroup>
 				<tr> 
-					<td> <a href="{% url installers user.username %}win.zip" target="_blank"> <img src="{{ MEDIA_URL }}win.jpg" alt="Windows" /> </a> </td>
-					<td> <a href="{% url installers user.username %}mac.tgz" target="_blank"> <img src="{{ MEDIA_URL }}osx.jpg" alt="Mac" /> </a> </td>
-					<td> <a href="{% url installers user.username %}linux.tgz" target="_blank"> <img src="{{ MEDIA_URL }}linux.jpg" alt="Linux" /> </a> </td>
+					<td> <a href="{% url installers user.username %}win" target="_blank"> <img src="{{ MEDIA_URL }}win.jpg" alt="Windows" /> </a> </td>
+					<td> <a href="{% url installers user.username %}mac" target="_blank"> <img src="{{ MEDIA_URL }}osx.jpg" alt="Mac" /> </a> </td>
+					<td> <a href="{% url installers user.username %}linux" target="_blank"> <img src="{{ MEDIA_URL }}linux.jpg" alt="Linux" /> </a> </td>
 				</tr>
 				<tr id="os">
 					<td> Windows </td>
