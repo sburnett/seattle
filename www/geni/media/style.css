@@ -137,8 +137,9 @@ ul li {
 
 
 .compressed-side-window {
-	width: 70%;
+	width: 100%;
 	margin: 0px 0px auto;
+	font-size: 12pt;
 }
 
 .info {
