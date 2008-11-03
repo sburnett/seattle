@@ -31,7 +31,7 @@
 						<caption> My Donations </caption>
 				  {% ifequal has_donations "False" %}
 						</table>
-						<p class="notices" class="error">No donations from others</p>
+						<p class="notices error">No donations from others</p>
 					{% else %}
 						<tr> <th> IP Address </th> <th> Time Added </th> </tr>
 						{% for donation in donations %}
