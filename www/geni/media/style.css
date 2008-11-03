@@ -184,6 +184,12 @@ th, td , tr{
 	border: none;
 }
 
+.loginlabel {
+	padding-left: 0px;
+	padding-right: 0px;
+	width: 400px;
+}
+
 #window1 {
 	padding-top: 20px;
 	font-size: 18pt;

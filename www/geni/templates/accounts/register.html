@@ -24,11 +24,11 @@
 	    {% endif %}
 
 	    <table id="Log-In-Table">
-	      <tr><td> {{ form.username.label_tag }}<font color="red">*</font></td><td> {{ form.username }}</td></tr>
-	      <tr><td>{{ form.password1.label_tag }}<font color="red">*</font></td><td> {{ form.password1 }}</td></tr>
-	      <tr><td>{{ form.password2.label_tag }}<font color="red">*</font></td><td> {{ form.password2 }}</td></tr>
-	      <tr><td>{{ form.affiliation.label_tag }}<font color="red">*</font></td><td> {{ form.affiliation }}</td></tr>
-	      <tr><td>{{ form.pubkey.label_tag }}</td><td>{{ form.gen_upload_choice }}<br>{{ form.pubkey }}</td></tr>
+	      <tr><td class="loginlabel"> {{ form.username.label_tag }}<font color="red">*</font></td><td> {{ form.username }}</td></tr>
+	      <tr><td class="loginlabel">{{ form.password1.label_tag }}<font color="red">*</font></td><td> {{ form.password1 }}</td></tr>
+	      <tr><td class="loginlabel">{{ form.password2.label_tag }}<font color="red">*</font></td><td> {{ form.password2 }}</td></tr>
+	      <tr><td class="loginlabel">{{ form.affiliation.label_tag }}<font color="red">*</font></td><td> {{ form.affiliation }}</td></tr>
+	      <tr><td class="loginlabel">{{ form.pubkey.label_tag }}</td><td>{{ form.gen_upload_choice }}<br>{{ form.pubkey }}</td></tr>
 	      <tr><td class="center" colspan=2><input align="center" type="submit" value="Register" /></td></tr>
 	    </table>
 		<div id="Log-In">
