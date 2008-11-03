@@ -187,7 +187,8 @@ th, td , tr{
 .loginlabel {
 	padding-left: 0px;
 	padding-right: 0px;
-	width: 400px;
+	margin-right: 100px;
+	display: inline;
 }
 
 #window1 {
