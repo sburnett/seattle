@@ -5,6 +5,7 @@ var vesselLengths = [1056, 0, 0, 0, 0, 0, 0, 0];
 var vesselOwners = ["","","","","","","",""];
 var vesselUsers = createArray();
 var userTally = [0, 0, 0, 0, 0, 0, 0, 0];
+var users = [];
 
 function createArray() {
 	var temp = new Array(8);
@@ -306,25 +307,28 @@ function addUser () {
 	var name = $("username").value;
 	if (name == "user_" + counter) {
 		counter++;
-	}
-	var user = document.createElement("span");
-	var close = document.createElement("a");
-	user.addClassName("user");
-	user.id = name;
-	user.textContent = name;
-	close.textContent = "x";
-	close.addClassName("close");
-	close.href = "#";
-	close.onclick = function () {
-		// new Effect.Squish(name);
-		$("names").removeChild(user);
-	};
-	user.appendChild(close);
-	$("names").appendChild(user);
-	new Draggable(name, {revert: true, ghosting: true});
-	for (var i = 1;i < 8;i++) {
-		$("plus" + i).style.top = ($("VesselList").offsetTop - 7) + "px";
-		$("remove" + i).style.top = ($("VesselList").offsetTop - 2) + "px";
+	}	
+	if (users.indexOf(name) == -1) {
+		users.push(name);
+		var user = document.createElement("span");
+		var close = document.createElement("a");
+		user.addClassName("user");
+		user.id = name;
+		user.textContent = name;
+		close.textContent = "x";
+		close.addClassName("close");
+		close.href = "#";
+		close.onclick = function () {
+			// new Effect.Squish(name);
+			$("names").removeChild(user);
+		};
+		user.appendChild(close);
+		$("names").appendChild(user);
+		new Draggable(name, {revert: true, ghosting: true});
+		for (var i = 1;i < 8;i++) {
+			$("plus" + i).style.top = ($("VesselList").offsetTop - 7) + "px";
+			$("remove" + i).style.top = ($("VesselList").offsetTop - 2) + "px";
+		}
 	}
 	/*if (BrowserDetect.browser == "Explorer") {
 		$("staticvessel").style.top = ($("VesselList").offsetTop + 20) + "px";
@@ -521,3 +525,30 @@ var BrowserDetect = {
 
 };
 BrowserDetect.init();
+
+//This prototype is provided by the Mozilla foundation and
+//is distributed under the MIT license.
+//http://www.ibiblio.org/pub/Linux/LICENSES/mit.license
+
+if (!Array.prototype.indexOf)
+{
+  Array.prototype.indexOf = function(elt /*, from*/)
+  {
+    var len = this.length;
+
+    var from = Number(arguments[1]) || 0;
+    from = (from < 0)
+         ? Math.ceil(from)
+         : Math.floor(from);
+    if (from < 0)
+      from += len;
+
+    for (; from < len; from++)
+    {
+      if (from in this &&
+          this[from] === elt)
+        return from;
+    }
+    return -1;
+  };
+}
