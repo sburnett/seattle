@@ -7,8 +7,10 @@ urlpatterns = patterns('geni.control.views',
                        (r'^donations$', 'donations', {}, 'donations'),
                        (r'^used_resources$', 'used_resources', {}, 'used_resources'),
                        
-
-                       # used_info functions:
+                       # used_resources functions:
+                       (r'^get_resources$', 'get_resources', {}, 'get_resources'),
+                       
+                       # user_info functions:
                        (r'^gen_new_key$', 'gen_new_key', {}, 'gen_new_key'),
                        (r'^del_priv$', 'del_priv', {}, 'del_priv'),
                        (r'^priv_key$', 'dl_priv_key', {}, 'priv_key'),

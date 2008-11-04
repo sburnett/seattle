@@ -39,6 +39,41 @@ def __dl_key__(request,pubkey=True):
     response['Content-Disposition'] = 'attachment; filename=%s.%s'%(request.user.username,extension)
     return response
 
+#######################################################
+
+@login_required()
+def donations(request,share_form=None):
+    ret,success = __validate_guser__(request)
+    if not success:
+        return ret
+    geni_user = ret
+
+    if share_form == None:
+        share_form = forms.AddShareForm()
+            
+    mydonations = Donation.objects.filter(user = geni_user)
+    myshares = Share.objects.filter(from_user = geni_user)
+    
+    # TODO
+    donations_to_me = []
+    if len(donations_to_me) != 0:
+        has_donations_from_others = 'True'
+    else:
+        has_donations_from_others = 'False'
+    
+    if len(mydonations) != 0:
+        has_donations = 'True'
+    else:
+        has_donations = 'False'
+
+    if len(myshares) != 0:
+        has_shares = 'True'
+    else:
+        has_shares = 'False'
+    return direct_to_template(request,'control/donations.html', {'geni_user' : geni_user, 'has_donations' : has_donations, 'donations' : mydonations, 
+                                                                 'donations_to_me' : donations_to_me, 'has_donations_from_others' : has_donations_from_others,
+                                                                 'shares' : myshares, 'has_shares' : has_shares, 'share_form' : share_form})
+
 @login_required()
 def del_share(request):
     if not request.method == 'POST':
@@ -75,56 +110,15 @@ def new_share(request):
         share_form = None
         
     return donations(request,share_form)
-    
 
-@login_required()
-def donations(request,share_form=None):
-    ret,success = __validate_guser__(request)
-    if not success:
-        return ret
-    geni_user = ret
+#######################################################
 
-    if share_form == None:
-        share_form = forms.AddShareForm()
-            
-    mydonations = Donation.objects.filter(user = geni_user)
-    myshares = Share.objects.filter(from_user = geni_user)
-    
-    # TODO
-    donations_to_me = []
-    if len(donations_to_me) != 0:
-        has_donations_from_others = 'True'
-    else:
-        has_donations_from_others = 'False'
-    
-    if len(mydonations) != 0:
-        has_donations = 'True'
-    else:
-        has_donations = 'False'
-
-    if len(myshares) != 0:
-        has_shares = 'True'
-    else:
-        has_shares = 'False'
-    return direct_to_template(request,'control/donations.html', {'geni_user' : geni_user, 'has_donations' : has_donations, 'donations' : mydonations, 
-                                                                 'donations_to_me' : donations_to_me, 'has_donations_from_others' : has_donations_from_others,
-                                                                 'shares' : myshares, 'has_shares' : has_shares, 'share_form' : share_form})
-
-@login_required()
-def used_resources(request):
-    '''
-    TODO: use vessel flow graph. for now a limit of 10 vessels per user
-    '''
-    
-    ret,success = __validate_guser__(request)
-    if not success:
-        return ret
-    geni_user = ret
-    
-    # compute maximum allowed resources a user may get
+def gen_get_form(geni_user,req_post=None):
+    # max allowed resources this user may get
     num_donations = len(Donation.objects.filter(user=geni_user))
     max_num = 10 * (num_donations + 1)
-    # number of vessels used by this user
+    
+    # number of vessels already used by this user
     myvessels = VesselMap.objects.filter(user = geni_user)
     
     if len(myvessels) > max_num:
@@ -132,23 +126,53 @@ def used_resources(request):
     else:
         max_num = max_num - len(myvessels)
 
-    get_vessel_choices = zip(range(1,max_num+1),range(1,max_num+1))
-    get_form = forms.gen_GetVesselsForm(get_vessel_choices)
+    if max_num == 0:
+        get_form = None
+    else:
+        get_vessel_choices = zip(range(1,max_num+1),range(1,max_num+1))
+        get_form = forms.gen_GetVesselsForm(get_vessel_choices,req_post)
+    return get_form
+
+@login_required()
+def used_resources(request,get_form=False,explanation=""):
+    ret,success = __validate_guser__(request)
+    if not success:
+        return ret
+    geni_user = ret
+
+    if get_form is False:
+        get_form = gen_get_form(geni_user)
+
+    shvessels = []
+    return direct_to_template(request,'control/used_resources.html', {'geni_user' : geni_user, 'my_vessels' : VesselMap.objects.filter(user = geni_user), 'sh_vessels' : shvessels, 'get_form' : get_form, 'action_explanation' : explanation})
+
+@login_required()
+def get_resources(request):
+    if not request.method == 'POST':
+        return used_resources(request)
+    
+    ret,success = __validate_guser__(request)
+    if not success:
+        return ret
+    geni_user = ret
 
     explanation = ""
-    if request.method == 'POST':
-        get_form = forms.gen_GetVesselsForm(get_vessel_choices,req_post=request.POST)
-        if get_form.is_valid():
-            ret = acquire_resources(geni_user, int(get_form.cleaned_data['num']), get_form.cleaned_data['env'])
-            if ret[0] is True:
-                num_acquired = ret[1]
-                explanation = ret[2]
-            else:
-                explanation = ret[1]
-                
-    shvessels = []
-    return direct_to_template(request,'control/used_resources.html', {'geni_user' : geni_user, 'my_vessels' : myvessels, 'sh_vessels' : shvessels, 'get_form' : get_form, 'action_explanation' : explanation})
+    get_form = gen_get_form(geni_user,request.POST)
+    if get_form is None:
+        return used_resources(request,get_form,explanation)
+        
+    if get_form.is_valid():
+        ret = acquire_resources(geni_user, int(get_form.cleaned_data['num']), get_form.cleaned_data['env'])
+        if ret[0] is True:
+            num_acquired = ret[1]
+            explanation = ret[2]
+        else:
+            explanation = ret[1]
+    
+    return used_resources(request,get_form,explanation)
 
+#######################################################
+    
 @login_required()
 def user_info(request,info=""):
     ret,success = __validate_guser__(request)

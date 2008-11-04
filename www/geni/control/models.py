@@ -46,16 +46,16 @@ def acquire_resources(geni_user, num, type):
     explanation = ""
     try:
         # FIXME: we ignore type of vessel requested (for now)
-        #vessel = Vessel.objects.exclude(vesselmap__vessel__exact
         vessels = get_unacquired_vessels()
     
         if num > len(vessels):
             num = len(vessels)
-            explanation += "No more vessels available (max %d)."%(num)
+            explanation += "No more nodes available (max %d)."%(num)
         else:
-            explanation += "Attempting to acquire %d vessels out of %d available."%(num,len(vessels))
+            explanation += "Attempted to acquire %d node(s) out of %d available."%(num,len(vessels))
             
         acquired = 0
+        #num_failed = 0
         for v in vessels:
             if (acquired >= num):
                 break
@@ -63,24 +63,26 @@ def acquire_resources(geni_user, num, type):
             # issue the command to remote nodemanager
             userpubkeystringlist = [geni_user.pubkey]
             nmip = v.donation.ip
-            nmport = v.donation.port
+            nmport = int(v.donation.port)
             vesselname = v.name
             nodepubkey = v.donation.owner_pubkey
             nodeprivkey = v.donation.owner_privkey
-            explanation += " %s:%s:%s - \n\n"%(nmip,nmport,vesselname)
+            #explanation += " %s:%s:%s - \n\n"%(nmip,nmport,vesselname)
             # explanation += "nodepubkey : %s<br>nodeprivkey: %s<br>"%(nodepubkey,nodeprivkey)
+            print "calling changeusers with: \npubkeystrlist %s\nnmip %s\nnmport %s\nvesselname %s\nnodepubkey %s\nnodeprivkey %s\n"%(userpubkeystringlist, nmip, nmport, vesselname, nodepubkey, nodeprivkey)
             success,msg = changeusers(userpubkeystringlist, nmip, nmport, vesselname, nodepubkey, nodeprivkey)
             if success:
                 acquired += 1
                 # create and save the new vmap entry
                 vmap = VesselMap(vessel = v, user = geni_user, expiration = "%s"%(expire_time))
                 vmap.save()
-                explanation += " added, "
-            else:
-                explanation += "%s, "%(msg)
+                #explanation += " added, "
+            #else:
+            # explanation += "%s, "%(msg)
+                #num_failed += 1
             
         if (num - acquired) != 0:
-            explanation += "Failed to acquire %d nodes."%(num-acquired)
+            explanation += "Failed to acquire %d node(s)."%(num-acquired)
             
     except:
         # a hack to get the traceback information into a string by
@@ -95,8 +97,10 @@ def acquire_resources(geni_user, num, type):
         return False, explanation
     else:
         transaction.commit()
-        explanation += "Acquired %d nodes. "%(num) + explanation
-        return True,num,explanation
+        if acquired == 0:
+            return False, explanation
+        explanation += " Acquired %d node(s). "%(acquired)
+        return True,acquired,explanation
 
 class User(models.Model):
     # link GENI user to django user record which authenticates users
@@ -213,3 +217,35 @@ class Share(models.Model):
     percent = models.DecimalField("Percent shared", max_digits=3, decimal_places=0)
     def __unicode__(self):
         return "%s->%s"%(self.from_user.www_user.username,self.to_user.www_user.username)
+
+def test_acquire(username, num_nodes):
+    user = DjangoUser.objects.get(username=username)
+    print "django user: ", user
+    geni_user = User.objects.get(www_user = user)
+    print "geni user: ", geni_user
+    ret = acquire_resources(geni_user, num_nodes, "LAN")
+    print "acquire returned: ", ret
+    if ret[0] == False:
+        print ret[1]
+
+def test_acquire_node(username,nodeip,vesselname):
+    user = DjangoUser.objects.get(username=username)
+    print "django user: ", user
+    geni_user = User.objects.get(www_user = user)
+    print "geni user: ", geni_user
+
+    d = Donation.objects.get(ip = nodeip)
+    print "donation: " , d
+    v = Vessel.objects.get(donation = d, name = vesselname)
+    print "vessel: ", v
+    
+    # issue the command to remote nodemanager
+    userpubkeystringlist = [geni_user.pubkey]
+    nmip = v.donation.ip
+    nmport = int(v.donation.port)
+    vesselname = v.name
+    nodepubkey = v.donation.owner_pubkey
+    nodeprivkey = v.donation.owner_privkey
+    print "calling changeusers with: \npubkeystrlist %s\nnmip %s\nnmport %s\nvesselname %s\nnodepubkey %s\nnodeprivkey %s\n"%(userpubkeystringlist, nmip, nmport, vesselname, nodepubkey, nodeprivkey)
+    success,msg = changeusers(userpubkeystringlist, nmip, nmport, vesselname, nodepubkey, nodeprivkey)
+    print "returned: ", success, msg
