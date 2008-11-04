@@ -24,21 +24,23 @@
 				<a class="icons" href="{% url installers user.username %}mac"> <img id="osx" src="{{ MEDIA_URL }}osx.jpg" alt="mac"/> </a>
 				<a class="icons" href="{% url installers user.username %}linux"> <img id="linux" src="{{ MEDIA_URL }}linux.jpg" alt="linux" /> </a>
 				<hr>
+				<br>
 				<p>Give this link to others so they can donate on your behalf:</p><br>
-				<p class="compressed-side-window">https://seattle.cs.washington.edu{% url installers user.username %}</p>
+				<p class="compressed-side-window"><a href="https://seattle.cs.washington.edu{% url installers user.username %}">https://seattle.cs.washington.edu{% url installers user.username %}</a></p>
 			</div>
 			<div class="mainwindow">
 				<div class="tables">
 				  <p id="maximizer1"> </p>
+				  <br>
 				  <table id="table1">
 						<caption id="mycaption"> My Donations </caption>
 				  {% ifequal has_donations "False" %}
 						</table>
 						<p class="notices error">No donations from others</p>
 					{% else %}
-						<tr> <th> IP Address </th> <th> Time Added </th> </tr>
+						<tr> <th> IP Address </th> <th> Last Heard </th> <th> Time Added </th> <th> Status </th> </tr>
 						{% for donation in donations %}
-							<tr class="table1row"> <td> {{ donation.ip }} </td> <td> {{ donation.port }} </td> </tr>
+							<tr class="table1row"> <td> {{ donation.ip }} </td> <td> {{ donation.last_heard }} </td> <td> {{ donation.date_added }} </td> <td> {{ donation.status }} </td> </tr>
 							
 						{% endfor %}
 				  		</table>		
@@ -68,7 +70,7 @@
 				 {#  {% else %} #}
 							<table id="table3">
 								<caption id="sharedcaption"> Shared </caption>
-								<tr> <th> Remove </th> <th> User ID </th> <th> Percentage </th> </tr>
+								<tr> <th> </th> <th> User ID </th> <th> Percentage </th> </tr>
 								{% for share in shares %}
 								<tr class="table3row"> 
 								  <td> <form method="POST" action="{% url del_share %}">
