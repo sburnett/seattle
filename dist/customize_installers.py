@@ -12,8 +12,12 @@ class ArgError(Exception):
     def __str__(self):
         return repr(self.parameter)
 
+
 def output(text):
     print text
+    f = open("/tmp/out", "a")
+    f.write(text)
+    f.close()
 
 def main(which_os, dir_to_add, output_path):
     if not os.path.exists(dir_to_add):
@@ -49,71 +53,59 @@ def main(which_os, dir_to_add, output_path):
         dir_to_add = PROG_DIR
         created_installers = []
 
-        if "w" in which_os:
-            # Customize Windows installer
-            output("Customizing Windows installer...")
-            try:
-                base_link = "custom_win_base"
-                if not os.path.exists(BASE_INST_PATH + "/" + base_link):
-                    raise Exception("Base Windows installer not found.")
-                inst_path = output_path + "/" + OUTPUT_NAME + "_win.zip"
-                shutil.copyfile(BASE_INST_PATH + "/" + base_link, inst_path)
-                os.system("zip -r " + inst_path + " " + dir_to_add)
-                created_installers.append(inst_path)
+        for letter in which_os:
 
-            except Exception, e:
-                output(e)
-                output("Failed to customize Windows installer.")
-            output("Done.")
+            if letter == "w":
+                # Customize Windows installer
+                output("Customizing Windows installer...")
+                try:
+                    base_link = "custom_win_base"
+                    if not os.path.exists(BASE_INST_PATH + "/" + base_link):
+                        raise Exception("Base Windows installer not found.")
+                    inst_path = output_path + "/" + OUTPUT_NAME + "_win.zip"
+                    shutil.copyfile(BASE_INST_PATH + "/" + base_link, inst_path)
+                    os.system("zip -r " + inst_path + " " + dir_to_add)
+                    created_installers.append(inst_path)
 
-        if "l" in which_os:
-            # Customize Linux installer
-            output("Customizing Linuz installer...")
-            try:
-                base_link = "custom_linux_base"
-                if not os.path.exists(BASE_INST_PATH + "/" + base_link):
-                    raise Exception("Base Linux installer not found.")
-                inst_path = output_path + "/" + OUTPUT_NAME + "_linux.tgz"
-                shutil.copyfile(BASE_INST_PATH + "/" + base_link, inst_path)
-                os.system("gzip -d " + inst_path)
-                unzipped_inst_path = output_path + "/" + OUTPUT_NAME + "_linux.tar"
-                os.system("tar -rf " + unzipped_inst_path + " " + dir_to_add)
-                os.system("gzip " + unzipped_inst_path)
-                os.rename(output_path + "/" + OUTPUT_NAME + "_linux.tar.gz", inst_path)
-                created_installers.append(inst_path)
-            except Exception, e:
-                output("Failed to customize Linux installer.")
-                output(e)
-            output("Done.")
+                except Exception, e:
+                    output(e)
+                    output("Failed to customize Windows installer.")
+                output("Done.")
 
-        if "m" in which_os:
-            # Customize Mac installer
-            output("Customizing Mac installer...")
-            try:
-                base_link = "custom_mac_base"
-                if not os.path.exists(BASE_INST_PATH + "/" + base_link):
-                    raise Exception("Base Mac installer not found.")
-                inst_path = output_path + "/" + OUTPUT_NAME + "_mac.tgz"
-                shutil.copyfile(BASE_INST_PATH + "/" + base_link, inst_path)
-                os.system("gzip -d " + inst_path)
-                unzipped_inst_path = output_path + "/" + OUTPUT_NAME + "_mac.tar"
-                os.system("tar -rf " + unzipped_inst_path + " " + dir_to_add)
-                os.system("gzip " + unzipped_inst_path)
-                os.rename(output_path + "/" + OUTPUT_NAME + "_mac.tar.gz", inst_path)
-                created_installers.append(inst_path)
-            except Exception, e:
-                output("Failed to customize Mac installer.")
-                output(e)
-            output("Done.")
+            if letter in "ml":
+                # Customize Mac/Linux installer
+                if letter == "m":
+                    base_link = "custom_mac_base"
+                    os_type = "mac"
+                else:
+                    base_link = "custom_linux_base"
+                    os_type = "linux"
+                
+                output("Customizing %s installer..."%(os_type))
+                try:
+                    if not os.path.exists(BASE_INST_PATH + "/" + base_link):
+                        raise Exception("Base %s installer not found."%(os_type))
+                    inst_path = output_path + "/" + OUTPUT_NAME + "_%s.tgz"%(os_type)
+                    shutil.copyfile(BASE_INST_PATH + "/" + base_link, inst_path)
+                    os.system("gzip -d " + inst_path)
+                    unzipped_inst_path = output_path + "/" + OUTPUT_NAME + "_%s.tar"%(os_type)
+                    os.system("tar -rf " + unzipped_inst_path + " " + dir_to_add)
+                    os.system("gzip " + unzipped_inst_path)
+                    os.rename(output_path + "/" + OUTPUT_NAME + "_%s.tar.gz"%(os_type), inst_path)
+                    created_installers.append(inst_path)
+                except Exception, e:
+                    output("Failed to customize %s installer."%(os_type))
+                    output(e)
+                output("Done.")
             
-            os.chdir(oldpwd)
-            if created_temp:
-                # If we were the ones that created the temp file, delete it
-                # when we finish
-                os.system("rm -rf " + temp)
+                os.chdir(oldpwd)
+                if created_temp:
+                    # If we were the ones that created the temp file, delete it
+                    # when we finish
+                    os.system("rm -rf " + temp)
 
-            output("customize_installers finished. Created these installers:")
-            output("/n".join(created_installers))
+        output("customize_installers finished. Created these installers:")
+        output("/n".join(created_installers))
 
 if __name__ == "__main__":
     print os.getcwd()
