@@ -35,6 +35,7 @@ def build_installer(username, dist_char):
     geni_user=ret
 
     prefix = "/var/www/dist/geni/%s_dist"%(username)
+    os.system("rm -Rf %s/"%(prefix))
     os.system("mkdir %s/"%(prefix))
 
     f = open('%s/%s'%(prefix, username),'w');
@@ -54,19 +55,19 @@ def build_installer(username, dist_char):
     carter_script = "/home/ivan/trunk/dist/customize_installers.py"
     
     os.system("mkdir %s/vesselinfodir/"%(prefix))
-    os.system("python %s %s/vesselinfo %s/vesselinfodir/"%(vesselinfopy, prefix, prefix))
-    os.system("python %s %s %s/vesselinfodir/ %s/ &> /tmp/outt"%(carter_script, dist_char, prefix,prefix))
+    os.system("cd /var/www/dist/geni && python %s %s/vesselinfo %s/vesselinfodir &> /tmp/outt"%(vesselinfopy, prefix, prefix))
+    os.system("python %s %s %s/vesselinfodir/ %s/ &> /tmp/out"%(carter_script, dist_char, prefix,prefix))
     redir_url = "http://seattle.cs.washington.edu/dist/geni/%s_dist/"%(username)
     return redir_url
 
 def mac(request,username):
     redir_url = build_installer(username, 'm')
-    redir_url = redir_url + "seattle_mac.tar.gz"
+    redir_url = redir_url + "seattle_mac.tgz"
     return redirect_to(request, redir_url)
 
 def linux(request,username):
     redir_url = build_installer(username, 'l')
-    redir_url = redir_url + "seattle_linux.tar.gz"
+    redir_url = redir_url + "seattle_linux.tgz"
     return redirect_to(request, redir_url)
 
 def win(request,username):
