@@ -2,9 +2,7 @@
 #from changeusers import *
 
 from django.http import Http404
-import time
-import datetime
-from models import User,Donation,Vessel,VesselMap,Share,pop_key
+from models import User,Donation,Vessel,VesselMap,Share,pop_key,acquire_resources
 from django.http import HttpResponseRedirect
 from django.http import HttpResponse
 from django.core.urlresolvers import reverse
@@ -14,9 +12,6 @@ from django.contrib.auth.decorators import login_required
 #from django.core.exceptions import ObjectDoesNotExist
 import sys
 import forms
-
-# 7 days worth of seconds
-VESSEL_EXPIRE_TIME_SECS = 604800
 
 def __validate_guser__(request):
     try:
@@ -117,36 +112,42 @@ def donations(request,share_form=None):
 
 @login_required()
 def used_resources(request):
+    '''
+    TODO: use vessel flow graph. for now a limit of 10 vessels per user
+    '''
+    
     ret,success = __validate_guser__(request)
     if not success:
         return ret
     geni_user = ret
-
-        
-    # TODO: use vessel flow graph. for now a limit of 10 vessels per user
+    
+    # compute maximum allowed resources a user may get
+    num_donations = len(Donation.objects.filter(user=geni_user))
+    max_num = 10 * (num_donations + 1)
+    # number of vessels used by this user
     myvessels = VesselMap.objects.filter(user = geni_user)
-    if len(myvessels) > 10:
-        print "ERROR : len(myvessels) > 10!"
+    
+    if len(myvessels) > max_num:
         max_num = 0
     else:
-        max_num = 10 - len(myvessels)
+        max_num = max_num - len(myvessels)
 
     get_vessel_choices = zip(range(1,max_num+1),range(1,max_num+1))
     get_form = forms.gen_GetVesselsForm(get_vessel_choices)
-    
+
+    explanation = ""
     if request.method == 'POST':
-        # TODO
         get_form = forms.gen_GetVesselsForm(get_vessel_choices,req_post=request.POST)
-        # expire_time = datetime.datetime.fromtimestamp(time.time() + VESSEL_EXPIRE_TIME_SECS)
-        # expiration = "%s"%(expire_time),
-        
         if get_form.is_valid():
-            # commit to db and notify Seattle
-            pass
-        
-    # TODO
+            ret = acquire_resources(geni_user, int(get_form.cleaned_data['num']), get_form.cleaned_data['env'])
+            if ret[0] is True:
+                num_acquired = ret[1]
+                explanation = ret[2]
+            else:
+                explanation = ret[1]
+                
     shvessels = []
-    return direct_to_template(request,'control/used_resources.html', {'geni_user' : geni_user, 'my_vessels' : myvessels, 'sh_vessels' : shvessels, 'get_form' : get_form})
+    return direct_to_template(request,'control/used_resources.html', {'geni_user' : geni_user, 'my_vessels' : myvessels, 'sh_vessels' : shvessels, 'get_form' : get_form, 'action_explanation' : explanation})
 
 @login_required()
 def user_info(request,info=""):

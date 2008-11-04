@@ -2,8 +2,16 @@ import random
 from django.db import models
 from django.contrib.auth.models import User as DjangoUser
 from django.db import connection
+from django.db import transaction
+from geni.changeusers import changeusers
+import datetime
+import time
+import traceback
 
+# user ports permitted on vessels on a donated host
 allowed_user_ports = range(63100,63180)
+# 7 days worth of seconds
+VESSEL_EXPIRE_TIME_SECS = 604800
 
 def pop_key():
     cursor = connection.cursor()
@@ -16,6 +24,79 @@ def pop_key():
     cursor.execute("DELETE from keygen.keys_512 WHERE id=%d"%(row[0]))
     cursor.execute("COMMIT")
     return [row[1],row[2]]
+
+def get_unacquired_vessels():
+    vmaps = VesselMap.objects.all()
+    vexclude = []
+    for vmap in vmaps:
+        vexclude.append(vmap.vessel)
+
+    vret = []
+    for v in Vessel.objects.all():
+        if v not in vexclude:
+            vret.append(v)
+    return vret
+
+@transaction.commit_manually    
+def acquire_resources(geni_user, num, type):
+    '''
+    attempts to acquire num vessels for geni_user of some network type (LAN,WAN,RAND)
+    '''
+    expire_time = datetime.datetime.fromtimestamp(time.time() + VESSEL_EXPIRE_TIME_SECS)
+    explanation = ""
+    try:
+        # FIXME: we ignore type of vessel requested (for now)
+        #vessel = Vessel.objects.exclude(vesselmap__vessel__exact
+        vessels = get_unacquired_vessels()
+    
+        if num > len(vessels):
+            num = len(vessels)
+            explanation += "No more vessels available (max %d)."%(num)
+        else:
+            explanation += "Attempting to acquire %d vessels out of %d available."%(num,len(vessels))
+            
+        acquired = 0
+        for v in vessels:
+            if (acquired >= num):
+                break
+
+            # issue the command to remote nodemanager
+            userpubkeystringlist = [geni_user.pubkey]
+            nmip = v.donation.ip
+            nmport = v.donation.port
+            vesselname = v.name
+            nodepubkey = v.donation.owner_pubkey
+            nodeprivkey = v.donation.owner_privkey
+            explanation += " %s:%s:%s - \n\n"%(nmip,nmport,vesselname)
+            # explanation += "nodepubkey : %s<br>nodeprivkey: %s<br>"%(nodepubkey,nodeprivkey)
+            success,msg = changeusers(userpubkeystringlist, nmip, nmport, vesselname, nodepubkey, nodeprivkey)
+            if success:
+                acquired += 1
+                # create and save the new vmap entry
+                vmap = VesselMap(vessel = v, user = geni_user, expiration = "%s"%(expire_time))
+                vmap.save()
+                explanation += " added, "
+            else:
+                explanation += "%s, "%(msg)
+            
+        if (num - acquired) != 0:
+            explanation += "Failed to acquire %d nodes."%(num-acquired)
+            
+    except:
+        # a hack to get the traceback information into a string by
+        # printing to file and then reading back from file
+        f = open("/tmp/models_trace","w")
+        traceback.print_exc(None,f)
+        f.close()
+        f = open("/tmp/models_trace","r")
+        explanation += f.read()
+        f.close()
+        transaction.rollback()
+        return False, explanation
+    else:
+        transaction.commit()
+        explanation += "Acquired %d nodes. "%(num) + explanation
+        return True,num,explanation
 
 class User(models.Model):
     # link GENI user to django user record which authenticates users
@@ -121,6 +202,7 @@ class VesselMap(models.Model):
     expiration = models.DateTimeField("Mapping expiration date")
     def __unicode__(self):
         return "%s:%s:%s"%(self.vessel.donation.ip, self.vessel.name, self.user.www_user.username)
+
     
 class Share(models.Model):
     # user giving
