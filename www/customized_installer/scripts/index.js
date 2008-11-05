@@ -27,10 +27,7 @@ window.onload = function () {
 			this.value = "user_" + counter;
 		}
 	};
-	$("publickey").onfocus = function () {
-		this.value = "";
-	};
-	$("installer").disabled = true;
+   	$("installer").disabled = true;
 	Initialize();
 	updateVessels();
 	$("installer").onclick = createInstaller;
