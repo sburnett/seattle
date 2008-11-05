@@ -11,7 +11,7 @@ def __get_guser__(www_username):
     try:
         django_user = DjangoUser.objects.get(username = www_username)
     except DjangoUser.DoesNotExist:
-        ret = HttpResponse("No user with username %s exists in GENI database"%(www_username))
+        ret = HttpResponse("<h2>Did you mispell the username? No user with username <font color=\"red\">%s</font> exists in the GENI database.</h2>"%(www_username))
         return ret, False
     
     try:
@@ -23,54 +23,78 @@ def __get_guser__(www_username):
         return ret,False
 
 def download(request,username):
+    ret,success = __get_guser__(username)
+    if not success:
+        return ret
     return direct_to_template(request,'download/installers.html', {'username' : username})
 
 def build_installer(username, dist_char):
     '''
     returns url to the finished installer
+    dist_char is in "lwm"
     '''
     ret,success = __get_guser__(username)
     if not success:
-        return ret
+        return False, ret
     geni_user=ret
 
+    # prefix dir is specific to this user
     prefix = "/var/www/dist/geni/%s_dist"%(username)
+    # remove and recreate the prefix dir
     os.system("rm -Rf %s/"%(prefix))
     os.system("mkdir %s/"%(prefix))
 
+    # write out to file the user's donor key
     f = open('%s/%s'%(prefix, username),'w');
     f.write("%s"%(geni_user.donor_pubkey))
     f.close()
 
+    # write out to file the geni lookup key
     f = open('%s/%s_geni'%(prefix, username),'w');
     f.write("%s"%(genilookuppubkey))
     f.close()
     
+    # write out to file the vesselinfo to customize the installer
     vesselinfo = '''Percent 8\nOwner %s/%s\nUser %s/%s_geni\n'''%(prefix,username,prefix,username);
     f = open('%s/vesselinfo'%(prefix),'w');
     f.write("%s"%(vesselinfo))
     f.close()
 
+    # paths to custominstallerinfo and carter's customize_installers script
     vesselinfopy = "/home/ivan/trunk/test/writecustominstallerinfo.py"
     carter_script = "/home/ivan/trunk/dist/customize_installers.py"
     
+    # create the dir where vesselinfo will be created
     os.system("mkdir %s/vesselinfodir/"%(prefix))
-    os.system("cd /var/www/dist/geni && python %s %s/vesselinfo %s/vesselinfodir &> /tmp/outt"%(vesselinfopy, prefix, prefix))
-    os.system("python %s %s %s/vesselinfodir/ %s/ &> /tmp/out"%(carter_script, dist_char, prefix,prefix))
+    # create the vessel info
+    cmd = "cd /var/www/dist/geni && python %s %s/vesselinfo %s/vesselinfodir 2> /tmp/customize.err > /tmp/customize.out"%(vesselinfopy, prefix, prefix)
+    #f = open("/tmp/out", "w")
+    #f.write(cmd)
+    os.system(cmd)
+    # run carter's script to create the installer of the particular type ((w)in, (l)inux, or (m)ac)
+    os.system("python %s %s %s/vesselinfodir/ %s/ > /tmp/carter.out 2> /tmp/carter.err"%(carter_script, dist_char, prefix,prefix))
+    #os.system("python %s %s %s/vesselinfodir/ %s/ &> /tmp/out"%(carter_script, dist_char, prefix,prefix))
+    # compose and return the url to which the user needs to be redirected
     redir_url = "http://seattle.cs.washington.edu/dist/geni/%s_dist/"%(username)
-    return redir_url
+    return True, redir_url
 
 def mac(request,username):
-    redir_url = build_installer(username, 'm')
-    redir_url = redir_url + "seattle_mac.tgz"
+    success,ret = build_installer(username, 'm')
+    if not success:
+        return ret
+    redir_url = ret + "seattle_mac.tgz"
     return redirect_to(request, redir_url)
 
 def linux(request,username):
-    redir_url = build_installer(username, 'l')
-    redir_url = redir_url + "seattle_linux.tgz"
+    success,ret = build_installer(username, 'l')
+    if not success:
+        return ret
+    redir_url = ret + "seattle_linux.tgz"
     return redirect_to(request, redir_url)
 
 def win(request,username):
-    redir_url = build_installer(username, 'w')
-    redir_url = redir_url + "seattle_win.zip"
+    success,ret = build_installer(username, 'w')
+    if not success:
+        return ret
+    redir_url = ret + "seattle_win.zip"
     return redirect_to(request, redir_url)
