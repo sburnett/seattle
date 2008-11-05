@@ -9,6 +9,8 @@ urlpatterns = patterns('geni.control.views',
                        
                        # used_resources functions:
                        (r'^get_resources$', 'get_resources', {}, 'get_resources'),
+                       (r'^del_resource$', 'del_resource', {}, 'del_resource'),
+                       (r'^del_all_resource$', 'del_all_resources', {}, 'del_all_resources'),
                        
                        # user_info functions:
                        (r'^gen_new_key$', 'gen_new_key', {}, 'gen_new_key'),

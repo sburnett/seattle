@@ -25,7 +25,7 @@ def pop_key():
     cursor.execute("COMMIT")
     return [row[1],row[2]]
 
-def get_unacquired_vessels():
+def get_unacquired_vessels(filter_str):
     vmaps = VesselMap.objects.all()
     vexclude = []
     for vmap in vmaps:
@@ -33,10 +33,30 @@ def get_unacquired_vessels():
 
     vret = []
     for v in Vessel.objects.all():
-        if v not in vexclude:
-            vret.append(v)
+        if filter_str != "" and filter_str not in v.donation.ip:
+            continue
+        if v in vexclude:
+            continue
+        vret.append(v)
+    random.shuffle(vret)
     return vret
 
+def release_resources(geni_user, resource_id, all):
+    myresources = VesselMap.objects.filter(user=geni_user)
+
+    for r in myresources:
+        if (all is True) or (r.id == resource_id):
+            nmip = r.vessel.donation.ip
+            nmport = int(r.vessel.donation.port)
+            vesselname = r.vessel.name
+            nodepubkey = r.vessel.donation.owner_pubkey
+            nodeprivkey = r.vessel.donation.owner_privkey
+            success,msg = changeusers("", nmip, nmport, vesselname, nodepubkey, nodeprivkey)
+            if not success:
+                print msg
+            r.delete()
+    return True
+            
 @transaction.commit_manually    
 def acquire_resources(geni_user, num, type):
     '''
@@ -46,7 +66,11 @@ def acquire_resources(geni_user, num, type):
     explanation = ""
     try:
         # FIXME: we ignore type of vessel requested (for now)
-        vessels = get_unacquired_vessels()
+
+        filter_ips = ""
+        if int(type) == 1:
+            filter_ips = "128.208.1."
+        vessels = get_unacquired_vessels(filter_ips)            
     
         if num > len(vessels):
             num = len(vessels)
@@ -67,7 +91,7 @@ def acquire_resources(geni_user, num, type):
             vesselname = v.name
             nodepubkey = v.donation.owner_pubkey
             nodeprivkey = v.donation.owner_privkey
-            #explanation += " %s:%s:%s - \n\n"%(nmip,nmport,vesselname)
+            # explanation += " %s:%s:%s - \n\n"%(nmip,nmport,vesselname)
             # explanation += "nodepubkey : %s<br>nodeprivkey: %s<br>"%(nodepubkey,nodeprivkey)
             print "calling changeusers with: \npubkeystrlist %s\nnmip %s\nnmport %s\nvesselname %s\nnodepubkey %s\nnodeprivkey %s\n"%(userpubkeystringlist, nmip, nmport, vesselname, nodepubkey, nodeprivkey)
             success,msg = changeusers(userpubkeystringlist, nmip, nmport, vesselname, nodepubkey, nodeprivkey)

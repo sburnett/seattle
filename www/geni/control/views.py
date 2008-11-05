@@ -2,7 +2,7 @@
 #from changeusers import *
 
 from django.http import Http404
-from models import User,Donation,Vessel,VesselMap,Share,pop_key,acquire_resources
+from models import User,Donation,Vessel,VesselMap,Share,pop_key,acquire_resources, release_resources
 from django.http import HttpResponseRedirect
 from django.http import HttpResponse
 from django.core.urlresolvers import reverse
@@ -14,13 +14,18 @@ import sys
 import forms
 
 def __validate_guser__(request):
+
+    # TODO: add a check for whether request.user actually exists. If
+    # it does not then we want to tell the user to login again.
+    
     try:
         geni_user = User.objects.get(www_user = request.user)
         return geni_user,True
     except User.DoesNotExist:
         # this should never happen if the user registered -- show server error of some kind
         ret = HttpResponse("User registration for this user is incomplete [auth records exists, but geni user profile is absent], please contact ivan@cs.washington.edu.")
-        return ret,False
+        return redirect_to(request, "https://seattle.cs.washington.edu/geni/accounts/login"), False
+        # return ret,False
 
 def __dl_key__(request,pubkey=True):
     ret,success = __validate_guser__(request)
@@ -134,7 +139,7 @@ def gen_get_form(geni_user,req_post=None):
     return get_form
 
 @login_required()
-def used_resources(request,get_form=False,explanation=""):
+def used_resources(request,get_form=False,explanation="",explanation2=""):
     ret,success = __validate_guser__(request)
     if not success:
         return ret
@@ -144,7 +149,44 @@ def used_resources(request,get_form=False,explanation=""):
         get_form = gen_get_form(geni_user)
 
     shvessels = []
-    return direct_to_template(request,'control/used_resources.html', {'geni_user' : geni_user, 'my_vessels' : VesselMap.objects.filter(user = geni_user), 'sh_vessels' : shvessels, 'get_form' : get_form, 'action_explanation' : explanation})
+    my_vessels = VesselMap.objects.filter(user = geni_user)
+    #if explanation == "":
+    #    explanation = "HELLO"
+    return direct_to_template(request,'control/used_resources.html', {'geni_user' : geni_user, 'num_vessels' : len(my_vessels), 'my_vessels' : my_vessels, 'sh_vessels' : shvessels, 'get_form' : get_form, 'action_explanation' : explanation, 'remove_explanation' : explanation2})
+
+@login_required()
+def del_resource(request):
+    if not request.method == 'POST':
+        return used_resources(request)
+    
+    ret,success = __validate_guser__(request)
+    if not success:
+        return ret
+    geni_user = ret
+
+    myresources = VesselMap.objects.all()
+    explanation2 = ""
+    for r in myresources:
+        if request.POST.has_key('delresource_%s'%(r.id)):
+            explanation2 = "Removed resource"
+            release_resources(geni_user, r.id, False)
+            
+    if explanation2 == "":
+        explanation2 = "Problem removing resource"
+    
+    return used_resources(request,explanation2=explanation2)
+
+@login_required()
+def del_all_resources(request):
+    if not request.method == 'POST':
+        return used_resources(request)
+    
+    ret,success = __validate_guser__(request)
+    if not success:
+        return ret
+    geni_user = ret
+    release_resources(geni_user, None, True)
+    return used_resources(request,explanation2="Removed all resources")
 
 @login_required()
 def get_resources(request):
@@ -159,17 +201,17 @@ def get_resources(request):
     explanation = ""
     get_form = gen_get_form(geni_user,request.POST)
     if get_form is None:
-        return used_resources(request,get_form,explanation)
+        return used_resources(request,get_form,explanation=explanation)
         
     if get_form.is_valid():
+        explanation = get_form.cleaned_data['env']
         ret = acquire_resources(geni_user, int(get_form.cleaned_data['num']), get_form.cleaned_data['env'])
         if ret[0] is True:
             num_acquired = ret[1]
             explanation = ret[2]
         else:
             explanation = ret[1]
-    
-    return used_resources(request,get_form,explanation)
+    return used_resources(request,get_form,explanation=explanation)
 
 #######################################################
     
