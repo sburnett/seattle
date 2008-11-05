@@ -205,20 +205,25 @@ p.comment {
 }
 
 table#installers {
-	border-collapse: collapse;
+//	border-collapse: collapse;
 	width: 90%;
 	background-color: #eee;
 	margin: 10px 20px;
+	border-left: 3px solid black;
+	border-bottom: 1px dashed black;
 }
 
 table#installers tr {
-	border-top: 2px solid #fff;
+	//border-top: 2px solid #fff;
+	border: 1px solid;
 }
 
 table#installers tr td {
 	width: 33%;
 	padding:20px;
 	font-weight: normal;
+	border-right: 3px solid;
+	border-top: 1px dashed;
 }
 
 #instruction ol li {
