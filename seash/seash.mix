@@ -1442,7 +1442,7 @@ update             -- Update information about the vessels
         # and display it...
         if faillist:
           print "Failures on "+str(len(faillist))+" targets: "+", ".join(faillist)
-        if longname:
+        if goodlist:
           print "%4s %3s %25s %10s %30s" % ('ID','Own','Name','Status','Owner Information')
         for longname in goodlist:  
           if keys[currentkeyname]['publickey'] == vesselinfo[longname]['ownerkey']:
