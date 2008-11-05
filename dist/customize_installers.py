@@ -12,14 +12,15 @@ class ArgError(Exception):
     def __str__(self):
         return repr(self.parameter)
 
-
 def output(text):
     print text
-    f = open("/tmp/out", "a")
-    f.write(text)
-    f.close()
+    #f = open("/tmp/out", "a")
+    #f.write(text)
+    #f.close()
 
 def main(which_os, dir_to_add, output_path):
+    global PROG_DIR
+
     if not os.path.exists(dir_to_add):
         raise ArgError("Could not find directory to add: " + dir_to_add)
     elif not os.path.exists(output_path):
@@ -41,14 +42,15 @@ def main(which_os, dir_to_add, output_path):
         if not os.path.exists(temp):
             os.mkdir(temp)
             created_temp = True
-        os.chdir(temp)
 
+        os.chdir(temp)
         if os.path.exists(PROG_DIR):
             shutil.rmtree(PROG_DIR)
 
         # Move the added directory to a new temporary
         # directory so that it will be added to the
         # installers at the right location
+        # os.system("echo 'DIR_TO_ADD: ' && ls %s"%(dir_to_add))
         shutil.copytree(dir_to_add, PROG_DIR)
         dir_to_add = PROG_DIR
         created_installers = []
@@ -89,12 +91,14 @@ def main(which_os, dir_to_add, output_path):
                     shutil.copyfile(BASE_INST_PATH + "/" + base_link, inst_path)
                     os.system("gzip -d " + inst_path)
                     unzipped_inst_path = output_path + "/" + OUTPUT_NAME + "_%s.tar"%(os_type)
+                    
                     os.system("tar -rf " + unzipped_inst_path + " " + dir_to_add)
                     os.system("gzip " + unzipped_inst_path)
+
                     os.rename(output_path + "/" + OUTPUT_NAME + "_%s.tar.gz"%(os_type), inst_path)
                     created_installers.append(inst_path)
                 except Exception, e:
-                    output("Failed to customize %s installer."%(os_type))
+                    output("Failed to customize %s installer:"%(os_type))
                     output(e)
                 output("Done.")
             
@@ -102,13 +106,14 @@ def main(which_os, dir_to_add, output_path):
                 if created_temp:
                     # If we were the ones that created the temp file, delete it
                     # when we finish
-                    os.system("rm -rf " + temp)
+
+                    # os.system("rm -rf " + temp)
+                    pass
 
         output("customize_installers finished. Created these installers:")
         output("/n".join(created_installers))
 
 if __name__ == "__main__":
-    print os.getcwd()
     if len(sys.argv) < 4:
         output("usage: python [m|l|w] <directory/to/add> <output/directory>")
     else:
