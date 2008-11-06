@@ -19,7 +19,7 @@
 					  <br>
 						<h2> Get More Resources </h2>
 						{% ifnotequal get_form None %}
-						<form method="POST" action="{% url get_resources %}" target="#">
+						<form method="POST" action="{% url get_resources %}">
 							<p>
 							  <font color="red">  {{ action_explanation }} </font><br>
 							  <font color="red">  {{ get_form.num.errors }}</font><br>
