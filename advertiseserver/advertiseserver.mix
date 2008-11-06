@@ -19,7 +19,7 @@ hashtable = {}
 
 def expire_hashtable_items():
   now = time_gettime()
-  for key in hashtable:
+  for key in hashtable.copy():
     # copying the list, so I can remove elements...
     for valuetimepair in hashtable[key][:]:
       if valuetimepair[1] < now:
