@@ -1,35 +1,48 @@
+from repyportability import *
+import advertise
 include time.repy
 include nmclient.repy
 include rsa.repy
 
 # needs to be done once...
-def initialize_time():
+initialized_time = False
+def initialize_time_if_needed():
+  global initialized_time
+  if initialized_time:
+    return
+  initialized_time = True
   time_updatetime(34612)
 
-
-def changeusers(userpubkeylist, nmip, nmport, vesselname, nodepubkey, nodeprivkey):
+def changeusers(userpubkeystringlist, nmip, nmport, vesselname, nodepubkeystring, nodeprivkeystring):
+  initialize_time_if_needed()
 
   try:
     nmhandle = nmclient_createhandle(nmip, nmport)
-  except NMClientException:
-    return False
+  except NMClientException, e:
+    return False, "createhandle failed: " + str(e)
   
   myhandleinfo = nmclient_get_handle_info(nmhandle)
-  myhandleinfo['publickey'] = nodepubkey
-  myhandleinfo['privatekey'] = nodeprivkey
+  myhandleinfo['publickey'] = rsa_string_to_publickey(nodepubkeystring)
+  myhandleinfo['privatekey'] = rsa_string_to_privatekey(nodeprivkeystring)
   nmclient_set_handle_info(nmhandle, myhandleinfo)
 
-  # I need to convert the keys to strings before using join
-  userpubkeystringlist = []
-  for userpubkey in userpubkeylist:
-    userpubkeystringlist.append(rsa_publickey_to_string(userpubkey))
-    
+  try:
+    nmclient_signedsay(nmhandle, "StopVessel", vesselname)
+  except NMClientException:
+    # this may fail because the vessel may not be started
+    pass
+
   # set the users...
   try:
-    nmclient_signedsay(nmhandle, "ChangeUsers", myvessel, '|'.join(userpubkeystringlist))
-  except NMClientException:
-    return False
+    nmclient_signedsay(nmhandle, "ChangeUsers", vesselname, '|'.join(userpubkeystringlist))
+  except NMClientException, e:
+    return False, "ChangeUsers failed: " + str(e)
 
-  return True
+  try:
+    advertise.announce(rsa_string_to_publickey(userpubkeystringlist[0]), nmip+":"+str(nmport), 750)
+  except:
+    print "Exception raised calling advertise.announce"
+
+  return True, "ok"
 
 
