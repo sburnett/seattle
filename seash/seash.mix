@@ -1219,7 +1219,11 @@ update             -- Update information about the vessels
         if currentkeyname == None or not keys[currentkeyname]['publickey']:
           raise UserError("Error, must browse as an identity with a public key")
   
-        nodelist = advertise.lookup(keys[currentkeyname]['publickey'])
+        # they are trying to only do some types of lookup...
+        if len(userinputlist) > 1:
+          nodelist = advertise.lookup(keys[currentkeyname]['publickey'],lookuptype=userinputlist[1:])
+        else:
+          nodelist = advertise.lookup(keys[currentkeyname]['publickey'])
 
         # If there are no vessels for a user, the lookup may return ''
         for nodename in nodelist[:]:
@@ -1444,12 +1448,16 @@ update             -- Update information about the vessels
           print "Failures on "+str(len(faillist))+" targets: "+", ".join(faillist)
         if goodlist:
           print "%4s %3s %25s %10s %30s" % ('ID','Own','Name','Status','Owner Information')
-        for longname in goodlist:  
-          if keys[currentkeyname]['publickey'] == vesselinfo[longname]['ownerkey']:
-            owner = '*'
-          else:
-            owner = ''
-          print "%4s  %1s  %25s %10s %30s" % (vesselinfo[longname]['ID'],owner,fit_string(longname,25),vesselinfo[longname]['status'],fit_string(vesselinfo[longname]['ownerinfo'],30))
+
+        # walk through target to print instead of the good list so that the
+        # names are printed in order...
+        for longname in targets[currenttarget]:
+          if longname in goodlist:  
+            if keys[currentkeyname]['publickey'] == vesselinfo[longname]['ownerkey']:
+              owner = '*'
+            else:
+              owner = ''
+            print "%4s  %1s  %25s %10s %30s" % (vesselinfo[longname]['ID'],owner,fit_string(longname,25),vesselinfo[longname]['status'],fit_string(vesselinfo[longname]['ownerinfo'],30))
 
         # add groups for fail and good (if there is a difference in what nodes do)
         if goodlist and faillist:

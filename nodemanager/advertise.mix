@@ -62,15 +62,22 @@ def uniq(a):
 
 
 
-def lookup(key, maxvals=100):
-  try:
-    centralans = centralizedadvertise_lookup(key, maxvals)
-  except Exception, e:
+def lookup(key, maxvals=100, lookuptype=['central','opendht']):
+  if 'central' in lookuptype:
+    try:
+      centralans = centralizedadvertise_lookup(key, maxvals)
+    except Exception, e:
+      centralans = []
+  else:
     centralans = []
 
-  try:
-    dhtans = openDHTadvertise.lookup(key, maxvals)
-  except Exception, e:
+  if 'opendht' in lookuptype:
+    try:
+      dhtans = openDHTadvertise.lookup(key, maxvals)
+    except Exception, e:
+      dhtans = []
+  
+  else:
     dhtans = []
 
   return uniq(centralans + dhtans)
