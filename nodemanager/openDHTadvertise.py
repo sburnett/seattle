@@ -103,7 +103,10 @@ def lookup(key, maxvals=100):
       try:
         # In the current version of xmlrpclib, an obsolescence warning will be 
         # printed here.   This is problem with the standard lib, not this code...
-        vals, pm = pxy.get(keyhash, maxvalhash, pm, "get.py")
+        try:
+          vals, pm = pxy.get(keyhash, maxvalhash, pm, "get.py")
+        except xmlrpclib.ProtocolError, e:
+          raise Exception, e
         # if there isn't an exception, we succeeded
 
         # append the .data part of the items, the other bits are:
