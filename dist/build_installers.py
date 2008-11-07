@@ -37,6 +37,8 @@ def main(dist_name):
 
         # Copy the nodeman.cfg file from the dist directory
         shutil.copyfile(".." + os.sep + ".." + os.sep + "nodeman.cfg", "nodeman.cfg")
+        # Copy the resources.offcut file from the dist directory
+        shutil.copyfile("../../resources.offcut", "resources.offcut")
         
         os.chdir(".." + os.sep + "..")
                 
