@@ -31,6 +31,10 @@ def announce(key, value, ttlval):
   global proxylist
   global currentproxy
 
+  # JAC: Copy value because it seems that Python may otherwise garbage collect
+  # it in some circumstances.   This seems to fix the problem
+  value = str(value)[:]
+
   # convert ttl to an int
   ttl = int(ttlval)
 
