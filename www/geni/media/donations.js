@@ -17,7 +17,7 @@ window.onload = function() {
 		var spacers = $$(".spacer");
 		spacers[0].style.height = "4%";
 		//$$(".mainwindow")[0].paddingBottom = "10%";
-		alert("here6");
+		alert("here7");
 		$("welcome").style.minWidth = "600px";
 	} else {
 		$("welcome").style.minWidth = "600px";
@@ -27,6 +27,7 @@ window.onload = function() {
 	$("maximizer1").textContent = count1 + " Machines Donated (click to expand)";
 	$("maximizer2").textContent = count2 + " Machines Donated (click to expand)";
 	$("maximizer3").textContent = count3 + " Shares (click to expand)";
+	
 	try { if(!maximizer3.innerText) maximizer3.innerText = maximizer3.textContent; } catch(e) {}
 	try { if(!maximizer1.innerText) maximizer1.innerText = maximizer1.textContent; } catch(e) {}
 	try { if(!maximizer2.innerText) maximizer2.innerText = maximizer2.textContent; } catch(e) {}
