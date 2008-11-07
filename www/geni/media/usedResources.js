@@ -1,10 +1,15 @@
 window.onload = function() {
 	$("welcome").style.minWidth = "727px";
+	$("banner").style.minWidth = "727px";
 	if (BrowserDetect.browser == "Explorer") {
 		var spacers = $$(".spacer");
 		spacers[0].style.height = "150px";
 		$("welcome").style.minWidth = "600px";
 		$("header").style.marginBottom = "0px";
+		$("banner").style.minWidth = "640px";
+		$("header").style.marginBottom = "0px";
+		$("header").style.paddingLeft = "15px";
+		$("header").style.width = "98%";
 	}
 }
 

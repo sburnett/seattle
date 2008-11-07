@@ -1,7 +1,13 @@
 window.onload = function() {
 	$("welcome").style.minWidth = "450px";
+	$("banner").style.minWidth = "450px";
 	if (BrowserDetect.browser == "Explorer") {
 		$("header").style.marginBottom = "0px";
+		$("banner").style.minWidth = "490px";
+		$("welcome").style.minWidth = "450px";
+		$("header").style.marginBottom = "0px";
+		$("header").style.paddingLeft = "15px";
+		$("header").style.width = "98%";
 	}
 }
 
