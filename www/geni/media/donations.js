@@ -13,12 +13,13 @@ window.onload = function() {
 		$("linux").src = "/geni/media/midlinux.jpg";
 	} else {
 	}
-	$("welcome").style.minWidth = "600px";
 	if (BrowserDetect.browser == "Explorer") {
 		var notices = $$(".notices");
 		$("table3").style.marginLeft = "0%";
 		var parent = $("installerLink").parentNode;	
+		$("welcome").style.minWidth = "600px";
 	} else {
+		$("welcome").style.minWidth = "600px";
 	}
 	//$("checkAll").onclick = checkAll;
 	var count = tally();
