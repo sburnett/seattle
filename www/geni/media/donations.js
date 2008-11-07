@@ -21,8 +21,8 @@ window.onload = function() {
 		$("window3").style.minWidth = "740px";
 		$("welcome").style.minWidth = "600px";
 		$("header").style.marginBottom = "0px";
-		//$("header").style.width = "expression(document.body.clientWidth <605? \"600px\" : \"98%\")";
-		//$("banner").style.width = "expression(document.body.clientWidth <605? \"600px\" : \"100%\")";
+		$("header").style.width = "expression(document.body.clientWidth <605? \"600px\" : \"98%\")";
+		$("banner").style.width = "expression(document.body.clientWidth <605? \"600px\" : \"100%\")";
 		alert(BrowserDetect.version);
 		alert("test");
 	} else {
