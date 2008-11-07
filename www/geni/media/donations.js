@@ -15,9 +15,9 @@ window.onload = function() {
 	}
 	if (BrowserDetect.browser == "Explorer") {
 		var spacers = $$(".spacer");
-		spacers[0].style.height = "100px";
+		spacers[0].style.height = "70px";
 		//$$(".mainwindow")[0].paddingBottom = "10%";
-		alert("here12");
+		alert("here13");
 		$("welcome").style.minWidth = "600px";
 	} else {
 		$("welcome").style.minWidth = "600px";
