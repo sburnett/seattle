@@ -64,8 +64,7 @@ img {
 #header {
 	margin-bottom: 5px;
 	min-width: 600px;
-	width: expression(document.body.clientWidth > 600?
-		   "100%" :"600px");
+	width: expression(document.body.clientWidth <605? "600px" : "100%");
 }
 
 #welcome {
@@ -131,20 +130,17 @@ ul li {
 
 #tabs1 {
 	min-width: 450px;
-	width: expression(document.body.clientWidth > 450?
-		   "100%" :"450px");
+	width: expression(document.body.clientWidth <455? "450px" : "100%");
 }
 
 #tabs2 {
 	min-width: 703px;
-	width: expression(document.body.clientWidth > 703?
-		   "100%" :"703px");
+	width: expression(document.body.clientWidth <708? "703px" : "100%");
 }
 
 #tabs3 {
 	min-width: 727px;
-	width: expression(document.body.clientWidth > 727?
-		   "100%" :"727px");
+	width: expression(document.body.clientWidth <732? "727px" : "100%");
 }
 
 #Tabs {
@@ -220,8 +216,7 @@ th, td , tr{
 #window1 {
 	padding-top: 20px;
 	font-size: 18pt;
-	width: expression(document.body.clientWidth > 450?
-		   "80%" :"450px");
+	width: expression(document.body.clientWidth <455? "450px" : "80%");
 	height: 70%;
 	min-width: 450px;
 	margin-left: auto;
@@ -232,8 +227,7 @@ th, td , tr{
 }
 
 #window2 {
-	width: width: expression(document.body.clientWidth > 735?
-		   "80%" :"735px");
+	width: expression(document.body.clientWidth <740? "735px" : "80%");
 	height: 70%;
 	margin: 0px auto;
 	border: 1px solid black;
@@ -242,8 +236,7 @@ th, td , tr{
 }
 
 #window3 {
-	width: expression(document.body.clientWidth > 703?
-		   "80%" :"703px");
+	width: expression(document.body.clientWidth <708? "703px" : "80%");
 	height: 70%;
 	margin: 0px auto;
 	border: 1px solid black;
