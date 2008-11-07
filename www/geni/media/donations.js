@@ -19,10 +19,10 @@ window.onload = function() {
 		spacers[0].style.height = "30px";
 		//$$(".mainwindow")[0].paddingBottom = "10%";
 		$("window3").style.minWidth = "740px";
-		$("banner").style.minWidth = "735px";
-		$("welcome").style.minWidth = "695px";
+		$("banner").style.minWidth = "737px";
+		$("welcome").style.minWidth = "697px";
 		$("header").style.marginBottom = "0px";
-		$("header").style.paddingLeft = "10px";
+		$("header").style.paddingLeft = "12px";
 		$("header").style.width = "98%";
 		alert(BrowserDetect.version);
 		alert("test2");
