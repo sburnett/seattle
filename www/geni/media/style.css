@@ -65,6 +65,7 @@ img {
 
 #header {
 	margin-bottom: 5px;
+	min-width: 600px;
 }
 
 #welcome {
