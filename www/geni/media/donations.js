@@ -17,8 +17,8 @@ window.onload = function() {
 		var spacers = $$(".spacer");
 		spacers[0].remove();
 		spacers[1].remove();
-		$$(".mainwindow")[0].paddingBottom = "2%";
-		alert("here");
+		$$(".mainwindow")[0].paddingBottom = "10%";
+		alert("here2");
 		$("welcome").style.minWidth = "600px";
 	} else {
 		$("welcome").style.minWidth = "600px";
