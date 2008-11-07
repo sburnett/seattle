@@ -14,7 +14,9 @@ window.onload = function() {
 	} else {
 	}
 	if (BrowserDetect.browser == "Explorer") {
-		//$("table3").style.marginLeft = "0%";
+		var spacers = $$(".spacer");
+		spacers[0].remove();
+		spacers[1].remove();
 		$("welcome").style.minWidth = "600px";
 	} else {
 		$("welcome").style.minWidth = "600px";
