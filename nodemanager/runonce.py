@@ -20,7 +20,7 @@ import sys
 def stillhaveprocesslock(lockname):
   #print >> sys.stderr, 'Verifying we still have lock for '+lockname
   val =  getprocesslock(lockname) 
-  return val == os.getpid()
+  return val == os.getpid() or val == True
 
 def getprocesslock(lockname):
   ostype = platform.system()
@@ -165,6 +165,18 @@ def releaseprocesslockflock(lockname):
 
 ##### WINDOWS SECTION ##########
 
+try:
+  import windows_api
+  windowsAPI = windows_api
+except:
+  try:
+    import windows_ce_api
+    windowsAPI = windows_ce_api
+  except:
+    windowsAPI = None
+    pass
+  pass
+
 # NOTE: in Windows, only the current user can get the PID for their process.
 # This makes sense because only the current user should uninstall their code.
 
@@ -196,56 +208,54 @@ def openkey(basekey, keylist, write=False):
       return openkey(thisKey, keylist[1:], write)
         
 
+# How many milliseconds to wait to acquire mutex?
+WAIT_TIME = 200
+
 # return True on success, and either the pid of the locking process or False 
 # on failure.
 def getprocesslockmutex(lockname):
-  from win32event import CreateMutex
-  from win32api import GetLastError
-  from winerror import ERROR_ALREADY_EXISTS
   import _winreg
   regkeyname = r"runonce."+lockname
 
   # traverse registry path
   registrypath = ["SOFTWARE","UW","Seattle","1.0"]
 
-  # need to ensure that the mutexhandle is not garbage collected...
-  try:
-    mutexhandle[lockname] = CreateMutex(None, 1, 'Global\\runonce.'+lockname)
-  except Exception,e:
-    if e[0] == 5:
-      # NOTE: happens when the process is owned by another user
-      #Traceback (most recent call last):
-      #  File "b.py", line 7, in <module>
-      #      mhandle = CreateMutex(None, 1, 'Global\\runonce.'+lockname)
-      #      pywintypes.error: (5, 'CreateMutex', 'Access is denied.')
-     
-      # figure out where the lock is held
-      pass
-    else: 
-      raise
+  # locked, do we own the mutex?
+  locked = False
+
+  # Does a handle already exist?
+  if lockname in mutexhandle:
+    # Lets try to get ownership of it
+    locked = windowsAPI.acquireMutex(mutexhandle[lockname], WAIT_TIME)
   else:
-    if GetLastError() == ERROR_ALREADY_EXISTS:
-      # The lock is held, let's figure out where...
+    # Lets create the mutex, then get ownership
+    try:
+      mutexhandle[lockname] = windowsAPI.createMutex('Global\\runonce.'+lockname)
+      locked = windowsAPI.acquireMutex(mutexhandle[lockname], WAIT_TIME)
+    except windowsAPI.FailedMutex:
+      # By default, we don't have the lock, so its okay
       pass
-    else:
-      # Okay, it worked.   Now write something in the registry so others
-      # can find the PID
-      registryconn = _winreg.ConnectRegistry(None,_winreg.HKEY_CURRENT_USER)
-      
-      # get the place to write
-      thekey = openkey(registryconn, registrypath, write=True) 
 
-      try:
-        _winreg.SetValueEx(thekey,regkeyname,0, _winreg.REG_SZ, str(os.getpid()))
-      except EnvironmentError,e:                                          
-        print thekey, regkeyname, 0, _winreg.REG_SZ, os.getpid()
-        print "Encountered problems writing into the Registry..."+str(e)
-        raise
-       
-      _winreg.CloseKey(thekey)
-      _winreg.CloseKey(registryconn)
+  # We own it!
+  if locked:
+    # Okay, it worked.   Now write something in the registry so others
+    # can find the PID
+    registryconn = _winreg.ConnectRegistry(None,_winreg.HKEY_CURRENT_USER)
 
-      return True
+    # get the place to write
+    thekey = openkey(registryconn, registrypath, write=True) 
+
+    try:
+      _winreg.SetValueEx(thekey,regkeyname,0, _winreg.REG_SZ, str(os.getpid()))
+    except EnvironmentError,e:                                          
+      print thekey, regkeyname, 0, _winreg.REG_SZ, os.getpid()
+      print "Encountered problems writing into the Registry..."+str(e)
+      raise
+
+    _winreg.CloseKey(thekey)
+    _winreg.CloseKey(registryconn)
+
+    return True      
 
   # figure out the pid with the lock...
   registryconn = _winreg.ConnectRegistry(None,_winreg.HKEY_CURRENT_USER)
@@ -276,11 +286,13 @@ def getprocesslockmutex(lockname):
     _winreg.CloseKey(thekey)
     _winreg.CloseKey(registryconn)
 
-
-
-
+# Release a windows mutex
 def releaseprocesslockmutex(lockname):
+  # Does the handle exist?
   if lockname in mutexhandle:
-    from win32event import ReleaseMutex
-    ReleaseMutex(mutexhandle[lockname])
-    del mutexhandle[lockname]
+    try:
+      # Release the mutex
+      windowsAPI.releaseMutex(mutexhandle[lockname])
+    except windowsAPI.NonOwnedMutex, e:
+      # Its fine to release when we don't own, handle is not release on failure
+      pass
