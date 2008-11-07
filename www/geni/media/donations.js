@@ -24,8 +24,6 @@ window.onload = function() {
 		$("header").style.marginBottom = "0px";
 		$("header").style.paddingLeft = "12px";
 		$("header").style.width = "98%";
-		alert(BrowserDetect.version);
-		alert("test2");
 	} else {
 		$("welcome").style.minWidth = "600px";
 	}
