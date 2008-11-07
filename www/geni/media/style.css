@@ -131,14 +131,20 @@ ul li {
 
 #tabs1 {
 	min-width: 450px;
+	width: expression(document.body.clientWidth > 450?
+		   "100%" :"450px");
 }
 
 #tabs2 {
-	min-width: 703px;
+	min-width: 703px
+	width: expression(document.body.clientWidth > 703?
+		   "100%" :"703px");
 }
 
 #tabs3 {
 	min-width: 727px;
+	width: expression(document.body.clientWidth > 727?
+		   "100%" :"727px");
 }
 
 #Tabs {
@@ -214,7 +220,8 @@ th, td , tr{
 #window1 {
 	padding-top: 20px;
 	font-size: 18pt;
-	width: 80%;
+	width: expression(document.body.clientWidth > 450?
+		   "80%" :"450px");
 	height: 70%;
 	min-width: 450px;
 	margin-left: auto;
@@ -225,7 +232,8 @@ th, td , tr{
 }
 
 #window2 {
-	width: 80%;
+	width: width: expression(document.body.clientWidth > 735?
+		   "80%" :"735px");
 	height: 70%;
 	margin: 0px auto;
 	border: 1px solid black;
@@ -234,7 +242,8 @@ th, td , tr{
 }
 
 #window3 {
-	width: 80%;
+	width: expression(document.body.clientWidth > 703?
+		   "80%" :"703px");
 	height: 70%;
 	margin: 0px auto;
 	border: 1px solid black;
