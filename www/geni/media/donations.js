@@ -19,8 +19,8 @@ window.onload = function() {
 		spacers[0].style.height = "30px";
 		//$$(".mainwindow")[0].paddingBottom = "10%";
 		$("window3").style.minWidth = "740px";
-		$("banner").style.minWidth = "730px";
-		$("welcome").style.minWidth = "700px";
+		$("banner").style.minWidth = "720px";
+		$("welcome").style.minWidth = "680px";
 		$("header").style.marginBottom = "0px";
 		$("header").style.width = "98%";
 		alert(BrowserDetect.version);
