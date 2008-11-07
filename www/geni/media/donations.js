@@ -22,6 +22,8 @@ window.onload = function() {
 		$("header").style.marginBottom = "0px";
 		$("header").style.width = "expression(document.body.clientWidth <605? \"600px\" : \"98%\")";
 		$("banner").style.width = "expression(document.body.clientWidth <605? \"600px\" : \"100%\")";
+		$("banner").style.minWidth = "600px";
+		alert(BrowserDetect.version);
 		alert("test");
 	} else {
 		$("welcome").style.minWidth = "600px";
