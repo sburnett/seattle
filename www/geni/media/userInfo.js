@@ -7,7 +7,7 @@ window.onload = function() {
 		$("banner").style.minWidth = "450px";
 		$("welcome").style.minWidth = "340px";
 		$("header").style.marginBottom = "0px";
-		$("header").style.paddingLeft = "15px";
+		$("header").style.paddingLeft = "10px";
 		$("header").style.width = "98%";
 	}
 }
