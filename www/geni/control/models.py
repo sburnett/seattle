@@ -51,7 +51,7 @@ def release_resources(geni_user, resource_id, all):
             vesselname = r.vessel.name
             nodepubkey = r.vessel.donation.owner_pubkey
             nodeprivkey = r.vessel.donation.owner_privkey
-            success,msg = changeusers("", nmip, nmport, vesselname, nodepubkey, nodeprivkey)
+            success,msg = changeusers([""], nmip, nmport, vesselname, nodepubkey, nodeprivkey)
             if not success:
                 print msg
             r.delete()
@@ -71,10 +71,14 @@ def acquire_resources(geni_user, num, type):
         if int(type) == 1:
             filter_ips = "128.208.1."
         vessels = get_unacquired_vessels(filter_ips)            
-    
+
+        summary = ""
         if num > len(vessels):
             num = len(vessels)
             explanation += "No more nodes available (max %d)."%(num)
+            transaction.rollback()
+            summary += " No nodes available to acquire."
+            return False, explanation, summary
         else:
             explanation += "Attempted to acquire %d node(s) out of %d available."%(num,len(vessels))
             
@@ -93,20 +97,26 @@ def acquire_resources(geni_user, num, type):
             nodeprivkey = v.donation.owner_privkey
             # explanation += " %s:%s:%s - \n\n"%(nmip,nmport,vesselname)
             # explanation += "nodepubkey : %s<br>nodeprivkey: %s<br>"%(nodepubkey,nodeprivkey)
-            print "calling changeusers with: \npubkeystrlist %s\nnmip %s\nnmport %s\nvesselname %s\nnodepubkey %s\nnodeprivkey %s\n"%(userpubkeystringlist, nmip, nmport, vesselname, nodepubkey, nodeprivkey)
+            # explanation += "calling changeusers with: \npubkeystrlist %s\nnmip %s\nnmport %s\nvesselname %s\nnodepubkey %s\nnodeprivkey %s\n"%(userpubkeystringlist, nmip, nmport, vesselname, nodepubkey, nodeprivkey)
+            # explanation += " Acquiring %s:%s"%(nmip,nmport)
             success,msg = changeusers(userpubkeystringlist, nmip, nmport, vesselname, nodepubkey, nodeprivkey)
             if success:
                 acquired += 1
                 # create and save the new vmap entry
                 vmap = VesselMap(vessel = v, user = geni_user, expiration = "%s"%(expire_time))
                 vmap.save()
+            else:
+                explanation += " " + nmip + ":" + str(nmport) + " " + msg
+            #else:
+            #    explanation += msg
+            #    break
                 #explanation += " added, "
             #else:
             # explanation += "%s, "%(msg)
                 #num_failed += 1
             
         if (num - acquired) != 0:
-            explanation += "Failed to acquire %d node(s)."%(num-acquired)
+            summary += " Failed to acquire %d node(s)."%(num-acquired)
             
     except:
         # a hack to get the traceback information into a string by
@@ -118,13 +128,14 @@ def acquire_resources(geni_user, num, type):
         explanation += f.read()
         f.close()
         transaction.rollback()
-        return False, explanation
+        summary += " Failed to acquire node(s). Internal Error."
+        return False, explanation, summary
     else:
         transaction.commit()
         if acquired == 0:
-            return False, explanation
-        explanation += " Acquired %d node(s). "%(acquired)
-        return True,acquired,explanation
+            return False, explanation,summary
+        summary += " Acquired %d node(s). "%(acquired)
+        return True,acquired,explanation,summary
 
 class User(models.Model):
     # link GENI user to django user record which authenticates users

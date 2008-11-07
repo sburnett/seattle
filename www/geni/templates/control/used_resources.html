@@ -21,7 +21,12 @@
 						{% ifnotequal get_form None %}
 						<form method="POST" action="{% url get_resources %}">
 							<p>
-							  <font color="red">  {{ action_explanation }} </font><br>
+							  {% ifnotequal action_summary "" %}
+							  <font color="red">  {{ action_summary }} </font><br>
+							  {% endifnotequal %}
+							  {% ifnotequal action_explanation "" %}
+							  <font color="red">  Details: <br>{{ action_explanation }} </font><br>
+							  {% endifnotequal %}
 							  <font color="red">  {{ get_form.num.errors }}</font><br>
 							  <font color="red">  {{ get_form.env.errors }}</font><br>
 							  Number {{ get_form.num }}<br>

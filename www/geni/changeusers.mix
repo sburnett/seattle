@@ -32,16 +32,24 @@ def changeusers(userpubkeystringlist, nmip, nmport, vesselname, nodepubkeystring
     # this may fail because the vessel may not be started
     pass
 
+
   # set the users...
   try:
     nmclient_signedsay(nmhandle, "ChangeUsers", vesselname, '|'.join(userpubkeystringlist))
   except NMClientException, e:
     return False, "ChangeUsers failed: " + str(e)
 
-  try:
-    advertise.announce(rsa_string_to_publickey(userpubkeystringlist[0]), nmip+":"+str(nmport), 750)
-  except:
-    print "Exception raised calling advertise.announce"
+  # advertise if the keys exist
+  if userpubkeystringlist and userpubkeystringlist[0] != '':
+    try:
+      advertise.announce(rsa_string_to_publickey(userpubkeystringlist[0]), nmip+":"+str(nmport), 750)
+    except Exception, e:
+      pass
+# JAC: commented out while debugging...
+#  try:
+#    advertise.announce(rsa_string_to_publickey(userpubkeystringlist[0]), nmip+":"+str(nmport), 750)
+#  except:
+#    print "Exception raised calling advertise.announce"
 
   return True, "ok"
 

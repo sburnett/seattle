@@ -139,7 +139,7 @@ def gen_get_form(geni_user,req_post=None):
     return get_form
 
 @login_required()
-def used_resources(request,get_form=False,explanation="",explanation2=""):
+def used_resources(request,get_form=False,explanation="",explanation2="",summary=""):
     ret,success = __validate_guser__(request)
     if not success:
         return ret
@@ -152,7 +152,7 @@ def used_resources(request,get_form=False,explanation="",explanation2=""):
     my_vessels = VesselMap.objects.filter(user = geni_user)
     #if explanation == "":
     #    explanation = "HELLO"
-    return direct_to_template(request,'control/used_resources.html', {'geni_user' : geni_user, 'num_vessels' : len(my_vessels), 'my_vessels' : my_vessels, 'sh_vessels' : shvessels, 'get_form' : get_form, 'action_explanation' : explanation, 'remove_explanation' : explanation2})
+    return direct_to_template(request,'control/used_resources.html', {'geni_user' : geni_user, 'num_vessels' : len(my_vessels), 'my_vessels' : my_vessels, 'sh_vessels' : shvessels, 'get_form' : get_form, 'action_explanation' : explanation, 'remove_explanation' : explanation2, "action_summary" : summary})
 
 @login_required()
 def del_resource(request):
@@ -207,11 +207,10 @@ def get_resources(request):
         explanation = get_form.cleaned_data['env']
         ret = acquire_resources(geni_user, int(get_form.cleaned_data['num']), get_form.cleaned_data['env'])
         if ret[0] is True:
-            num_acquired = ret[1]
-            explanation = ret[2]
+            dummy,num_acquired,explanation,summary = ret
         else:
-            explanation = ret[1]
-    return used_resources(request,get_form,explanation=explanation)
+            dummy,explanation,summary = ret
+    return used_resources(request,get_form,explanation=explanation,summary=summary)
 
 #######################################################
     

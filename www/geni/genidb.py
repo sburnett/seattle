@@ -114,7 +114,7 @@ def add_node_vessels(node,newstatus,vlist,vextra):
         # handle the extra (leftover) vessel
         vextra_rec = Vessel(donation = node,
                             name = vextra[0],
-                            status = 'Intialized',
+                            status = 'Initialized',
                             extra_vessel = True)
         vextra_rec.save()
         # create the vessel->port mapping for all ports assigned to this vessel
