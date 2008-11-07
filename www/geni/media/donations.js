@@ -14,9 +14,7 @@ window.onload = function() {
 	} else {
 	}
 	if (BrowserDetect.browser == "Explorer") {
-		var notices = $$(".notices");
 		$("table3").style.marginLeft = "0%";
-		var parent = $("installerLink").parentNode;	
 		$("welcome").style.minWidth = "600px";
 	} else {
 		$("welcome").style.minWidth = "600px";
