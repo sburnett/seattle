@@ -15,9 +15,9 @@ window.onload = function() {
 	}
 	if (BrowserDetect.browser == "Explorer") {
 		var spacers = $$(".spacer");
-		spacers[0].style.height = "40px";
+		spacers[0].style.height = "30px";
 		//$$(".mainwindow")[0].paddingBottom = "10%";
-		$("window3").style.minWidth = "715px";
+		$("window3").style.minWidth = "740px";
 		$("welcome").style.minWidth = "600px";
 	} else {
 		$("welcome").style.minWidth = "600px";
@@ -27,7 +27,6 @@ window.onload = function() {
 	$("maximizer1").textContent = count1 + " Machines Donated (click to expand)";
 	$("maximizer2").textContent = count2 + " Machines Donated (click to expand)";
 	$("maximizer3").textContent = count3 + " Shares (click to expand)";
-	
 	try { if(!maximizer3.innerText) maximizer3.innerText = maximizer3.textContent; } catch(e) {}
 	try { if(!maximizer1.innerText) maximizer1.innerText = maximizer1.textContent; } catch(e) {}
 	try { if(!maximizer2.innerText) maximizer2.innerText = maximizer2.textContent; } catch(e) {}
