@@ -129,6 +129,10 @@ ul li {
 	margin-bottom: 5px;
 }
 
+#tabs1 {
+	min-width: 450px;
+}
+
 #tabs2 {
 	min-width: 703px;
 }
