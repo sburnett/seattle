@@ -17,7 +17,6 @@ window.onload = function() {
 		var spacers = $$(".spacer");
 		spacers[0].style.height = "70px";
 		//$$(".mainwindow")[0].paddingBottom = "10%";
-		alert("here13");
 		$("welcome").style.minWidth = "600px";
 	} else {
 		$("welcome").style.minWidth = "600px";
