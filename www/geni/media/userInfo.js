@@ -5,7 +5,7 @@ window.onload = function() {
 	if (BrowserDetect.browser == "Explorer") {
 		$("header").style.marginBottom = "0px";
 		$("banner").style.minWidth = "450px";
-		$("welcome").style.minWidth = "345px";
+		$("welcome").style.minWidth = "340px";
 		$("header").style.marginBottom = "0px";
 		$("header").style.paddingLeft = "15px";
 		$("header").style.width = "98%";
