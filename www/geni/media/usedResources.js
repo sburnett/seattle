@@ -1,6 +1,7 @@
 window.onload = function() {
-	$("welcome").style.minWidth = "687px";
-	$("banner").style.minWidth = "727px";
+	$("welcome").style.minWidth = "682px";
+	$("banner").style.minWidth = "835px";
+	$("header").style.minWidth = "735px";
 	if (BrowserDetect.browser == "Explorer") {
 		var spacers = $$(".spacer");
 		spacers[0].style.height = "150px";
