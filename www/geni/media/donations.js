@@ -20,6 +20,7 @@ window.onload = function() {
 		$("window3").style.minWidth = "740px";
 		$("welcome").style.minWidth = "600px";
 		$("header").style.marginBottom = "0px";
+		$("header").style.paddingLeft = "0px";
 	} else {
 		$("welcome").style.minWidth = "600px";
 	}
