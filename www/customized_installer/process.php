@@ -42,7 +42,7 @@ if (isset($_POST)) {
 		//file_put_contents("h2","");
                 exec("python $vesselinfopy $dl_prefix/vesselsinfo.txt $dl_prefix/vesselsinfo/");
 		//file_put_contents("h3","");
-                exec("python $carter_script mlw $dl_prefix/vesselsinfo $dl_prefix/");
+                exec("cd $dl_prefix/tmp/ && python $carter_script mlw $dl_prefix/vesselsinfo $dl_prefix/ > /tmp/carter.out.php 2> /tmp/carter.err.php");
 		//file_put_contents("h4","");
 		exec("zip -j $dl_prefix/private.zip $dl_prefix/*.privatekey");
 		//file_put_contents("h5","");
