@@ -13,7 +13,7 @@ window.onload = function() {
 		$("linux").src = "/geni/media/midlinux.jpg";
 	} else {
 	}
-	$("banner").style.minWidth = "600px";
+	$("banner").style.minWidth = "700px";
 	if (BrowserDetect.browser == "Explorer") {
 		var spacers = $$(".spacer");
 		spacers[0].style.height = "30px";
