@@ -46,9 +46,7 @@ img {
 	text-align: center;
 }
 
-#Log-In-Table {
-	s
-	
+#Log-In-Table {		
 }
 
 #table3 {
@@ -66,6 +64,8 @@ img {
 #header {
 	margin-bottom: 5px;
 	min-width: 600px;
+	width: expression(document.body.clientWidth > 600?
+		   "100%" :"600px");
 }
 
 #welcome {
@@ -136,7 +136,7 @@ ul li {
 }
 
 #tabs2 {
-	min-width: 703px
+	min-width: 703px;
 	width: expression(document.body.clientWidth > 703?
 		   "100%" :"703px");
 }
