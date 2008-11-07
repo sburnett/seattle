@@ -15,7 +15,7 @@ window.onload = function() {
 	}
 	if (BrowserDetect.browser == "Explorer") {
 		var spacers = $$(".spacer");
-		spacers[0].style.height = "50px";
+		spacers[0].style.height = "100px";
 		//$$(".mainwindow")[0].paddingBottom = "10%";
 		alert("here11");
 		$("welcome").style.minWidth = "600px";
