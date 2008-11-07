@@ -22,7 +22,7 @@ window.onload = function() {
 		$("banner").style.minWidth = "735px";
 		$("welcome").style.minWidth = "695px";
 		$("header").style.marginBottom = "0px";
-		$("header").style.paddingLeft = "0px";
+		$("header").style.paddingLeft = "10px";
 		$("header").style.width = "98%";
 		alert(BrowserDetect.version);
 		alert("test2");
