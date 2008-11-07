@@ -13,6 +13,7 @@ window.onload = function() {
 		$("linux").src = "/geni/media/midlinux.jpg";
 	} else {
 	}
+	$("banner").style.minWidth = "600px";
 	if (BrowserDetect.browser == "Explorer") {
 		var spacers = $$(".spacer");
 		spacers[0].style.height = "30px";
@@ -20,9 +21,8 @@ window.onload = function() {
 		$("window3").style.minWidth = "740px";
 		$("welcome").style.minWidth = "600px";
 		$("header").style.marginBottom = "0px";
-		$("header").style.width = "expression(document.body.clientWidth <605? \"600px\" : \"98%\")";
-		$("banner").style.width = "expression(document.body.clientWidth <605? \"600px\" : \"100%\")";
-		$("banner").style.minWidth = "600px";
+		//$("header").style.width = "expression(document.body.clientWidth <605? \"600px\" : \"98%\")";
+		//$("banner").style.width = "expression(document.body.clientWidth <605? \"600px\" : \"100%\")";
 		alert(BrowserDetect.version);
 		alert("test");
 	} else {
