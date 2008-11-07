@@ -14,7 +14,7 @@ window.onload = function() {
 	} else {
 	}
 	if (BrowserDetect.browser == "Explorer") {
-		$("table3").style.marginLeft = "0%";
+		//$("table3").style.marginLeft = "0%";
 		$("welcome").style.minWidth = "600px";
 	} else {
 		$("welcome").style.minWidth = "600px";
