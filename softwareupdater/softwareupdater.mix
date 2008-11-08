@@ -414,11 +414,19 @@ def restart_software_updater():
 
 
 def restart_client(filenamelist):
-  # create a stop file
-  clientfo = file("client.stop","w")
-  for filename in filenamelist:
-    print >> clientfo, filename
-  clientfo.close()
+  # kill nmmain if it is currently running
+  retval = runonce.getprocesslock('seattlenodemanager')
+  if retval == True:
+    # I got the lock, it wasn't running...
+    # we want to start a new one, so lets release
+    runonce.releaseprocesslock('seattlenodemanager')
+  elif retval == False:
+    # Someone has the lock, but I can't do anything...
+    sys.stderr.write("The lock 'seattlenodemanager' is held by an unknown process")
+  else:
+    # I know the process ID!   Let's stop the process...
+    nonportable.portablekill(retval)
+  
 
   # run the node manager.   I rely on it to do the smart thing (handle multiple
   # instances, etc.)
@@ -456,15 +464,18 @@ def main():
   while True:
 #    sys.stderr.write('Before main sleep')
     # sleep for 5-55 minutes 
-    do_sleep(1800+random.randint(-1500,1500))
+    for junk in range(random.randint(10, 110)):
+      # We need to wake up every 30 seconds otherwise we will take
+      # the full 5-55 minutes before we die when someone tries to
+      # kill us nicely.
+      do_sleep(30)
+      # Make sure we still have the process lock.
+      # If not, we should exit
+      if not runonce.stillhaveprocesslock('softwareupdater.old'):
+        sys.stderr.write('We no longer have the processlock\n')
+        sys.exit(55)
 
 #    sys.stderr('After main sleep')
-
-    # Make sure we still have the process lock.
-    # If not, we should exit
-    if not runonce.stillhaveprocesslock('softwareupdater.old'):
-      sys.stderr.write('We no longer have the processlock\n')
-      sys.exit(55)
 
     # where I'll put files...
     tempdir = tempfile.mkdtemp()+"/"
