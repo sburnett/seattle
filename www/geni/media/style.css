@@ -227,11 +227,11 @@ th, td , tr{
 }
 
 #window2 {
-	width: expression(IE6MinWidth(this,760));
+	width: expression(IE6MinWidth(this,770));
 	height: 70%;
 	margin: 0px auto;
 	border: 1px solid black;
-	min-width: 760px;
+	min-width: 770px;
 	background-color: #FFFFCC;
 }
 
