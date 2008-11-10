@@ -25,7 +25,7 @@ function RemoveUnits(txt) {
 function IE6MinWidth( el, size ){
 	var max = (this.IE6MaxWidth ? this.IE6MaxWidth : this.IE6MaxWidth = RemoveUnits(el.currentStyle.paddingLeft) + RemoveUnits(el.currentStyle.marginLeft) + RemoveUnits(el.currentStyle.borderLeftWidth) + size + 1);
 	if (document.documentElement.clientWidth > max) {
-		return "90%";
+		return "auto";
 	} else {
 		return size+"px";
 	}
