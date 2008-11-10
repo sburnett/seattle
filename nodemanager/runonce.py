@@ -67,6 +67,11 @@ def releaseprocesslock(lockname):
 # failure
 oldfiledesc = {}
 
+# BUG FIX:   sometimes the PID is shorter than others.   Notice, I don't
+# truncate the file, so I need to ensure I overwrite the digits of a  pid 
+# that could be more digits than mine...
+pidendpadding = "      "
+
 # this works on a smattering of systems...
 def getprocesslocko_exlock(lockname):
   # the file we'll use
@@ -75,7 +80,9 @@ def getprocesslocko_exlock(lockname):
   try:
     fd = os.open(lockfn,os.O_CREAT | os.O_RDWR | os.O_EXLOCK | os.O_NONBLOCK)
     #print >> sys.stderr, 'o_exlock get file descriptor == '+str(fd)
-    os.write(fd,str(os.getpid()))
+
+    # See above (under definition of pidendpadding) about why this is here...
+    os.write(fd,str(os.getpid())+pidendpadding)
     #print >> sys.stderr, 'wrote pid('+str(os.getpid())+') to o_exlock file'
     if lockname in oldfiledesc:
       os.close(oldfiledesc[lockname])
@@ -119,7 +126,8 @@ def getprocesslockflock(lockname):
     try:
       import fcntl
       fcntl.flock(fd,fcntl.LOCK_EX | fcntl.LOCK_NB)
-      os.write(fd,str(os.getpid()))
+      # See above (under definition of pidendpadding) about why this is here...
+      os.write(fd,str(os.getpid())+pidendpadding)
       #print >> sys.stderr, 'wrote pid ('+str(os.getpid())+') to flocked file'
       if lockname in oldfiledesc:
         os.close(oldfiledesc[lockname])
