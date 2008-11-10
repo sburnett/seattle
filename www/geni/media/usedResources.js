@@ -15,6 +15,22 @@ window.onload = function() {
 	}
 }
 
+/*Function used by the CSS to make a hack workaround for min-width that works properly in IE*/
+function RemoveUnits(txt) {
+	var temp = txt.replace(/px|cm|pt|em|en|auto/,'');
+	return isNaN(temp) ? 0 : parseInt( temp );
+}
+
+/*Function used by the CSS to make a hack workaround for min-width that works properly in IE*/
+IE6MinWidth( el, size ){
+	var max = (this.IE6MaxWidth ? this.IE6MaxWidth : this.IE6MaxWidth = RemoveUnits(el.currentStyle.paddingLeft) + RemoveUnits(el.currentStyle.marginLeft) + RemoveUnits(el.currentStyle.borderLeftWidth) + size + 1);
+	if (document.documentElement.clientWidth > max) {
+		return "auto";
+	} else {
+		return size+"px";
+	}
+}
+
 /*Free online downloaded script that can return OS, Browser Name, and Browser Version, used for browser compatibility purposes*/
 var BrowserDetect = {
 	init: function () {
