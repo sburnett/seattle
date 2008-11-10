@@ -1,13 +1,13 @@
 window.onload = function() {
-	$("welcome").style.minWidth = "582px";
-	$("banner").style.minWidth = "755px";
+	$("welcome").style.minWidth = "592px";
+	$("banner").style.minWidth = "765px";
 	$("header").style.minWidth = "615px";
 	if (BrowserDetect.browser == "Explorer") {
 		var spacers = $$(".spacer");
 		spacers[0].style.height = "150px";
-		$("welcome").style.minWidth = "780px";
+		$("welcome").style.minWidth = "760px";
 		$("header").style.marginBottom = "0px";
-		$("banner").style.minWidth = "820px";
+		$("banner").style.minWidth = "800px";
 		$("header").style.marginBottom = "0px";
 		$("header").style.paddingLeft = "15px";
 		$("header").style.width = "98%";
