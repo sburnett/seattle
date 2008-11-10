@@ -11,6 +11,7 @@ window.onload = function() {
 		$("header").style.marginBottom = "0px";
 		$("header").style.paddingLeft = "15px";
 		$("header").style.width = "98%";
+		$("header").style.minWidth = "600px";
 		$("window2").style.minWidth = "770px";
 	}
 	if (BrowserDetect.browser == "Konqueror") {
