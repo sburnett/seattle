@@ -13,6 +13,9 @@ window.onload = function() {
 		$("header").style.width = "98%";
 		$("window2").style.minWidth = "770px";
 	}
+	if (BrowserDetect.browser == "Konqueror") {
+		$$("body")[0].style.fontSize = "10px";
+	}
 }
 
 /*Function used by the CSS to make a hack workaround for min-width that works properly in IE*/
