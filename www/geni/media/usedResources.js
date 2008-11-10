@@ -22,7 +22,7 @@ function RemoveUnits(txt) {
 }
 
 /*Function used by the CSS to make a hack workaround for min-width that works properly in IE*/
-IE6MinWidth( el, size ){
+function IE6MinWidth( el, size ){
 	var max = (this.IE6MaxWidth ? this.IE6MaxWidth : this.IE6MaxWidth = RemoveUnits(el.currentStyle.paddingLeft) + RemoveUnits(el.currentStyle.marginLeft) + RemoveUnits(el.currentStyle.borderLeftWidth) + size + 1);
 	if (document.documentElement.clientWidth > max) {
 		return "auto";
