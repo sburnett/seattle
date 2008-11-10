@@ -5,9 +5,9 @@ window.onload = function() {
 	if (BrowserDetect.browser == "Explorer") {
 		var spacers = $$(".spacer");
 		spacers[0].style.height = "150px";
-		$("welcome").style.minWidth = "800px";
+		$("welcome").style.minWidth = "780px";
 		$("header").style.marginBottom = "0px";
-		$("banner").style.minWidth = "840px";
+		$("banner").style.minWidth = "820px";
 		$("header").style.marginBottom = "0px";
 		$("header").style.paddingLeft = "15px";
 		$("header").style.width = "98%";
