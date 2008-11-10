@@ -227,7 +227,7 @@ th, td , tr{
 }
 
 #window2 {
-	width: expression(document.body.clientWidth <740? "735px" : "80%");
+	width: expression(IE6MinWidth(this,500));
 	height: 70%;
 	margin: 0px auto;
 	border: 1px solid black;
@@ -236,7 +236,7 @@ th, td , tr{
 }
 
 #window3 {
-	width: expression(document.body.clientWidth <708? "703px" : "80%");
+	width: expression(IE6MinWidth(this,500));
 	height: 70%;
 	margin: 0px auto;
 	border: 1px solid black;
