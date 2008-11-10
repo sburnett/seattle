@@ -64,7 +64,7 @@ img {
 #header {
 	margin-bottom: 5px;
 	min-width: 600px;
-	width: expression(document.body.clientWidth <605? "600px" : "100%");
+	width: expression(IE6MinWidth(this,600));;
 }
 
 #welcome {
@@ -130,17 +130,17 @@ ul li {
 
 #tabs1 {
 	min-width: 450px;
-	width: expression(document.body.clientWidth <455? "450px" : "100%");
+	width: expression(IE6MinWidth(this,450));;
 }
 
 #tabs2 {
 	min-width: 703px;
-	width: expression(document.body.clientWidth <708? "703px" : "100%");
+	width: expression(IE6MinWidth(this,703));;
 }
 
 #tabs3 {
 	min-width: 727px;
-	width: expression(document.body.clientWidth <732? "727px" : "100%");
+	width: expression(IE6MinWidth(this,727));
 }
 
 #Tabs {
