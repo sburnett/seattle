@@ -86,7 +86,7 @@ decreaseamount = .5
 # BUG: what if the data on disk is corrupt?   How do I recover?   What is the
 # "right thing"?   I could run nminit again...   Is this the "right thing"?
 
-version = "0.1a"
+version = "0.1b"
 
 # Our settings
 configuration = {}
