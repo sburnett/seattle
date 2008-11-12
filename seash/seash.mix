@@ -34,6 +34,10 @@ include time.repy
 
 include rsa.repy
 
+include listops.repy
+
+include parallelize.repy
+
 import traceback
 
 import advertise            #  used to do OpenDHT lookups
@@ -57,41 +61,6 @@ class UserError(Exception):
 
 
 
-
-# return a - b (set difference).   
-def difference(a,b):
-  retlist = []
-  for item in a:
-    if item not in b:
-      retlist.append(item)
-
-  return retlist
-
-
-def union(a,b):
-  retlist = a[:]
-  for item in b: 
-    if item not in a:
-      retlist.append(item)
-
-  return retlist
-
-
-def intersect(a,b):
-  retlist = []
-  for item in a:
-    if item in b:
-      retlist.append(item)
-
-  return retlist
-      
-
-def uniq(a):
-  retlist = []
-  for item in a:
-    if item not in retlist:
-      retlist.append(item)
-  return retlist
 
 
 def is_immutable_targetname(targetname):
@@ -200,82 +169,32 @@ def find_handle_for_node(nodename):
 
 #################### functions that operate on a target
 
-class ContactWorkerThread(threading.Thread):
-  """
-    <Purpose> 
-      This class represents a thread instance that will contact nodes in an
-      attempt to parallelize node contact / access.
-
-    <Side Effects>
-      Starts a thread when called.   Terminates on its own.
- 
-    <Usage>
-  """
-
-  # the dictionary we write the answers to...
-  retdict = None
-  # where we read pending requests from
-  inputqueue = None
-  # Our thread number (used to access the status dict)
-  threadnumber = None
-  # How we signal we are finished...
-  statusdict = None
-  # The user function to call
-  func = None
-
-  def __init__(self, s, t, r, i, f, *a):
-    self.statusdict = s
-    self.threadnumber = t
-    self.retdict = r
-    self.inputqueue = i
-    self.func = f
-    self.args = a
-    threading.Thread.__init__(self,name="ContactWorkerThread"+str(self.threadnumber))
-
-  def run(self):
-
-    try:
-      while True:
-        try:
-          mytarget = self.inputqueue.pop()
-        except IndexError:
-          # no more items left, let's stop
-          return
-
-        # parse this item
-        self.retdict[mytarget] = self.func(mytarget,*self.args)
-    finally:
-      del self.statusdict[self.threadnumber]
-
-      
 MAX_CONTACT_WORKER_THREAD_COUNT = 10
 
 
 # This function abstracts out contacting different nodes.   It spawns off 
 # multiple worker threads to handle the clients...
 # by a threaded model in the future...
-# NOTE: entries in targetlist _must_ be unique!
+# NOTE: entries in targetlist are assumed by me to be unique
 def contact_targets(targetlist, func,*args):
   
-  # I need to do this because the threads modify this list and I don't want to 
-  # alter the caller's list (they may not expect it)
-  thetargets = targetlist[:]
+  phandle = parallelize_initfunction(targetlist, func, MAX_CONTACT_WORKER_THREAD_COUNT, *args)
 
-  # don't start more threads than there are targets (duh!)
-  threads_to_start = min(MAX_CONTACT_WORKER_THREAD_COUNT, len(thetargets))
- 
-  # the returned data
-  retdict = {}
-  # this lets me know where the threads are at...
-  statusdict = {}
-  for num in range(threads_to_start):
-    statusdict[num] = True
-    ContactWorkerThread(statusdict, num, retdict, thetargets, func, *args).start()
-
-  
-  # wait for the threads to all finish...
-  while statusdict:
+  while not parallelize_isfunctionfinished(phandle):
     sleep(.1)
+  
+  # I'm going to change the format slightly...
+  resultdict = parallelize_getresults(phandle)
+
+  # There really shouldn't be any exceptions in any of the routines...
+  if resultdict['exception']:
+    print "WARNING: ",resultdict['exception']
+
+  # I'm going to convert the format to be targetname (as the key) and 
+  # a value with the return value...
+  retdict = {}
+  for nameandretval in resultdict['returned']:
+    retdict[nameandretval[0]] = nameandretval[1]
 
   return retdict
     
@@ -740,6 +659,7 @@ show keys       -- Display the known keys
 show log        -- Display the log from the node (*)
 show resources  -- Display the resources / restrictions for the vessel (*)
 show offcut     -- Display the offcut resource for the node (*)
+show ip         -- Display the ip addresses of the nodes
 
 (*) No need to update prior, the command contacts the nodes anew
 """
@@ -966,7 +886,7 @@ update             -- Update information about the vessels
 
           
           # we should only visit a node once...
-          nodelist = uniq(longnamelist_to_nodelist(targets[currenttarget]))
+          nodelist = listops_uniq(longnamelist_to_nodelist(targets[currenttarget]))
           retdict = contact_targets(nodelist, showoffcut_target)
 
           for nodename in retdict:
@@ -977,6 +897,28 @@ update             -- Update information about the vessels
               print "failure:",retdict[nodename][1]
   
           continue
+
+
+
+# show ip         -- Display the ip addresses of the nodes
+        # catch a misspelling
+        elif userinputlist[1] == 'ip' or userinputlist[1] == 'ips':
+
+          if not currenttarget:
+            raise UserError("Error, command requires a target")
+
+          
+          # we should only visit a node once...
+          printedIPlist = []
+          for longname in targets[currenttarget]:
+            thisnodeIP = vesselinfo[longname]['IP']
+
+            if thisnodeIP not in printedIPlist:
+              printedIPlist.append(thisnodeIP)
+              print thisnodeIP
+  
+          continue
+
 
 
 
@@ -1029,7 +971,7 @@ update             -- Update information about the vessels
           raise UserError("Can't modify the contents of '"+dest+"'")
 
         # source - dest has what we should add (items in source but not dest)
-        addlist = difference(targets[source],targets[dest])
+        addlist = listops_difference(targets[source],targets[dest])
         if len(addlist) == 0:
           raise UserError("No targets to add (the target is already in '"+dest+"')")
         
@@ -1074,7 +1016,7 @@ update             -- Update information about the vessels
           raise UserError("Can't modify the contents of '"+dest+"'")
 
         # find the items to remove (the items in both dest and source)
-        removelist = intersect(targets[dest],targets[source])
+        removelist = listops_intersect(targets[dest],targets[source])
         if len(removelist) == 0:
           raise UserError("No targets to remove (no items from '"+source+"' are in '"+dest+"')")
 
@@ -1116,11 +1058,11 @@ update             -- Update information about the vessels
         if is_immutable_targetname(dest):
           raise UserError( "Can't modify the contents of '"+dest+"'")
 
-        removelist = intersect(targets[source], targets[moving])
+        removelist = listops_intersect(targets[source], targets[moving])
         if len(removelist) == 0:
           raise UserError("Error, '"+moving+"' is not in '"+source+"'")
 
-        addlist = difference(removelist, targets[dest])
+        addlist = listops_difference(removelist, targets[dest])
         if len(addlist) == 0:
           raise UserError("Error, the common items between '"+source+"' and '"+moving+"' are already in '"+dest+"'")
 
