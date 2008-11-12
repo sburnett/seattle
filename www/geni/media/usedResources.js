@@ -15,7 +15,8 @@ window.onload = function() {
 		$("window2").style.minWidth = "770px";
 	}
 	if (BrowserDetect.browser == "Konqueror") {
-		$$("body")[0].style.fontSize = "10px";
+		alert("hi");
+		$$("body")[0].style.fontSize = "8px";
 	}
 }
 

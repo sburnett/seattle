@@ -10,6 +10,10 @@ window.onload = function() {
 		$("header").style.paddingLeft = "10px";
 		$("header").style.width = "98%";
 	}
+	if (BrowserDetect.browser == "Konqueror") {
+		alert("hi");
+		$$("body")[0].style.fontSize = "8px";
+	}
 }
 
 /*Function used by the CSS to make a hack workaround for min-width that works properly in IE*/

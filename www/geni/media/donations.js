@@ -27,6 +27,10 @@ window.onload = function() {
 	} else {
 		$("welcome").style.minWidth = "600px";
 	}
+	if (BrowserDetect.browser == "Konqueror") {
+		alert("hi");
+		$$("body")[0].style.fontSize = "8px";
+	}
 	//$("checkAll").onclick = checkAll;
 	var count = tally();
 	$("maximizer1").textContent = count1 + " Machines Donated (click to expand)";
