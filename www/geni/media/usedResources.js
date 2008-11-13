@@ -19,7 +19,7 @@ window.onload = function() {
 		$$("body")[0].style.fontSize = "10pt";
 		$$(".compressed-side-window")[0].style.fontSize = "8pt";
 		$$(".donation_table")[0].style.fontSize = "8pt";
-		$("window2").style.minWidth = "900px";
+		$("window2").style.minWidth = "1100px";
 	}
 }
 
