@@ -17,7 +17,7 @@ window.onload = function() {
 	if (BrowserDetect.browser == "Konqueror") {
 		$$("body")[0].style.fontSize = "10pt";
 		$$(".compressed-side-window")[0].style.fontSize = "8pt";
-		$$(".donation_table")[0].style.fontSize = "8pt";
+		$$(".donation_table")[0].style.fontSize = "4pt";
 		$("window2").style.width = "1000px";
 	}
 }
