@@ -5,10 +5,11 @@ import random
 
 lockname = "seattletestlock"
 
+runonce.getprocesslock(str(os.getpid()))
+
 print "my process id is:"+str(os.getpid())
 retval = runonce.getprocesslock(lockname)
 
-retval = runonce.getprocesslock(str(os.getpid()))
 
 if retval == True:
   print "I have the mutex"
