@@ -37,17 +37,21 @@ if (isset($_POST)) {
 			unset($user);
 		}
 		Unset($vessel);
-		//file_put_contents("h1","");
+		file_put_contents("h1","");
                 file_put_contents("$dl_prefix/vesselsinfo.txt", outputVesselsInfo($vessels));
-		//file_put_contents("h2","");
+		file_put_contents("h2","");
                 exec("python $vesselinfopy $dl_prefix/vesselsinfo.txt $dl_prefix/vesselsinfo/");
-		//file_put_contents("h3","");
-                exec("cd $dl_prefix/tmp/ && python $carter_script mlw $dl_prefix/vesselsinfo $dl_prefix/ > /tmp/carter.out.php 2> /tmp/carter.err.php");
-		//file_put_contents("h4","");
+
+		//$cmd = 
+		file_put_contents("h3","cd $dl_prefix/ && python $carter_script mlw $dl_prefix/vesselsinfo $dl_prefix/ > /tmp/carter.out.php 2> /tmp/carter.err.php");
+                exec("mkdir $dl_prefix/tmp/");
+		exec("cd $dl_prefix/ && python $carter_script mlw $dl_prefix/vesselsinfo $dl_prefix/ > /tmp/carter.out.php 2> /tmp/carter.err.php");
+		
+		file_put_contents("h4","");
 		exec("zip -j $dl_prefix/private.zip $dl_prefix/*.privatekey");
-		//file_put_contents("h5","");
+		file_put_contents("h5","");
 		exec("zip -j $dl_prefix/public.zip $dl_prefix/*.publickey");
-		//file_put_contents("h6","");
+		file_put_contents("h6","");
                 //exec("cp $dl_prefix/seattle_linux.tgz $dl_prefix/seattle_mac.tgz");
 	}
 	 /* else if ($_POST['action'] == 'resetform') { */

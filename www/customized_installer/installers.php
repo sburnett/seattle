@@ -64,7 +64,7 @@ Installer download Page for Research Project
 							<li>Navigate to that directory and run ./install.sh (or python install.py).</li>
 						</ol>
 						<br />
-						To check that Seattle is running, try running: ps aww | grep nmmain.py | grep -v grep
+						To check that Seattle is running, try running: ps Aww | grep nmmain.py | grep -v grep
 					</td> 
 					<td>
 						<p>Instructions:</p>
