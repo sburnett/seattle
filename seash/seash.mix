@@ -406,7 +406,7 @@ def run_target(longname,filename,filedata, argstring):
 
 
 # didn't test...
-def split_target(longname):
+def split_target(longname, resourcedata):
   vesselname = vesselinfo[longname]['vesselname']
   try:
     newvesselnames = nmclient_signedsay(vesselinfo[longname]['handle'], "SplitVessel", vesselname, resourcedata)
@@ -416,8 +416,6 @@ def split_target(longname):
     newname1 = copy_vessel(longname, newvesselnames.split()[0])
     newname2 = copy_vessel(longname, newvesselnames.split()[1])
     delete_vessel(longname)
-    goodlist1.append(newname1)
-    goodlist2.append(newname2)
     return (True,(newname1,newname2))
 
 
@@ -1711,7 +1709,7 @@ update             -- Update information about the vessels
         goodlist1 = []
         goodlist2 = []
 
-        retdict = contact_targets(targets[currenttarget],split_target)
+        retdict = contact_targets(targets[currenttarget],split_target,resourcedata)
 
         for longname in retdict:
           if retdict[longname][0]:
