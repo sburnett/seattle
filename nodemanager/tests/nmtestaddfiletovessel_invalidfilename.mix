@@ -1,3 +1,9 @@
+"""
+Description:
+This test verifies the AddFileToVessel method throws an exception when passing in a string string containing invalid path characters (/) as the filename.
+
+"""
+
 include time.repy
 include nmclient.repy
 include rsa.repy

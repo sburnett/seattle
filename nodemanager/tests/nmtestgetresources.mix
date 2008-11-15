@@ -1,3 +1,9 @@
+"""
+Description:
+This test verifies teh GetResources method does not throw an exception when called with valid parameters.
+
+"""
+
 include nmclient.repy
 
 if callfunc == 'initialize':

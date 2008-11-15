@@ -1,3 +1,7 @@
+"""
+Description:
+This test verifies the ReadVesslelLog by making several method calls, and checking if the ReadVesselLog output contains the expected entries.
+"""
 include time.repy
 include nmclient.repy
 

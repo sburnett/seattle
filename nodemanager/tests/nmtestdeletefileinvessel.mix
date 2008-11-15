@@ -1,3 +1,9 @@
+"""
+Description:
+This test verifies the DeleteFileInVessel method by adding a file, deleting it, and verifies the file no longer exists.
+
+"""
+
 include time.repy
 include nmclient.repy
 include rsa.repy

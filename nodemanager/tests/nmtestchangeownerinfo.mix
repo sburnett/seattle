@@ -1,3 +1,8 @@
+"""
+Description:
+This test verifies the ChangeOwnerInformation method by calling the method and passing in a string.
+"""
+
 include time.repy
 include nmclient.repy
 

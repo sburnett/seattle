@@ -1,3 +1,9 @@
+"""
+Description:
+This test verifies the ChangeOwner method by changing the owner credentials and verifying that the old credentials no longer work.
+
+"""
+
 include time.repy
 include nmclient.repy
 include rsa.repy

@@ -1,3 +1,7 @@
+"""
+Description:
+This test attempts to use the nmclient_rawsay method, but passes in an empty method name.
+"""
 include nmclient.repy
 
 if callfunc == 'initialize':

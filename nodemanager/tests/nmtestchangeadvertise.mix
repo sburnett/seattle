@@ -1,3 +1,9 @@
+"""
+Description:
+This test verifies the ChangeAdvertise method cy calling it and then verifying if the advertise status was changed.
+
+"""
+
 include time.repy
 include nmclient.repy
 

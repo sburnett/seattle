@@ -1,3 +1,7 @@
+"""
+Description:
+This test attempts to use the nmclient_signedsay method, but passes in an invalid method name.
+"""
 include time.repy
 include nmclient.repy
 include rsa.repy

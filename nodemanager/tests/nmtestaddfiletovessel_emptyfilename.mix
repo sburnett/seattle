@@ -1,3 +1,9 @@
+"""
+Description:
+This test verifies the AddFileToVessel method throws an exception when passing in an empty string as the filename.
+
+"""
+
 include time.repy
 include nmclient.repy
 include rsa.repy

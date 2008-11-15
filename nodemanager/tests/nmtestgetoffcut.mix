@@ -1,3 +1,8 @@
+"""
+Description:
+This test calls GetOffcutResources to verify no exceptions are thrown
+"""
+
 include nmclient.repy
 
 if callfunc == 'initialize':

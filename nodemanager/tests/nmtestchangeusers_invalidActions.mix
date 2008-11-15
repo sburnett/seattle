@@ -1,3 +1,7 @@
+"""
+Description:
+This test verifies the users added with the ChangeUsers method do not have owner level permissions.
+"""
 include time.repy
 include nmclient.repy
 include rsa.repy
