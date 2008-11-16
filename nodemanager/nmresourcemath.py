@@ -17,6 +17,8 @@ This is where we worry about the offcut resources...
 from nanny import known_resources
 # need to know what resources are supported
 from nanny import individual_item_resources
+# need to know what resources are required - Brent
+from nanny import must_assign_resources
 
 # NOTE: Should I move all of this into nanny and restrictions?   Should I 
 # have restrictions and nanny call this instead?  
@@ -138,6 +140,14 @@ def check_for_negative_resources(newdict):
       raise ResourceParseError, "Insufficient quantity: Resource '"+resource+"' has a negative quantity"
 
 
+# Helper method to ensure that the given resource dict has all of the resources
+# listed as required in nanny.py. -Brent
+def check_for_required_resources(newdict):
+  for resource in must_assign_resources:
+    if resource not in newdict:
+      raise ResourceParseError("Missing required resource: '"+resource+"'")
+  
+
 def add(dict1, dict2):
   retdict = dict1.copy()
 
@@ -193,6 +203,10 @@ def combine(resourcefilename1, resourcefilename2, offcutfilename, newfilename):
 
   # ensure there aren't negative resources here (how could there be?)
   check_for_negative_resources(newdict)
+  
+  # ensure the required resource limits are included. 
+  # (how could this not be?) -Brent
+  check_for_required_resources(newdict)
 
   # okay, now write out the new file...
   write_resource_dict(newdict, newfilename)
@@ -208,6 +222,13 @@ def split(resourcefilename1, resourcefilename2, offcutfilename, newfilename):
 
   check_for_negative_resources(resourcefile1dict)
   check_for_negative_resources(resourcefile2dict)
+  
+  # Check to ensure that both resource files have values for all the
+  # required resources.  Without this check, the node manager runs into
+  # errors when trying to enforce the limits on the required resources
+  # -Brent
+  check_for_required_resources(resourcefile1dict)
+  check_for_required_resources(resourcefile2dict)
 
   # subtract the vessels
   tempdict = subtract(resourcefile1dict, resourcefile2dict)
@@ -216,10 +237,11 @@ def split(resourcefilename1, resourcefilename2, offcutfilename, newfilename):
 
   # ensure there aren't negative resources
   check_for_negative_resources(newdict)
+  
+  # Ensure that all the required resource limits are included -Brent
+  check_for_required_resources(newdict)
 
   # okay, now write out the new file...
   write_resource_dict(newdict, newfilename)
 
-
-  
 
