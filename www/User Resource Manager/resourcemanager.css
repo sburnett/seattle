@@ -1,0 +1,24 @@
+#userowned {
+	background-color: #FFFFCC;
+	width: 90%;
+	text-align: center;
+}
+
+#innertable {
+	margin-left: auto;
+	margin-right: auto;
+}
+
+#vesselcontainer {
+	width: 10%;
+	background-color: #EDE275;
+	padding: 1%;	
+}
+
+.vesselrow {
+	text-align: center;
+}
+
+#maintable {
+	width: 50%;
+}
