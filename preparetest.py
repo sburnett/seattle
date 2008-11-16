@@ -1,8 +1,12 @@
 """
-Author: Cosmin Barsan
-Start Date: October 3, 2008
+<Author>
+  Cosmin Barsan
+  Edited to add an optional argument to also copy the repy tests by 
+  Brent Couvrette on November 13, 2008.
+<Start Date>
+  October 3, 2008
 
-Description:
+<Description>
 This script has been adapted from the bash script preparetest.
 The script first erases all the files in the target folder, then copies the necessary test files to it. Afterwards, the .mix files in the target folder are run through the preprocessor.
 It is required that the folder passed in as an argument to the script exists.
@@ -77,51 +81,75 @@ def exec_command(command):
   return (theout, theerr)
 
 
+helpstring = """python preparetest.py [-t] <foldername>"""
 
-
-
-if len(sys.argv) != 2:
-  print "illegal number of arguments"
-  print "expected: preparetest.py <foldername>"
+# Prints the given error message and the help string, then exits
+def help_exit(errMsg):
+  print errMsg
+  print helpstring
   sys.exit(1)
 
-if not( os.path.isdir(sys.argv[1]) ):
-  print "given foldername is not a directory"
-  sys.exit(1)
+# checks to make sure the argument list has at least 2 entries
+def checkArgLen():
+  if len(sys.argv) < 2:
+    helpExit('Invalid number of arguments')
 
-#store root directory and get target directory
-target_dir = sys.argv[1]
-current_dir = os.getcwd()
+def main():
+  checkArgLen()
+	
+  repytest = False
+	
+  # -t means we will copy repy tests
+  if sys.argv[1] == '-t':
+    repytest = True
+    sys.argv = sys.argv[1:]
+    checkArgLen()
 
-#set working directory to the test folder
-os.chdir(target_dir)	
-files_to_remove=glob.glob("*")
+  #store root directory and get target directory
+  target_dir = sys.argv[1]
+  current_dir = os.getcwd()
 
-#clean the test folder
-for f in files_to_remove: 
-  if os.path.isdir(f):
-    shutil.rmtree(f)		
-  else:
-    os.remove(f)
+  # Make sure they gave us a valid directory
+  if not( os.path.isdir(target_dir) ):
+    help_exit("given foldername is not a directory")
 
-#go back to root project directory
-os.chdir(current_dir) 
+  #set working directory to the test folder
+  os.chdir(target_dir)	
+  files_to_remove = glob.glob("*")
 
-#now we copy the necessary files to the test folder
-copy_to_target("repy/*", target_dir)
-copy_to_target("nodemanager/*", target_dir)
-copy_to_target("nodemanager/tests/*", target_dir)
-copy_to_target("portability/*", target_dir)
-copy_to_target("seattlelib/*", target_dir)
-copy_to_target("seash/*", target_dir)
-copy_to_target("seash/tests/*", target_dir)
-copy_to_target("softwareupdater/*", target_dir)
+  #clean the test folder
+  for f in files_to_remove: 
+    if os.path.isdir(f):
+      shutil.rmtree(f)		
+    else:
+      os.remove(f)
 
-#set working directory to the test folder
-os.chdir(target_dir)
+  #go back to root project directory
+  os.chdir(current_dir) 
 
-#call the process_mix function to process all mix files in the target directory
-process_mix("repypp.py")
+  #now we copy the necessary files to the test folder
+  copy_to_target("repy/*", target_dir)
+  copy_to_target("nodemanager/*", target_dir)
+  copy_to_target("nodemanager/tests/*", target_dir)
+  copy_to_target("portability/*", target_dir)
+  copy_to_target("seattlelib/*", target_dir)
+  copy_to_target("seash/*", target_dir)
+  copy_to_target("seash/tests/*", target_dir)
+  copy_to_target("softwareupdater/*", target_dir)
+  
+  if repytest:
+    # Only copy the repy tests if they were requested.
+    copy_to_target("repy/tests/*", target_dir)
 
-#go back to root project directory
-os.chdir(current_dir) 
+  #set working directory to the test folder
+  os.chdir(target_dir)
+
+  #call the process_mix function to process all mix files in the target directory
+  process_mix("repypp.py")
+
+  #go back to root project directory
+  os.chdir(current_dir) 
+
+
+if __name__ == '__main__':
+  main()
