@@ -346,7 +346,8 @@ function addUser () {
 
 function updateUsername () {
 	if ($("publickey").value != "") {
-		$("username").value = $("publickey").value.substring(0, $("publickey").value.lastIndexOf("."));
+		$("username").value = $("publickey").value.substring($("publickey").value.lastIndexOf("/") +1,
+															 $("publickey").value.lastIndexOf("."));
 	}
 }
 
