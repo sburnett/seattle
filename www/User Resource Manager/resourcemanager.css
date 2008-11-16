@@ -7,18 +7,30 @@
 #innertable {
 	margin-left: auto;
 	margin-right: auto;
+	height: 500px;
+	width: 100%
 }
 
 #vesselcontainer {
 	width: 10%;
 	background-color: #EDE275;
-	padding: 1%;	
 }
 
 .vesselrow {
 	text-align: center;
+    padding: 1%;	
+	display: none;
 }
 
 #maintable {
 	width: 50%;
+}
+
+.fillers {
+	background-color: green;
+	color: green;
+}
+
+.spacer {
+	clear: both;
 }
