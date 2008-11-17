@@ -1,3 +1,8 @@
+body {
+	font-family: "Arial", "Helvetica", "Courier New", "Serif";
+	font-size: 14pt;
+}
+
 #userowned {
 	background-color: #FFFFCC;
 	width: 90%;
@@ -7,8 +12,14 @@
 #innertable {
 	margin-left: auto;
 	margin-right: auto;
-	height: 500px;
-	width: 100%
+	height: 515px;
+	width: 100%;
+}
+
+table {
+	border-collapse: collapse;
+	text-align: center;
+	border: 1px solid black;
 }
 
 #vesselcontainer {
@@ -22,8 +33,22 @@
 	display: none;
 }
 
+td, caption {
+	border: 1px solid black;
+}
+
+#caption2 {
+	margin-top: 40%;
+}
+
+th {
+	padding-right: 10px;
+	text-align: center;
+}
+
 #maintable {
 	width: 50%;
+	float: left;
 }
 
 .fillers {
@@ -33,4 +58,9 @@
 
 .spacer {
 	clear: both;
+}
+
+#toosmalltable {
+	clear: none;
+	margin-left: 53%;
 }
