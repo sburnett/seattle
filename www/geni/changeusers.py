@@ -2005,44 +2005,93 @@ def initialize_time_if_needed():
   initialized_time = True
   time_updatetime(34612)
 
+
+
+def do_announce(pubkey,value,valuelifetime):
+  logfo = open("/tmp/logannounce.out","a")
+  try:
+    print >> logfo, time.time(),"Start announce!"
+    logfo.flush()
+    advertise.announce(pubkey, value, valuelifetime,logfo)
+    print >> logfo, time.time(),"Stop announce!"
+  except Exception, e:
+    print >> logfo, time.time(),e
+  finally:
+    logfo.close()
+
+
 def changeusers(userpubkeystringlist, nmip, nmport, vesselname, nodepubkeystring, nodeprivkeystring):
-  initialize_time_if_needed()
-  
-  try:
-    nmhandle = nmclient_createhandle(nmip, nmport)
-  except NMClientException, e:
-    return False, "createhandle failed: " + str(e)
-  
-  myhandleinfo = nmclient_get_handle_info(nmhandle)
-  myhandleinfo['publickey'] = rsa_string_to_publickey(nodepubkeystring)
-  myhandleinfo['privatekey'] = rsa_string_to_privatekey(nodeprivkeystring)
-  nmclient_set_handle_info(nmhandle, myhandleinfo)
-
-  try:
-    nmclient_signedsay(nmhandle, "StopVessel", vesselname)
-  except NMClientException, e:
-    # this may fail because the vessel may not be started
-    print "Exception raised calling StopVessel: " + str(e)
-
-  # set the users...
-  try:
-    nmclient_signedsay(nmhandle, "ChangeUsers", vesselname, '|'.join(userpubkeystringlist))
-  except NMClientException, e:
-    return False, "ChangeUsers failed: " + str(e)
 
   logfo = open("/tmp/log.out","a")
   try:
-    print >> logfo, userpubkeystringlist
+    import time
+    print >> logfo, time.time(),"Start!"
+    logfo.flush()
+    last = time.time()
+  
+    initialize_time_if_needed()
+  
+
+    now = time.time()
+    print >> logfo, now, now-last,"CreateHandle", nmip, nmport, vesselname
+    logfo.flush()
+    last = now
+    try:
+      nmhandle = nmclient_createhandle(nmip, nmport)
+    except NMClientException, e:
+      return False, "createhandle failed: " + str(e)
+  
+    myhandleinfo = nmclient_get_handle_info(nmhandle)
+    myhandleinfo['publickey'] = rsa_string_to_publickey(nodepubkeystring)
+    myhandleinfo['privatekey'] = rsa_string_to_privatekey(nodeprivkeystring)
+    nmclient_set_handle_info(nmhandle, myhandleinfo)
+
+    now = time.time()
+    print >> logfo, now, now-last,time.time(),"StopVessel"
+    logfo.flush()
+    last = now
+    try:
+      nmclient_signedsay(nmhandle, "StopVessel", vesselname)
+    except NMClientException, e:
+      # this may fail because the vessel may not be started
+      now = time.time()
+      print >> logfo, now, now-last, time.time(),"Exception raised calling StopVessel: " + str(e)
+      last = now
+
+    now = time.time()
+    print >> logfo, now, now-last, time.time(),"ChangeUsers"
+    logfo.flush()
+    last = now
+    # set the users...
+    try:
+      nmclient_signedsay(nmhandle, "ChangeUsers", vesselname, '|'.join(userpubkeystringlist))
+    except NMClientException, e:
+      return False, "ChangeUsers failed: " + str(e)
+
     if userpubkeystringlist[0] != '':
     #  print "key",rsa_string_to_publickey(userpubkeystringlist[0])
-      print >> logfo, "XYZ: IP '"+nmip+"' port '"+str(nmport)+"' keystr '"+str(userpubkeystringlist[0])+"' key '"+str(rsa_string_to_publickey(userpubkeystringlist[0]))+"'"
+      now = time.time()
+      print >> logfo, now, now-last, time.time(),"advert: IP '"+nmip+"' port '"+str(nmport)+"' keystr '"+str(userpubkeystringlist[0])+"' key '"+str(rsa_string_to_publickey(userpubkeystringlist[0]))+"'"
+      logfo.flush()
+      last = now
       try:
-        advertise.announce(rsa_string_to_publickey(userpubkeystringlist[0]), nmip+":"+str(nmport), 750)
+        settimer(0.0, do_announce, (rsa_string_to_publickey(userpubkeystringlist[0]), nmip+":"+str(nmport), 750))
+#        advertise.announce(rsa_string_to_publickey(userpubkeystringlist[0]), nmip+":"+str(nmport), 750)
       except Exception, e:
-        print >> logfo, "Exception raised calling advertise.announce", e
+        now = time.time()
+        print >> logfo, now, now-last, "Exception raised calling advertise.announce", e
+        logfo.flush()
+        last = now
     else:
-      print >> logfo, "XYZ: IP '"+nmip+"' port '"+str(nmport)+"' keystr '"+str(userpubkeystringlist[0])+"' no key"
+      now = time.time()
+      print >> logfo, now, now-last, time.time(),"XYZ: IP '"+nmip+"' port '"+str(nmport)+"' keystr '"+str(userpubkeystringlist[0])+"' no key"
+      logfo.flush()
+      last = now
 
+    now = time.time()
+    print >> logfo, now, now-last, time.time(),"Finished!"
+    logfo.flush()
+    last = now
   finally:
     logfo.close()
  

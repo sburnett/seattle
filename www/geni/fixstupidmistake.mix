@@ -1,0 +1,76 @@
+from repyportability import *
+import genidb_new as genidb
+import sys
+
+include nmclient.repy
+include time.repy
+
+donationpubkey = rsa_file_to_publickey('acceptdonation.publickey')
+donationpubkeystring = rsa_publickey_to_string(donationpubkey)
+
+time_updatetime(36124)
+
+def write_altered():
+  global altered
+  alteredfo = open("altered","w")
+  alteredfo.write(repr(altered))
+  alteredfo.close()
+
+def read_altered():
+  global altered
+  alteredfo = open("altered")
+  altered = eval(alteredfo.read())
+  alteredfo.close()
+
+
+read_altered()
+
+print "Starting!"
+
+for dbnode in genidb.get_nodes():
+  
+  # helps when logging to a file
+  sys.stdout.flush()
+  thisitem = dbnode.ip + ":" + str(dbnode.port)
+
+  if thisitem in altered:
+    print "skipping",thisitem
+    continue
+  
+  try:
+    # may raise an exception
+    thisnmhandle = nmclient_createhandle(dbnode.ip, dbnode.port)
+  except NMClientException, e:
+    print "NMClientException '"+str(e)+"' on "+thisitem
+    continue
+
+  try:
+    thishandleinfo = nmclient_get_handle_info(thisnmhandle)
+    thishandleinfo['publickey'] = rsa_string_to_publickey(dbnode.owner_pubkey)
+    thishandleinfo['privatekey'] = rsa_string_to_privatekey(dbnode.owner_privkey)
+    nmclient_set_handle_info(thisnmhandle, thishandleinfo)
+
+    vesseldict = nmclient_getvesseldict(thisnmhandle)
+    print "Node: "+thisitem+" Version: "+vesseldict['version']+" Vessels: "+str(vesseldict['vessels'].keys())
+
+    if 'v1' in vesseldict['vessels']:
+      nmclient_signedsay(thisnmhandle, "StopVessel", 'v1')
+      nmclient_signedsay(thisnmhandle, "ChangeUsers", 'v1', donationpubkeystring)
+      print "Changing users to donation user and killing node entries!"
+      altered.append(thisitem)
+      
+      genidb.clear_node_vessels(dbnode)
+      write_altered()
+    else:
+      print "WTF on node:",thisitem
+  except Exception, e:
+    print "Exception '"+str(e)+"' on "+thisitem
+    continue
+    
+  finally:
+    nmclient_destroyhandle(thisnmhandle)
+
+
+  
+
+

@@ -12,6 +12,7 @@ from django.contrib.auth.decorators import login_required
 #from django.core.exceptions import ObjectDoesNotExist
 import sys
 import forms
+import datetime
 
 def __validate_guser__(request):
 
@@ -150,9 +151,10 @@ def used_resources(request,get_form=False,explanation="",explanation2="",summary
 
     shvessels = []
     my_vessels = VesselMap.objects.filter(user = geni_user)
+    curr_time = datetime.datetime.now()
     #if explanation == "":
     #    explanation = "HELLO"
-    return direct_to_template(request,'control/used_resources.html', {'geni_user' : geni_user, 'num_vessels' : len(my_vessels), 'my_vessels' : my_vessels, 'sh_vessels' : shvessels, 'get_form' : get_form, 'action_explanation' : explanation, 'remove_explanation' : explanation2, "action_summary" : summary})
+    return direct_to_template(request,'control/used_resources.html', {'geni_user' : geni_user, 'num_vessels' : len(my_vessels), 'my_vessels' : my_vessels, 'sh_vessels' : shvessels, 'get_form' : get_form, 'action_explanation' : explanation, 'remove_explanation' : explanation2, "action_summary" : summary, "curr_time" : curr_time})
 
 @login_required()
 def del_resource(request):
@@ -202,7 +204,8 @@ def get_resources(request):
     get_form = gen_get_form(geni_user,request.POST)
     if get_form is None:
         return used_resources(request,get_form,explanation=explanation)
-        
+    
+    summary = ""
     if get_form.is_valid():
         explanation = get_form.cleaned_data['env']
         ret = acquire_resources(geni_user, int(get_form.cleaned_data['num']), get_form.cleaned_data['env'])

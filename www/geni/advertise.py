@@ -149,12 +149,16 @@ previousDHTskip = 1
 skipcentral = 0
 previouscentralskip = 1
 
-def announce(key, value, ttlval):
+def announce(key, value, ttlval,logfo=None):
   global skipDHT
   global previousDHTskip
   global skipcentral
   global previouscentralskip
+  
 
+  if logfo:
+    print >> logfo, "central"
+    logfo.flush()
   
   if skipcentral == 0:
     try:
@@ -168,6 +172,9 @@ def announce(key, value, ttlval):
   else:
     skipcentral = skipcentral - 1
 
+  if logfo:
+    print >> logfo, "opendht"
+    logfo.flush()
 
   if skipDHT==0:
     try:
@@ -179,6 +186,10 @@ def announce(key, value, ttlval):
       previousDHTskip = min(previousDHTskip * 2, 16)
   else:
     skipDHT = skipDHT - 1
+
+  if logfo:
+    print >> logfo, "done"
+    logfo.flush()
 
 
 

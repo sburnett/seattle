@@ -10,8 +10,9 @@ import traceback
 
 # user ports permitted on vessels on a donated host
 allowed_user_ports = range(63100,63180)
-# 7 days worth of seconds
-VESSEL_EXPIRE_TIME_SECS = 604800
+# 4 hours worth of seconds
+VESSEL_EXPIRE_TIME_SECS = 14400
+
 
 def pop_key():
     cursor = connection.cursor()
@@ -25,7 +26,7 @@ def pop_key():
     cursor.execute("COMMIT")
     return [row[1],row[2]]
 
-def get_unacquired_vessels(filter_str):
+def get_unacquired_vessels(geni_user, filter_str):
     vmaps = VesselMap.objects.all()
     vexclude = []
     for vmap in vmaps:
@@ -33,10 +34,25 @@ def get_unacquired_vessels(filter_str):
 
     vret = []
     for v in Vessel.objects.all():
+        # filter out extra_vessels
+        if v.extra_vessel:
+            continue
+        
+        # perform filtering on ip (for LAN nodes)
         if filter_str != "" and filter_str not in v.donation.ip:
             continue
+        # exclude vessels that are used
         if v in vexclude:
             continue
+        # exclude vessels that don't have the port assigned to the user
+        vports = VesselPorts.objects.filter(vessel = v)
+        valid_port = False
+        for vport in vports:
+            if vport.port == geni_user.port:
+                valid_port = True
+        if not valid_port:
+            continue
+        
         vret.append(v)
     random.shuffle(vret)
     return vret
@@ -69,9 +85,16 @@ def acquire_resources(geni_user, num, type):
 
         filter_ips = ""
         if int(type) == 1:
+            # type is LAN
             filter_ips = "128.208.1."
-        vessels = get_unacquired_vessels(filter_ips)            
-
+        vessels_free = get_unacquired_vessels(geni_user, filter_ips)
+        vessels = []
+        if int(type) == 2:
+            # type is WAN
+            for v in vessels_free:
+                if "128.208.1." not in v.donation.ip:
+                    vessels.append(v)
+                    
         summary = ""
         if num > len(vessels):
             num = len(vessels)
@@ -205,10 +228,18 @@ class Donation(models.Model):
     # node's seattle version
     version = models.CharField("Node Version", max_length=64)
     # owner's public key
+    # TODO: change to owner_pubkeystr
     owner_pubkey = models.CharField("Owner user public key", max_length=2048)
     # owner's private key
+    # TODO: change to owner_privkeystr
     owner_privkey = models.CharField("Owner user private key", max_length=4096)
-    
+    # epoch indicates the last time that the onepercenttoonepercent
+    # script contacted this node
+    epoch = models.IntegerField("Epoch")
+    # active indicates whether this donation counts or not -- when a
+    # donation's epoch is older then some threshold from current
+    # epoch, a donation is marked as inactive
+    active = models.BooleanField()
     def __unicode__(self):
         return "%s:%s:%d"%(self.user.www_user.username, self.ip, self.port)
         

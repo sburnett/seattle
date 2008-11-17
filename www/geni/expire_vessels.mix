@@ -1,0 +1,31 @@
+from repyportability import *
+include nmclient.repy
+import changeusers
+
+# db api
+import genidb
+
+def main():
+    # loop forever
+    while True:
+        vmaps = genidb.get_expired_vesselmaps()
+        for vmap in vmaps:
+            nmip = vmap.vessel.donation.ip
+            nmport = vmap.vessel.donation.port
+            print time.time(),"Expiring: ", nmip, "with date: ", vmap.expiration
+
+            # change users
+            vesselname = vmap.vessel.name
+            nodepubkey = vmap.vessel.donation.owner_pubkey
+            nodeprivkey = vmap.vessel.donation.owner_privkey
+            success,msg = changeusers.changeusers([""], nmip, nmport, vesselname, nodepubkey, nodeprivkey)
+            if not success:
+                print msg
+
+            # delete vmap record from database
+            vmap.delete()
+        print "sleeping.."
+        sleep(60)
+
+if __name__ == '__main__':
+  main() 

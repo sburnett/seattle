@@ -16,11 +16,9 @@ import random
 import urllib
 
 import sha
-try:
-  import xmlrpclib
-except ImportError:
-  # Python 3.0 portability fix...
-  import xmlrpc.client as xmlrpclib
+# I'm doing this for portability / clarity for whomever needs to replace
+# this later.   timeout_xmlrpclib is merely xmlrpclib with timeouts on sockets
+import timeout_xmlrpclib as xmlrpclib
 
 
 
@@ -31,15 +29,13 @@ def announce(key, value, ttlval):
   global proxylist
   global currentproxy
 
+  # JAC: Copy value because it seems that Python may otherwise garbage collect
+  # it in some circumstances.   This seems to fix the problem
   value = str(value)[:]
 
   # convert ttl to an int
   ttl = int(ttlval)
 
-  logfo = open("/tmp/opendhtlog.out","a")
-  print >> logfo, "Announce key:",key,"value:",value, "ttl:",ttl
-  logfo.close()
- 
 #  print "Announce key:",key,"value:",value, "ttl:",ttl
   while True:
     # if we have an empty proxy list and no proxy, get more
@@ -67,7 +63,7 @@ def announce(key, value, ttlval):
       pxy.put(keytosend, valtosend, ttl, "put.py")
       # if there isn't an exception, we succeeded
       break
-    except (socket.error, socket.gaierror):
+    except (socket.error, socket.gaierror, socket.timeout):
       # Let's avoid this proxy.   It seems broken
       currentproxy = None
 
@@ -109,7 +105,10 @@ def lookup(key, maxvals=100):
       try:
         # In the current version of xmlrpclib, an obsolescence warning will be 
         # printed here.   This is problem with the standard lib, not this code...
-        vals, pm = pxy.get(keyhash, maxvalhash, pm, "get.py")
+        try:
+          vals, pm = pxy.get(keyhash, maxvalhash, pm, "get.py")
+        except xmlrpclib.ProtocolError, e:
+          raise Exception, e
         # if there isn't an exception, we succeeded
 
         # append the .data part of the items, the other bits are:
@@ -121,7 +120,7 @@ def lookup(key, maxvals=100):
         if pm.data == "":
           return listofitems
 
-      except (socket.error, socket.gaierror):
+      except (socket.error, socket.gaierror, socket.timeout):
         # Let's avoid this proxy.   It seems broken
         currentproxy = None
 

@@ -2221,7 +2221,8 @@ def pollnode(node):
 
     elif dbnode.status == 'Ready' or dbnode.status == 'Broken':
       # alive and well (apparently)
-      genidb.update_node(dbnode,'Ready')
+      genidb.update_node(dbnode,'Ready', host, port, retdict['version'])
+      
       return
 
     else:

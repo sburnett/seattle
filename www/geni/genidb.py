@@ -1,12 +1,36 @@
+"""
+<Program Name>
+  genidb.py
+
+<Started>
+  October 31, 2008
+
+<Author>
+  ivan@cs.washington.edu
+  Ivan Beschastnikh
+
+<Purpose>
+  Provides a narrow interface to the GENI database.
+
+  The interface provides functions to create nodes/vessels, to update
+  a node, and lookup a node record.
+
+<Usage>
+  Import this module as usual, but to work, you should have the
+  PYTHONPATH setup to find control.models and you should have
+  DJANGO_SETTINGS_MODULE defined. Example:
+  
+  export PYTHONPATH=$PYTHONPATH:/home/ivan/geni_private/:/home/ivan/
+  export DJANGO_SETTINGS_MODULE='settings'
+"""
+
+
 import traceback
 from settings import *
-#import manage
-#import control.models as models
 from control.models import User,Donation,Vessel,VesselMap,Share,VesselPorts,pop_key
 from django.db import transaction
-#import django.db.models as models
 import django.core.exceptions as exceptions
-import sys
+import datetime
 
 def __get_guser__(donor_pubkey):
     '''
@@ -21,6 +45,16 @@ def __get_guser__(donor_pubkey):
 #        print (u.donor_pubkey == donor_pubkey)
     except exceptions.ObjectDoesNotExist:
         return None
+
+def get_expired_vesselmaps():
+    curr_time = datetime.datetime.now()
+    print "curr_time: ", curr_time
+    vmaps = VesselMap.objects.all()
+    ret_vmaps = []
+    for vmap in vmaps:
+        if vmap.expiration <= curr_time:
+            ret_vmaps.append(vmap)
+    return ret_vmaps
     
 def lookup_node(node_pubkey):
     try:
@@ -53,7 +87,7 @@ def get_donor_privkey(pubkey):
 
 def create_update_node(node,node_info,donor_pubkey):
     '''
-    takes a node_rec (Node instance obj) -- this can be None if no
+    takes a node (Node instance obj) -- this can be None if no
     Node exists yet, node_info dictionary of values for ndoe, and
     dono_pubkey (so that we can match a new Donation record to an
     existing User record
@@ -123,21 +157,23 @@ def add_node_vessels(node,newstatus,vlist,vextra):
             vport_rec.save()
             
     except:
-        traceback.print_exc()
+        #traceback.print_exc()
         transaction.rollback()
-        sys.exit()
-        return False
+        raise
     else:
         # success
         transaction.commit()
     return True
 
-def update_node(node,newstatus):
+def update_node(node,newstatus,host,port,version):
     '''
     Takes a Node instance, and newstatus string. Updates the node's
     status and save the node.
     '''
     node.status = newstatus
+    node.ip = host
+    node.port = port
+    node.version = version
     # note: timestamp updated on save()
     node.save()
 
