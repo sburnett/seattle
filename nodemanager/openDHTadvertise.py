@@ -16,11 +16,9 @@ import random
 import urllib
 
 import sha
-try:
-  import xmlrpclib
-except ImportError:
-  # Python 3.0 portability fix...
-  import xmlrpc.client as xmlrpclib
+# I'm doing this for portability / clarity for whomever needs to replace
+# this later.   timeout_xmlrpclib is merely xmlrpclib with timeouts on sockets
+import timeout_xmlrpclib as xmlrpclib
 
 
 
@@ -65,7 +63,7 @@ def announce(key, value, ttlval):
       pxy.put(keytosend, valtosend, ttl, "put.py")
       # if there isn't an exception, we succeeded
       break
-    except (socket.error, socket.gaierror):
+    except (socket.error, socket.gaierror, socket.timeout):
       # Let's avoid this proxy.   It seems broken
       currentproxy = None
 
@@ -122,7 +120,7 @@ def lookup(key, maxvals=100):
         if pm.data == "":
           return listofitems
 
-      except (socket.error, socket.gaierror):
+      except (socket.error, socket.gaierror, socket.timeout):
         # Let's avoid this proxy.   It seems broken
         currentproxy = None
 
