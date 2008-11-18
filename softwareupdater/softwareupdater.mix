@@ -477,6 +477,11 @@ def main():
 
 #    sys.stderr('After main sleep')
 
+    # Make sure that if we failed somehow to restart, we keep trying before
+    # every time we try to update. - Brent
+    if restartme:
+      restart_software_updater()
+      
     # where I'll put files...
     tempdir = tempfile.mkdtemp()+"/"
 
