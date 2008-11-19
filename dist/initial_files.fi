@@ -30,7 +30,6 @@ req fakelinecache.py
 req idhelper.py
 req logging.py
 req math.repy
-req metainfo
 req misc.py
 req nanny.py
 req nmAPI.py
@@ -45,8 +44,6 @@ req nmstatusmonitor.py
 req nonportable.py
 req openDHTadvertise.py
 req persist.py
-req pskill.exe
-req pssuspend.exe
 req random.repy
 req repy.py
 req repyportability.py
@@ -71,3 +68,11 @@ req testrunonce.py
 req createnodekeys.py
 req runonce.py
 req writemetainfo.py
+req parallelize.repy
+req seattlestarter.py
+req windows_api.py
+req windows_ce_os.py
+req uniqueid.repy
+req timeout_xmlrpclib.py
+req windows_ce_api.py
+req listops.repy
