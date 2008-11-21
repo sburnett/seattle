@@ -1,5 +1,30 @@
-#from repyportability import * # in portability dir
-#from changeusers import *
+"""
+<Program Name>
+  models.py
+
+<Started>
+  October, 2008
+
+<Author>
+  ivan@cs.washington.edu
+  Ivan Beschastnikh
+
+<Purpose>
+  Defines view functions that handle HTTP requests
+
+  This file contains view functions for the control application which
+  are called whenever a url is matched in geni.control.urls. These
+  functions always take an HTTP request object, and return an HTTP
+  response object, which is sometimes generated automatically by
+  referencing a template via direct_to_template() and other
+  django shorthands.
+
+  See http://docs.djangoproject.com/en/dev/topics/http/views/
+"""
+
+import sys
+import forms
+import datetime
 
 from django.http import Http404
 from models import User,Donation,Vessel,VesselMap,Share,pop_key,acquire_resources, release_resources
@@ -9,24 +34,18 @@ from django.core.urlresolvers import reverse
 from django.shortcuts import render_to_response, get_object_or_404
 from django.views.generic.simple import direct_to_template
 from django.contrib.auth.decorators import login_required
-#from django.core.exceptions import ObjectDoesNotExist
-import sys
-import forms
-import datetime
 
 def __validate_guser__(request):
 
     # TODO: add a check for whether request.user actually exists. If
-    # it does not then we want to tell the user to login again.
+    # it does not then we want to tell the user to register
     
     try:
         geni_user = User.objects.get(www_user = request.user)
         return geni_user,True
     except User.DoesNotExist:
-        # this should never happen if the user registered -- show server error of some kind
-        ret = HttpResponse("User registration for this user is incomplete [auth records exists, but geni user profile is absent], please contact ivan@cs.washington.edu.")
-        return redirect_to(request, "https://seattle.cs.washington.edu/geni/accounts/login"), False
-        # return ret,False
+        ret = HttpResponseRedirect("/geni/accounts/login")
+        return ret, False
 
 def __dl_key__(request,pubkey=True):
     ret,success = __validate_guser__(request)
@@ -121,7 +140,8 @@ def new_share(request):
 
 def gen_get_form(geni_user,req_post=None):
     # max allowed resources this user may get
-    num_donations = len(Donation.objects.filter(user=geni_user))
+    donations = Donation.objects.filter(user=geni_user).filter(active=1)
+    num_donations = len(donations)
     max_num = 10 * (num_donations + 1)
     
     # number of vessels already used by this user
@@ -150,11 +170,10 @@ def used_resources(request,get_form=False,explanation="",explanation2="",summary
         get_form = gen_get_form(geni_user)
 
     shvessels = []
-    my_vessels = VesselMap.objects.filter(user = geni_user)
-    curr_time = datetime.datetime.now()
+    my_vessels = VesselMap.objects.filter(user = geni_user).order_by('expiration')
     #if explanation == "":
     #    explanation = "HELLO"
-    return direct_to_template(request,'control/used_resources.html', {'geni_user' : geni_user, 'num_vessels' : len(my_vessels), 'my_vessels' : my_vessels, 'sh_vessels' : shvessels, 'get_form' : get_form, 'action_explanation' : explanation, 'remove_explanation' : explanation2, "action_summary" : summary, "curr_time" : curr_time})
+    return direct_to_template(request,'control/used_resources.html', {'geni_user' : geni_user, 'num_vessels' : len(my_vessels), 'my_vessels' : my_vessels, 'sh_vessels' : shvessels, 'get_form' : get_form, 'action_explanation' : explanation, 'remove_explanation' : explanation2, "action_summary" : summary})
 
 @login_required()
 def del_resource(request):
@@ -170,8 +189,8 @@ def del_resource(request):
     explanation2 = ""
     for r in myresources:
         if request.POST.has_key('delresource_%s'%(r.id)):
-            explanation2 = "Removed resource"
-            release_resources(geni_user, r.id, False)
+            ret = release_resources(geni_user, r.id, False)
+            explanation2 = "Removed resource " + str(ret)
             
     if explanation2 == "":
         explanation2 = "Problem removing resource"

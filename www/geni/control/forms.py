@@ -1,3 +1,24 @@
+"""
+<Program Name>
+  forms.py
+
+<Started>
+  October, 2008
+
+<Author>
+  ivan@cs.washington.edu
+  Ivan Beschastnikh
+
+<Purpose>
+  Provides a variety of form objects used in geni.
+
+  This file defines various forms used by the geni website. These form
+  classes have functions to perform specific field validation, and to
+  perform other operations on form fields.
+
+  See http://docs.djangoproject.com/en/dev/topics/forms/?from=olddocs
+"""
+
 import django.forms as forms
 from django.contrib.auth.models import User as djUser
 from models import User,Donation,Vessel,VesselMap,Share
@@ -15,17 +36,49 @@ from models import User,Donation,Vessel,VesselMap,Share
 #         return pubkey
 
 def gen_GetVesselsForm(num_choices,req_post=None):
+    """
+    <Purpose>
+      Dynamically generates a GetVesselsForm that has the
+      right number vessels (the allowed number of vessels a user may
+      acquire). Possibly generate a GetVesselsForm from an HTTP POST
+      request.
+
+    <Arguments> num_choices: The total number of vessels a user may
+      acquire req_post: An HTTP POST request (django) object from
+      which a GetVesselsForm may be instantiated (as opposed to
+      creating a blank form)
+
+    <Exceptions>
+      None
+
+    <Side Effects>
+      None
+
+    <Returns>
+      A GetVesselsForm object that is instantiated with a req_post (if given)
+    """
     class GetVesselsForm(forms.Form):
         num = forms.ChoiceField(choices=num_choices)
-        # env = forms.ChoiceField(choices=(('LAN','LAN'),('WAN','WAN'),('Random','Random')))
         env = forms.ChoiceField(choices=((1,'LAN'),(2,'WAN'),(3,'Random')))
+        
     if req_post is None:
         return GetVesselsForm()
     return GetVesselsForm(req_post)
 
+
+
 class AddShareForm(forms.Form):
+    """
+    <Purpose>
+      A form to add a share between two users
+
+    <Side Effects>
+      None
+      
+    <Example Use>
+    """
+    
     username = forms.CharField(max_length=32,min_length=3,error_messages={'required': 'Please enter a username'})
-    # username=forms.ChoiceField(queryset=User.objects.all())
     percent = forms.DecimalField(min_value=1,max_value=100,error_messages={'required': 'Please enter a percentage'})
 
     def clean_username(self):

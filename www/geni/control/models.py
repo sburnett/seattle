@@ -1,3 +1,31 @@
+"""
+<Program Name>
+  models.py
+
+<Started>
+  October, 2008
+
+<Author>
+  ivan@cs.washington.edu
+  Ivan Beschastnikh
+
+<Purpose>
+  Defines django model classes which are interfaces between django
+  applications and the database
+
+  This file contains definitions of model classes which are used by
+  django to (1) create the django (geni) database schema, (2) to
+  define an interface between django applications and the database and
+  are used to maintain an evolvable schema that is easy to read,
+  modify, and operate on.
+
+  See http://docs.djangoproject.com/en/dev/topics/db/models/
+
+  TODO: This file needs to be cleaned up by moving all functions that
+  operate on models out of this file and into a modelslib file. This
+  file should contain only model class definitions.
+"""
+
 import random
 from django.db import models
 from django.contrib.auth.models import User as DjangoUser
@@ -12,7 +40,6 @@ import traceback
 allowed_user_ports = range(63100,63180)
 # 4 hours worth of seconds
 VESSEL_EXPIRE_TIME_SECS = 14400
-
 
 def pop_key():
     cursor = connection.cursor()
@@ -41,9 +68,15 @@ def get_unacquired_vessels(geni_user, filter_str):
         # perform filtering on ip (for LAN nodes)
         if filter_str != "" and filter_str not in v.donation.ip:
             continue
+        
         # exclude vessels that are used
         if v in vexclude:
             continue
+        
+        # exclude vessels on inactive nodes
+        if not v.donation.active:
+            continue
+        
         # exclude vessels that don't have the port assigned to the user
         vports = VesselPorts.objects.filter(vessel = v)
         valid_port = False
@@ -60,6 +93,7 @@ def get_unacquired_vessels(geni_user, filter_str):
 def release_resources(geni_user, resource_id, all):
     myresources = VesselMap.objects.filter(user=geni_user)
 
+    ret = ""
     for r in myresources:
         if (all is True) or (r.id == resource_id):
             nmip = r.vessel.donation.ip
@@ -71,7 +105,9 @@ def release_resources(geni_user, resource_id, all):
             if not success:
                 print msg
             r.delete()
-    return True
+            if not all:
+                ret = str(nmip) + ":" + str(nmport) + ":" + str(vesselname)
+    return ret
             
 @transaction.commit_manually    
 def acquire_resources(geni_user, num, type):
@@ -83,19 +119,31 @@ def acquire_resources(geni_user, num, type):
     try:
         # FIXME: we ignore type of vessel requested (for now)
 
-        filter_ips = ""
+        summary = ""
+
+        total_free_vessel_count = len(Vessel.objects.all()) - len(VesselMap.objects.all())
+        
+        vessels = []
         if int(type) == 1:
             # type is LAN
+            # summary += " type 1,"
             filter_ips = "128.208.1."
-        vessels_free = get_unacquired_vessels(geni_user, filter_ips)
-        vessels = []
-        if int(type) == 2:
+            vessels = get_unacquired_vessels(geni_user, filter_ips)
+            
+        elif int(type) == 2:
             # type is WAN
+            vessels_free = get_unacquired_vessels(geni_user, "")
+            # summary += " type 2"
             for v in vessels_free:
                 if "128.208.1." not in v.donation.ip:
                     vessels.append(v)
                     
-        summary = ""
+        elif int(type) == 3:
+            # type is RAND
+            # summary += " type 3"
+            vessels = get_unacquired_vessels(geni_user, "")
+
+                    
         if num > len(vessels):
             num = len(vessels)
             explanation += "No more nodes available (max %d)."%(num)
@@ -103,7 +151,8 @@ def acquire_resources(geni_user, num, type):
             summary += " No nodes available to acquire."
             return False, explanation, summary
         else:
-            explanation += "Attempted to acquire %d node(s) out of %d available."%(num,len(vessels))
+            # explanation += "Attempted to acquire " + str(num) + " vessel(s). There are  " + str(total_free_vessel_count) + " vessels free. Your port is available on " + str(len(vessels)) + " of them."
+            explanation += "There are  " + str(total_free_vessel_count) + " vessels free. Your port is available on " + str(len(vessels)) + " of them."
             
         acquired = 0
         #num_failed = 0
@@ -139,7 +188,7 @@ def acquire_resources(geni_user, num, type):
                 #num_failed += 1
             
         if (num - acquired) != 0:
-            summary += " Failed to acquire %d node(s)."%(num-acquired)
+            summary += " Failed to acquire %d vessel(s)."%(num-acquired)
             
     except:
         # a hack to get the traceback information into a string by
@@ -151,13 +200,13 @@ def acquire_resources(geni_user, num, type):
         explanation += f.read()
         f.close()
         transaction.rollback()
-        summary += " Failed to acquire node(s). Internal Error."
+        summary += " Failed to acquire vessel(s). Internal Error."
         return False, explanation, summary
     else:
         transaction.commit()
         if acquired == 0:
             return False, explanation,summary
-        summary += " Acquired %d node(s). "%(acquired)
+        summary += " Acquired %d vessel(s). "%(acquired)
         return True,acquired,explanation,summary
 
 class User(models.Model):
@@ -273,6 +322,16 @@ class VesselMap(models.Model):
     def __unicode__(self):
         return "%s:%s:%s"%(self.vessel.donation.ip, self.vessel.name, self.user.www_user.username)
 
+    def time_remaining(self):
+        curr_time = datetime.datetime.now()
+        delta = self.expiration - curr_time
+        if delta.days == -1:
+            ret = "now"
+        else:
+            hours = delta.seconds / (60 * 60)
+            minutes = (delta.seconds - (hours * 60 * 60)) / 60
+            ret = str(hours) + "h " + str(minutes) + "m"
+        return ret
     
 class Share(models.Model):
     # user giving
