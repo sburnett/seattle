@@ -29,7 +29,7 @@
 							  {% endifnotequal %}
 							  <font color="red">  {{ get_form.num.errors }}</font><br>
 							  <font color="red">  {{ get_form.env.errors }}</font><br>
-							  Number {{ get_form.num }}<br>
+							  Number of Vessels {{ get_form.num }}<br>
 							  Environment {{ get_form.env }}<br>
 							  <input type="submit" value="GET"/>
 							</p>
@@ -43,13 +43,13 @@
 					  <br>
 					  <font color="red"><p align=center>  {{ remove_explanation }} </p></font><br>
 						<table class="donation_table">
-							<caption> <b>Mine</b> </caption>
+							<caption> <b>My Vessels</b> </caption>
 							<tr><th>{% ifnotequal num_vessels 0 %}
 							    <form method="POST" action="{% url del_all_resources %}">
 							     <input type="submit" value="remove all"> </input>
 							    </form>
 							    {% endifnotequal %}
-							  </th> <th> Vessel ID </th> <th> Vessel Status </th> <th> Expiration </th> </tr>
+							  </th> <th> Vessel ID </th> <th> Vessel Status </th> <th> Expires in </th> </tr>
 							{% for v in my_vessels %}
 							<tr><td>
 							    <form method="POST" action="{% url del_resource %}">
@@ -57,12 +57,12 @@
 							    <input type="hidden" name="delresource_{{ v.id }}"> </input>
 							    </form>
 
-							  </td><td> {{ v.vessel.donation.ip }}:{{ v.vessel.donation.port }}:{{ v.vessel.name }} </td> <td> {{ v.vessel.status }}  </td> <td> {{ v.expiration }} </td> </tr>
+							  </td><td> {{ v.vessel.donation.ip }}:{{ v.vessel.donation.port }}:{{ v.vessel.name }} </td> <td> {{ v.vessel.status }}  </td> <td> {{ v.time_remaining }} </td> </tr>
 							{% endfor %}
 						</table> 
 						<br/>
 						<table class="donation_table">
-							<caption> <b>Shared</b> </caption>
+							<caption> <b>Shared Vessels</b> </caption>
 							<tr> <th> Username </th> <th> Vessel ID </th> <th> Expiration </th> <th>Vessel Status </th> </tr>
 							{% for v in sh_vesels %}
 							<tr> <td> {{ v.user.www_user.username }} </td> <td> {{ v.vessel.ip }}:{{ v.vessel.port }}:{{ v.vessel.name }} </td> <td> {{ v.vessel.expiration }} </td> <td> {{ v.vessel.status }} </td> </tr>

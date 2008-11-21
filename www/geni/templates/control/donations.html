@@ -36,11 +36,14 @@
 						<caption id="mycaption"> My Donations </caption>
 				  {% ifequal has_donations "False" %}
 						</table>
-						<p class="notices error">No donations from others</p>
+						<p class="notices error">You have made no donations</p>
 					{% else %}
 						<tr> <th> IP Address </th> <th> Last Heard </th> <th> Time Added </th> <th> Status </th> </tr>
 						{% for donation in donations %}
-							<tr class="table1row"> <td> {{ donation.ip }} </td> <td> {{ donation.last_heard }} </td> <td> {{ donation.date_added }} </td> <td> {{ donation.status }} </td> </tr>
+
+							{% ifequal donation.active 1 %}
+								<tr class="table1row"> <td> {{ donation.ip }} </td> <td> {{ donation.last_heard }} </td> <td> {{ donation.date_added }} </td> <td> {{ donation.status }} </td> </tr>
+							{% endifequal %}
 							
 						{% endfor %}
 				  		</table>		
@@ -48,7 +51,7 @@
 				  <br/>
 				  <p id="maximizer2"> </p>
 				  {% ifequal has_donations_from_others "False" %}
-						<p class="notices">No donations</p>
+						<p class="notices">You have no donations from others</p>
 				{% else %}
 				  <table id="table2">
 						<caption> Donations to Me </caption>
