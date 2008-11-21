@@ -28,15 +28,10 @@ def getprocesslock(lockname):
     #print >> sys.stderr, 'Getting some Windows lockmutex'
     return getprocesslockmutex(lockname)
   elif ostype == 'Linux' or ostype == 'Darwin' or 'BSD' in ostype:
-    # unfortunately, it seems *NIXes differ on whether O_EXLOCK is supported
-    try:
-      os.O_EXLOCK
-    except AttributeError:
-      #print >> sys.stderr, 'Getting flock for '+lockname
-      return getprocesslockflock(lockname)   
-    else:
-      #print >> sys.stderr, 'Getting o_exlock for '+lockname
-      return getprocesslocko_exlock(lockname)
+    # Previously I also checked for O_EXLOCK and used that if available.
+    # This didn't work well when I had to add the umask / perm hack to properly
+    # support multiple users.   As a result, that code is removed.
+    return getprocesslockflock(lockname)   
   else:
     raise Exception, 'Unknown operating system:'+ostype
 
@@ -47,14 +42,7 @@ def releaseprocesslock(lockname):
     return releaseprocesslockmutex(lockname)
   elif ostype == 'Linux' or ostype == 'Darwin' or 'BSD' in ostype:
     # unfortunately, it seems *NIXes differ on whether O_EXLOCK is supported
-    try:
-      os.O_EXLOCK
-    except AttributeError:
-      #print >> sys.stderr, 'Releasing flock for '+lockname
-      return releaseprocesslockflock(lockname)   
-    else:
-      #print >> sys.stderr, 'Releasing o_exlock for '+lockname
-      return releaseprocesslocko_exlock(lockname)
+    return releaseprocesslockflock(lockname)   
   else:
     raise Exception, 'Unknown operating system:'+ostype
 
@@ -72,38 +60,6 @@ oldfiledesc = {}
 # that could be more digits than mine...
 pidendpadding = "      "
 
-# this works on a smattering of systems...
-def getprocesslocko_exlock(lockname):
-  # the file we'll use
-  lockfn = "/tmp/runoncelock."+lockname
-    
-  try:
-    fd = os.open(lockfn,os.O_CREAT | os.O_RDWR | os.O_EXLOCK | os.O_NONBLOCK)
-    #print >> sys.stderr, 'o_exlock get file descriptor == '+str(fd)
-
-    # See above (under definition of pidendpadding) about why this is here...
-    os.write(fd,str(os.getpid())+pidendpadding)
-    #print >> sys.stderr, 'wrote pid('+str(os.getpid())+') to o_exlock file'
-    if lockname in oldfiledesc:
-      os.close(oldfiledesc[lockname])
-    oldfiledesc[lockname] = fd
-    return True
-  except (OSError,IOError), e:
-    if e[0] == errno.EACCES or e[0] == errno.EAGAIN:
-      # okay, they must have started already.  
-      pass 
-      #print >> sys.stderr, 'Getting o_exlock failed, must have already started'
-    else:
-      # we weren't expecting this...
-      #print >> sys.stderr, 'badness going down in getting o_exlock'
-      raise
-  # Let's return the PID
-  fo = open(lockfn)
-  pidstring = fo.read()
-  fo.close()
-  #print >> sys.stderr, 'pid '+pidstring+' has the o_exlock for '+lockname
-  return int(pidstring)
-
 
 
 def getprocesslockflock(lockname):
@@ -112,8 +68,18 @@ def getprocesslockflock(lockname):
   lockfn = "/tmp/runoncelock."+lockname
     
   try:
-    fd = os.open(lockfn,os.O_CREAT | os.O_RDWR | os.O_NONBLOCK)
-    #print >> sys.stderr, 'flock get file descriptor == '+str(fd)
+    # Use 0666 in octal (rw-rw-rw-).   This is needed because if a different
+    # user tries to access an old file, they need to be able to overwrite it.
+
+    # Unfortunately I need to unset the umask to do this!   I'll reset it and
+    # hope this doesn't break anything in the mean time.   
+    try:
+      oldumask = os.umask(000)
+      fd = os.open(lockfn,os.O_CREAT | os.O_RDWR | os.O_NONBLOCK, int('0666',8))
+    finally:
+      # restore the umask
+      os.umask(oldumask)
+
   except (OSError, IOError), e:
     if e[0] == errno.EACCES or e[0] == errno.EAGAIN:
       # okay, they must have started already.
@@ -151,13 +117,6 @@ def getprocesslockflock(lockname):
   #print >> sys.stderr, 'pid '+pidstring+' has the flock for '+lockname
   return int(pidstring)
 
-
-def releaseprocesslocko_exlock(lockname):
-  if lockname in oldfiledesc:
-    os.close(oldfiledesc[lockname])
-    del oldfiledesc[lockname]
-    #print >> sys.stderr, 'removed o_exlock for '+lockname
-  
 
 def releaseprocesslockflock(lockname):
   if lockname in oldfiledesc:
