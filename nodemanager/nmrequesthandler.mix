@@ -134,9 +134,11 @@ API_dict = { \
   'StartVessel': (2, 'User', nmAPI.startvessel), \
   'StopVessel': (1, 'User', nmAPI.stopvessel), \
   'AddFileToVessel': (3, 'User', nmAPI.addfiletovessel), \
+  'ListFilesInVessel': (1, 'User', nmAPI.listfilesinvessel), \
   'RetrieveFileFromVessel': (2, 'User', nmAPI.retrievefilefromvessel), \
   'DeleteFileInVessel': (2, 'User', nmAPI.deletefileinvessel), \
   'ReadVesselLog': (1, 'User', nmAPI.readvessellog), \
+  'ResetVessel': (1, 'User', nmAPI.resetvessel), \
   'ChangeOwner': (2, 'Owner', nmAPI.changeowner), \
   'ChangeUsers': (2, 'Owner', nmAPI.changeusers), \
   'ChangeOwnerInformation': (2, 'Owner', nmAPI.changeownerinformation), \
