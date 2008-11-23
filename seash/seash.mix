@@ -215,6 +215,20 @@ def simple_contact_targets(targetlist, func,*args):
 
 
 
+# used in show files
+def showfiles_target(longname):
+  vesselname = vesselinfo[longname]['vesselname']
+  try:
+    filedata = nmclient_signedsay(vesselinfo[longname]['handle'],"ListFilesInVessel",vesselname)
+  except NMClientException, e:
+    return (False, str(e))
+  else:
+    return (True, filedata)
+
+
+
+
+
 
 
 
@@ -391,6 +405,16 @@ def stop_target(longname):
   else:
     return (True,)
 
+
+def reset_target(longname):
+  vesselname = vesselinfo[longname]['vesselname']
+  try:
+    # reset the target
+    nmclient_signedsay(vesselinfo[longname]['handle'], "ResetVessel", vesselname)
+  except NMClientException, e:
+    return (False, str(e))
+  else:
+    return (True,)
 
 
 def run_target(longname,filename,filedata, argstring):
@@ -624,6 +648,7 @@ list               -- Update and display information about the vessels
 upload localfn (remotefn)   -- Upload a file 
 download remotefn (localfn) -- Download a file 
 delete remotefn             -- Delete a file
+reset                  -- Reset the vessel (clear the log and files and stop)
 run file [args ...]    -- Shortcut for upload a file and start
 start file [args ...] -- Start an experiment
 stop               -- Stop an experiment
@@ -650,14 +675,15 @@ set owner identity        -- Change a vessel's owner
 show users      -- Display the user keys for the vessels
 show ownerinfo  -- Display owner information for the vessels
 show advertise  -- Display advertisement information about the vessels
+show ip         -- Display the ip addresses of the nodes
 show owner      -- Display a vessel's owner
 show targets    -- Display a list of targets
 show identities -- Display the known identities
 show keys       -- Display the known keys
-show log        -- Display the log from the node (*)
+show log        -- Display the log from the vessel (*)
+show files      -- Display a list of files in the vessel (*)
 show resources  -- Display the resources / restrictions for the vessel (*)
 show offcut     -- Display the offcut resource for the node (*)
-show ip         -- Display the ip addresses of the nodes
 
 (*) No need to update prior, the command contacts the nodes anew
 """
@@ -809,6 +835,42 @@ update             -- Update information about the vessels
               print longname, "has no information (try 'update' or 'list')"
 
           continue
+
+
+
+# show files      -- Display a list of files in the vessel (*)
+        elif userinputlist[1] == 'file' or userinputlist[1] == 'files':
+
+          if not currenttarget:
+            raise UserError("Error, command requires a target")
+
+          # print the list of files in the vessels...
+          retdict = contact_targets(targets[currenttarget], showfiles_target)
+
+          goodlist = []
+          faillist = []
+          for longname in retdict:
+            # True means it worked
+            if retdict[longname][0]:
+              print "Files on '"+longname+"': '"+retdict[longname][1]+"'"
+              goodlist.append(longname)
+            else:
+              print "failure:",retdict[longname][1]
+              faillist.append(longname)
+  
+          # and display it...
+          if faillist:
+            print "Failures on "+str(len(faillist))+" targets: "+", ".join(faillist)
+          if goodlist and faillist:
+            targets['filesgood'] = goodlist
+            targets['filesfail'] = faillist
+            print "Added group 'filesgood' with "+str(len(targets['filesgood']))+" targets and 'filesfail' with "+str(len(targets['filesfail']))+" targets"
+
+          continue
+
+
+
+
 
 
 # show log        -- Display the log from the node (*)
@@ -1423,6 +1485,39 @@ update             -- Update information about the vessels
           
         continue
   
+# reset                  -- Reset the vessel (clear the log and files and stop)
+      elif userinputlist[0] == 'reset':
+        if len(userinputlist)>1:
+          raise UserError("Usage: reset")
+
+        if not currenttarget:
+          raise UserError("Must specify a target")
+        
+        # reset the vessels...
+        faillist = []
+        goodlist = []
+
+        retdict = contact_targets(targets[currenttarget],reset_target)
+
+        for longname in retdict:
+          if retdict[longname][0]:
+            goodlist.append(longname)
+          else:
+            print "Error '"+retdict[longname][1]+"' on "+longname
+            faillist.append(longname)
+
+        # and display it...
+        if faillist:
+          print "Failures on "+str(len(faillist))+" targets: "+", ".join(faillist)
+        if goodlist and faillist:
+          targets['resetgood'] = goodlist
+          targets['resetfail'] = faillist
+          print "Added group 'resetgood' with "+str(len(targets['resetgood']))+" targets and 'resetfail' with "+str(len(targets['resetfail']))+" targets"
+
+        continue
+  
+
+
 
 # update
       elif userinputlist[0] == 'update':
