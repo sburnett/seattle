@@ -12,6 +12,9 @@ it's interrupted when initializing a node, will not allow different owners
 to donate resources from the same node.   This is a prime candidate for 
 improvements or a rewrite.
 
+** DO NOT RUN THIS CODE **
+NOTE: This file is now outdated as its functionality has been rolled
+into a more generalized node state transition mechanism. -- IB
 
 """
 from repyportability import *

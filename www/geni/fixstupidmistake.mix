@@ -1,5 +1,5 @@
 from repyportability import *
-import genidb_new as genidb
+import genidb
 import sys
 
 include nmclient.repy

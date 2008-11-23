@@ -92,7 +92,7 @@ import runonce
 import logging
 import sys
 import time
-import genidb_new as genidb
+import genidb
 
 
 
