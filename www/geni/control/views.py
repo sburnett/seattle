@@ -232,7 +232,9 @@ def get_resources(request):
             dummy,num_acquired,explanation,summary = ret
         else:
             dummy,explanation,summary = ret
-    return used_resources(request,get_form,explanation=explanation,summary=summary)
+
+    # have used_resources generate the updated get_form form
+    return used_resources(request,get_form=False,explanation=explanation,summary=summary)
 
 #######################################################
     
