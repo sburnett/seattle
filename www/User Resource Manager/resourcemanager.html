@@ -15,7 +15,7 @@
 			<tr> <td id="userowned"> User Owned Resources: 90% </td> 
 			     <td id="vesselcontainer"> 
 					<table id="innertable">
-						<tr> <td id="row1" class="vesselrow"> <div id="fill1" class="fillers">  </div> <span id="text1">V1</span> </td> </tr>
+						<tr> <td id="row1" class="vesselrow"> <div id="fill1" class="fillers"> </div> <span id="text1">V1</span> </td> </tr>
 						<tr> <td id="row2" class="vesselrow"> <div id="fill2" class="fillers"> </div> <span id="text2">V2</span> </td> </tr>
 						<tr> <td id="row3" class="vesselrow"> <div id="fill3" class="fillers"> </div> <span id="text3">V3</span> </td> </tr>
 						<tr> <td id="row4" class="vesselrow"> <div id="fill4" class="fillers"> </div> <span id="text4">V4</span> </td> </tr>
@@ -39,8 +39,16 @@
 				 </td> </tr>
 		</table>
 		<table id="toosmalltable"> 
-			<caption id="caption2"> Vessels < 5% </caption>
-			<tr> <th> Vessel </th> <th> Allocated </th> <th> In Use </th> </tr>
+			<tbody id="toosmallbody">
+				<tr id="caption2"> <td colspan="3"> Vessels < 5% </td> </tr>
+				<tr> <th> Vessel </th> <th> Allocated </th> <th> In Use </th> </tr>
+			</tbody>
+		</table>
+		<table id="keytable"> 
+			<tbody id="keybody">
+				<tr id="caption3"> <td colspan="2"> Vessel Key </td> </tr>
+				<tr> <th> Vessel </th> <th> Username </th> </tr>
+			</tbody>
 		</table>
 	</body>
 </html>

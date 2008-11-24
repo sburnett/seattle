@@ -7,17 +7,22 @@ body {
 	background-color: #FFFFCC;
 	width: 90%;
 	text-align: center;
+	border: 0 none;
+}
+
+#row20 {
+	min-height: 14pt;
 }
 
 #innertable {
 	margin-left: auto;
 	margin-right: auto;
-	height: 515px;
+	min-height: 500px;
 	width: 100%;
+	border-collapse: collapse;
 }
 
 table {
-	border-collapse: collapse;
 	text-align: center;
 	border: 1px solid black;
 }
@@ -25,6 +30,9 @@ table {
 #vesselcontainer {
 	width: 10%;
 	background-color: #EDE275;
+	border: 0 none;
+	padding: 0px;
+	margin: 0px;
 }
 
 .vesselrow {
@@ -33,22 +41,26 @@ table {
 	display: none;
 }
 
-td, caption {
+td {
 	border: 1px solid black;
 }
 
-#caption2 {
-	margin-top: 40%;
+#caption2, #caption3 {
+	border: 1px solid black;
+	text-align: center;
 }
 
 th {
-	padding-right: 10px;
+	padding: 10px;
 	text-align: center;
+	border: 1px solid black;
 }
 
 #maintable {
 	width: 50%;
 	float: left;
+	border-collapse: none;
+	background-color: #FFFFCC;
 }
 
 .fillers {
@@ -61,6 +73,15 @@ th {
 }
 
 #toosmalltable {
-	clear: none;
-	margin-left: 53%;
+	margin-left: 3%;
+	display: inline;
+	border-collapse: collapse;
+	border: 0 none;
+}
+
+#keytable {
+	margin-left: 3%;
+	display: inline;
+	border-collapse: collapse;
+	border: 0 none;
 }
