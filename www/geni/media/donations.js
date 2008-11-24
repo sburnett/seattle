@@ -1,10 +1,13 @@
-var count1 = 0;
-var count2 = 0;
-var count3 = 0;
-var hideWhenNumber = 8;
-var dontDisplay = 3;
+var count1 = 0; //This is the count of your donations
+var count2 = 0; //This is the count of donations from others
+var count3 = 0; //This is the count of shared resources
+var hideWhenNumber = 8; //This is the cutoff for the resources data to be hidden. If the number of donations,shared resources, etc
+						//is >= this number, they will be hidden until the user clicks the "click here to expand" label
+var dontDisplay = 3; //This is the cutoff for the  "Click here to hide" labels to be hidden (
+					 //if the number of donations,shared resources, etc is <= this number, the labels will be hidden.  
 
 window.onload = function() {
+	//This handles the OS recognition of installer icons
 	if (BrowserDetect.OS == "Windows") {
 		$("win").src = "/geni/media/midwin.jpg";
 	} else if (BrowserDetect.OS == "Mac") {
@@ -13,6 +16,7 @@ window.onload = function() {
 		$("linux").src = "/geni/media/midlinux.jpg";
 	} else {
 	}
+	//Below are a series of Browser specific fixes used to fix certain display issues between browsers
 	$("banner").style.minWidth = "700px";
 	if (BrowserDetect.browser == "Explorer") {
 		var spacers = $$(".spacer");
@@ -32,14 +36,17 @@ window.onload = function() {
 		$$(".compressed-side-window")[0].style.fontSize = "8pt";
 		$$(".donation_table")[0].style.fontSize = "8pt";
 	}
-	//$("checkAll").onclick = checkAll;
-	var count = tally();
+	tally(); //This fills in the global variables count1, count2, and count3 
+	
+	//The below section sets whether the donations and shared resources labels are hidden, and what they should say ("click to expand"? or "click to hide"?)
+	
 	$("maximizer1").textContent = count1 + " Machines Donated (click to expand)";
 	$("maximizer2").textContent = count2 + " Machines Donated (click to expand)";
 	$("maximizer3").textContent = count3 + " Shares (click to expand)";
 	try { if(!maximizer3.innerText) maximizer3.innerText = maximizer3.textContent; } catch(e) {}
 	try { if(!maximizer1.innerText) maximizer1.innerText = maximizer1.textContent; } catch(e) {}
 	try { if(!maximizer2.innerText) maximizer2.innerText = maximizer2.textContent; } catch(e) {}
+	//sets the first label
 	if (count1 >= hideWhenNumber) {
 		$("maximizer1").onclick = table1unhide;
 	} else if (count1 <= dontDisplay) {
@@ -49,6 +56,7 @@ window.onload = function() {
 		$("maximizer1").style.display = "block";
 		table1unhide();
 	}
+	//sets the second label
 	if (count2 >= hideWhenNumber) {
 		$("maximizer2").onclick = table2unhide;
 	} else if (count2 <= dontDisplay) {
@@ -58,6 +66,7 @@ window.onload = function() {
 		$("maximizer2").style.display = "block";
 		table2unhide();
 	}
+	//sets the third label
 	if (count3 >= hideWhenNumber) {
 		$("maximizer3").onclick = table3unhide;
 	} else if (count3 <= dontDisplay) {
@@ -69,6 +78,7 @@ window.onload = function() {
 	}
 };
 
+//This function unhides the shared resources table
 function table3unhide() {
 	$("sharedResources").style.display = "block";
 	var maximizer3 = $("maximizer3");
@@ -77,6 +87,7 @@ function table3unhide() {
 	$("maximizer3").onclick = table3hide;
 }
 
+//This function unhides the shared resources table
 function table3hide() {
 	$("sharedResources").style.display = "none";
 	var maximizer3 = $("maximizer3");
@@ -85,6 +96,7 @@ function table3hide() {
 	$("maximizer3").onclick = table3unhide;
 }
 
+//This function unhides the shared resources table
 function table1unhide() {
 	if ($("table1")) {
 		$("table1").style.display = "block";
@@ -95,6 +107,7 @@ function table1unhide() {
 	$("maximizer1").onclick = table1hide;
 }
 
+//This function unhides the shared resources table
 function table1hide() {
 	$("table1").style.display = "none";
 	var maximizer1 = $("maximizer1");
@@ -103,6 +116,7 @@ function table1hide() {
 	$("maximizer1").onclick = table1unhide;
 }
 
+//This function unhides the shared resources table
 function table2hide() {
 	$("table2").style.display = "none";
 	var maximizer2 = $("maximizer2");
@@ -111,6 +125,7 @@ function table2hide() {
 	$("maximizer2").onclick = table2unhide;
 }
 
+//This function unhides the shared resources table
 function table2unhide() {
 	if ($("table2")) {
 		$("table2").style.display = "block";

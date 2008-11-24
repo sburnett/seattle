@@ -1,14 +1,23 @@
-var total = 0;
-var totalallocatedunderfive = 0;
-var totalusageunderfive = 0;
-var totalnumbersofar = 0;
-var refreshrateinseconds = 5;
+/*This is the javascript for the resourcemanager.html page.
+Its main function is to properly handle the refreshing of the  
+graphical representation of the vessels allocated and in use.
+*/
 
+var total = 0; //This keeps track of the total height in pixels, 
+			   //its used to properly absolute position the Vessel Text "V1, V2, etc"
+var totalallocatedunderfive = 0; //This keeps track of the number of vessels which have under 5% allocated
+var totalusageunderfive = 0; //This keeps track of the total % in use by the vessels which have less than 5% allocated
+var totalnumbersofar = 0; //This keeps track of the number of vessels which have been allocated to this point in time
+var refreshrateinseconds = 5; //This specifies the refresh rate of the page in seconds (default is 5 seconds)
+
+//Onload, the page is refreshed once, and then sets up a timer which refreshes the page every 'refreshrateinseconds' seconds
 window.onload = function () {
-	call();
+	call(); 
 	setInterval(call, refreshrateinseconds * 1000);
 };
 
+//This function makes an ajax call to a file in the same directory called status which stores the data used by this webpage.
+//Once the info is returned, the update method is called with this data.
 function call() {
 	new Ajax.Request("status", 
 	{
@@ -19,18 +28,29 @@ function call() {
 
 }
 
+/*This function handles all of the updating for the page, refreshing table data, and refreshing the graphical representations 
+   of the vessels. 
+*/
 function update(Ajax) {
+	//This loop rezeroes the vessel data in the graphical representation, to make the refreshing work properly
 	for (var z = 1;z < 21;z++) {
 		$("row" + z).style.display = "none";
 		$("row" + z).style.height = "0px";
 		$("row" + z).parentNode.style.display = "none";
 		$("row" + z).parentNode.style.height = "0px";
 	}
+	
+	//The following variable and loop rezero the data tables, to make refreshing work properly.
 	var table2elementstoremove = $$(".addedtotable2");
 	for (var j=0;j<table2elementstoremove.length;j++) {
 		table2elementstoremove[j].remove();
 	}
+	
+	//The 'vessels' variable  stores an array of vessels, with each element having a line of data about that particular vessel
 	var vessels = Ajax.responseText.split("\n");
+	
+	//This loop handles the detailed elements of refreshing the page. It rebuilds the data tables, and rebuilds the graphical
+	//representation of the allocated vessels
 	for (var i=1;i<=vessels.length-1;i++) {
 		var vesselinfo = vessels[i-1].split(",");
 		var newinforow = document.createElement("tr");
@@ -58,21 +78,26 @@ function update(Ajax) {
 			newrow.appendChild(newcolumn3);
 			$("toosmallbody").appendChild(newrow);
 		} else {
+			//The next statements create the allocated table blocks
 			$("row" + i).style.display = "block";
 			$("row" + i).parentNode.style.display = "block";
 			var vesselinfo = vessels[i-1].split(",");
 			var currentHeight = Math.round(vesselinfo[2]*5);
 			$("row" + i).style.height = currentHeight + "px";
 			$("row" + i).parentNode.style.height = currentHeight + "px";
+			//This statement creates the green status bar that shows the resources currently in use
 			$("fill" + i).style.paddingBottom = (vesselinfo[3]*5) + "px";
+			//The next 4 statements are used to absolutly position the Vessel Text (making it float over the shaded filling below.
 			$("text" + i).style.position = "absolute";
 			$("text" + i).style.top = (total + (2*(totalnumbersofar-1)) + (currentHeight/2) + 5) + "px";
 			$("text" + i).style.left = "0%";
 			$("text" + i).style.right = "5%";
+			//This tallies the global variables, this is used to help absolute position the text above
 			total += currentHeight;
 			totalnumbersofar++;
 		}
 	}
+	//This statement takes care of the single graphical block representing the vessels with less than 5% allocated.
 	if (totalallocatedunderfive > 0) {
 		$("row20").style.display = "block";
 		$("row20").parentNode.style.display = "block";
@@ -84,12 +109,14 @@ function update(Ajax) {
 		$("text20").style.left = "0%";
 		$("text20").style.right = "5%";
 	}
+	//The following statements rezero the global variables 
 	totalusageunderfive = 0;
 	totalallocatedunderfive = 0;
 	total = 0;
     totalnumbersofar = 0;
 }
 
+//Prints an error message if the ajax call fails
 function error() {
 	alert("error");
 }
