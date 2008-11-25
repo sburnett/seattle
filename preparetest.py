@@ -12,7 +12,9 @@ The script first erases all the files in the target folder, then copies the nece
 It is required that the folder passed in as an argument to the script exists.
 
 Usage:
-preparetest.py <target_folder>
+preparetest.py <target_folder> <-t>
+
+if -t is specified, the repy tests will also be included, otherwise, they will not
 
 """
 
@@ -22,9 +24,6 @@ import os
 import shutil
 import subprocess
 
-#define a function that gets the short filename when given a path
-def get_simple_name(s):
-  return os.path.basename(s)
 
 #define a function to use for copying the files matching the file expression to the target folder
 #file_expr may contain wildcards
@@ -33,7 +32,7 @@ def copy_to_target(file_expr, target):
   files_to_copy = glob.glob(file_expr)
   for file_path in files_to_copy:
     if os.path.isfile(file_path):
-      shutil.copyfile(file_path,target +"/"+get_simple_name(file_path))
+      shutil.copyfile(file_path,target +"/"+os.path.basename(file_path))
 
 
 #iterate through the .mix files in current folder and run them through the preprocessor
@@ -44,7 +43,7 @@ def process_mix(script_path):
  
   for file_path in mix_files:
     #generate a .py file for the .mix file specified by file_path
-    processed_file_path = (get_simple_name(file_path)).replace(".mix",".py")
+    processed_file_path = (os.path.basename(file_path)).replace(".mix",".py")
     (theout, theerr) =  exec_command("python " + script_path + " " + file_path + " " + processed_file_path)
 
 
