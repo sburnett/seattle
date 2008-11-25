@@ -10,8 +10,9 @@ to whatever update site location they wish, then run the actual
 test runner.
 
 How to successfully run all the tests:
-Get all necesary files into a single folder contained within an empty folder (this makes things simpler)
-make sure the software updater has the right url and is configured with updater.publickey
+Get all necesary files into a single folder contained within an empty folder 
+(this makes things simpler), make sure the software updater has the right url
+and is configured with updater.publickey
 Run:
 python test_updater.py
 cd ..
@@ -32,30 +33,30 @@ import sys
 
 def write_meta_and_copy(destdir, keyname):
 
-	# create the metainfo file for the files in the current directory
-	writemetainfo.create_metainfo_file(keyname+'.privatekey', keyname+'.publickey')
+  # create the metainfo file for the files in the current directory
+  writemetainfo.create_metainfo_file(keyname+'.privatekey', keyname+'.publickey')
 
-	print 'Copying files to '+destdir+' folder...'
+  print 'Copying files to '+destdir+' folder...'
 
-	# Copy these files into the destdir directory.
-	os.mkdir('../'+destdir)
-	for seaFile in glob.glob('*'):
-		if not os.path.isdir(seaFile):
-			shutil.copy(seaFile, '../'+destdir+'/')
+  # Copy these files into the destdir directory.
+  os.mkdir('../'+destdir)
+  for seaFile in glob.glob('*'):
+    if not os.path.isdir(seaFile):
+      shutil.copy(seaFile, '../'+destdir+'/')
 			
 			
 def main():
-	# Update folders need a metainfo file and all of the files needed
-	# for the Seattle platform.  The metainfo file must contain all of 
-	# the file names, their hashes, and their sizes.  The metainfo file
-	# must be correctly signed.  Of course for sites testing error 
-	# conditions, these things might not hold.
+  # Update folders need a metainfo file and all of the files needed
+  # for the Seattle platform.  The metainfo file must contain all of 
+  # the file names, their hashes, and their sizes.  The metainfo file
+  # must be correctly signed.  Of course for sites testing error 
+  # conditions, these things might not hold.
 
   # Make sure a metainfo file already exists.
   file('metainfo', 'w').close()
 
-	# Change softwareupdater wait time to be only 30 seconds
-	# instead of 5-55 minutes.
+  # Change softwareupdater wait time to be only 30 seconds
+  # instead of 5-55 minutes.
   upfile = file('softwareupdater.py', 'r')
   updata = upfile.read()
   upfile.close()
@@ -63,18 +64,18 @@ def main():
   eolindex = updata.find('\n', sleepindex)
   updata = updata[:sleepindex]+'do_sleep(30)'+updata[eolindex:]
 
-	# Write this change back to softwareupdater
+  # Write this change back to softwareupdater
   upfile = file('softwareupdater.py', 'w')
   upfile.write(updata)
   upfile.close()
 
   print 'Writing initial metainfo...'	
-	# This is the directory which should have no updates, but be otherwise
-	# correct.
+  # This is the directory which should have no updates, but be otherwise
+  # correct.
   write_meta_and_copy('noup', 'updater')
 	
   print 'Copying files to wronghash directory'
-	# Copy these files into the wronghash directory.
+  # Copy these files into the wronghash directory.
   os.mkdir('../wronghash')
   for seaFile in glob.glob('*'):
     if not os.path.isdir(seaFile):
@@ -83,30 +84,30 @@ def main():
 
   print 'Changing nmmain...'
 	
-	# Make changes to nmmain.py (change version to be 0.2a)
-	# Read in the current nmmain.py
+  # Make changes to nmmain.py (change version to be 0.2a)
+  # Read in the current nmmain.py
   nmmainfile = file('nmmain.py', 'r')
   nmmaindata = nmmainfile.read()
   nmmainfile.close()
 
-	# replace 'version = "xxxx"' with version = "0.2a"
+  # replace 'version = "xxxx"' with version = "0.2a"
   vindex = nmmaindata.find('version = "')
   nmmaindata = nmmaindata[:vindex] + 'version = "0.2a"' + nmmaindata[vindex+16:]
-	
-	# write this change back to nmmain.py
+
+  # write this change back to nmmain.py
   nmmainfile = file('nmmain.py', 'w')
   nmmainfile.write(nmmaindata)
   nmmainfile.close()
 	
   print 'Writing updated nmmain.py metainfo...'
-	# This is the directory which should be fully correct, and just update nmmain.py
+  # This is the directory which should be fully correct, and just update nmmain.py
   write_meta_and_copy('updatenmmain', 'updater')
 	
-	# copy the new metainfo to the wrong hash directory
-	# thusly causing it to have the wrong has for nmmain.py
+  # copy the new metainfo to the wrong hash directory
+  # thusly causing it to have the wrong has for nmmain.py
   shutil.copy('../updatenmmain/metainfo', '../wronghash/metainfo')
-	
-	# Replace the metainfo with a faulty one!
+
+  # Replace the metainfo with a faulty one!
   corruptmeta = """softwareupdater.py e0fe4093dbefcfd5b6cc7ebbee84693f07dcaf56 47253
 softwareupdater.logfile 4eff5359eac7ad3635de6f8db6b672f43d2ba98f 435
 generatekeys.py 4bf284e36ce95656086bd324308d00eb6c4eb92c 16036
@@ -120,41 +121,41 @@ writemetainfo.py e6c00469d77bd645a43b9ae7b734af66ed231d6a 40524
 	
   print 'Copying files to corruptmeta folder...'
 
-	# Copy these files into the corruptmeta directory.
+  # Copy these files into the corruptmeta directory.
   os.mkdir('../corruptmeta')
   for seaFile in glob.glob('*'):
     if not os.path.isdir(seaFile):
       shutil.copy(seaFile, '../corruptmeta/')
 	
   print 'Writing badly signed metainfo'
-	# This directory should be fully correct, except the metainfo file is 
-	# signed by the wrong key!  If the key were to be accepted, there would
-	# be an update to nmmain.py.
+  # This directory should be fully correct, except the metainfo file is 
+  # signed by the wrong key!  If the key were to be accepted, there would
+  # be an update to nmmain.py.
   write_meta_and_copy('badkeysig', 'badkey')
 	
   print 'Changing softwareupdater'
-	# Make changes to softwareupdater.py (add a comment at the end)
+  # Make changes to softwareupdater.py (add a comment at the end)
   upfile = file('softwareupdater.py', 'r')
   updata = upfile.read()
   upfile.close()
   updata = updata + '# Updated comment!'
 
-	# Write this change back to softwareupdater
+  # Write this change back to softwareupdater
   upfile = file('softwareupdater.py', 'w')
   upfile.write(updata)
   upfile.close()
   
   print 'Writing updated softwareupdater.py metainfo'
-	# This is the directory that will update the software updater,
-	# thus causing the software updater to restart.
+  # This is the directory that will update the software updater,
+  # thus causing the software updater to restart.
   write_meta_and_copy('updater', 'updater')
 
-	# copy the original softwareupdater back
+  # copy the original softwareupdater back
   shutil.copy('../noup/softwareupdater.py', 'softwareupdater.py')	
 		
 
-	# The current directory must be put back into it's original state,
-	# so that the noup test will indeed include no changes.
+  # The current directory must be put back into it's original state,
+  # so that the noup test will indeed include no changes.
   print 'Copying back files from noup folder...'
   shutil.copy('../noup/nmmain.py', 'nmmain.py')
   shutil.copy('../noup/metainfo', 'metainfo')
