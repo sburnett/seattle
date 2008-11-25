@@ -1,3 +1,21 @@
+"""
+<Program Name>
+  customize_installers.py
+
+<Started>
+  October 2008
+
+<Author>
+  Carter Butaud
+
+<Purpose>
+  Given an input directory and an output directory, customize_installers.py
+  adds the files in the input directory to the base installers (located in
+  a preset directory) and puts the customized installers in the output
+  directory.
+"""
+
+
 import os
 import sys
 import shutil
@@ -13,14 +31,38 @@ class ArgError(Exception):
         return repr(self.parameter)
 
 def output(text):
+    # Meant to be called internall, this
+    # might be useful if we ever want to add
+    # a "silent" option.
     print text
-    #f = open("/tmp/out", "a")
-    #f.write(text)
-    #f.close()
 
 def main(which_os, dir_to_add, output_path):
-    global PROG_DIR
+    """
+    <Purpose>
+      Given options indicating which USes the installers should be created
+      for, main takes the base installers (located in BASE_INST_PATH), adds
+      the content of dir_to_add to them, and deposits them in output_path.
+    
+    <Arguments>
+      which_os:
+        Should contain "m" if the Mac installer is to be built, "l" if the
+        Linux installer should be build, and "w" if the Windows installer
+        should be built.
+      dir_to_add:
+        All of the files contained in dir_to_add will be added to the
+        base installer to create the customized installer.
+      output_path:
+        The final product, the customized installers, will be in this
+        directory.
+    <Exceptions>
+      ArgError on bad filepaths.
 
+    <Side Effects>
+      Prints output.
+
+    <Returns>
+      None.
+"""
     if not os.path.exists(dir_to_add):
         raise ArgError("Could not find directory to add: " + dir_to_add)
     elif not os.path.exists(output_path):
