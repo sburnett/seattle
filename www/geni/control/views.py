@@ -1,6 +1,6 @@
 """
 <Program Name>
-  models.py
+  views.py
 
 <Started>
   October, 2008
@@ -19,6 +19,7 @@
   referencing a template via direct_to_template() and other
   django shorthands.
 
+  For more information on views in django see:
   See http://docs.djangoproject.com/en/dev/topics/http/views/
 """
 

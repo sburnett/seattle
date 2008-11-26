@@ -1,3 +1,21 @@
+"""
+<Program Name>
+  forms.py
+
+<Started>
+  October, 2008
+
+<Author>
+  ivan@cs.washington.edu
+  Ivan Beschastnikh
+
+<Purpose>
+
+<Usage>
+  For more information on forms in django see:
+  http://docs.djangoproject.com/en/dev/topics/forms/
+"""
+
 from django.contrib.auth.forms import UserCreationForm as django_UserCreationForm
 import django.forms as forms
 

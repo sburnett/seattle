@@ -1,3 +1,28 @@
+"""
+<Program Name>
+  views.py
+
+<Started>
+  October, 2008
+
+<Author>
+  ivan@cs.washington.edu
+  Ivan Beschastnikh
+
+<Purpose>
+  Defines view functions that handle HTTP requests
+
+  This file contains view functions for the control application which
+  are called whenever a url is matched in geni.urls. These
+  functions always take an HTTP request object, and return an HTTP
+  response object, which is sometimes generated automatically by
+  referencing a template via direct_to_template() and other
+  django shorthands.
+
+  For more information on views in django see:
+  See http://docs.djangoproject.com/en/dev/topics/http/views/
+"""
+
 import django as django
 from django.http import HttpResponseRedirect
 from django.http import HttpResponse
@@ -5,9 +30,10 @@ from django.contrib.auth import authenticate, login
 import django.contrib.auth as auth
 from django.views.generic.simple import direct_to_template
 from django.contrib.auth.forms import AuthenticationForm
-import forms
-from geni.control.models import User
 from django.core.urlresolvers import reverse
+
+from geni.control.models import User
+import forms
 
 def register(request):
     '''
