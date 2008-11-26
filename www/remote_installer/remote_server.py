@@ -1,6 +1,7 @@
 #XML-RPC Server
 
 import SimpleXMLRPCServer
+import SocketServer
 
 class StringFunctions:
     def __init__(self):
@@ -24,6 +25,6 @@ class StringFunctions:
     
 server = SimpleXMLRPCServer.SimpleXMLRPCServer(("localhost", 8000))
 server.register_instance(StringFunctions())
-server.register_function(lambda astr: '_' + astr, '_string')
+#server.register_function(lambda astr: '_' + astr, '_string')
 server.serve_forever()
 
