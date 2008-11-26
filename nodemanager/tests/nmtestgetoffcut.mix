@@ -1,4 +1,5 @@
 """
+Author: Justin Cappos
 Description:
 This test calls GetOffcutResources to verify no exceptions are thrown
 """

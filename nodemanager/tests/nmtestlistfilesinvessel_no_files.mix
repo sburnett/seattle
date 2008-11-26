@@ -1,8 +1,8 @@
 """
 Author: Cosmin Barsan
 Description:
-This test verifies the AddFileToVessel method throws an exception when passing in an empty string as the filename.
-
+This test verifies the ListFilesInVessel method by reseting the vessel, then checking if the files string returned by the ListFilesInVessel method is empty.
+The test may not leave the vessel in its original state since all log and file data is cleared during the reset.
 """
 
 include time.repy
@@ -11,11 +11,10 @@ include rsa.repy
 
 if callfunc == 'initialize':
 
+  pubkey = {'e': 1515278400394037168869631887206225761783197636247636149274740854708478416229147500580877416652289990968676310353790883501744269103521055894342395180721167L, 'n': 8811850224687278929671477591179591903829730117649785862652866020803862826558480006479605958786097112503418194852731900367494958963787480076175614578652735061071079458992502737148356289391380249696938882025028801032667062564713111819847043202173425187133883586347323838509679062142786013585264788548556099117804213139295498187634341184917970175566549405203725955179602584979965820196023950630399933075080549044334508921319264315718790337460536601263126663173385674250739895046814277313031265034275415434440823182691254039184953842629364697394327806074576199279943114384828602178957150547925812518281418481896604655037L}
   time_updatetime(34612)
   nmhandle = nmclient_createhandle(getmyip(), 1224)
   
-  pubkey = {'e': 1515278400394037168869631887206225761783197636247636149274740854708478416229147500580877416652289990968676310353790883501744269103521055894342395180721167L, 'n': 8811850224687278929671477591179591903829730117649785862652866020803862826558480006479605958786097112503418194852731900367494958963787480076175614578652735061071079458992502737148356289391380249696938882025028801032667062564713111819847043202173425187133883586347323838509679062142786013585264788548556099117804213139295498187634341184917970175566549405203725955179602584979965820196023950630399933075080549044334508921319264315718790337460536601263126663173385674250739895046814277313031265034275415434440823182691254039184953842629364697394327806074576199279943114384828602178957150547925812518281418481896604655037L}
-
   myhandleinfo = nmclient_get_handle_info(nmhandle)
 
   myhandleinfo['publickey'] = pubkey
@@ -26,26 +25,16 @@ if callfunc == 'initialize':
 
   # get the vessel to use...
   myvessel = nmclient_listaccessiblevessels(nmhandle,pubkey)[0][0]
-
-  data = "datastring"
   
+  # okay, now let's reset!
   try:
-    nmclient_signedsay(nmhandle, "AddFileToVessel", myvessel, "",data)
+    nmclient_signedsay(nmhandle, "ResetVessel", myvessel)
   except NMClientException:
-    pass
-  else:
-    #the file was added to the vessel
-    print "no exception thrown when adding file with invalid name to vessel"
-    print "attempting to retrieve file"
-    
-    #retrieve it
-    try:
-      retrieveddata = nmclient_signedsay(nmhandle, "RetrieveFileFromVessel", myvessel, "")
-    except NMClientException:
-      print "unable to read file from vessel"
-      pass
-    else:
-      if data != retrieveddata:
-        print "'"+data+"' != '"+retrieveddata+"'"
-    
-    raise Exception, "test failed: expected NMClientException when attempting to add the file to vessel"
+    print "warning: vessel reset failed"
+
+
+  filelist = nmclient_signedsay(nmhandle, "ListFilesInVessel", myvessel)
+
+  if len(filelist) != 0:
+    raise Exception, "File lists should be empty, unexpected result="+filelist
+

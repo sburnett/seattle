@@ -1,4 +1,5 @@
 """
+Author: Cosmin Barsan
 Description:
 This test attempts to call the ChangeOwner method, but uses an expired handle.The test is intended to verify that the owner is not changed.
 """

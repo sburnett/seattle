@@ -1,4 +1,5 @@
 """
+Author: Cosmin Barsan
 Description:
 The test sends a change user request with sequence id 1 followed by a change advertise request with sequence id 2.
 

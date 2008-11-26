@@ -1,8 +1,7 @@
 """
 Author: Cosmin Barsan
 Description:
-This test verifies the AddFileToVessel method throws an exception when passing in an empty string as the filename.
-
+This test calls the AddFileToVessel method twice, trying to add a file with the same name.
 """
 
 include time.repy
@@ -27,25 +26,11 @@ if callfunc == 'initialize':
   # get the vessel to use...
   myvessel = nmclient_listaccessiblevessels(nmhandle,pubkey)[0][0]
 
-  data = "datastring"
-  
-  try:
-    nmclient_signedsay(nmhandle, "AddFileToVessel", myvessel, "",data)
-  except NMClientException:
-    pass
-  else:
-    #the file was added to the vessel
-    print "no exception thrown when adding file with invalid name to vessel"
-    print "attempting to retrieve file"
-    
-    #retrieve it
-    try:
-      retrieveddata = nmclient_signedsay(nmhandle, "RetrieveFileFromVessel", myvessel, "")
-    except NMClientException:
-      print "unable to read file from vessel"
-      pass
-    else:
-      if data != retrieveddata:
-        print "'"+data+"' != '"+retrieveddata+"'"
-    
-    raise Exception, "test failed: expected NMClientException when attempting to add the file to vessel"
+  data = "hellodata"
+  nmclient_signedsay(nmhandle, "AddFileToVessel", myvessel, "hello","test1")
+  nmclient_signedsay(nmhandle, "AddFileToVessel", myvessel, "hello",data)
+
+  retrieveddata = nmclient_signedsay(nmhandle, "RetrieveFileFromVessel", myvessel, "hello")
+
+  if data != retrieveddata:
+    print "'"+data+"' != '"+retrieveddata+"'"

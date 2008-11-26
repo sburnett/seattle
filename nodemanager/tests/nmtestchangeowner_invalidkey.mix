@@ -1,4 +1,5 @@
 """
+Author: Cosmin Barsan
 Description:
 This test verifies that the method ChangeOwner does not change the owner when an invalid private key is used.
 """

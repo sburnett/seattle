@@ -1,4 +1,5 @@
 """
+Author: Justin Cappos
 Description:
 This test splits a vessel into two, and joins the resulting vessels back together. The test then verifies that the restrictions of the vessel are the same as they were at the beggining.
 """

@@ -1,4 +1,5 @@
 """
+Author: Cosmin Barsan
 Description:
 This test attempts to use the nmclient_rawsay method, but passes in an invalid method name.
 """

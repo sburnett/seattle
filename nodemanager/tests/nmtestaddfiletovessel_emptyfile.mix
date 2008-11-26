@@ -1,4 +1,5 @@
 """
+Author: Cosmin Barsan
 Description:
 This test verifies the behavior of the AddFileToVessel method for when adding a file that is empty.
 """

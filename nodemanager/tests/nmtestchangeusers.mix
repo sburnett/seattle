@@ -1,4 +1,5 @@
 """
+Author: Justin Cappos
 Description:
 This test verifies the ChangeUsers method by removing previous users and adding a new one. Then the new credentials are checked by calling several methods.
 """

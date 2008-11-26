@@ -1,4 +1,5 @@
 """
+Author: Cosmin Barsan
 Description:
 This test verifies the ChangeOwnerInformation method by calling the method and passing in a string containing escape characters.
 """

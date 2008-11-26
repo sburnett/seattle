@@ -1,4 +1,5 @@
 """
+Author: Justin Cappos
 Description:
 This test verifies the StartVessel and StopVessel methods by calling them and checking whether the status is correctly set.
 

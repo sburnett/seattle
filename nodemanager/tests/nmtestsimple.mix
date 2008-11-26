@@ -1,4 +1,5 @@
 """
+Author: Justin Cappos
 Description:
 This test verifies the GetVessels method does not generate an exception.
 

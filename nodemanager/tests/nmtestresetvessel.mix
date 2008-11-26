@@ -1,6 +1,7 @@
 """
+Author: Justin Cappos
 Description:
-This test verifies the DeleteFileInVessel method by adding a file, deleting it, and verifies the file no longer exists.
+This test verifies the ResetVessel method works by first assidng several files to a vessel, resetting the vessel, and checking if the files and log were erased.
 
 """
 
