@@ -9,6 +9,7 @@ var totalallocatedunderfive = 0; //This keeps track of the number of vessels whi
 var totalusageunderfive = 0; //This keeps track of the total % in use by the vessels which have less than 5% allocated
 var totalnumbersofar = 0; //This keeps track of the number of vessels which have been allocated to this point in time
 var refreshrateinseconds = 5; //This specifies the refresh rate of the page in seconds (default is 5 seconds)
+var vesselcolors = ["", "", "", "", ""];
 
 //Onload, the page is refreshed once, and then sets up a timer which refreshes the page every 'refreshrateinseconds' seconds
 window.onload = function () {
@@ -52,7 +53,8 @@ function update(Ajax) {
 	//This loop handles the detailed elements of refreshing the page. It rebuilds the data tables, and rebuilds the graphical
 	//representation of the allocated vessels
 	for (var i=1;i<=vessels.length-1;i++) {
-		var vesselinfo = vessels[i-1].split(",");
+		var vesselinfo = vessels[i-1].split(","); //This variable stores the data for this particular vessel in an array
+		//The next section populates the data tables by creating and appending new rows and columns
 		var newinforow = document.createElement("tr");
 		newinforow.className = "addedtotable2";
 		var newinfocolumn1 = document.createElement("td");
@@ -62,6 +64,8 @@ function update(Ajax) {
 		newinforow.appendChild(newinfocolumn1);
 		newinforow.appendChild(newinfocolumn2);
 		$("keybody").appendChild(newinforow);
+		//This if block handles the case of a vessel having less than 5% allocated to it, thus, populating the special table of vessels
+		//with less than 5%, and tallying the global variables so that the <5% resources special vessel will come into existence later on in the code
 		if (vesselinfo[2] < 5) {
 			totalallocatedunderfive += Math.round(vesselinfo[2]*5);
 			totalusageunderfive += Math.round(vesselinfo[3]*5);
@@ -87,11 +91,10 @@ function update(Ajax) {
 			$("row" + i).parentNode.style.height = currentHeight + "px";
 			//This statement creates the green status bar that shows the resources currently in use
 			$("fill" + i).style.paddingBottom = (vesselinfo[3]*5) + "px";
-			//The next 4 statements are used to absolutly position the Vessel Text (making it float over the shaded filling below.
+			//The next 3 statements are used to absolutly position the Vessel Text (making it float over the shaded filling below.)
 			$("text" + i).style.position = "absolute";
 			$("text" + i).style.top = (total + (2*(totalnumbersofar-1)) + (currentHeight/2) + 5) + "px";
-			$("text" + i).style.left = "0%";
-			$("text" + i).style.right = "5%";
+			$("text" + i).style.left = "42%";
 			//This tallies the global variables, this is used to help absolute position the text above
 			total += currentHeight;
 			totalnumbersofar++;
@@ -106,8 +109,7 @@ function update(Ajax) {
 		$("fill20").style.paddingBottom = totalusageunderfive + "px";
 		$("text20").style.position = "absolute";
 		$("text20").style.top = (total + (2*(totalnumbersofar-1)) + (totalallocatedunderfive/2) + 5) + "px";
-		$("text20").style.left = "0%";
-		$("text20").style.right = "5%";
+		$("text20").style.left = "9";
 	}
 	//The following statements rezero the global variables 
 	totalusageunderfive = 0;

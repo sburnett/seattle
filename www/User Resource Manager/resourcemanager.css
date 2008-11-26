@@ -3,13 +3,6 @@ body {
 	font-size: 14pt;
 }
 
-#userowned {
-	background-color: #FFFFCC;
-	width: 90%;
-	text-align: center;
-	border: 0 none;
-}
-
 #row20 {
 	min-height: 14pt;
 }
@@ -28,7 +21,6 @@ table {
 }
 
 #vesselcontainer {
-	width: 10%;
 	background-color: #EDE275;
 	border: 0 none;
 	padding: 0px;
@@ -37,7 +29,7 @@ table {
 
 .vesselrow {
 	text-align: center;
-    padding: 1%;	
+    padding: 0%;	
 	display: none;
 }
 
@@ -56,8 +48,14 @@ th {
 	border: 1px solid black;
 }
 
+#pie {
+	float: left;
+	width: 33%;
+	height: 500px;
+}
+
 #maintable {
-	width: 50%;
+	width: 20%;
 	float: left;
 	border-collapse: none;
 	background-color: #FFFFCC;
