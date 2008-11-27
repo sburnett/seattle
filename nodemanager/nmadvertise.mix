@@ -8,6 +8,12 @@ The advertisement functionality for the node manager
 
 """
 
+# needed for getruntime
+from repyportability import *
+
+# needed to convert keys to strings
+include rsa.repy
+
 import advertise
 
 import misc
@@ -20,7 +26,31 @@ adfrequency = 300
 # the TTL of those adverts
 adTTL = 750
 
+# This is how many seconds we'll wait between checks to see if there are new 
+# keys that need to be advertised.
+adsleepfrequency = 5
+
 myname = None
+
+# This dictionary holds the last time an address was advertised.   This is used
+# to allow us to quickly re-advertise when a key changes.
+# If the elapsed time between now and when we advertised is greater than the 
+# adfrequency, we'll advertise.   
+# I'll clean this up periodically using clean_advertise_dict()
+# NOTE: This contains keys that are converted to strings because a dictionary
+# isn't hashable!
+lastadvertisedict = {}
+
+
+# removes old items from the advertise dictionary.
+def clean_advertise_dict():
+  now = getruntime()
+  # must copy because we're removing items
+  for advertisekey in lastadvertisedict.copy():
+    if now - lastadvertisedict[advertisekey] > adfrequency:
+      # remove outdated item
+      del lastadvertisedict[advertisekey]
+      
 
 
 class advertthread(threading.Thread):
@@ -36,8 +66,13 @@ class advertthread(threading.Thread):
 
   def run(self):
     while True:
-      # the list of controlling public keys
-      advertkeys = []
+      # remove stale items from the advertise dict.   This is important because
+      # we're using membership in the dict to indicate a need to advertise
+      clean_advertise_dict()
+
+      # this list contains the keys we will advertise
+      advertisekeylist = []
+
       # make a copy so there isn't an issue with a race
       for vesselname in self.addict.keys()[:]:
 
@@ -50,26 +85,28 @@ class advertthread(threading.Thread):
         # if I advertise the vessel...
         if thisentry['advertise']:
           # add the owner key if not there already...
-          if thisentry['ownerkey'] not in advertkeys:
-            advertkeys.append(thisentry['ownerkey'])
+          if rsa_publickey_to_string(thisentry['ownerkey']) not in lastadvertisedict and thisentry['ownerkey'] not in advertisekeylist:
+            advertisekeylist.append(thisentry['ownerkey'])
 
           # and all user keys if not there already
           for userkey in thisentry['userkeys']:
-            if userkey not in advertkeys:
-              advertkeys.append(userkey)
+            if rsa_publickey_to_string(userkey) not in lastadvertisedict and userkey not in advertisekeylist:
+              advertisekeylist.append(userkey)
 
       # now that I know who to announce to, send messages to annouce my IP and 
       # port to all keys I support
-      for key in advertkeys:
+      for advertisekey in advertisekeylist:
         try:
-          advertise.announce(key, str(myname), adTTL)
+          advertise.announce(advertisekey, str(myname), adTTL)
+          # mark when we advertise
+          lastadvertisedict[rsa_publickey_to_string(advertisekey)] = getruntime()
         except Exception, e:
           print e
           # print the error and exit (we'll be restarted)
           return
 
       # wait to avoid sending too frequently
-      misc.do_sleep(adfrequency)
+      misc.do_sleep(adsleepfrequency)
 
 
 
