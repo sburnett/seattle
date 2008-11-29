@@ -9,7 +9,7 @@ include nmclient.repy
 if callfunc == 'initialize':
 
   time_updatetime(34612)
-  nmhandle = nmclient_createhandle(getmyip(), 1224, sequenceid=sequenceid=('req',3))
+  nmhandle = nmclient_createhandle(getmyip(), 1224, sequenceid=('req',30))
   
   myhandleinfo = nmclient_get_handle_info(nmhandle)
 

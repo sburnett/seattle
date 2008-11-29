@@ -3,13 +3,14 @@ Author: Cosmin Barsan
 Description:
 This test verifies that the change advertise method does not chage the advertise status when a negative number sequence id is specified when creating the handle.
 """
+
 include time.repy
 include nmclient.repy
 
 if callfunc == 'initialize':
 
   time_updatetime(34612)
-  nmhandle = nmclient_createhandle(getmyip(), 1224, sequenceid=-1)
+  nmhandle = nmclient_createhandle(getmyip(), 1224, sequenceid=('req',-1))
   
   myhandleinfo = nmclient_get_handle_info(nmhandle)
 
