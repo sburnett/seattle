@@ -41,7 +41,119 @@ def get_inst_name(dist, version):
         base_name += ".tgz"
     return base_name
 
-def prepare_files(trunk_location):
+def prepare_files(trunk_location, output_dir):
+    """
+    <Purpose>
+      Given the location of the repository's trunk, it will prepare the
+      files for the base installers (or for a software update) in a
+      specified location.
+    
+    <Arguments>
+      trunk_location:
+        The path to the trunk directory of the repository, used to
+        find all the requisite files that make up the installer.
+      output_dir:
+        The directory where the installer files will be placed.
+    
+    <Exceptions>
+      IOError on bad filepaths.
+    
+    <Side Effects>
+      None.
+      
+    <Returns>
+      None.
+    """
+    # Remember the original working directory
+    orig_dir = os.getcwd()
+    os.chdir(trunk_location)
+    # Remember all important locations relative to the trunk
+    dist_dir = os.getcwd() + "/dist"
+    keys_dir = dist_dir + "/updater_keys"
+    # Run preparetest, adding the files to the temp directory
+    os.popen("python preparetest.py " + output_dir)
+    # Make sure that the folder is initially clean and correct
+    clean_folder.clean_folder(dist_dir + "/initial_files.fi", output_dir)
+    # Generate the metainfo file
+    os.chdir(output_dir)
+    writemetainfo = imp.load_source("writemetainfo", "writemetainfo.py")
+    writemetainfo.create_metainfo_file(keys_dir + "/updater.privatekey", keys_dir + "/updater.publickey")
+    # Copy the static files to the program directory
+    shutil.copy2(dist_dir + "/nodeman.cfg", ".")
+    shutil.copy2(dist_dir + "/resources.offcut", ".")
+    # Run clean_folder a second time to make sure the final
+    # directory is in good shape.
+    clean_folder.clean_folder(dist_dir + "/final_files.fi", ".")
+    os.chdir(orig_dir)
+
+def package_win(dist_dir, install_dir, inst_name, output_dir):
+    """
+    <Purpose>
+      Packages the installation files and appends the necessary scripts
+      to create the Windows installer.
+    
+    <Arguments>
+      dist_dir:
+        The location of the dist directory in the trunk.
+      install_dir:
+        The location of the installation files.
+      inst_name:
+        The name that the final installer should have.
+      output_dir:
+        The final location of the installer.
+    
+    <Exceptions>
+      IOError on bad filepaths.
+    
+    <Side Effects>
+      None.
+      
+    <Returns>
+      None.
+    """
+    # First, copy the partial zip file over from the repository
+    shutil.copy2(dist_dir + "/win/partial_win.zip", output_dir + "/" + inst_name)
+    # Now, append the files in the install directory to the
+    # zip file.
+    build_installers.append_to_zip(output_dir + "/" + inst_name, install_dir, INSTALL_DIR)
+    # Finally, add the Windows specific scripts to the zip file
+    build_installers.append_to_zip(output_dir + "/" + inst_name, dist_dir + "/win/scripts", INSTALL_DIR)
+    
+def package_linux(dist_dir, install_dir, inst_name, output_dir):
+    """
+    <Purpose>
+      Packages the installation files and appends the necessary scripts
+      to create the Linux installer.
+    
+    <Arguments>
+      dist_dir:
+        The location of the dist directory in the trunk.
+      install_dir:
+        The location of the installation files.
+      inst_name:
+        The name that the final installer should have.
+      output_dir:
+        The final location of the installer.
+    
+    <Exceptions>
+      IOError on bad filepaths.
+    
+    <Side Effects>
+      None.
+      
+    <Returns>
+      None.
+    """
+    # First, package up the install directory into a tarball
+    temp_tarball = inst_name + "temp_" + os.getpid() + ".tgz"
+    orig_dir = os.getcwd()
+    os.chdir(install_dir + "/..")
+    os.popen("tar -czf " + temp_tarball + " " + install_dir)
+    shutil.move(temp_tarball, orig_dir)
+    os.chdir(orig_dir)
+    shutil.move(temp_tarball, output_dir + "/" + inst_name)
+    # Now, append the Linux-specific scripts to the tarball
+    build_installers.append_to_tar(output_dir + "/" + inst_name, dist_dir + "/linux/scripts", INSTALL_DIR)
 
 
 def build(which_os, trunk_location, output_dir, version=""):
@@ -94,62 +206,30 @@ def build(which_os, trunk_location, output_dir, version=""):
     # Remember all important locations relative to the trunk
     dist_dir = os.getcwd() + "/dist"
     keys_dir = dist_dir + "/updater_keys"
-    # Run preparetest, adding the files to the temp directory
-    os.popen("python preparetest.py " + install_dir)
-    os.chdir(temp_dir)
-    # Make sure that the folder is initially clean and correct
-    clean_folder.clean_folder(dist_dir + "/initial_files.fi", install_dir)
-    # Generate the metainfo file
-    os.chdir(install_dir)
-    writemetainfo = imp.load_source("writemetainfo", "writemetainfo.py")
-    writemetainfo.create_metainfo_file(keys_dir + "/updater.privatekey", keys_dir + "/updater.publickey")
-    # Copy the static files to the program directory
-    shutil.copy2(dist_dir + "/nodeman.cfg", ".")
-    shutil.copy2(dist_dir + "/resources.offcut", ".")
-    # Run clean_folder a second time to make sure the final
-    # directory is in good shape.
-    clean_folder.clean_folder(dist_dir + "/final_files.fi", ".")
-    os.chdir(orig_dir)
+    prepare_files(trunk_location, install_dir)
 
     # Now, package up the installer for each specified OS.
     if "w" in which_os.lower():
         # Package the Windows installer
         dist = "win"
         inst_name = get_inst_name(dist, version)
-        # First, copy the partial zip file over from the repository
-        shutil.copy2(dist_dir + "/win/partial_win.zip", temp_dir)
-        os.chdir(temp_dir)
-        os.rename("partial_win.zip", inst_name)
-        # Now, append the files in the install directory to the
-        # zip file.
-        build_installers.append_to_zip(inst_name, install_dir, INSTALL_DIR)
-        # Finally, add the Windows specific scripts to the zip file
-        build_installers.append_to_zip(inst_name, dist_dir + "/win/scripts", INSTALL_DIR)
-        os.chdir(orig_dir)
+        package_win(dist_dir, install_dir, inst_name, temp_dir)
+        shutil.copy2(temp_dir + "/" + inst_name, output_dir)
     
     if "l" in which_os.lower():
         # Package the Linux installer
         dist = "linux"
         inst_name = get_inst_name(dist, version)
-        # First, package up the install directory into a tarball
-        os.chdir(temp_dir)
-        os.popen("tar -czf " + inst_name + " " + install_dir)
-        # Now, append the Linux-specific scripts to the tarball
-        build_installers.append_to_tar(inst_name, dist_dir + "/linux/scripts", INSTALL_DIR)
-        os.chdir(orig_dir)
-
+        package_linux(dist_dir, install_dir, inst_name, temp_dir)
+        shutil.copy2(temp_dir + "/" + inst_name, output_dir)
+        
     if "m" in which_os.lower():
         # Package the Linux installer
         dist = "mac"
         inst_name = get_inst_name(dist, version)
-        # First, package up the install directory into a tarball
-        os.chdir(temp_dir)
-        os.popen("tar -czf " + inst_name + " " + install_dir)
-        # Since the Mac installer is currently identical to the
-        # Linux installer, append the Linux scripts to the tarball
-        build_installers.append_to_tar(inst_name, dist_dir + "/linux/scripts", INSTALL_DIR)
-        os.chdir(orig_dir)
-
+        package_linux(dist_dir, install_dir, inst_name, temp_dir)
+        shutil.copy2(temp_dir + "/" + inst_name, output_dir)
+        
 def main():
     if len(sys.argv) < 4:
         print "usage: python make_base_installer.py m|l|w path/to/trunk/ output/dir"
