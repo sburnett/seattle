@@ -27,7 +27,7 @@ INSTALL_DIR = "seattle_repy"
 DIST_DIR = "/var/www/dist"
 #DIST_DIR = "/homes/iws/butaud/www/dist"
 
-DEBUG = True
+DEBUG = False
 
 def main():
     if len(sys.argv) < 2:
