@@ -11,6 +11,7 @@ VESSEL_INFO = PREFIX + "/writecustominstallerinfo.py";
 
 import os
 import SimpleXMLRPCServer
+import re
 
 # importng Justin's code
 # import Carter's code
@@ -32,20 +33,46 @@ class generateInstaller:
 #       os.system("cp $dl_prefix/seattle_linux.tgz $dl_prefix/seattle_mac.tgz");
 
 
+	def standarize_name(self, username):
+		"""
+		arguments:
+			username that may contain white spaces or uppercase letters
+		return:
+			username with all lowercase and separated by underscores
+		"""
+		return re.sub("\s+", "_", string.lower(username))
+
+
+	def output_vessel_info(self, vessels):
+		"""
+		arguments:
+			vessels of form [(percent1, owner1, [u1, u2, ...]), (perent2, owner2, u1', u2',...),...]
+			where percent is the percent of each vessel..
+			owner is the owner of each vessel
+			u's are the users of each vessel
+	
+		"""
+		output = "";
+		for (percent, owner, users) in vessels:
+			output += "Percent " + percent + "\n"
+			output += "Owner " + owner + "\n"	
+			for u in users
+				output += "User " + u + "\n"
+ 		return output
+				
+
 	def create_installer(self, vessels):
 		""""
 		arguments:
 			vessels of form [(percent1, owner1, [u1, u2, ...]), (perent2, owner2, u1', u2',...),...]
-			where percent is ..
-			owner is
-			u is ..
+			where percent is the percent of each vessel..
+			owner is the owner of each vessel
+			u's are the users of each vessel
 	
 		"""
-		for (percent, owner, users) in vessels:
-			owner_key = owner
-			user_keys = users
-			for u in users
-				u_key = users[u]
+		f = open('vesselinfo.txt', 'w')
+		f.write(output_vessel_info)
+		f.close()
 			
     
 server = SimpleXMLRPCServer.SimpleXMLRPCServer((LISTEN_HOST, LISTEN_PORT))
