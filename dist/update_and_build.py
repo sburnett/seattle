@@ -27,15 +27,22 @@ INSTALL_DIR = "seattle_repy"
 DIST_DIR = "/var/www/dist"
 #DIST_DIR = "/homes/iws/butaud/www/dist"
 
-DEBUG = False
+DEBUG = True
 
 def main():
     if len(sys.argv) < 2:
         print "usage: python build_and_update.py trunk/location/ [version]"
-    elif len(sys.argv) < 3:
-        build_and_update(sys.argv[1])
     else:
-        build_and_update(sys.argv[1], sys.argv[2])
+        # Confirm that the user really wants to update all the software
+        print "This will update all of the client software!"
+        print "Are you sure you want to proceed? (y/n)"
+        if raw_input()[0].lower() == "y":
+            if len(sys.argv) < 3:
+                build_and_update(sys.argv[1])
+            else:
+                build_and_update(sys.argv[1], sys.argv[2])
+        else:
+            print "Use make_base_installers instead to just create installers."
 
 def build_and_update(trunk_location, version=""):
     """
