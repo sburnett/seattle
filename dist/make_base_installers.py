@@ -73,7 +73,6 @@ def prepare_files(trunk_location, output_dir):
     # Run preparetest, adding the files to the temp directory
     os.popen("python preparetest.py " + output_dir)
     # Make sure that the folder is initially clean and correct
-    print dist_dir
     clean_folder.clean_folder(dist_dir + "/initial_files.fi", output_dir)
     # Generate the metainfo file
     os.chdir(output_dir)
@@ -146,15 +145,18 @@ def package_linux(dist_dir, install_dir, inst_name, output_dir):
       None.
     """
     # First, package up the install directory into a tarball
-    temp_tarball = inst_name + "temp_" + os.getpid() + ".tgz"
+    temp_tarball = inst_name + "temp_" + str(os.getpid()) + ".tgz"
     orig_dir = os.getcwd()
     os.chdir(install_dir + "/..")
-    os.popen("tar -czf " + temp_tarball + " " + install_dir)
+    os.popen("tar -czf " + temp_tarball + " " + INSTALL_DIR)
     shutil.move(temp_tarball, orig_dir)
     os.chdir(orig_dir)
     shutil.move(temp_tarball, output_dir + "/" + inst_name)
     # Now, append the Linux-specific scripts to the tarball
     build_installers.append_to_tar(output_dir + "/" + inst_name, dist_dir + "/linux/scripts", INSTALL_DIR)
+
+def package_mac(dist_dir, install_dir, inst_name, output_dir):
+    package_linux(dist_dir, install_dir, inst_name, output_dir)
 
 
 def build(which_os, trunk_location, output_dir, version=""):
@@ -207,6 +209,7 @@ def build(which_os, trunk_location, output_dir, version=""):
     # Remember all important locations relative to the trunk
     dist_dir = os.getcwd() + "/dist"
     keys_dir = dist_dir + "/updater_keys"
+    os.chdir(orig_dir)
     prepare_files(trunk_location, install_dir)
 
     # Now, package up the installer for each specified OS.
@@ -225,10 +228,10 @@ def build(which_os, trunk_location, output_dir, version=""):
         shutil.copy2(temp_dir + "/" + inst_name, output_dir)
         
     if "m" in which_os.lower():
-        # Package the Linux installer
+        # Package the Mac installer
         dist = "mac"
         inst_name = get_inst_name(dist, version)
-        package_linux(dist_dir, install_dir, inst_name, temp_dir)
+        package_mac(dist_dir, install_dir, inst_name, temp_dir)
         shutil.copy2(temp_dir + "/" + inst_name, output_dir)
         
 def main():
