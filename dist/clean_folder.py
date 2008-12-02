@@ -1,3 +1,33 @@
+"""
+<Program Name>
+  clean_folder.py
+
+<Started>
+  September, 2008
+
+<Author>
+  Carter Butaud
+
+<Purpose>
+  Parses an instructions file and uses it to check/clean a directory.
+  The instructions file should have the following format:
+    
+    req required_file_1
+    req at_least, one_of_these, is_required
+    
+    del bad_file
+    del *.pyc
+    del bad_file_number?
+
+    # This line is a comment
+    req file_4 # Comments can be inline
+
+  Invalid lines in instructions files (non-empty lines that do 
+  not start with "req", "del", or "#") will cause warnings to
+  be printed. If one file is both required and deleted, the 
+  program quits with a ParseError.
+"""
+
 import os
 import re
 import sys
@@ -66,7 +96,30 @@ def parse_instructions(instr_path):
                         raise ParseError("File both required and deleted: " + part)
         return (req_files, del_files)
                     
-def main(instr_path, dir_to_clean):
+def clean_folder(instr_path, dir_to_clean):
+    """
+    <Purpose>
+      Given an instructions file and a directory, it will make sure that
+      the directory matches the instructions, deleting files where necessary,
+      printing errors where files are missing, and printing warnings where
+      unrecognized files exist.
+
+    <Arguments>
+      instr_path:
+        The location of the instructions file to be used.
+      dir_to_clean:
+        The location of the directory to be cleaned.
+
+    <Exceptions>
+      IllegalArgError on bad filepaths.
+      ParseError on invalid instructions file.
+
+    <Side Effects>
+      None.
+
+    <Returns>
+      None.
+    """
     # First, get the required files and the files to be deleted
     (req_files, del_files) = parse_instructions(instr_path)
     req_files_found = [False for i in range(len(req_files))]
@@ -99,9 +152,12 @@ def main(instr_path, dir_to_clean):
         if not req_files_found[i]:
             output("Error: required file " + req_files[i] + " not found in " + dir_to_clean)
 
-            
-if __name__ == "__main__":
+
+def main():
     if len(sys.argv) < 3:
         output("usage: python clean_folder.py instructions.fi directory/to/clean/")
     else:
-        main(sys.argv[1], sys.argv[2])
+        clean_folder(sys.argv[1], sys.argv[2])
+            
+if __name__ == "__main__":
+    main()
