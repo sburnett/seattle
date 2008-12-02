@@ -156,6 +156,31 @@ def package_linux(dist_dir, install_dir, inst_name, output_dir):
     build_installers.append_to_tar(output_dir + "/" + inst_name, dist_dir + "/linux/scripts", INSTALL_DIR)
 
 def package_mac(dist_dir, install_dir, inst_name, output_dir):
+    """
+    <Purpose>
+      Packages the installation files and appends the necessary scripts
+      to create the Mac installer.
+    
+    <Arguments>
+      dist_dir:
+        The location of the dist directory in the trunk.
+      install_dir:
+        The location of the installation files.
+      inst_name:
+        The name that the final installer should have.
+      output_dir:
+        The final location of the installer.
+    
+    <Exceptions>
+      IOError on bad filepaths.
+    
+    <Side Effects>
+      None.
+      
+    <Returns>
+      None.
+    """
+    # For now, just runs the Linux installer packager
     package_linux(dist_dir, install_dir, inst_name, output_dir)
 
 
