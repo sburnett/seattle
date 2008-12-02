@@ -16,7 +16,7 @@
 import sys
 import make_base_installers
 
-UPDATE_SITE = "/homes/iws/butaud/public_html/updatesite"
+UPDATE_SITE = "/home/couvb/public_html/updatesite"
 DEBUG = False
 
 def update(trunk_location):
