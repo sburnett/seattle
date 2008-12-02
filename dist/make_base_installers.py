@@ -41,12 +41,13 @@ def get_inst_name(dist, version):
         base_name += ".tgz"
     return base_name
 
-def prepare_files(trunk_location, output_dir):
+def prepare_initial_files(trunk_location, output_dir):
     """
     <Purpose>
       Given the location of the repository's trunk, it will prepare the
       files for the base installers (or for a software update) in a
-      specified location.
+      specified location, including all the files necessary for the
+      metainfo file.
     
     <Arguments>
       trunk_location:
@@ -78,13 +79,36 @@ def prepare_files(trunk_location, output_dir):
     os.chdir(output_dir)
     writemetainfo = imp.load_source("writemetainfo", "writemetainfo.py")
     writemetainfo.create_metainfo_file(keys_dir + "/updater.privatekey", keys_dir + "/updater.publickey")
+    os.chdir(orig_dir)
+
+def prepare_final_files(trunk_location, output_dir):
+    """
+    <Purpose>
+      Copies the files that should not be included in the metainfo file over to the
+      install directory.
+    
+    <Arguments>
+      trunk_location:
+        The path to the trunk directory of the repository, used to
+        find all the requisite files that make up the installer.
+      output_dir:
+        The directory where the installer files will be placed.
+    
+    <Exceptions>
+      IOError on bad filepaths.
+      
+    <Side Effects>
+      None.
+    
+    <Returns>
+      None.
+    """
     # Copy the static files to the program directory
-    shutil.copy2(dist_dir + "/nodeman.cfg", ".")
-    shutil.copy2(dist_dir + "/resources.offcut", ".")
+    shutil.copy2(trunk_location + "/dist/nodeman.cfg", output_dir)
+    shutil.copy2(trunk_location + "/dist/resources.offcut", output_dir)
     # Run clean_folder a second time to make sure the final
     # directory is in good shape.
-    clean_folder.clean_folder(dist_dir + "/final_files.fi", ".")
-    os.chdir(orig_dir)
+    clean_folder.clean_folder(trunk_location + "/dist/final_files.fi", output_dir)
 
 def package_win(dist_dir, install_dir, inst_name, output_dir):
     """
@@ -235,7 +259,8 @@ def build(which_os, trunk_location, output_dir, version=""):
     dist_dir = os.getcwd() + "/dist"
     keys_dir = dist_dir + "/updater_keys"
     os.chdir(orig_dir)
-    prepare_files(trunk_location, install_dir)
+    prepare_initial_files(trunk_location, install_dir)
+    prepare_final_files(trunk_location, install_dir)
 
     # Now, package up the installer for each specified OS.
     if "w" in which_os.lower():
