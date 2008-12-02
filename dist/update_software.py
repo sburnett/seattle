@@ -16,7 +16,7 @@
 import sys
 import make_base_installers
 
-UPDATE_SITE = "/home/couvb/public_html/updatesite"
+UPDATE_SITE = "/homes/iws/butaud/public_html/updatesite"
 DEBUG = False
 
 def update(trunk_location):
@@ -43,16 +43,18 @@ def update(trunk_location):
   # If we're in DEBUG mode, don't use the real update
   # directory
   if DEBUG:
-      update_dir = UPDATE_SITE + "/test"
-  make_base_installers.prepare_initial_files(trunk_location, update_dir)
+    print "Debug mode..."
+    update_dir = UPDATE_SITE + "/test"
+    make_base_installers.prepare_initial_files(trunk_location, update_dir)
 
 def main():
-    if len(sys.argv) < 2:
-        print "usage: python update_software.py trunk/location/ [-d]"
-    else:
-        if sys.argv[2] == "-d":
-            DEBUG = True
-        update(sys.argv[1])
-
+  global DEBUG
+  if len(sys.argv) < 2:
+    print "usage: python update_software.py trunk/location/ [-d]"
+  else:
+    if sys.argv[2] == "-d":
+      DEBUG = True
+      update(sys.argv[1])
+      
 if __name__ == "__main__":
-    main()
+  main()
