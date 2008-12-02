@@ -73,6 +73,7 @@ def prepare_files(trunk_location, output_dir):
     # Run preparetest, adding the files to the temp directory
     os.popen("python preparetest.py " + output_dir)
     # Make sure that the folder is initially clean and correct
+    print dist_dir
     clean_folder.clean_folder(dist_dir + "/initial_files.fi", output_dir)
     # Generate the metainfo file
     os.chdir(output_dir)
