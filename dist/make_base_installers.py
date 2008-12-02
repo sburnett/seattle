@@ -283,6 +283,9 @@ def build(which_os, trunk_location, output_dir, version=""):
         inst_name = get_inst_name(dist, version)
         package_mac(dist_dir, install_dir, inst_name, temp_dir)
         shutil.copy2(temp_dir + "/" + inst_name, output_dir)
+
+    # Clean up the temp directory
+    shutil.rmtree(temp_dir)
         
 def main():
     if len(sys.argv) < 4:

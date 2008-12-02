@@ -1,82 +1,137 @@
-# To run build_installers, make sure it is located in the dist directory,
-# and then call it with the desired name of the distribution as an argument.
-# That is, if you want to produce the files "seattlex.x.x_win.zip",
-# "seattlex.x.x_mac.tgz", and "seattlex.x.x_linux.tgz", just run
-# "python build_installers.zip seattlex.x.x".
-# NOTE: This script is not portable, and will only run on Linux (or
-# probably OSX)
+"""
+<Program Name>
+  build_installers.py
 
-import sys
+<Started>
+  November 18, 2008
+
+<Author>
+  Carter Butaud
+
+<Purpose>
+  Provides various methods useful for building and customizing
+  the installers, including methods to build an entire installer,
+  to build all the installers, and to add files to existing
+  installers.
+"""
+
 import os
-import clean_folder
+import sys
 import shutil
 
-DISTS = ["win", "linux"]
-INSTALL_DIR = "seattle_repy"
-UPDATER_PRIV_KEY = "updater_keys" + os.sep + "updater.privatekey"
-UPDATER_PUB_KEY = "updater_keys" + os.sep + "updater.publickey"
-DIST_DIR = "/var/www/dist"
+PROGRAM_NAME = "build_installers"
 
-def output(text):
-    print text
+def append_to_zip(zip_file, folder_to_append, zip_file_dir):
+    """
+    <Purpose>
+      Recursively adds all files in a given folder to a given zip file.
 
-def main(dist_name):
-    # First, run preparetest once for each of the distributions,
-    for dist in DISTS:
-        output("Creating " + dist + " distribution...")
-        prog_dir = dist + os.sep + INSTALL_DIR
-        os.system("mkdir " + prog_dir + " &> /dev/null")
-        os.chdir("..")
-        os.system("python preparetest.py dist" + os.sep + prog_dir)
-        # Next, do an initial cleaning of the directory created
-        os.chdir("dist")
-        clean_folder.main("preparetest.fi", prog_dir)
-        # Generate the metainfo file
-        os.chdir(prog_dir)
-        os.system("python writemetainfo.py .." + os.sep + ".." + os.sep + UPDATER_PRIV_KEY + " .." + os.sep + ".." + os.sep + UPDATER_PUB_KEY)
+    <Arguments>
+      zip_file:
+        The file to which the files in the new folder will be appended.
+      folder_to_append:
+        The folder containing all the files to be added to the zip file.
+      zip_file_dir:
+        The location in the zip file to which the files should be added.
 
-        # Copy the nodeman.cfg file from the dist directory
-        shutil.copyfile(".." + os.sep + ".." + os.sep + "nodeman.cfg", "nodeman.cfg")
-        # Copy the resources.offcut file from the dist directory
-        shutil.copyfile("../../resources.offcut", "resources.offcut")
-        
-        os.chdir(".." + os.sep + "..")
-                
-        output("Done!")
-        
-    # Package up the Windows installer
-    output("Packaging win distribution...")
-    os.chdir("win")
-    win_dist = dist_name + "_win.zip"
-    os.system("rm -f " + win_dist)
-    os.system("cp partial_win.zip " + win_dist)
-    os.system("cp scripts" + os.sep + "* " + INSTALL_DIR)
-    os.system("zip -r " + win_dist + " " + INSTALL_DIR)
-    os.system("cp " + win_dist + " " + DIST_DIR)
-    output("Created " + win_dist)
+    <Exceptions>
+      IOError on bad filepaths.
     
-    # Package up the Linux installer
-    output("Packaging linux distribution...")
-    os.chdir(".." + os.sep + "linux")
-    linux_dist = dist_name + "_linux.tgz"
-    os.system("cp -p scripts" + os.sep + "* " + INSTALL_DIR)
-    os.system("rm -f " + linux_dist)
-    os.system("tar -czf " + linux_dist + " " + INSTALL_DIR)
-    os.system("cp " + linux_dist + " " + DIST_DIR)
-    output("Created " + linux_dist)
+    <Side Effects>
+      None.
 
-    # Copy the Linux installer to the Mac directory
-    output("Copying linux distribution to mac folder...")
-    mac_dist = dist_name + "_mac.tgz"
-    os.system("cp " + linux_dist + " .." + os.sep + "mac" + os.sep + mac_dist)
-    os.system("cp " + linux_dist + " " + DIST_DIR + os.sep + mac_dist)
-    output("Created " + mac_dist)
+    <Returns>
+      None.
+    """
+    if not os.path.exists(zip_file):
+        raise IOError("File not found: " + zip_file)
+    if not os.path.exists(folder_to_append):
+        raise IOError("File not found: " + folder_to_append)
+    orig_dir = os.getcwd()
+    temp_dir = "/tmp/" + PROGRAM_NAME + str(os.getpid())
+    os.mkdir(temp_dir)
+    append_path = temp_dir + "/" + zip_file_dir
+    shutil.copytree(folder_to_append, append_path)
+    shutil.copy2(zip_file, temp_dir)
+    # Navigate to the temp folder and back to work around zip's
+    # idiosyncracies.
+    os.chdir(temp_dir)
+    zip_file_name = zip_file.split("/")[-1]
+    os.popen("zip -r " + zip_file_name + " " + zip_file_dir)
+    os.chdir(orig_dir)
+    shutil.copy2(temp_dir + "/" + zip_file_name, zip_file)
+    shutil.rmtree(temp_dir)
 
-    
-if __name__ == "__main__":
-    dist_name = ""
-    if len(sys.argv) < 2:
-        dist_name = "seattle"
+def append_to_tar(tarball, folder_to_append, tarball_dir):
+    """
+    <Purpose>
+      Recursively adds all files in a given folder to a given tarball.
+
+    <Arguments>
+      tarball:
+        The tarball to which the files in the new folder will be appended.
+      folder_to_append:
+        The folder containing all the files to be added to the tarball.
+      tarball_dir:
+        The location in the tarball to which the files should be added.
+
+    <Exceptions>
+      IOError on bad filepaths.
+
+    <Side Effects>
+      None.
+
+    <Returns>
+      None.
+    """
+    if not os.path.exists(tarball):
+        raise IOError("File not found: " + tarball)
+    if not os.path.exists(folder_to_append):
+        raise IOError("File not found: " + folder_to_append)
+    orig_dir = os.getcwd()
+    # Create a unique temp directory
+    temp_dir = "/tmp/" + PROGRAM_NAME + str(os.getpid())
+    if not os.path.exists(temp_dir):
+        os.mkdir(temp_dir)
+    append_path = temp_dir + "/" + tarball_dir
+    if os.path.exists(append_path):
+        shutil.rmtree(append_path)
+    os.mkdir(append_path)
+    # Copy the files to be appended over
+    command = "cp -r " + folder_to_append + "/* " + append_path
+    os.popen(command)
+    # Copy the tarball over
+    shutil.copy2(tarball, temp_dir)
+    # Navigate to the temp directory to deal with tar's idiosyncrasies.
+    os.chdir(temp_dir)
+    # Unzip the tarball so we can append files to it.
+    zipped_tarball_name = tarball.split("/")[-1]
+    command = "gzip -d " + zipped_tarball_name
+    os.popen(command)
+    # Append the appropriate files to the tarball.
+    base_tarball_name = ""
+    if zipped_tarball_name.endswith(".tar.gz"):
+        # If the original file was "*.tar.gz"...
+        base_tarball_name = zipped_tarball_name[:-6]
     else:
-        dist_name = sys.argv[1]
-    main(dist_name)
+        # Assume the original file was "*.tgz".
+        base_tarball_name = zipped_tarball_name[:-4]
+    command = "tar -rf " + base_tarball_name + ".tar " + tarball_dir
+    os.popen(command)
+    # Zip up the tarball, make sure it is named appropriately, and copy
+    # it back to its original location.
+    command = "gzip " + base_tarball_name + ".tar"
+    os.popen(command)
+    os.chdir(orig_dir)
+    shutil.copy2(temp_dir + "/" + base_tarball_name + ".tar.gz", tarball)
+   
+
+
+def main():
+    if len(sys.argv) < 4:
+        print "usage: python build_installers.py tarball folder_to_append tarball_dir"
+    else:
+        append_to_tar(sys.argv[1], sys.argv[2], sys.argv[3])
+
+if __name__ == "__main__":
+    main()
