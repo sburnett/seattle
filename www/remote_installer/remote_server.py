@@ -1,3 +1,14 @@
+"""
+Author: Xuanhua Ren
+
+Module: Create the customized installer through XML_RPC
+
+Start date: November 28th, 2008
+
+
+"""
+
+
 #XML-RPC Server
 
 # Configure below
@@ -5,13 +16,17 @@ LISTEN_HOST = '127.0.0.1' # You should not use '' here, unless you have a real F
 LISTEN_PORT = 8000
 
 # Paths
-PREFIX = "/var/www/remote_installer";
-INSTALLER_SCRIPT = PREFIX + "/customize_installers.py";
-VESSEL_INFO = PREFIX + "/writecustominstallerinfo.py";
+PREFIX = "./";
+DOWNLOAD_PREFIX = "downloads/"
+INSTALLER_SCRIPT = PREFIX + "customize_installers.py";
+VESSELINFO_SCRIPT = PREFIX + "writecustominstallerinfo.py";
 
 import os
 import SimpleXMLRPCServer
 import re
+import customized_installers
+import writecustominstaller
+
 
 # importng Justin's code
 # import Carter's code
@@ -23,15 +38,6 @@ class generateInstaller:
         # python_string.func_name
         import string
         self.python_string = string
-
-    def createInstaller(self):
-	# vesselinfopy.generate(..)
-#		os.system("python $vesselinfopy $dl_prefix/vesselsinfo.txt $dl_prefix/vesselsinfo/");
-#       os.system("cd $dl_prefix/tmp/ && python $carter_script mlw $dl_prefix/vesselsinfo $dl_prefix/ > /tmp/carter.out.php 2> /tmp/carter.err.php");		
-#		os.system("zip -j $dl_prefix/private.zip $dl_prefix/*.privatekey");
-#		os.system("zip -j $dl_prefix/public.zip $dl_prefix/*.publickey");
-#       os.system("cp $dl_prefix/seattle_linux.tgz $dl_prefix/seattle_mac.tgz");
-
 
 	def standarize_name(self, username):
 		"""
@@ -50,7 +56,13 @@ class generateInstaller:
 			where percent is the percent of each vessel..
 			owner is the owner of each vessel
 			u's are the users of each vessel
-	
+		return:
+			output in format of 
+				Percent xxx
+				Owner xxx
+				User xxx
+				User xxx
+				...
 		"""
 		output = "";
 		for (percent, owner, users) in vessels:
@@ -59,6 +71,11 @@ class generateInstaller:
 			for u in users
 				output += "User " + u + "\n"
  		return output
+
+
+
+
+        exec("cd $dl_prefix/tmp/ && python $carter_script mlw $dl_prefix/vesselsinfo $dl_prefix/ > /tmp/carter.out.php 2> /tmp/carter.err.php");
 				
 
 	def create_installer(self, vessels):
@@ -70,11 +87,18 @@ class generateInstaller:
 			u's are the users of each vessel
 	
 		"""
-		f = open('vesselinfo.txt', 'w')
+		f = open(DOWNLOAD_PREFIX + 'vesselinfo.txt', 'w')
 		f.write(output_vessel_info)
 		f.close()
-			
-    
+		
+    	VESSELINFO_SCRIPT.create_installer_state("vesselinfo.txt", DOWNLOAD_PREFIX)
+		
+		
+		# os.system("cp $dl_prefix/seattle_linux.tgz $dl_prefix/seattle_mac.tgz");
+
+
+
+
 server = SimpleXMLRPCServer.SimpleXMLRPCServer((LISTEN_HOST, LISTEN_PORT))
 server.register_instance(generateInstaller())
 server.serve_forever()

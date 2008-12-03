@@ -1,7 +1,28 @@
 import xmlrpclib
+import generatekeys
 
 server = xmlrpclib.erver('http:S//localhost:8000')
 
+
+function genkey($user) {
+	global $prefix, $dl_prefix;
+	if (array_key_exists($user, $_SESSION)) {
+		file_put_contents(getPublicKeyPath($user), $_SESSION[$user]);
+	} else {
+		exec("python $prefix/generatekeys.py $user 128 $dl_prefix/");
+	}
+}
+
+def genkey(user):
+	"""
+		arguments:
+			user - the user who we want to generate key for
+		return:
+			the key for the user
+	"""
+	
+	
+	
 
 vessel_info = 
 	[
@@ -12,9 +33,3 @@ vessel_info =
 
 server.create_installer(vessel_info);
 
-
-# print server.chop_in_half('I am a confidant guy')
-# print server.repeat('Repetition is the key to learning!\n', 5)
-# print server._string('<= underscore')
-# print server.python_string.join(['I', 'like it!'], " don't ")
-# print server._privateFunction() # Will throw an exception
