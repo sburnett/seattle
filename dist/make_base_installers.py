@@ -41,7 +41,7 @@ def get_inst_name(dist, version):
         base_name += ".tgz"
     return base_name
 
-def prepare_initial_files(trunk_location, output_dir):
+def prepare_initial_files(trunk_location, pubkey, privkey, output_dir):
     """
     <Purpose>
       Given the location of the repository's trunk, it will prepare the
@@ -53,6 +53,12 @@ def prepare_initial_files(trunk_location, output_dir):
       trunk_location:
         The path to the trunk directory of the repository, used to
         find all the requisite files that make up the installer.
+      pubkey:
+        The path to a public key that will be used to generate the
+        metainfo file.
+      privkey: 
+        The path to a private key that will be used to generate the
+        metainfo file.
       output_dir:
         The directory where the installer files will be placed.
     
@@ -67,10 +73,11 @@ def prepare_initial_files(trunk_location, output_dir):
     """
     # Remember the original working directory
     orig_dir = os.getcwd()
+    real_pubkey = os.path.realpath(pubkey)
+    real_privkey = os.path.realpath(privkey)
     os.chdir(trunk_location)
     # Remember all important locations relative to the trunk
     dist_dir = os.getcwd() + "/dist"
-    keys_dir = dist_dir + "/updater_keys"
     # Run preparetest, adding the files to the temp directory
     os.popen("python preparetest.py " + output_dir)
     # Make sure that the folder is initially clean and correct
@@ -78,7 +85,7 @@ def prepare_initial_files(trunk_location, output_dir):
     # Generate the metainfo file
     os.chdir(output_dir)
     writemetainfo = imp.load_source("writemetainfo", "writemetainfo.py")
-    writemetainfo.create_metainfo_file(keys_dir + "/updater.privatekey", keys_dir + "/updater.publickey")
+    writemetainfo.create_metainfo_file(real_privkey, real_pubkey)
     os.chdir(orig_dir)
 
 def prepare_final_files(trunk_location, output_dir):
@@ -208,7 +215,7 @@ def package_mac(dist_dir, install_dir, inst_name, output_dir):
     package_linux(dist_dir, install_dir, inst_name, output_dir)
 
 
-def build(which_os, trunk_location, output_dir, version=""):
+def build(which_os, trunk_location, pubkey, privkey, output_dir, version=""):
     """
     <Purpose>
       Given the operating systems it should build installers for,
@@ -224,6 +231,12 @@ def build(which_os, trunk_location, output_dir, version=""):
       trunk_location:
         The path to the trunk directory of the repository, used
         to find all the requisite files that make up the installer.
+      pubkey:
+        The path to a public key that should be used to generate
+        the metainfo file.
+      privkey:
+        The path to a private key that should be used to generate 
+        the metainfo file.
       output_dir:
         The directory that the base installers will end up in.
       version:
@@ -259,7 +272,7 @@ def build(which_os, trunk_location, output_dir, version=""):
     dist_dir = os.getcwd() + "/dist"
     keys_dir = dist_dir + "/updater_keys"
     os.chdir(orig_dir)
-    prepare_initial_files(trunk_location, install_dir)
+    prepare_initial_files(trunk_location, pubkey, privkey, install_dir)
     prepare_final_files(trunk_location, install_dir)
 
     # Now, package up the installer for each specified OS.
@@ -288,10 +301,10 @@ def build(which_os, trunk_location, output_dir, version=""):
     shutil.rmtree(temp_dir)
         
 def main():
-    if len(sys.argv) < 4:
-        print "usage: python make_base_installer.py m|l|w path/to/trunk/ output/dir"
+    if len(sys.argv) < 6:
+        print "usage: python make_base_installer.py m|l|w path/to/trunk/ pubkey privkey output/dir/"
     else:
-        build(sys.argv[1], sys.argv[2], sys.argv[3])
+        build(sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5])
 
 if __name__ == "__main__":
     main()

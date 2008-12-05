@@ -22,28 +22,33 @@ import shutil
 # For unique temp folders
 PROGRAM_NAME = "build_and_update"
 UPDATER_SITE = "/home/couvb/public_html/updatesite"
-#UPDATER_SITE = "/homes/iws/butaud/public_html/updatesite"
 INSTALL_DIR = "seattle_repy"
 DIST_DIR = "/var/www/dist"
-#DIST_DIR = "/homes/iws/butaud/www/dist"
+KEY_DIR = "/home/butaud/src/seattle/trunk/dist/updater_keys"
 
-DEBUG = False
+DEBUG = True
 
 def main():
     if len(sys.argv) < 2:
         print "usage: python build_and_update.py trunk/location/ [version]"
     else:
-        # Confirm that the user really wants to update all the software
-        print "This will update all of the client software!"
-        print "Are you sure you want to proceed? (y/n)"
-        if raw_input()[0].lower() == "y":
+        if not DEBUG:
+            # Confirm that the user really wants to update all the software
+            print "This will update all of the client software!"
+            print "Are you sure you want to proceed? (y/n)"
+            if raw_input()[0].lower() == "y":
+                if len(sys.argv) < 3:
+                    build_and_update(sys.argv[1])
+                else:
+                    build_and_update(sys.argv[1], sys.argv[2])
+            else:
+                print "Use make_base_installers instead to just create installers."
+        else:
+            # If we're in DEBUG mode, don't bother to confirm
             if len(sys.argv) < 3:
                 build_and_update(sys.argv[1])
             else:
                 build_and_update(sys.argv[1], sys.argv[2])
-        else:
-            print "Use make_base_installers instead to just create installers."
-
 def build_and_update(trunk_location, version=""):
     """
     <Purpose>
@@ -81,7 +86,9 @@ def build_and_update(trunk_location, version=""):
         shutil.rmtree(install_dir)
     os.mkdir(install_dir)
     # Next, prepare the installation files
-    make_base_installers.prepare_initial_files(trunk_location, install_dir)
+    pubkey = KEY_DIR + "/updater.publickey"
+    privkey = KEY_DIR + "/updater.privatekey"
+    make_base_installers.prepare_initial_files(trunk_location, pubkey, privkey, install_dir)
     
     # Copy the files to the updater site
     os.popen("rm -f " + update_dir + "/*")
