@@ -17,6 +17,8 @@ python test_runupdate.py <baseurl>
 import subprocess
 import sys
 import time
+import glob
+import shutil
 
 def runRsyncTest(testtype, updateurl, otherargs=[]):
   # Run the test
@@ -31,7 +33,7 @@ def runRsyncTest(testtype, updateurl, otherargs=[]):
 
 def main():
   if len(sys.argv) < 2:
-  print 'Must supply base url!'
+    print 'Must supply base url!'
 		
   baseurl = sys.argv[1]
   ############################
@@ -52,10 +54,24 @@ def main():
 
   # Run the updatenmmain test (only nmmain should get updated)
   print runRsyncTest('-u', baseurl+'updatenmmain/', ['nmmain.py', 'metainfo'])
+  
+  # Run an update that should get us into a state where the softwareupdater has
+  # a different key than what the metainfo is signed with.  The next test will
+  # ensure that our method of dealing with this situation works.
+  print runRsyncTest('-u', baseurl+'updater/', ['softwareupdater.py', 'metainfo'])
+  
+  # Run an update that should successfully update from the strange state from
+  # the previous test.
+  print runRsyncTest('-u', baseurl+'updater_new/', ['nmmain.py', 'metainfo'])
 	
   #####################################
   # Finished running rsync only tests #
   #####################################
+	
+  # Copy back everything from noup so the restart tests start with a 
+  # clean slate.
+  for originalfile in glob.glob('../noup/*'):
+    shutil.copy(originalfile, originalfile[8:])
 	
   ##################################
   # Software updater restart tests #
@@ -89,7 +105,19 @@ def main():
       print 'New updater failed to start!'
     else:
       print 'softwareupdater restart success!'
-		
+
+  # Wait 2 minutes for the second update to happen.
+  # Is there a way to get a handle for the new softwareupdater?
+  time.sleep(120)
+	
+  # If nmmain's version has been updated, the second update was a success!
+  nmmainfile = file('nmmain.py', 'r')
+  nmmaindata = nmmainfile.read()
+  nmmainfile.close()
+  if 'version = "0.5a"' in nmmaindata:
+    print 'Second update a success!'
+  else:
+    print 'Second update failed to happen within 2 minutes'
 	
   ######################################
   # End Software updater restart tests #

@@ -11,14 +11,13 @@ test runner.
 
 How to successfully run all the tests:
 Get all necesary files into a single folder contained within an empty folder 
-(this makes things simpler), make sure the software updater has the right url
-and is configured with updater.publickey
+(this makes things simpler)
 Run:
-python test_updater.py
+python test_updater.py <http://update.baseurl/location>
 cd ..
-scp -r * <update site specified in softwareupdater.py minus a updater/ >
+scp -r * </place/where/baseurl/is/located>
 cd back into the directory with all the files
-python test_runupdate.py <same place you scp'ed to>
+python test_runupdate.py <http://update.baseurl/location>
 Then the tests will hopefully run!
 If not, email Brent Couvrette with questions at couvb@cs.washington.edu
 """
@@ -44,6 +43,14 @@ def write_meta_and_copy(destdir, keyname):
     if not os.path.isdir(seaFile):
       shutil.copy(seaFile, '../'+destdir+'/')
 			
+# taken from rsa.repy.  Is there a good way to import repy modules
+# directly yet?
+def rsa_string_to_publickey(mystr):
+  if len(mystr.split()) != 2:
+    raise ValueError, "Invalid public key string"
+  
+  return {'e':long(mystr.split()[0]), 'n':long(mystr.split()[1])}
+  
 			
 def main():
   # Update folders need a metainfo file and all of the files needed
@@ -51,6 +58,13 @@ def main():
   # the file names, their hashes, and their sizes.  The metainfo file
   # must be correctly signed.  Of course for sites testing error 
   # conditions, these things might not hold.
+  
+  # Ensure a baseurl was given
+  if len(sys.argv) < 2:
+    print "Please supply a baseurl"
+    sys.exit(1)
+    
+  baseurl = sys.argv[1]
 
   # Make sure a metainfo file already exists.
   file('metainfo', 'w').close()
@@ -60,9 +74,14 @@ def main():
   upfile = file('softwareupdater.py', 'r')
   updata = upfile.read()
   upfile.close()
-  sleepindex = updata.find('do_sleep(1800+random.randint(-1500,1500))')
+  sleepindex = updata.find('for junk in range(random.randint(10, 110)):')
   eolindex = updata.find('\n', sleepindex)
-  updata = updata[:sleepindex]+'do_sleep(30)'+updata[eolindex:]
+  updata = updata[:sleepindex]+'for junk in range(random.randint(1, 1)):'+updata[eolindex:]
+  # Also change it to update from the given base url instead of the standard one
+  siteindex = updata.find('softwareurl = "http://')
+  eolindex = updata.find('\n', siteindex)
+  updata = updata[:siteindex] + 'softwareurl = "' + baseurl + '/updater/"' + \
+      updata[eolindex:]
 
   # Write this change back to softwareupdater
   upfile = file('softwareupdater.py', 'w')
@@ -134,11 +153,24 @@ writemetainfo.py e6c00469d77bd645a43b9ae7b734af66ed231d6a 40524
   write_meta_and_copy('badkeysig', 'badkey')
 	
   print 'Changing softwareupdater'
-  # Make changes to softwareupdater.py (add a comment at the end)
+  # Make changes to softwareupdater.py 
+  # (Change its public key and the location it updates to)
   upfile = file('softwareupdater.py', 'r')
   updata = upfile.read()
   upfile.close()
-  updata = updata + '# Updated comment!'
+  keyindex = updata.find('softwareupdatepublickey')
+  eolindex = updata.find('\n', keyindex)
+  badkeyfile = open('badkey.publickey', 'r')
+  badkeystring = badkeyfile.read()
+  badkeyfile.close()
+  newkey = rsa_string_to_publickey(badkeystring)
+  updata = updata[:keyindex] + 'softwareupdatepublickey = ' + str(newkey) + \
+      updata[eolindex:]
+  # Also change it to update from a new url
+  siteindex = updata.find('softwareurl = "http://')
+  eolindex = updata.find('\n', siteindex)
+  updata = updata[:siteindex] + 'softwareurl = "' + baseurl + '/updater_new/"' + \
+      updata[eolindex:]
 
   # Write this change back to softwareupdater
   upfile = file('softwareupdater.py', 'w')
@@ -149,6 +181,30 @@ writemetainfo.py e6c00469d77bd645a43b9ae7b734af66ed231d6a 40524
   # This is the directory that will update the software updater,
   # thus causing the software updater to restart.
   write_meta_and_copy('updater', 'updater')
+  
+  # Write another update to nmmain to confirm that updates after the key change
+  # still work as well.
+  print 'Changing nmmain...'
+	
+  # Make changes to nmmain.py (change version to be 0.2a)
+  # Read in the current nmmain.py
+  nmmainfile = file('nmmain.py', 'r')
+  nmmaindata = nmmainfile.read()
+  nmmainfile.close()
+
+  # replace 'version = "xxxx"' with version = "0.5a"
+  vindex = nmmaindata.find('version = "')
+  nmmaindata = nmmaindata[:vindex] + 'version = "0.5a"' + nmmaindata[vindex+16:]
+
+  # write this change back to nmmain.py
+  nmmainfile = file('nmmain.py', 'w')
+  nmmainfile.write(nmmaindata)
+  nmmainfile.close()
+  
+  # This is the directory that will perform the update after the key was
+  # changed, so this update should still work.
+  print 'Writing metainfo with new valid key'
+  write_meta_and_copy('updater_new', 'badkey')
 
   # copy the original softwareupdater back
   shutil.copy('../noup/softwareupdater.py', 'softwareupdater.py')	
