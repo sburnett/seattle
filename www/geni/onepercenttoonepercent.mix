@@ -29,7 +29,7 @@ def main():
   # The format is: (startstate, endstate, function, args...)
   statefunctionargtuplelist = [(onepercentpublickey, onepercentpublickey, updatedb)]
 
-  locateandprocessvessels(statefunctionargtuplelist, 'onepercenttoonepercent', 10, False)
+  locateandprocessvessels(statefunctionargtuplelist, 'onepercenttoonepercent', 10, acceptnewnode=False, parallelinstances=10)
   
 
 if __name__ == '__main__':

@@ -85,6 +85,7 @@ from repyportability import *
 include nmclient.repy
 include rsa.repy
 include listops.repy
+include parallelize.repy
 
 import random
 import advertise
@@ -118,15 +119,49 @@ knownstates = [canonicalpublickey, acceptdonationpublickey, movingtoonepercentpu
 
 
 
+def processnode(node, startstate, endstate, nodeprocessfunction, args):
+
+  if not node:
+    # sometimes an empty string is returned by OpenDHT
+    return
+
+  print time.time(),"Processing: ",node
+  try:
+    nmhandle, nodevesseldict = getnodehandleanddict(node,acceptnewnode)
+  except NMClientException, e:
+    print time.time(), "On node "+node+" error '"+str(e)+"' getting node handle"
+    return
+
+  # always clean up the handle
+  try:
+    if getnodestate(nmhandle, nodevesseldict)[0] != startstate:
+      # Oh.   The DHT must contain old information
+      print time.time(), "Node no longer has state!"
+      return
+
+    try:
+      nodeprocessfunction(nmhandle, node, nodevesseldict, *args)
+    except Exception, e:
+      print time.time(), "In nodeprocessfunction on node:"+node+" error '"+str(e)+"'"
+    else:
+      try:
+        setnodestate(nmhandle, endstate)
+      except Exception, e:
+        print time.time(), "In setnodestate on node:"+node+" error '"+str(e)+"'"
+
+  finally:
+    # handle was cleaned up...
+    nmclient_destroyhandle(nmhandle)
 
 
-def locateandprocessvessels(statefunctionargtuplelist, uniquename, sleeptime, acceptnewnode=False):
+
+def locateandprocessvessels(statefunctionargtuplelist, uniquename, sleeptime, acceptnewnode=False,parallelinstances=1):
   """
    <Purpose>
       Looks up a public key and then calls a function on a set of nodes 
 
    <Arguments>
-      keyfunctionargtuplelist:
+      statefunctionargtuplelist:
          A list of tuples with a start state (publickey), end state 
          (publickey), a function to change the node
          state, and a list of arguments to the function.    The function has
@@ -143,6 +178,9 @@ def locateandprocessvessels(statefunctionargtuplelist, uniquename, sleeptime, ac
       acceptnewnode:
          Allow a new node to have the following key.   Will create a new key 
          and add a per node key to the database
+
+      parallelinstances:
+         The number of concurrent events that should process nodes.
 
    <Exceptions>
       None
@@ -199,7 +237,7 @@ def locateandprocessvessels(statefunctionargtuplelist, uniquename, sleeptime, ac
       random.shuffle(nodelist)
       print time.time(),"For start state '"+str(startstate['e'])[:10]+"...' found nodelist:",nodelist
       
-############# cachednodelist SHOULD BE REMOVED LATER
+############# NOTE: cachednodelist SHOULD BE REMOVED after 0.1c is deployed!
       # have a small chance to flush the cache to prevent nodes from being in 
       # the cache forever
       if random.random() < .1:
@@ -209,45 +247,19 @@ def locateandprocessvessels(statefunctionargtuplelist, uniquename, sleeptime, ac
       cachednodelist = listops_uniq(cachednodelist)
       random.shuffle(cachednodelist)
 
+# parallelize the execution of the function across the nodes...
+      phandle = parallelize_initfunction(cachednodelist, processnode, concurrentevents=parallelinstances, startstate, endstate, nodeprocessfunction, args)
 
-#      for node in nodelist:
-      for node in cachednodelist:
-        if not node:
-          # sometimes an empty string is returned by OpenDHT
-          continue
+      try: 
+        while parallelize_isfunctionfinished(phandle) == False:
+          if not runonce.stillhaveprocesslock(lockname):
+            print time.time(),"I have lost the lock.   Exiting"
+            return
+          time.sleep(1)
 
-        print time.time(),"Processing: ",node
-        try:
-          nmhandle, nodevesseldict = getnodehandleanddict(node,acceptnewnode)
-        except NMClientException, e:
-          print time.time(), "On node "+node+" error '"+str(e)+"' getting node handle"
-          continue
-
-        # always clean up the handle
-        try:
-          if getnodestate(nmhandle, nodevesseldict)[0] != startstate:
-            # Oh.   The DHT must contain old information
-            print time.time(), "Node no longer has state!"
-            continue
-
-          try:
-            nodeprocessfunction(nmhandle, node, nodevesseldict, *args)
-          except Exception, e:
-            print time.time(), "In nodeprocessfunction on node:"+node+" error '"+str(e)+"'"
-          else:
-            try:
-              setnodestate(nmhandle, endstate)
-            except Exception, e:
-              print time.time(), "In setnodestate on node:"+node+" error '"+str(e)+"'"
-
-        finally:
-          # handle was cleaned up...
-          nmclient_destroyhandle(nmhandle)
-
-        if not runonce.stillhaveprocesslock(lockname):
-          print time.time(),"I have lost the lock.   Exiting"
-          return
-          
+      finally:
+        # clean up the handle
+        parallelize_closefunction(phandle)
 
       time.sleep(sleeptime)
 
