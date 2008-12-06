@@ -103,7 +103,7 @@ def main():
 
 def post_startup_steps(prog_path, added_to_startup):
     # Next, generate keys for the node by calling the appropriate script
-    output("Generating key pairs...")
+    output("Generating identity key (may take a few minutes)...")
     subprocess.call(["pythonw.exe", "createnodekeys.py"])
     output("Done.")
     # Finally, call the script that starts the node manager and software

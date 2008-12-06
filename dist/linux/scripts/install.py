@@ -55,7 +55,7 @@ def main():
         output("Done.")
 
         # Next, run the script to generate the node's keys
-        output("Generating node key pair (may take a few minutes)...")
+        output("Generating identity key (may take a few minutes)...")
         os.popen("python createnodekeys.py > /dev/null")
         output("Done.")
 
