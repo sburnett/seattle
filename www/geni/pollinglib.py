@@ -248,7 +248,8 @@ def locateandprocessvessels(statefunctionargtuplelist, uniquename, sleeptime, ac
       random.shuffle(cachednodelist)
 
 # parallelize the execution of the function across the nodes...
-      phandle = parallelize_initfunction(cachednodelist, processnode, concurrentevents=parallelinstances, startstate, endstate, nodeprocessfunction, args)
+      phandle = parallelize_initfunction(cachednodelist, processnode, parallelinstances, startstate, endstate, nodeprocessfunction, args)
+
 
       try: 
         while parallelize_isfunctionfinished(phandle) == False:

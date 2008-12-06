@@ -45,6 +45,8 @@
   http://docs.djangoproject.com/en/dev/topics/db/transactions/
 """
 
+# used for computing whether a VesselMap object is expired or not
+import datetime
 # useful for outputting the stack trace when there is a django exception
 import traceback
 # import django settings for this django project (geni)
@@ -379,6 +381,34 @@ def clear_node_vessels(node_obj):
         transaction.commit()
     return True
 
+
+def get_expired_vesselmaps(): 
+    """
+    <Purpose>
+        Used to find all assigned (mapped) vessels that have expired
+        
+    <Arguments>
+        None.
+
+    <Exceptions> 
+        Raises whatever exception raised by an offending
+        error when accessing the genidb
+
+    <Side Effects> 
+        None.
+
+    <Returns>
+        Returns array of VesselMap objects that are expired.
+    """
+    curr_time = datetime.datetime.now() 
+    vmaps = VesselMap.objects.all() 
+    ret_vmaps = []
+    # iterate through all vmap objects and find those that are expired
+    for vmap in vmaps: 
+        if vmap.expiration <= curr_time: 
+            ret_vmaps.append(vmap)
+    # returns array of expired vessel map objects
+    return ret_vmaps 
 
 @transaction.commit_manually
 def add_node_vessels(node_obj, newstatus, vlist, vextra, vextra_ports):
