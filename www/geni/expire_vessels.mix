@@ -1,31 +1,84 @@
+"""
+<Program Name>
+  genidb.py
+
+<Started>
+  November, 2008
+
+<Author>
+  ivan@cs.washington.edu
+  Ivan Beschastnikh
+
+<Purpose>
+  Checks for expired vessels and performs a changeusers on them
+
+<Usage>
+  Preprocessing this mix file into a python file using e.g.:
+  $ python repypp.py expire_vessels.mix expire_vessels.py
+  
+  And then run it from the command line without any args:
+  $ python expire_vessels.py
+"""
+
 from repyportability import *
 include nmclient.repy
-import changeusers
 
+import changeusers
 # db api
 import genidb
+# circular logging to a file
+import logging
+
 
 def main():
+    """
+    <Purpose>
+        Main loop of the expiration script. Checks for expired vessels
+        in the database, and performs a changeusers on them.
+
+    <Arguments>
+        None.
+
+    <Exceptions>
+        None.
+
+    <Side Effects>
+        Vessels that are expired will have their users set to "".
+
+    <Returns>
+        Never returns (daemon).
+    """
     # loop forever
     while True:
+    	# grab all expired vessels from the database
         vmaps = genidb.get_expired_vesselmaps()
         for vmap in vmaps:
             nmip = vmap.vessel.donation.ip
             nmport = vmap.vessel.donation.port
-            print time.time(),"Expiring: ", nmip, "with date: ", vmap.expiration
-
-            # change users
             vesselname = vmap.vessel.name
             nodepubkey = vmap.vessel.donation.owner_pubkey
             nodeprivkey = vmap.vessel.donation.owner_privkey
+	    # perform change users
             success,msg = changeusers.changeusers([""], nmip, nmport, vesselname, nodepubkey, nodeprivkey)
-            if not success:
-                print msg
 
-            # delete vmap record from database
+	    # log the result of the changeusers
+            if not success:
+	        print str(time.ctime()) + " Failed to expire vessel " + str(vesselname) + " on node " + str(nmip) + " with expiration stamp: " + str(vmap.expiration) + "\n\tmsg generated: " + str(msg)
+	    else:
+	        print str(time.ctime()) + " Expired vessel " + str(vesselname) + " on node " + str(nmip) + " with expiration stamp: " + str(vmap.expiration)
+		
+            # delete vmap record from the database
             vmap.delete()
-        print "sleeping.."
         sleep(60)
 
+	
 if __name__ == '__main__':
-  main() 
+  logfn = "log.expire_vessels.old"
+  # set up the circular logger (at least 50 MB buffer)
+  loggerfo = logging.circular_logger(logfn, 50*1024*1024)
+
+  # redirect standard out / error to the circular log buffer
+  sys.stdout = loggerfo
+  sys.stderr = loggerfo
+  print "logging output to " + str(logfn)
+  main()
