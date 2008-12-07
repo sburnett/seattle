@@ -119,7 +119,7 @@ knownstates = [canonicalpublickey, acceptdonationpublickey, movingtoonepercentpu
 
 
 
-def processnode(node, startstate, endstate, nodeprocessfunction, args):
+def processnode(node, acceptnewnode, startstate, endstate, nodeprocessfunction, args):
 
   if not node:
     # sometimes an empty string is returned by OpenDHT
@@ -248,11 +248,10 @@ def locateandprocessvessels(statefunctionargtuplelist, uniquename, sleeptime, ac
       random.shuffle(cachednodelist)
 
 # parallelize the execution of the function across the nodes...
-      phandle = parallelize_initfunction(cachednodelist, processnode, parallelinstances, startstate, endstate, nodeprocessfunction, args)
-
+      phandle = parallelize_initfunction(cachednodelist, processnode, parallelinstances, acceptnewnode, startstate, endstate, nodeprocessfunction, args)
 
       try: 
-        while parallelize_isfunctionfinished(phandle) == False:
+        while not parallelize_isfunctionfinished(phandle):
           if not runonce.stillhaveprocesslock(lockname):
             print time.time(),"I have lost the lock.   Exiting"
             return
