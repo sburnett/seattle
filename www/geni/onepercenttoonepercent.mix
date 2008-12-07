@@ -29,6 +29,7 @@ def main():
   # The format is: (startstate, endstate, function, args...)
   statefunctionargtuplelist = [(onepercentpublickey, onepercentpublickey, updatedb)]
 
+  # check 10 nodes concurrently
   locateandprocessvessels(statefunctionargtuplelist, 'onepercenttoonepercent', 10, acceptnewnode=False, parallelinstances=10)
   
 
