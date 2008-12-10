@@ -21,6 +21,11 @@
 
   For more information on views in django see:
   See http://docs.djangoproject.com/en/dev/topics/http/views/
+
+  Multiple functions in this file contain the @login_required()
+  decorator which enforces the HTTP connection to the browser to have
+  a valid cookie that was established at login time:
+  http://docs.djangoproject.com/en/dev/topics/auth/#the-login-required-decorator
 """
 
 import sys
@@ -36,11 +41,39 @@ from django.shortcuts import render_to_response, get_object_or_404
 from django.views.generic.simple import direct_to_template
 from django.contrib.auth.decorators import login_required
 
-def __validate_guser__(request):
+############################################# Private helper functions
 
-    # TODO: add a check for whether request.user actually exists. If
-    # it does not then we want to tell the user to register
-    
+def __validate_guser__(request):
+    """
+   <Purpose>
+      Private helper function. Looks up and returns request.user in
+      the geni database. This is used to verify that the user is a
+      real user in the database and to retrieve a user's (ww-user)
+      record.
+
+   <Arguments>
+      request:
+         An HTTP request object that contains 'user' as an object
+
+   <Exceptions>
+      Returns exceptions when the DBMS connection is
+      unavailable. Returns an exception when request has no user
+      object
+
+   <Side Effects>
+      None.
+
+   <Returns>
+      (ret, bool) where bool indicates success of the lookup. If bool
+      is True then ret is a User object. If bool is False then ret
+      contains an HttpResponseRedirect object that redirect a user to
+      the login page
+      
+   <FixMe>
+      Add a check for whether request.user actually exists. If 
+      it does not then we want to tell the user to register
+    """
+      
     try:
         geni_user = User.objects.get(www_user = request.user)
         return geni_user,True
@@ -49,209 +82,514 @@ def __validate_guser__(request):
         return ret, False
 
 def __dl_key__(request,pubkey=True):
+    """
+    <Purpose>
+      Private helper function. Constructs an HttpResponse object that
+      enables the user to download their public or private key.
+
+    <Arguments>
+      request:
+         An HTTP request object that contains 'user' as an object
+      pubkey:
+         Boolean indicating whether the request is for a public key
+         (True) or a private key (False)
+
+    <Exceptions>
+      None.?
+
+    <Side Effects>
+      None.
+
+    <Returns>
+      An HttpResponse object on success, otherwise if the user could
+      not be found in the database then returns the Redirect object
+      retured by __validate_guser__()
+    """
+
+    # retrieve the ww-user record for the request
     ret,success = __validate_guser__(request)
     if not success:
         return ret
     geni_user=ret
 
     if pubkey:
+        # request is for a public key
         key = geni_user.pubkey
         extension = "publickey"
     else:
+        # else request is for a private key
         key = geni_user.privkey
         extension = "privatekey"
-        
+
+    # create a response object that enables the user to download the requested key
     response = HttpResponse(key, mimetype='text/plain')
-    response['Content-Disposition'] = 'attachment; filename=%s.%s'%(request.user.username,extension)
+    response['Content-Disposition'] = 'attachment; filename=' + str(request.user.username) + '.' + str(extension)
     return response
 
-#######################################################
+#############################################
+# Functions called to generate specific pages. Each requires a user to be logged in
+#############################################
+
+########################## Functions dealing with the donation page
 
 @login_required()
 def donations(request,share_form=None):
+    """
+    <Purpose>
+        TODO : Under Construction -- Constructs a user's donations
+        page (with shares)
+
+    <Arguments>
+        request:
+            An HTTP request object
+        share_form:
+            Share object to use as the adding shares form on the page
+
+    <Exceptions>
+       None?
+
+    <Side Effects>
+       None.
+
+    <Returns>
+        An HTTP response object that represents the donations page on
+        succes. A redirect to a login page on error.
+
+    <Note>
+        This method requires the request to represent a valid logged
+        in user. See the top-level comment about the @login_required()
+        decorator to achieve this property.
+    """
+    
     ret,success = __validate_guser__(request)
     if not success:
         return ret
     geni_user = ret
 
     if share_form == None:
+        # build a new add share form if none is supplied to us
         share_form = forms.AddShareForm()
             
     mydonations = Donation.objects.filter(user = geni_user)
     myshares = Share.objects.filter(from_user = geni_user)
     
-    # TODO
     donations_to_me = []
-    if len(donations_to_me) != 0:
-        has_donations_from_others = 'True'
-    else:
-        has_donations_from_others = 'False'
+    has_donations_from_others = (len(donations_to_me) != 0)
+    has_donations = (len(mydonations) != 0)
+    has_shares = (len(myshares) != 0)
     
-    if len(mydonations) != 0:
-        has_donations = 'True'
-    else:
-        has_donations = 'False'
+    return direct_to_template(request,'control/donations.html',
+                              {'geni_user' : geni_user,
+                               'has_donations' : has_donations,
+                               'donations' : mydonations, 
+                               'donations_to_me' : donations_to_me,
+                               'has_donations_from_others' : has_donations_from_others,
+                               'shares' : myshares,
+                               'has_shares' : has_shares,
+                               'share_form' : share_form})
 
-    if len(myshares) != 0:
-        has_shares = 'True'
-    else:
-        has_shares = 'False'
-    return direct_to_template(request,'control/donations.html', {'geni_user' : geni_user, 'has_donations' : has_donations, 'donations' : mydonations, 
-                                                                 'donations_to_me' : donations_to_me, 'has_donations_from_others' : has_donations_from_others,
-                                                                 'shares' : myshares, 'has_shares' : has_shares, 'share_form' : share_form})
 
 @login_required()
 def del_share(request):
+    """
+    <Purpose>
+        Used to remove some of the user's shares.
+
+    <Arguments>
+        request:
+            An HTTP request object
+
+    <Exceptions>
+       None? 
+
+    <Side Effects>
+        Deletes some subset of a user's Share records in the db.
+
+    <Returns>
+        An HTTP response object that represents the donations page on
+        succes. A redirect to a login page on error.
+    
+    <Note>
+        This method requires the request to represent a valid logged
+        in user. See the top-level comment about the @login_required()
+        decorator to achieve this property.
+
+    <ToDo>
+        1. Have a Share form for validating user input
+        2. Generate a message for the user on success\failure of
+           deleting the user's share(s).
+    """
+    # the request must be via a POST method
     if not request.method == 'POST':
         return donations(request)
-    
+
+    # validate user
     ret,success = __validate_guser__(request)
     if not success:
         return ret
     geni_user = ret
 
+    # extract shares for this user
     myshares = Share.objects.filter(from_user = geni_user)
     for s in myshares:
-        if request.POST.has_key('deleteshare_%s'%(s.to_user.www_user.username)):
+        # check each share for whether it was requested for deletion by the user
+        if request.POST.has_key('deleteshare_' + str(s.to_user.www_user.username)):
             s.delete()
-            
+
+    # return the donations page
     return donations(request)
+
     
 @login_required()
 def new_share(request):
+    """
+    <Purpose>
+        Used to add new Share records for a user
+
+    <Arguments>
+        request:
+            An HTTP request object
+            
+    <Exceptions>
+       None?
+
+    <Side Effects>
+       Creates new Share records for a user in the db.
+
+    <Returns>
+        An HTTP response object that represents the donations page on
+        succes. A redirect to a login page on error.
+
+    <Note>
+        This method requires the request to represent a valid logged
+        in user. See the top-level comment about the @login_required()
+        decorator to achieve this property.
+
+    <Todo>
+        1. Generate a msg for the user on success\failure
+    """
+    # the request must be via a POST method
     if not request.method == 'POST':
         return donations(request)
 
+    # validate user
     ret,success = __validate_guser__(request)
     if not success:
         return ret
     geni_user = ret
 
+    # construct the AddShareForm from request's POST args
     share_form = forms.AddShareForm(request.POST)
+    # specify the user directly
     share_form.set_user(geni_user)
     if share_form.is_valid():
-        # commit to db
+        # check for validity and commit request to GENI db:
+        # create new Share for the user
         s = Share(from_user=geni_user,to_user=share_form.cleaned_data['username'],percent=share_form.cleaned_data['percent'])
+        # save the new Share record
         s.save()
         share_form = None
-        
+    # return the donations page
     return donations(request,share_form)
 
-#######################################################
-
-def gen_get_form(geni_user,req_post=None):
-    # max allowed resources this user may get
-    donations = Donation.objects.filter(user=geni_user).filter(active=1)
-    num_donations = len(donations)
-    max_num = 10 * (num_donations + 1)
-    
-    # number of vessels already used by this user
-    myvessels = VesselMap.objects.filter(user = geni_user)
-    
-    if len(myvessels) > max_num:
-        max_num = 0
-    else:
-        max_num = max_num - len(myvessels)
-
-    if max_num == 0:
-        get_form = None
-    else:
-        get_vessel_choices = zip(range(1,max_num+1),range(1,max_num+1))
-        get_form = forms.gen_GetVesselsForm(get_vessel_choices,req_post)
-    return get_form
+########################## Functions dealing with the used resources page
 
 @login_required()
-def used_resources(request,get_form=False,explanation="",explanation2="",summary=""):
+def used_resources(request,get_form=False,action_explanation="",remove_explanation="",action_summary=""):
+    """
+    <Purpose>
+        Constructs a user's used resources page.
+
+    <Arguments>
+        request:
+            An HTTP request object            
+        get_form:
+            Get resources form used to acquire new resources by the user
+        action_explanation:
+           Explanation of the action to get resources by the user
+        remove_explanation:
+           Explanation of the result of the remove (free) resources action by the user
+        action_summary:
+            Summary of the user's acuisition of resources action
+
+    <Exceptions>
+        None?
+
+    <Side Effects>
+        None.
+
+    <Returns>
+        An HTTP response object that represents the used resources
+        page on succes. A redirect to a login page on error.
+
+    <Note>
+        This method requires the request to represent a valid logged
+        in user. See the top-level comment about the @login_required()
+        decorator to achieve this property.
+
+    <ToDo>
+        1. Show shared used vessels for a user
+    """
+    # validate user
     ret,success = __validate_guser__(request)
     if not success:
         return ret
     geni_user = ret
 
+    # generate a new 'get resources' form if none is supplied
     if get_form is False:
-        get_form = gen_get_form(geni_user)
+        get_form = forms.gen_get_form(geni_user)
 
+    # shared vessels that are used by others but which belong to this user (TODO)
     shvessels = []
+
+    # this user's used vessels
     my_vessels = VesselMap.objects.filter(user = geni_user).order_by('expiration')
-    #if explanation == "":
-    #    explanation = "HELLO"
-    return direct_to_template(request,'control/used_resources.html', {'geni_user' : geni_user, 'num_vessels' : len(my_vessels), 'my_vessels' : my_vessels, 'sh_vessels' : shvessels, 'get_form' : get_form, 'action_explanation' : explanation, 'remove_explanation' : explanation2, "action_summary" : summary})
+
+    # return the used resources page constructed from a template
+    return direct_to_template(request,'control/used_resources.html',
+                              {'geni_user' : geni_user,
+                               'num_vessels' : len(my_vessels),
+                               'my_vessels' : my_vessels,
+                               'sh_vessels' : shvessels,
+                               'get_form' : get_form,
+                               'action_explanation' : action_explanation,
+                               'remove_explanation' : remove_explanation,
+                               "action_summary" : action_summary})
+
 
 @login_required()
 def del_resource(request):
+    """
+    <Purpose>
+        Used to release a resource the user acquired. Removes the
+        record of the resource acquisition from the database.
+
+    <Arguments>
+        request:
+            An HTTP request object
+            
+    <Exceptions>
+        None?
+
+    <Side Effects>
+        Releases a previously acquired resources for a user
+
+    <Returns>
+        An HTTP response object that represents the used resources
+        page on succes. A redirect to a login page on error.
+
+    <Note>
+        This method requires the request to represent a valid logged
+        in user. See the top-level comment about the @login_required()
+        decorator to achieve this property.
+
+    <ToDo>
+        1. Create a django form class for resource release
+    """
+    # the request must be via a POST method
     if not request.method == 'POST':
         return used_resources(request)
-    
+
+    # validate user    
     ret,success = __validate_guser__(request)
     if not success:
         return ret
     geni_user = ret
 
+    # iterate through all the user's acquired resources and delete
+    # those which are in the requests' POST args
     myresources = VesselMap.objects.all()
-    explanation2 = ""
+    remove_explanation = ""
     for r in myresources:
-        if request.POST.has_key('delresource_%s'%(r.id)):
+        if request.POST.has_key('delresource_' + str(r.id)):
             ret = release_resources(geni_user, r.id, False)
-            explanation2 = "Removed resource " + str(ret)
+            remove_explanation = "Removed resource " + str(ret)
             
-    if explanation2 == "":
-        explanation2 = "Problem removing resource"
-    
-    return used_resources(request,explanation2=explanation2)
+    if remove_explanation == "":
+        remove_explanation = "Problem removing resource"
+
+    # return the used resources page
+    return used_resources(request,remove_explanation=remove_explanation)
+
 
 @login_required()
 def del_all_resources(request):
+    """
+    <Purpose>
+        Used to release all resources acquired by a user
+
+    <Arguments>
+        request:
+            An HTTP request object
+
+    <Exceptions>
+        None?
+
+    <Side Effects>
+        Releases all resources curently acquired by a user
+
+    <Returns>
+        An HTTP response object that represents the used resources
+        page on succes. A redirect to a login page on error.
+
+    <Note>
+        This method requires the request to represent a valid logged
+        in user. See the top-level comment about the @login_required()
+        decorator to achieve this property.
+
+    <Todo>
+        1. Better unification with the above del_resource() function
+
+    """
+    # the request must be via a POST method
     if not request.method == 'POST':
         return used_resources(request)
-    
+
+    # validate user    
     ret,success = __validate_guser__(request)
     if not success:
         return ret
     geni_user = ret
     release_resources(geni_user, None, True)
-    return used_resources(request,explanation2="Removed all resources")
+
+    # return the used resources page
+    return used_resources(request,remove_explanation="Removed all resources")
+
 
 @login_required()
 def get_resources(request):
+    """
+    <Purpose>
+        Used by a user to acquire more Seattle resources.
+
+    <Arguments>
+        request:
+            An HTTP request object
+            
+    <Exceptions>
+        None?
+
+    <Side Effects>
+        Acquires new resources for a user (making them unavailable for other users)
+
+    <Returns>
+        An HTTP response object that represents the used resources
+        page on succes. A redirect to a login page on error.
+        
+    <Note>
+        This method requires the request to represent a valid logged
+        in user. See the top-level comment about the @login_required()
+        decorator to achieve this property.
+    """
+
+    # the request must be via a POST method
     if not request.method == 'POST':
         return used_resources(request)
     
+    # validate user        
     ret,success = __validate_guser__(request)
     if not success:
         return ret
     geni_user = ret
 
-    explanation = ""
-    get_form = gen_get_form(geni_user,request.POST)
+    action_explanation = ""
+    get_form = forms.gen_get_form(geni_user,request.POST)
     if get_form is None:
-        return used_resources(request,get_form,explanation=explanation)
+        return used_resources(request,get_form,action_explanation=action_explanation)
     
-    summary = ""
+    action_summary = ""
     if get_form.is_valid():
-        explanation = get_form.cleaned_data['env']
-        ret = acquire_resources(geni_user, int(get_form.cleaned_data['num']), get_form.cleaned_data['env'])
-        if ret[0] is True:
-            dummy,num_acquired,explanation,summary = ret
+        # if the acquisition form is valid
+        action_explanation = get_form.cleaned_data['env']
+        # acquire the requested resource
+        success,ret = acquire_resources(geni_user,
+                                int(get_form.cleaned_data['num']),
+                                get_form.cleaned_data['env'])
+
+        # deserealize the returned value of the acquisition
+        if success
+            num_acquired,action_explanation,action_summary = ret
         else:
-            dummy,explanation,summary = ret
+            action_explanation,action_summary = ret
 
     # have used_resources generate the updated get_form form
-    return used_resources(request,get_form=False,explanation=explanation,summary=summary)
+    return used_resources(request,get_form=False,
+                          action_explanation=action_explanation,
+                          action_summary=action_summary)
 
-#######################################################
+
+########################## Functions dealing with the user info page
     
 @login_required()
 def user_info(request,info=""):
+    """
+    <Purpose>
+        Constructs the user info page.
+
+    <Arguments>
+        request:
+            An HTTP request object            
+        info:
+            Used to display an information message at the top of the page
+
+    <Exceptions>
+        None?
+
+    <Side Effects>
+        None.
+
+    <Returns>
+        An HTTP response object that represents the user info
+        page on succes. A redirect to a login page on error.
+
+    <Note>
+        This method requires the request to represent a valid logged
+        in user. See the top-level comment about the @login_required()
+        decorator to achieve this property.
+    """
+    # validate user
     ret,success = __validate_guser__(request)
     if not success:
         return ret
     geni_user = ret
-    return direct_to_template(request,'control/user_info.html', {'geni_user' : geni_user, 'info' : info })
+    return direct_to_template(request,'control/user_info.html',
+                              {'geni_user' : geni_user,
+                               'info' : info })
+
     
 @login_required()
 def del_priv(request):
+    """
+    <Purpose>
+        Used by the user to delete their own private key in order to
+        make it more secure. The key is generated for those users who
+        desire a new key to be generated and is kept up to this point.
+
+    <Arguments>
+        request:
+            An HTTP request object
+            
+    <Exceptions>
+        None?
+
+    <Side Effects>
+        Deletes the user's private key from the GENI db.
+
+    <Returns>
+        An HTTP response object that represents the user info page
+        succes. A redirect to a login page on error.
+
+    <Note>
+        This method requires the request to represent a valid logged
+        in user. See the top-level comment about the @login_required()
+        decorator to achieve this property.
+    """
+    # the request must be via a POST method
     if not request.method == 'POST':
         return user_info(request)
-    
+
+    # validate user
     ret,success = __validate_guser__(request)
     if not success:
         return ret
@@ -263,31 +601,117 @@ def del_priv(request):
         geni_user.privkey = ""
         geni_user.save()
         del_msg = "Private key successfully deleted"
-    return user_info(request,info=del_msg)
+
+    # return the user info page
+    return user_info(request, info=del_msg)
+
 
 @login_required()
 def dl_pub_key(request):
+    """
+    <Purpose>
+        Used by the user to download their own public donation key
+        maintained by the GENI db
+
+    <Arguments>
+        request:
+            An HTTP request object
+            
+    <Exceptions>
+        None?
+
+    <Side Effects>
+        None
+
+    <Returns>
+        An HTTP response object that contains a file attachment that
+        will allow the user to save the key file from the browser.
+
+    <Note>
+        This method requires the request to represent a valid logged
+        in user. See the top-level comment about the @login_required()
+        decorator to achieve this property.
+    """
+    # the request must be via a POST method
     if not request.method == 'POST':
         return user_info(request)
     return __dl_key__(request,True)
 
+
 @login_required()
 def dl_priv_key(request):
+    """
+    <Purpose>
+        Used by the user to download their own public donation key
+        maintained by the GENI db    
+
+    <Arguments>
+        request:
+            An HTTP request object
+            
+    <Exceptions>
+        None?
+
+    <Side Effects>
+        None
+
+    <Returns>
+        An HTTP response object that contains a file attachment that
+        will allow the user to save the key file from the browser.
+
+    <Note>
+        This method requires the request to represent a valid logged
+        in user. See the top-level comment about the @login_required()
+        decorator to achieve this property.
+    """
+    # the request must be via a POST method
     if not request.method == 'POST':
         return user_info(request)
     return __dl_key__(request,False)
 
+
 @login_required()
 def gen_new_key(request):
+    """
+    <Purpose>
+        Used by the user to generate a new public-private donation key
+        pair.
+
+    <Arguments>
+        request:
+            An HTTP request object
+
+    <Exceptions>
+        None.
+
+    <Side Effects>
+        Generates a new set of donation keys for a user, and updates
+        the GENI db with the new keys.
+
+    <Returns>
+        An HTTP response object that represents the user info page
+        succes. A redirect to a login page on error.
+
+    <Note>
+        This method requires the request to represent a valid logged
+        in user. See the top-level comment about the @login_required()
+        decorator to achieve this property.
+    """
+    # the request must be via a POST method
     if not request.method == 'POST':
         return user_info(request)
-        
+
+    # validate user
     ret,success = __validate_guser__(request)
     if not success:
         return ret
     geni_user = ret
+
+    # generate a new key pair
     if geni_user.gen_new_key():
         info = "New public-private key pair generated"
     else:
         info = "Failed to generate a new public-private key pair (server error)"
+
+    # return the generated user info page
     return user_info(request,info=info)

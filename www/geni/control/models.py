@@ -21,20 +21,22 @@
 
   See http://docs.djangoproject.com/en/dev/topics/db/models/
 
-  TODO: This file needs to be cleaned up by moving all functions that
-  operate on models out of this file and into a modelslib file. This
-  file should contain only model class definitions.
+<ToDo>
+  This file needs to be cleaned up by moving all functions that
+  operate on models out of this file and into a 'modelslib' file or
+  the like. This file _should_ contain only model class definitions.
 """
 
 import random
+import datetime
+import time
+import traceback
+
 from django.db import models
 from django.contrib.auth.models import User as DjangoUser
 from django.db import connection
 from django.db import transaction
 from geni.changeusers import changeusers
-import datetime
-import time
-import traceback
 
 # user ports permitted on vessels on a donated host
 allowed_user_ports = range(63100,63180)
@@ -42,6 +44,22 @@ allowed_user_ports = range(63100,63180)
 VESSEL_EXPIRE_TIME_SECS = 14400
 
 def pop_key():
+    """
+    <Purpose>
+        
+
+    <Arguments>
+
+    <Exceptions>
+        
+
+    <Side Effects>
+        
+
+    <Returns>
+        
+    """
+
     cursor = connection.cursor()
     cursor.execute("BEGIN")
     cursor.execute("SELECT id,pub,priv FROM keygen.keys_512 limit 1")
@@ -54,6 +72,22 @@ def pop_key():
     return [row[1],row[2]]
 
 def get_unacquired_vessels(geni_user, filter_str):
+    """
+    <Purpose>
+        
+
+    <Arguments>
+
+    <Exceptions>
+        
+
+    <Side Effects>
+        
+
+    <Returns>
+        
+    """
+
     vmaps = VesselMap.objects.all()
     vexclude = []
     for vmap in vmaps:
@@ -91,6 +125,22 @@ def get_unacquired_vessels(geni_user, filter_str):
     return vret
 
 def release_resources(geni_user, resource_id, all):
+    """
+    <Purpose>
+        
+
+    <Arguments>
+
+    <Exceptions>
+        
+
+    <Side Effects>
+        
+
+    <Returns>
+        
+    """
+
     myresources = VesselMap.objects.filter(user=geni_user)
 
     ret = ""
@@ -111,14 +161,27 @@ def release_resources(geni_user, resource_id, all):
             
 @transaction.commit_manually    
 def acquire_resources(geni_user, num, type):
+    """
+    <Purpose>
+        
+
+    <Arguments>
+
+    <Exceptions>
+        
+
+    <Side Effects>
+        
+
+    <Returns>
+        
+    """
     '''
     attempts to acquire num vessels for geni_user of some network type (LAN,WAN,RAND)
     '''
     expire_time = datetime.datetime.fromtimestamp(time.time() + VESSEL_EXPIRE_TIME_SECS)
     explanation = ""
     try:
-        # FIXME: we ignore type of vessel requested (for now)
-
         summary = ""
 
         total_free_vessel_count = len(Vessel.objects.all()) - len(VesselMap.objects.all())
@@ -151,7 +214,6 @@ def acquire_resources(geni_user, num, type):
             summary += " No nodes available to acquire."
             return False, explanation, summary
         else:
-            # explanation += "Attempted to acquire " + str(num) + " vessel(s). There are  " + str(total_free_vessel_count) + " vessels free. Your port is available on " + str(len(vessels)) + " of them."
             explanation += "There are  " + str(total_free_vessel_count) + " vessels free. Your port is available on " + str(len(vessels)) + " of them."
             
         acquired = 0
@@ -210,6 +272,15 @@ def acquire_resources(geni_user, num, type):
         return True,acquired,explanation,summary
 
 class User(models.Model):
+    """
+    <Purpose>
+      Customized admin view of the User model
+    <Side Effects>
+      None
+    <Example Use>
+      Used internally by django
+    """
+
     # link GENI user to django user record which authenticates users
     # on the website
     www_user = models.ForeignKey(DjangoUser,unique = True)
@@ -229,9 +300,35 @@ class User(models.Model):
     donor_privkey = models.CharField("Donor private Key", max_length=4096)
     
     def __unicode__(self):
+        """
+        <Purpose>
+
+        
+        <Arguments>
+        
+        <Exceptions>
+
+        <Side Effects>
+        
+        <Returns>
+        
+        """
         return self.www_user.username
 
     def save_new_user(self):
+        """
+        <Purpose>
+
+        
+        <Arguments>
+        
+        <Exceptions>
+
+        <Side Effects>
+        
+        <Returns>
+        
+        """
         global allowed_user_ports
 
         # generate user pub/priv key pair for accessing vessels
@@ -251,6 +348,19 @@ class User(models.Model):
         return True
 
     def gen_new_key(self):
+        """
+        <Purpose>
+
+        
+        <Arguments>
+        
+        <Exceptions>
+
+        <Side Effects>
+        
+        <Returns>
+        
+        """
         pubpriv=pop_key()
         if pubpriv == []:
             return False
@@ -259,6 +369,15 @@ class User(models.Model):
         return True
     
 class Donation(models.Model):
+    """
+    <Purpose>
+      Customized admin view of the User model
+    <Side Effects>
+      None
+    <Example Use>
+      Used internally by django
+    """
+
     # user donating
     user = models.ForeignKey(User)
     # machine identifier
@@ -290,9 +409,31 @@ class Donation(models.Model):
     # epoch, a donation is marked as inactive
     active = models.BooleanField()
     def __unicode__(self):
+        """
+        <Purpose>
+
+        
+        <Arguments>
+        
+        <Exceptions>
+
+        <Side Effects>
+        
+        <Returns>
+        
+        """
         return "%s:%s:%d"%(self.user.www_user.username, self.ip, self.port)
         
 class Vessel(models.Model):
+    """
+    <Purpose>
+      Customized admin view of the User model
+    <Side Effects>
+      None
+    <Example Use>
+      Used internally by django
+    """
+
     # corresponding donation
     donation = models.ForeignKey(Donation)
     # vessel's name, e.g. v1..v10
@@ -302,17 +443,61 @@ class Vessel(models.Model):
     # extravessel boolean -- if True, this vessel is used for advertisements of geni's key
     extra_vessel = models.BooleanField()
     def __unicode__(self):
+        """
+        <Purpose>
+
+        
+        <Arguments>
+        
+        <Exceptions>
+
+        <Side Effects>
+        
+        <Returns>
+        
+        """
         return "%s:%s"%(self.donation.ip,self.name)
 
 class VesselPorts(models.Model):
+    """
+    <Purpose>
+      Customized admin view of the User model
+    <Side Effects>
+      None
+    <Example Use>
+      Used internally by django
+    """
+
     # corresponding vessel
     vessel = models.ForeignKey(Vessel)
     # vessel's port on this host
     port = models.IntegerField("Vessel port")
     def __unicode__(self):
+        """
+        <Purpose>
+
+        
+        <Arguments>
+        
+        <Exceptions>
+
+        <Side Effects>
+        
+        <Returns>
+        
+        """
         return "%s:%s:%s"%(self.vessel.donation.ip, self.vessel.name, self.port)
 
 class VesselMap(models.Model):
+    """
+    <Purpose>
+      Customized admin view of the User model
+    <Side Effects>
+      None
+    <Example Use>
+      Used internally by django
+    """
+
     # the vessel being assigned to a user
     vessel = models.ForeignKey(Vessel)
     # the user assigned to the vessel
@@ -320,9 +505,36 @@ class VesselMap(models.Model):
     # expiration date/time
     expiration = models.DateTimeField("Mapping expiration date")
     def __unicode__(self):
+        """
+        <Purpose>
+
+        
+        <Arguments>
+        
+        <Exceptions>
+
+        <Side Effects>
+        
+        <Returns>
+        
+        """
         return "%s:%s:%s"%(self.vessel.donation.ip, self.vessel.name, self.user.www_user.username)
 
     def time_remaining(self):
+        """
+        <Purpose>
+
+        
+        <Arguments>
+        
+        <Exceptions>
+
+        <Side Effects>
+        
+        <Returns>
+        
+        """
+
         curr_time = datetime.datetime.now()
         delta = self.expiration - curr_time
         if delta.days == -1:
@@ -334,6 +546,15 @@ class VesselMap(models.Model):
         return ret
     
 class Share(models.Model):
+    """
+    <Purpose>
+      Customized admin view of the User model
+    <Side Effects>
+      None
+    <Example Use>
+      Used internally by django
+    """
+
     # user giving
     from_user = models.ForeignKey(User, related_name='from_user')
     # user receiving
@@ -341,9 +562,44 @@ class Share(models.Model):
     # percent giving user is sharing with receiving user
     percent = models.DecimalField("Percent shared", max_digits=3, decimal_places=0)
     def __unicode__(self):
+                """
+        <Purpose>
+
+        
+        <Arguments>
+        
+        <Exceptions>
+
+        <Side Effects>
+        
+        <Returns>
+        
+        """
+
+
         return "%s->%s"%(self.from_user.www_user.username,self.to_user.www_user.username)
 
 def test_acquire(username, num_nodes):
+            """
+    <Purpose>
+        
+
+    <Arguments>
+        request:
+            
+        share_form:
+            
+
+    <Exceptions>
+        
+
+    <Side Effects>
+        
+
+    <Returns>
+        
+    """
+
     user = DjangoUser.objects.get(username=username)
     print "django user: ", user
     geni_user = User.objects.get(www_user = user)
@@ -354,6 +610,26 @@ def test_acquire(username, num_nodes):
         print ret[1]
 
 def test_acquire_node(username,nodeip,vesselname):
+            """
+    <Purpose>
+        
+
+    <Arguments>
+        request:
+            
+        share_form:
+            
+
+    <Exceptions>
+        
+
+    <Side Effects>
+        
+
+    <Returns>
+        
+    """
+
     user = DjangoUser.objects.get(username=username)
     print "django user: ", user
     geni_user = User.objects.get(www_user = user)
