@@ -153,7 +153,7 @@ class ServerTest(threading.Thread):
 
 
 # Loosely based on find-gateway.py from the OpenDHT project...
-def get_proxy_list(numberofattempts=30):
+def get_proxy_list(maxnumberofattempts=30):
   global serverlist
   
   # populate server list
@@ -168,9 +168,10 @@ def get_proxy_list(numberofattempts=30):
     # The third field is the server name
     servers.append(line.split()[2])
 
-  if len(servers)< numberofattempts:
-    raise Exception, "Insufficient servers in server list"
+  if len(servers) == 0:
+    raise Exception, "No servers in server list"
 
+  numberofattempts = min(len(servers), maxnumberofattempts)
   serverstocheck = random.sample(servers, numberofattempts)
 
   serverthreads = []
