@@ -160,7 +160,7 @@ def release_resources(geni_user, resource_id, all):
     return ret
             
 @transaction.commit_manually    
-def acquire_resources(geni_user, num, type):
+def acquire_resources(geni_user, num, env_type):
     """
     <Purpose>
         
@@ -177,33 +177,39 @@ def acquire_resources(geni_user, num, type):
         
     """
     '''
-    attempts to acquire num vessels for geni_user of some network type (LAN,WAN,RAND)
+    attempts to acquire num vessels for geni_user of some network env_type (LAN,WAN,RAND)
     '''
+    print "expire_time ", time.time()
     expire_time = datetime.datetime.fromtimestamp(time.time() + VESSEL_EXPIRE_TIME_SECS)
+    print "/expire_time ", time.time()
     explanation = ""
     try:
         summary = ""
 
+        print "total_free ", time.time()
         total_free_vessel_count = len(Vessel.objects.all()) - len(VesselMap.objects.all())
+        print "/total_free ", time.time()
         
         vessels = []
-        if int(type) == 1:
-            # type is LAN
-            # summary += " type 1,"
+        if int(env_type) == 1:
+            # env_type is LAN
+            # summary += " env_type 1,"
             filter_ips = "128.208.1."
+            print "get_unacq ", time.time()
             vessels = get_unacquired_vessels(geni_user, filter_ips)
+            print "/get_unacq ", time.time()
             
-        elif int(type) == 2:
-            # type is WAN
+        elif int(env_type) == 2:
+            # env_type is WAN
             vessels_free = get_unacquired_vessels(geni_user, "")
-            # summary += " type 2"
+            # summary += " env_type 2"
             for v in vessels_free:
                 if "128.208.1." not in v.donation.ip:
                     vessels.append(v)
                     
-        elif int(type) == 3:
-            # type is RAND
-            # summary += " type 3"
+        elif int(env_type) == 3:
+            # env_type is RAND
+            # summary += " env_type 3"
             vessels = get_unacquired_vessels(geni_user, "")
 
                     
@@ -212,7 +218,7 @@ def acquire_resources(geni_user, num, type):
             explanation += "No more nodes available (max %d)."%(num)
             transaction.rollback()
             summary += " No nodes available to acquire."
-            return False, explanation, summary
+            return False, (explanation, summary)
         else:
             explanation += "There are  " + str(total_free_vessel_count) + " vessels free. Your port is available on " + str(len(vessels)) + " of them."
             
@@ -233,12 +239,16 @@ def acquire_resources(geni_user, num, type):
             # explanation += "nodepubkey : %s<br>nodeprivkey: %s<br>"%(nodepubkey,nodeprivkey)
             # explanation += "calling changeusers with: \npubkeystrlist %s\nnmip %s\nnmport %s\nvesselname %s\nnodepubkey %s\nnodeprivkey %s\n"%(userpubkeystringlist, nmip, nmport, vesselname, nodepubkey, nodeprivkey)
             # explanation += " Acquiring %s:%s"%(nmip,nmport)
+            print "changeusers ", time.time()
             success,msg = changeusers(userpubkeystringlist, nmip, nmport, vesselname, nodepubkey, nodeprivkey)
+            print "/changeusers " , time.time()
             if success:
                 acquired += 1
                 # create and save the new vmap entry
+                print "create and save vmap ", time.time()
                 vmap = VesselMap(vessel = v, user = geni_user, expiration = "%s"%(expire_time))
                 vmap.save()
+                print "/create and save vmap ", time.time()
             else:
                 explanation += " " + nmip + ":" + str(nmport) + " " + msg
             #else:
@@ -263,13 +273,13 @@ def acquire_resources(geni_user, num, type):
         f.close()
         transaction.rollback()
         summary += " Failed to acquire vessel(s). Internal Error."
-        return False, explanation, summary
+        return False, (explanation, summary)
     else:
         transaction.commit()
         if acquired == 0:
             return False, explanation,summary
         summary += " Acquired %d vessel(s). "%(acquired)
-        return True,acquired,explanation,summary
+        return True, (acquired, explanation, summary)
 
 class User(models.Model):
     """
@@ -562,7 +572,7 @@ class Share(models.Model):
     # percent giving user is sharing with receiving user
     percent = models.DecimalField("Percent shared", max_digits=3, decimal_places=0)
     def __unicode__(self):
-                """
+        """
         <Purpose>
 
         
@@ -575,12 +585,10 @@ class Share(models.Model):
         <Returns>
         
         """
-
-
         return "%s->%s"%(self.from_user.www_user.username,self.to_user.www_user.username)
 
 def test_acquire(username, num_nodes):
-            """
+    """
     <Purpose>
         
 
@@ -610,7 +618,7 @@ def test_acquire(username, num_nodes):
         print ret[1]
 
 def test_acquire_node(username,nodeip,vesselname):
-            """
+    """
     <Purpose>
         
 

@@ -295,7 +295,7 @@ def new_share(request):
 ########################## Functions dealing with the used resources page
 
 @login_required()
-def used_resources(request,get_form=False,action_explanation="",remove_explanation="",action_summary=""):
+def used_resources(request, get_form=False, action_explanation="", remove_explanation="", action_summary=""):
     """
     <Purpose>
         Constructs a user's used resources page.
@@ -485,33 +485,43 @@ def get_resources(request):
 
     # the request must be via a POST method
     if not request.method == 'POST':
+        print "request.method is not POST"
         return used_resources(request)
     
     # validate user        
     ret,success = __validate_guser__(request)
     if not success:
+        print "user invalid"
         return ret
     geni_user = ret
 
     action_explanation = ""
     get_form = forms.gen_get_form(geni_user,request.POST)
     if get_form is None:
-        return used_resources(request,get_form,action_explanation=action_explanation)
+        print "get_form is None"
+        return used_resources(request, get_form, action_explanation=action_explanation)
     
     action_summary = ""
     if get_form.is_valid():
+        print "get_form is valid"
         # if the acquisition form is valid
-        action_explanation = get_form.cleaned_data['env']
+        action_explanation = "" #get_form.cleaned_data['env']
         # acquire the requested resource
-        success,ret = acquire_resources(geni_user,
-                                int(get_form.cleaned_data['num']),
-                                get_form.cleaned_data['env'])
+        print get_form.cleaned_data
+        print get_form.cleaned_data['num']
+        #print get_form.cleaned_data['env']
+        env_type = get_form.cleaned_data['env']
+        print "ENV_TYPE : " +  str(env_type)
+        success,ret = acquire_resources(geni_user, int(get_form.cleaned_data['num']), env_type)
 
         # deserealize the returned value of the acquisition
-        if success
+        if success:
             num_acquired,action_explanation,action_summary = ret
         else:
             action_explanation,action_summary = ret
+        print "acquire_resources returned: "
+        print action_summary
+        print action_explanation
 
     # have used_resources generate the updated get_form form
     return used_resources(request,get_form=False,
