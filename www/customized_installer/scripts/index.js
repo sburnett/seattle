@@ -16,9 +16,13 @@ function createArray() {
 }
 
 window.onload = function () {
+	// counter for default usernames
 	counter = 1;
+	// add the user to the user box
 	$("form").onsubmit = addUser;
+	// guess the username from the given public key file
 	$("publickey").onchange = updateUsername;
+	// reset the form
 	$("username").onfocus = function () {
 		this.value = "";
 	};
@@ -149,7 +153,7 @@ function Initialize() {
 		userlist.appendChild(user);
 		vessel.appendChild(ownerlist);
 		vessel.appendChild(userlist);
-		$("VesselList").appendChild(vessel);
+		$("vessellist").appendChild(vessel);
 		Droppables.add(ownerlist.id, {
 			accept: "user",
 			onDrop: addOwnerToList
@@ -167,14 +171,14 @@ function Initialize() {
 		plus.style.height = "10px";
 		plus.style.fontWeight = "Bold";
 		plus.style.fontSize = "11pt";
-		plus.style.top = ($("VesselList").offsetTop - 12) + "px";
+		plus.style.top = ($("vessellist").offsetTop - 12) + "px";
 		plus.textContent = "+";
 		plus.id = "plus" + j;
 		plus.onclick = addVessel;
 		/*These try statements are used to make the website work on internet explorer, which doesn't support textContent*/
 		try { if(!plus.innerText) plus.innerText = plus.textContent; } catch(e) {}
 		plus.style.left = ((j * 132) + 8 ) + "px";
-		$("Pluses").appendChild(plus);
+		$("pluses").appendChild(plus);
 		var remove = document.createElement("p");
 		remove.textContent = "X";
 		try { if(!remove.innerText) remove.innerText = remove.textContent; } catch(e) {}
@@ -185,8 +189,8 @@ function Initialize() {
 		remove.style.height = "10px";
 		remove.style.position = "absolute";
 		remove.style.left = ((j * 132) + 8 ) + "px";
-		remove.style.top = ($("VesselList").offsetTop - 7) + "px";
-		$("Pluses").appendChild(remove);
+		remove.style.top = ($("vessellist").offsetTop - 7) + "px";
+		$("pluses").appendChild(remove);
 	}
 	/*Initializes the untouchable "2%" vessel block*/
 	var staticvessel = document.createElement("span");
@@ -197,9 +201,9 @@ function Initialize() {
 	staticvessel.style.position = "absolute";
 	staticvessel.style.textAlign = "center";
 	if (BrowserDetect.browser == "Explorer") {
-		staticvessel.style.top = ($("VesselList").offsetTop); 
+		staticvessel.style.top = ($("vessellist").offsetTop); 
 	} else {
-		staticvessel.style.top = ($("VesselList").offsetTop);
+		staticvessel.style.top = ($("vessellist").offsetTop);
 	}
 	staticvessel.style.marginTop = "15px";
 	staticvessel.style.marginLeft = "1063px";
@@ -208,7 +212,7 @@ function Initialize() {
 	staticvessel.style.fontSize = "18pt";
 	staticvessel.style.backgroundColor = "Gray";
 	try { if(!staticvessel.innerText) staticvessel.innerText = staticvessel.textContent; } catch(e) {}
-	$("VesselList").appendChild(staticvessel);	
+	$("vessellist").appendChild(staticvessel);	
 }
 
 function addOwnerToList(draggable, droppable) {
@@ -300,6 +304,8 @@ function updateVessels() {
 	}
 }
 
+
+/* add vessels to the user box */
 function addUser () {
 	if ($("username").value == "") {
 		$("username").value = "user_" + counter;
@@ -326,16 +332,12 @@ function addUser () {
 		$("names").appendChild(user);
 		new Draggable(name, {revert: true, ghosting: true});
 		for (var i = 1;i < 8;i++) {
-			$("plus" + i).style.top = ($("VesselList").offsetTop - 7) + "px";
-			$("remove" + i).style.top = ($("VesselList").offsetTop - 2) + "px";
+			$("plus" + i).style.top = ($("vessellist").offsetTop - 7) + "px";
+			$("remove" + i).style.top = ($("vessellist").offsetTop - 2) + "px";
 		}
 	}
-	/*if (BrowserDetect.browser == "Explorer") {
-		$("staticvessel").style.top = ($("VesselList").offsetTop + 20) + "px";
-	} else {
-		$("staticvessel").style.top = ($("VesselList").offsetTop + 15) + "px";
-	}
-*/	new Ajax.Request('process.php',
+	
+	new Ajax.Request('process.php',
 		{
 			method: "post",
 			parameters: {action: "resetform", username: name},
@@ -344,6 +346,7 @@ function addUser () {
 	);
 }
 
+/*  guess the username for given public key  */
 function updateUsername () {
 	if ($("publickey").value != "") {
 		$("username").value = $("publickey").value.substring($("publickey").value.lastIndexOf("/") +1,
@@ -351,7 +354,7 @@ function updateUsername () {
 	}
 }
 
-
+/*  automatically increment the username by one  */
 function resetForm (ajax) {
 	if (ajax.responseText == "custom") {
 		$("username").value = "";
@@ -362,6 +365,8 @@ function resetForm (ajax) {
 	}
 }
 
+
+/*  create a json object that sends the vessel information to the server side  */
 function createInstaller () {
 	var json = [
 		{
@@ -415,10 +420,13 @@ function createInstaller () {
 	);
 }
 
+/*  redirect the page to installer download page  */
 function finish (ajax) {
 	location.href = "installers.php";
 }
 
+
+/*  check to make sure each vessel has at least a owner to generate the installer  */
 function validate () {
 	var valid = true;
 	for (var i = 0; i < 7; i++) {
@@ -434,7 +442,8 @@ function validate () {
 }
 
 
-/*Free online downloaded script that can return OS, Browser Name, and Browser Version, used for browser compatibility purposes*/
+/*	Free online downloaded script that can return OS, Browser Name, and Browser Version,
+	used for browser compatibility purposes*/
 var BrowserDetect = {
 	init: function () {
 		this.browser = this.searchString(this.dataBrowser) || "An unknown browser";

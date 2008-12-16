@@ -8,7 +8,7 @@ $mypid = session_id();
 <html xmlns="http://www.w3.org/1999/xhtml">
 
 <!--
-Installer download Page for Research Project
+Installer download Page for Customized Installer
 -->
 
 
