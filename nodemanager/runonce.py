@@ -133,15 +133,9 @@ def releaseprocesslockflock(lockname):
 ##### WINDOWS SECTION ##########
 
 try:
-  import windows_api
-  windowsAPI = windows_api
+  import windows_api as windowsAPI
 except:
-  try:
-    import windows_ce_api
-    windowsAPI = windows_ce_api
-  except:
-    windowsAPI = None
-    pass
+  windowsAPI = None
   pass
 
 # NOTE: in Windows, only the current user can get the PID for their process.
