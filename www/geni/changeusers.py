@@ -2008,7 +2008,7 @@ def initialize_time_if_needed():
 
 
 def do_announce(pubkey,value,valuelifetime):
-  logfo = open("/tmp/logannounce2.out","a")
+  logfo = open("/tmp/logannounce.out","a")
   try:
     print >> logfo, time.time(),"Start announce!"
     logfo.flush()
