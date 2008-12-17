@@ -91,7 +91,7 @@ def help_exit(errMsg):
 # checks to make sure the argument list has at least 2 entries
 def checkArgLen():
   if len(sys.argv) < 2:
-    helpExit('Invalid number of arguments')
+    help_exit('Invalid number of arguments')
 
 def main():
   checkArgLen()
@@ -131,6 +131,7 @@ def main():
   copy_to_target("nodemanager/*", target_dir)
   copy_to_target("nodemanager/tests/*", target_dir)
   copy_to_target("portability/*", target_dir)
+  copy_to_target("portability/tests/*", target_dir)
   copy_to_target("seattlelib/*", target_dir)
   copy_to_target("seash/*", target_dir)
   copy_to_target("seash/tests/*", target_dir)
