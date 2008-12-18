@@ -9,7 +9,7 @@ def output(text):
 
 def main():
     # Kill seattle
-    seattlestopper.main()
+    seattlestopper.killall()
     crontab_f = os.popen("crontab -l")
     temp_f = open("temp.txt", "w")
     found = False

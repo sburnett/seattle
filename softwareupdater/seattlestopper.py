@@ -23,32 +23,48 @@ import time
 
 locklist = [ "seattlenodemanager", "softwareupdater.old", "softwareupdater.new" ]
 
+def killall():
+  """
+  <Purpose>
+    Kills all the seattle programs that might be running and acquires
+    the locks so that they can't start again while this program is running.
+
+  <Arguments>
+    None.
+  
+  <Exceptions>
+    None.
+
+  <Side Effects>
+    None.
+
+  <Returns>
+    None.
+  """
+  for lockname in locklist:
+    retval = runocne.getprocesslock(lockname)
+    if retval == True:
+      # The process wasn't running
+      print "The lock '"+lockname+"' was not held."
+    elif retval == False:
+      # The process is running, but I can't stop it
+      print "The lock '" + lockname + "' was held by an unknown process."
+    else:
+      # We got the pid, we can stop the process
+      print "Stopping the process (pid: " + str(reval) + ") with lock " + lockname + "."
+      nonportable.portablekill(retval)
+
+      # Now acquire the lock for ourselves, looping until we
+      # actually get it.
+      while (runonce.getprocesslock(lockname) != True):
+        pass
+
 def main():
   
   # Is seattlestopper.py already running?
   retval = runonce.getprocesslock("seattlestopper")
   if retval == True:
-    # For each locked process, find the PID of the process holding the lock...
-    for lockname in locklist:
-      retval = runonce.getprocesslock(lockname)
-      if retval == True:
-        # I got the lock, it wasn't running...
-        print "The lock '"+lockname+"' was not held"
-        pass
-      elif retval == False:
-        # Someone has the lock, but I can't do anything...
-        print "The lock '"+lockname+"' is not held by an unknown process"
-
-      else:
-        # I know the process ID!   Let's stop the process...
-        print "Stopping the process (pid: "+str(retval)+") with lock '"+lockname+"'"
-        nonportable.portablekill(retval)
-        # Now acquire the lock for ourselves, so that the process
-        # can't start up again. Make sure that we actually have the
-        # lock before proceeding.
-        while runonce.getprocesslock(lockname) != True:
-          pass
-     
+    killall()     
     while True:
       # Now sleep forever, checking every 30 secs to make sure we
       # shouldn't quit.
