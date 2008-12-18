@@ -21,8 +21,8 @@ def output(text):
 def main():
     try:
         install()
-    except(InstallFailed):
-        output "Installation failed."
+    except:
+        output("Installation failed.")
 
 def install():
     """
