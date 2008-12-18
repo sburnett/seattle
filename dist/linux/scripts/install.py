@@ -1,3 +1,18 @@
+"""
+<Program Name>
+  
+
+<Started>
+  
+
+<Author>
+  
+
+<Purpose>
+  
+
+"""
+
 import os
 import re
 import sys
@@ -5,6 +20,14 @@ import sys
 STARTER_SCRIPT_NAME = "start_seattle.sh"
 
 class InstallFailed(Exception):
+    """
+    <Purpose>
+
+    <Side Effects>
+
+    <Example Use>
+
+    """
     def __init__(self, value=""):
         self.value = value
     
@@ -14,11 +37,35 @@ class InstallFailed(Exception):
 # In case we want to silence or redirect output
 # at some point, for internal use only
 def output(text):
+    """
+    <Purpose>
+    
+    <Arguments>
+
+    <Exceptions>
+
+    <Side Effects>
+
+    <Returns>
+
+    """
     print text
 
 # If being run by itself, catch the exception and print output when
 # the installation fails.
 def main():
+    """
+    <Purpose>
+    
+    <Arguments>
+
+    <Exceptions>
+
+    <Side Effects>
+
+    <Returns>
+
+    """
     try:
         install()
     except:
@@ -111,6 +158,7 @@ def install():
     # Inform the user of what happened
     output("Seattle was successfully installed on your computer.")
     output("If you would like to uninstall seattle at any time, run the uninstall.sh script located in this directory.")
+
 
 if __name__ == "__main__":
     main()
