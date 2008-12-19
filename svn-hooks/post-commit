@@ -252,8 +252,9 @@ def main():
     send_gmail.init_gmail(gmail_user=gmail_user, gmail_pwd=gmail_pwd)
     for email in notify_list:
       send_gmail.send_gmail(email, "svn post-commit unit test hoook failed on rvn " + str(rvn), output, "")
+    return 1
 
-  return success
+  return 0
 
 
 if __name__ == "__main__":
