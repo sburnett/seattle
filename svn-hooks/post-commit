@@ -231,7 +231,8 @@ def main():
       Sends email.
 
   <Returns>
-      Returns False if any unit tests failed. Otherwise returns True.
+      Returns 1 if any unit tests failed. Otherwise returns 0. These
+      values tell svn where the script failed (1) or succeeded (0).
   """
   global notify_list
 
@@ -246,8 +247,12 @@ def main():
   # check the repository:rvn
   success,output = check(repos, rvn)
 
-  # send email to notify_list members if any unit tests failed
+  # if any of the tests failed..
   if not success:
+    # tell the committing user what went wrong
+    sys.stderr.write(output)
+    
+    # send email to notify_list members
     gmail_user, gmail_pwd = open("/var/local/svn/hooks/gmail_account","r").read().strip().split()
     send_gmail.init_gmail(gmail_user=gmail_user, gmail_pwd=gmail_pwd)
     for email in notify_list:
