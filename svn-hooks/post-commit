@@ -1,0 +1,260 @@
+#!/usr/bin/python
+"""
+<Program Name>
+  post-commit.py
+
+<Started>
+  December 18, 2008
+
+<Author>
+  ivan@cs.washington.edu
+  Ivan Beschastnikh
+
+<Purpose>
+  An SVN post-commit hook to perform unit testing after a commit is
+  made to the seattle repository. If any of the unit tests fail,
+  emails are sent with the output of the unit testing to people to be
+  notified.
+"""
+
+import os
+import sys
+import tempfile
+import svn.core
+import svn.client
+import subprocess
+
+import send_gmail
+
+notify_list = ["bestchai@gmail.com", "justinc@cs.washington.edu"]
+
+def command_output(cmd):
+  """
+  <Purpose>
+      Runs command 'cmd' and returns its stdout output after it completes.
+
+  <Arguments>
+      cmd:
+         command line to execute in a separate process
+
+  <Exceptions>
+      None
+
+  <Side Effects>
+      Unknown -- depends on cmd argument
+
+  <Returns>
+      Output from running cmd.
+  """
+  return subprocess.Popen(cmd.split(), stdout=subprocess.PIPE).communicate()[0]
+
+
+def must_test(line):
+  """
+  <Purpose>
+      To test an SVN change line for a file whether it might require unit
+      tests to be run.
+  
+  <Arguments>
+      line:
+         An SVN format line to test for whether unit testing is
+         necessary. This line is of the form:
+         X      /dir/dir/dir/filename1
+         where X may be one of A, U, D, etc
+
+  <Exceptions>
+      None
+
+  <Side Effects>
+      None
+
+  <Returns>
+      True if the line is a modification to SVN that necessitates us
+      to perform unit testing on the repository. False otherwise.
+  """
+  print "testing line", line
+  if line == "":
+    return False
+  line = line.split()
+  #print "pyfile", os.path.splitext(line[1])[1]
+  pyfile = os.path.splitext(line[1])[1] in ".py .mix".split()
+  changeop = line[0] in ("A", "U", "D")
+  return pyfile and changeop
+
+
+def checkout(rvn):
+  """
+   <Purpose>
+      Checks out a specific revision number of the repository into a
+      temporary location.
+  
+   <Arguments>
+      rvn:
+         SVN revision number to check out
+
+   <Exceptions>
+      None
+
+   <Side Effects>
+      Checks out the repository into a temporary location that is
+      created especially for this purpose.
+
+   <Returns>
+      Path string to the checked-out repository.
+  """
+  pool = svn.core.svn_pool_create(None)
+  svn.core.svn_config_ensure( None, pool )
+  ctx = svn.client.svn_client_ctx_t()
+  config = svn.core.svn_config_get_config( None, pool )
+  ctx.config = config
+  rev = svn.core.svn_opt_revision_t()
+  rev.kind = svn.core.svn_opt_revision_number
+  rev.value.number = int(rvn)
+  ctx.auth_baton = svn.core.svn_auth_open( [], pool )
+  url = "http://seattle.cs.washington.edu/svn/seattle/"
+  path = tempfile.mkdtemp("")
+  
+  print 'path is ', path
+  print "url is", url
+  print "rvn is ", rvn
+  svn.client.svn_client_checkout(url, path, rev, True, ctx, pool)
+  return path
+
+
+def run_tests(tmpdir):
+  """
+  <Purpose>
+      Performs preparetest and runs unit tests on a checked out
+      repository.
+  
+  <Arguments>
+      tmpdir:
+         Directory where the project is checked out
+
+  <Exceptions>
+      Not sure.
+
+  <Side Effects>
+      Modifies the checked out repository by adding an 'svn-test'
+      directory at the top level (into which prepare test will copy
+      the necessary files).
+
+  <Returns>
+      True if the number of unit tests that failed is 0. Otherwise False.
+  """
+  tmpdir = tmpdir + "/trunk"
+  os.chdir(tmpdir)
+  
+  cmd = "mkdir %s/svn-test/"%(tmpdir)
+  os.system(cmd)
+  print cmd
+
+  cmd = "python %s/preparetest.py -t %s/svn-test/"%(tmpdir, tmpdir)
+  print cmd
+  os.system(cmd)
+
+  os.chdir(tmpdir + "/svn-test/")
+  cmd = "python run_tests.py"
+  print cmd
+  output = command_output(cmd)
+  
+  lines = output.split("\n")
+  # print "output:", lines
+  print "last line split is", lines[-2].split(",")
+  num_failed = int(lines[-2].split(",")[1].split()[0])
+  print "num_failed is ", num_failed
+  return (num_failed == 0), output
+
+
+def check(repos, rvn):
+  """
+  <Purpose>
+      Check the Seattle project repository's specific revision for
+      passing unit tests.
+  
+  <Arguments>
+      repos:
+         Path to the repository
+      rvn:
+         Specific revision number to check for unit test passing
+
+  <Exceptions>
+      Not sure.
+
+  <Side Effects>
+      None.
+
+  <Returns>
+      Returns a tuple (B,O) where B is success -- True if no unit
+      tests failes, or False if some unit tests failed, and O is the
+      unit testing output.
+  """
+  # grab list of changed files in this revision
+  changed = command_output("svnlook changed %s --revision %s"%(repos, rvn))
+  print "changed is '", changed, "'"
+
+  # check if we need to perform unit testing on this revision
+  should_test = False
+  for line in changed.split("\n"):
+    if must_test(line):
+      should_test = True
+      break
+  if not should_test:
+    return True,""
+
+  # perform a checkout into some temporary directory
+  tmpdir = checkout(rvn)
+  print "tmpdir is ", tmpdir
+  
+  # run the unit tests if necessary
+  success, output = run_tests(tmpdir)
+  
+  # remove the directory of the temporary checkout
+  os.system("rm -Rf %s"%(tmpdir))    
+  return success, output
+
+
+def main():
+  """
+  <Purpose>
+      Processes command line args and calls check() to test the
+      revision for unit tests. If any of the tests fail, sends an email
+      to the people in the notify_list.
+  
+  <Arguments>
+      None
+  
+  <Exceptions>
+      Not sure.
+
+  <Side Effects>
+      Sends email.
+
+  <Returns>
+      Returns False if any unit tests failed. Otherwise returns True.
+  """
+  global notify_list
+
+  # process program args
+  usage = "usage: %s REPOS REV\n\nRun a post-commit hook on a repository revision.\n"""%(sys.argv[0])
+  if len(sys.argv) != 3:
+    sys.stderr.write(usage)
+    return 1
+  repos = sys.argv[1]
+  rvn = sys.argv[2]
+
+  # check the repository:rvn
+  success,output = check(repos, rvn)
+
+  # send email to notify_list members if any unit tests failed
+  if not success:
+    gmail_user, gmail_pwd = open("/var/local/svn/hooks/gmail_account","r").read().strip().split()
+    send_gmail.init_gmail(gmail_user=gmail_user, gmail_pwd=gmail_pwd)
+    for email in notify_list:
+      send_gmail.send_gmail(email, "svn post-commit unit test hoook failed on rvn " + str(rvn), output, "")
+
+  return success
+
+
+if __name__ == "__main__":
+  sys.exit(main())
