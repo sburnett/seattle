@@ -1,7 +1,7 @@
 """
 Author: Cosmin Barsan
 Description:
-The test sends a change user request with sequence id 1 followed by a change advertise request with sequence id 2.
+The test sends a change user request with sequence id 0 followed by a change advertise request with sequence id 1.
 
 """
 
@@ -31,8 +31,8 @@ if callfunc == 'initialize':
 
   nmclient_signedsay(nmhandle, "ChangeAdvertise", myvessel, False)
   
-  #set up a new handle with sequence id 1
-  nmhandle = nmclient_createhandle(getmyip(), 1224, sequenceid=('req',1))  
+  #set up a new handle with sequence id 0
+  nmhandle = nmclient_createhandle(getmyip(), 1224, sequenceid=('req',0))  
   myhandleinfo = nmclient_get_handle_info(nmhandle)
   myhandleinfo['publickey'] = origpub
   myhandleinfo['privatekey'] = origpriv
@@ -43,10 +43,10 @@ if callfunc == 'initialize':
   try:
     nmclient_signedsay(nmhandle, "ChangeOwner", myvessel, rsa_publickey_to_string(keys[0]))
   except NMClientException:
-    raise Exception, "Change owner request with sequence id 1 failed"
+    raise Exception, "Change owner request with sequence id 0 failed"
 
   # use the credentials I just created...
-  nmhandle = nmclient_createhandle(getmyip(), 1224, sequenceid=('req',2))
+  nmhandle = nmclient_createhandle(getmyip(), 1224, sequenceid=('req',1))
   myhandleinfo = nmclient_get_handle_info(nmhandle)
   myhandleinfo['publickey'] = keys[0]
   myhandleinfo['privatekey'] = keys[1]
@@ -66,4 +66,4 @@ if callfunc == 'initialize':
     
     nmclient_signedsay(nmhandle, "ChangeOwner", myvessel, rsa_publickey_to_string(origpub))
     
-    raise Exception, "Change owner request with sequence id 2 failed"
+    raise Exception, "Change owner request with sequence id 1 failed"

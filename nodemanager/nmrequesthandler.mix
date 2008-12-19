@@ -214,12 +214,21 @@ def ensure_is_correctly_signed(fullrequest, allowedkeys, oldmetadata):
   except TimeError:
     time_updatetime(34612)
   
-  #check if request is still valid and has not expired
-  #this code has been added to resolve an issue where we are not checking of the request is expired in the case that there is no old metadata
+  # check if request is still valid and has not expired
+  # this code has been added to resolve an issue where we are not checking of the request is expired in the case that there is no old metadata
   thesigneddata, signature = fullrequest.rsplit('!',1)
-  junk, rawpublickey, junktimestamp, expiration, junksequenceno, junkdestination = thesigneddata.rsplit('!',5)
+  junk, rawpublickey, junktimestamp, expiration, sequencedata, junkdestination = thesigneddata.rsplit('!',5)
   if not signeddata_iscurrent(float(expiration)):
     raise nmAPI.BadRequest,"Bad Signature on '"+fullrequest+"'"
+    
+  
+  # check if sequence id is equal to zero in the case that there is no data. 
+  # This is intended to fix a previous issue where any value could be used as a sequence id when there was no old metadata (only 0 is valid in this case)
+  if (sequencedata!="None"):
+    junksequecename,sequenceno = sequencedata.rsplit(':',1)
+    if not oldmetadata:
+      if int(sequenceno) != 0:
+        raise nmAPI.BadRequest, "Illegal sequence id on '"+fullrequest+"'"
     
   # ensure it's correctly signed, if not report this and exit
   if not signeddata_issignedcorrectly(fullrequest):
@@ -232,7 +241,6 @@ def ensure_is_correctly_signed(fullrequest, allowedkeys, oldmetadata):
   # If they care about the key, do they have a valid key?
   if allowedkeys and signingpublickey not in allowedkeys:
     raise nmAPI.BadRequest('Insufficient Permissions')
-
 
   # No constraints!   We're done
   if not oldmetadata:
