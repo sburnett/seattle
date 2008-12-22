@@ -56,6 +56,13 @@ include rsa.repy
 import random
 randomfloat = random.random()
 
+# Armon: Import Windows API so that processes can be launched
+try:
+  import windows_api as windowsAPI
+  import repy_constants
+except: # This will fail on non-windows platforms
+  windowsAPI = None
+
 offcutfilename = "resources.offcut"
 
 # The node information (reported to interested clients)
@@ -189,10 +196,21 @@ def startvessel(vesselname, argstring):
 
   # ... but always reset it...
   try:
-    # architecturally, I'm unsure prepending ../ is the best solution...
-    commandstring = "python ../repy.py --logfile ../"+vesseldict[vesselname]['logfilename']+" --stop ../"+vesseldict[vesselname]['stopfilename']+" --status ../"+vesseldict[vesselname]['statusfilename']+" ../"+vesseldict[vesselname]['resourcefilename']+" "+argstring
+    # Armon: Get an abolute path to the parent directory
+    currentDirectory = "\"" + os.path.abspath(os.getcwd()) + "\""
+    
+    # Armon: Check if we are using windows API, and if it is windows mobile
+    if windowsAPI != None and windowsAPI.MobileCE:
+      # First element should be the script (repy)
+      command[0] = "\"" + repy_constants.PATH_SEATTLE_INSTALL + "repy.py"  + "\""
+      # Second element should be the parameters
+      command[1] = "--logfile " + vesseldict[vesselname]['logfilename'] + " --stop "+ vesseldict[vesselname]['stopfilename'] + " --status " + vesseldict[vesselname]['statusfilename'] + " --cwd " + updir + " " + vesseldict[vesselname]['resourcefilename']+" "+argstring
+    
+    else:  
+      # architecturally, I'm unsure prepending ../ is the best solution...
+      command = "python ../repy.py --logfile ../"+vesseldict[vesselname]['logfilename']+" --stop ../"+vesseldict[vesselname]['stopfilename']+" --status ../"+vesseldict[vesselname]['statusfilename']+ " --cwd " + currentDirectory + " ../" + vesseldict[vesselname]['resourcefilename']+" "+argstring
 
-    start_task(commandstring)
+    start_task(command)
 
   finally:
     # reset the path
@@ -224,10 +242,16 @@ def startvessel(vesselname, argstring):
 
 
 # A helper for startvessel.   private to this module
+# Armon: if MobileCE treat command as an array with 2 elements,
+# one with the script (full path), and the second with the parameters
 def start_task(command):
- 
-  # Should I use call here?
-  subprocess.Popen(command, shell=True)
+  # Check if we are using windows API, and if it is windows mobile
+  if windowsAPI != None and windowsAPI.MobileCE:
+    windowsAPI.launchPythonScript(command[0], command[1])
+  # Otherwise, safe to use subprocess  
+  else:  
+    # Should I use call here?
+    subprocess.Popen(command, shell=True)
 
 
 def stopvessel(vesselname):
