@@ -38,8 +38,6 @@ from django.db import connection
 from django.db import transaction
 from geni.changeusers import changeusers
 
-# user ports permitted on vessels on a donated host
-allowed_user_ports = range(63100,63180)
 # 4 hours worth of seconds
 VESSEL_EXPIRE_TIME_SECS = 14400
 
@@ -59,7 +57,7 @@ def pop_key():
     <Returns>
         
     """
-
+    
     cursor = connection.cursor()
     cursor.execute("BEGIN")
     cursor.execute("SELECT id,pub,priv FROM keygen.keys_512 limit 1")
@@ -163,22 +161,40 @@ def release_resources(geni_user, resource_id, all):
 def acquire_resources(geni_user, num, env_type):
     """
     <Purpose>
-        
+      Acquire num resources/vessels for usergeni_user of type env_type
+      (LAN\WAN\Random).
 
     <Arguments>
+      geni_user :
+        A User class instance (see below) representing user for whom
+        to acquire the vessels
+      num :
+        Number of vessels to acquire
+      env_type :
+        The type of vessel environment to acquire. Current support
+        values are 1 : LAN, 2 : WAN, 3 : Random
 
     <Exceptions>
-        
+      None
 
     <Side Effects>
-        
+      Modifies the geni database to reflect new vessel
+      assignments. Specifically, this function creates new VesselMap
+      records and assigns vessels to users. This function also
+      modifies vessel state by changing their user keys to geni_user's
+      key.
 
     <Returns>
-        
+      bool, list where bool is True on success (some vessels
+      acquired), False on failure (no vessels acquired). If bool is
+      True then list is (acquired, explanation, summary) where
+      acquired is the number of vesesls acquired, explanation is the
+      detailed explanation of went on, and summary is a summary
+      explanation of what went on. If bool is False then list is
+      (explanation, summary) where explanation is a detailed
+      explanation and summary is a summary explanation of why we
+      failed.
     """
-    '''
-    attempts to acquire num vessels for geni_user of some network env_type (LAN,WAN,RAND)
-    '''
     print "expire_time ", time.time()
     expire_time = datetime.datetime.fromtimestamp(time.time() + VESSEL_EXPIRE_TIME_SECS)
     print "/expire_time ", time.time()
@@ -312,34 +328,34 @@ class User(models.Model):
     def __unicode__(self):
         """
         <Purpose>
-
-        
+          Produce a string representation of the User model class
         <Arguments>
-        
+          None
         <Exceptions>
-
+          None
         <Side Effects>
-        
+          None
         <Returns>
-        
+          String representation of the User class
         """
         return self.www_user.username
 
     def save_new_user(self):
         """
         <Purpose>
-
-        
+          Handles the generation of keys and ports for a new user
+          record, and then saves the new user record to the geni db.
         <Arguments>
-        
+          None
         <Exceptions>
-
+          None
         <Side Effects>
-        
+          Saves a new User record to the geni db
         <Returns>
-        
+          True on success, or False on failure
         """
-        global allowed_user_ports
+        # user ports permitted on vessels on a donated host
+        ALLOWED_USER_PORTS = range(63100,63180)
 
         # generate user pub/priv key pair for accessing vessels
         if self.pubkey == "":
@@ -353,7 +369,7 @@ class User(models.Model):
             return False
         self.donor_pubkey,self.donor_privkey = pubpriv2
         # generate random port for user
-        self.port = random.sample(allowed_user_ports, 1)[0]
+        self.port = random.sample(ALLOWED_USER_PORTS, 1)[0]
         self.save()
         return True
 
@@ -421,16 +437,15 @@ class Donation(models.Model):
     def __unicode__(self):
         """
         <Purpose>
-
-        
+          Produce a string representation of the Donation model class
         <Arguments>
-        
+          None
         <Exceptions>
-
+          None
         <Side Effects>
-        
+          None
         <Returns>
-        
+          String representation of the Donation class
         """
         return "%s:%s:%d"%(self.user.www_user.username, self.ip, self.port)
         
@@ -455,16 +470,15 @@ class Vessel(models.Model):
     def __unicode__(self):
         """
         <Purpose>
-
-        
+          Produce a string representation of the Vessel model class
         <Arguments>
-        
+          None
         <Exceptions>
-
+          None
         <Side Effects>
-        
+          None
         <Returns>
-        
+          String representation of the Vessel class
         """
         return "%s:%s"%(self.donation.ip,self.name)
 
@@ -485,16 +499,15 @@ class VesselPorts(models.Model):
     def __unicode__(self):
         """
         <Purpose>
-
-        
+          Produce a string representation of the VesselPorts model class
         <Arguments>
-        
+          None
         <Exceptions>
-
+          None
         <Side Effects>
-        
+          None
         <Returns>
-        
+          String representation of the VesselPorts class
         """
         return "%s:%s:%s"%(self.vessel.donation.ip, self.vessel.name, self.port)
 
@@ -507,7 +520,6 @@ class VesselMap(models.Model):
     <Example Use>
       Used internally by django
     """
-
     # the vessel being assigned to a user
     vessel = models.ForeignKey(Vessel)
     # the user assigned to the vessel
@@ -517,34 +529,32 @@ class VesselMap(models.Model):
     def __unicode__(self):
         """
         <Purpose>
-
-        
+          Produce a string representation of the VesselMap model class
         <Arguments>
-        
+          None
         <Exceptions>
-
+          None
         <Side Effects>
-        
+          None
         <Returns>
-        
+          String representation of the VesselMap class
         """
         return "%s:%s:%s"%(self.vessel.donation.ip, self.vessel.name, self.user.www_user.username)
 
     def time_remaining(self):
         """
         <Purpose>
-
-        
+          Returns the number of seconds remaining to the assignment of
+          a user to a vessel
         <Arguments>
-        
+          None
         <Exceptions>
-
+          None
         <Side Effects>
-        
+          None
         <Returns>
-        
+          Number of seconds before the vessel expires
         """
-
         curr_time = datetime.datetime.now()
         delta = self.expiration - curr_time
         if delta.days == -1:
@@ -574,16 +584,15 @@ class Share(models.Model):
     def __unicode__(self):
         """
         <Purpose>
-
-        
+          Produce a string representation of the Share model class
         <Arguments>
-        
+          None
         <Exceptions>
-
+          None
         <Side Effects>
-        
+          None
         <Returns>
-        
+          String representation of the Share class
         """
         return "%s->%s"%(self.from_user.www_user.username,self.to_user.www_user.username)
 
