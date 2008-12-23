@@ -72,7 +72,7 @@ def pop_key():
 def get_unacquired_vessels(geni_user, filter_str):
     """
     <Purpose>
-        
+    
 
     <Arguments>
 
@@ -86,39 +86,28 @@ def get_unacquired_vessels(geni_user, filter_str):
         
     """
 
-    vmaps = VesselMap.objects.all()
-    vexclude = []
-    for vmap in vmaps:
-        vexclude.append(vmap.vessel)
+    # consider vessels that are not 'extra vessels'
+    v_non_extra = Vessel.objects.filter(extra_vessel=False)
+    # consider vessels that match the geni_user's assigned port
+    v_right_port = v_non_extra.filter(vesselports__port__exact=geni_user.port)
+    # consider unassigned vessels
+    v_unacquired = v_right_port.exclude(vesselmap__isnull=False)
+    # consider vessels on currently active donations
+    v_active = v_unacquired.filter(donation__active__exact=True)
 
+    print "v_non_extra", len(v_non_extra)
+    print "v_right_port", len(v_right_port)
+    print "v_unacquired", len(v_unacquired)
+    print "v_active", len(v_active)
+    
     vret = []
-    for v in Vessel.objects.all():
-        # filter out extra_vessels
-        if v.extra_vessel:
-            continue
-        
+    for v in v_active:
         # perform filtering on ip (for LAN nodes)
         if filter_str != "" and filter_str not in v.donation.ip:
             continue
-        
-        # exclude vessels that are used
-        if v in vexclude:
-            continue
-        
-        # exclude vessels on inactive nodes
-        if not v.donation.active:
-            continue
-        
-        # exclude vessels that don't have the port assigned to the user
-        vports = VesselPorts.objects.filter(vessel = v)
-        valid_port = False
-        for vport in vports:
-            if vport.port == geni_user.port:
-                valid_port = True
-        if not valid_port:
-            continue
-        
         vret.append(v)
+    
+    # shuffle the resulting set for a bit of randomness
     random.shuffle(vret)
     return vret
 
@@ -293,18 +282,18 @@ def acquire_resources(geni_user, num, env_type):
     else:
         transaction.commit()
         if acquired == 0:
-            return False, explanation,summary
+            return False, (explanation,summary)
         summary += " Acquired %d vessel(s). "%(acquired)
         return True, (acquired, explanation, summary)
 
 class User(models.Model):
     """
     <Purpose>
-      Customized admin view of the User model
+      Defines the geni user model
     <Side Effects>
-      None
+      Provides an interface to the database
     <Example Use>
-      Used internally by django
+      See http://docs.djangoproject.com/en/dev/topics/db/models/
     """
 
     # link GENI user to django user record which authenticates users
@@ -324,6 +313,8 @@ class User(models.Model):
     donor_pubkey = models.CharField("Donor public key", max_length=2048)
     # donor priv key (user never sees this key
     donor_privkey = models.CharField("Donor private Key", max_length=4096)
+    # number of vessels this user has acquired
+    num_acquired_vessels = models.IntegerField("Number of acquired vessels")
     
     def __unicode__(self):
         """
@@ -370,22 +361,23 @@ class User(models.Model):
         self.donor_pubkey,self.donor_privkey = pubpriv2
         # generate random port for user
         self.port = random.sample(ALLOWED_USER_PORTS, 1)[0]
+        # set default num acquired vessels to 0
+        self.num_acquired_vessels = 0
         self.save()
         return True
 
     def gen_new_key(self):
         """
         <Purpose>
-
-        
+          Generates and sets a new pub\priv key pair for the user
         <Arguments>
-        
+          None
         <Exceptions>
-
+          None
         <Side Effects>
-        
+          Modifies and saves the User record to have a new pub\priv key pair
         <Returns>
-        
+          True on success, False on failure
         """
         pubpriv=pop_key()
         if pubpriv == []:
@@ -397,11 +389,11 @@ class User(models.Model):
 class Donation(models.Model):
     """
     <Purpose>
-      Customized admin view of the User model
+      Defines the donation model
     <Side Effects>
-      None
+      Provides an interface to the database
     <Example Use>
-      Used internally by django
+      See http://docs.djangoproject.com/en/dev/topics/db/models/
     """
 
     # user donating
@@ -452,11 +444,11 @@ class Donation(models.Model):
 class Vessel(models.Model):
     """
     <Purpose>
-      Customized admin view of the User model
+      Defines the vessel model
     <Side Effects>
-      None
+      Provides an interface to the database
     <Example Use>
-      Used internally by django
+      See http://docs.djangoproject.com/en/dev/topics/db/models/
     """
 
     # corresponding donation
@@ -485,11 +477,11 @@ class Vessel(models.Model):
 class VesselPorts(models.Model):
     """
     <Purpose>
-      Customized admin view of the User model
+      Defines the vesselport model
     <Side Effects>
-      None
+      Provides an interface to the database
     <Example Use>
-      Used internally by django
+      See http://docs.djangoproject.com/en/dev/topics/db/models/
     """
 
     # corresponding vessel
@@ -514,12 +506,13 @@ class VesselPorts(models.Model):
 class VesselMap(models.Model):
     """
     <Purpose>
-      Customized admin view of the User model
+      Defines the vesselmap model
     <Side Effects>
-      None
+      Provides an interface to the database
     <Example Use>
-      Used internally by django
+      See http://docs.djangoproject.com/en/dev/topics/db/models/
     """
+
     # the vessel being assigned to a user
     vessel = models.ForeignKey(Vessel)
     # the user assigned to the vessel
@@ -568,11 +561,11 @@ class VesselMap(models.Model):
 class Share(models.Model):
     """
     <Purpose>
-      Customized admin view of the User model
+      Defines the share model
     <Side Effects>
-      None
+      Provides an interface to the database
     <Example Use>
-      Used internally by django
+      See http://docs.djangoproject.com/en/dev/topics/db/models/
     """
 
     # user giving
@@ -599,7 +592,6 @@ class Share(models.Model):
 def test_acquire(username, num_nodes):
     """
     <Purpose>
-        
 
     <Arguments>
         request:
