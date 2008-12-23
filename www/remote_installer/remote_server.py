@@ -25,8 +25,8 @@ class generateInstaller:
     def __init__(self, prefix, dl_prefix):
 		self.prefix = prefix
 		self.dl_prefix = self.prefix + "/" + dl_prefix
-		self.installer_script = self.prefix + "customize_installers.py";
-		self.vesselinfo_script = self.prefix + "writecustominstallerinfo.py";
+		self.installer_script = self.prefix + "/customize_installers.py"
+		self.vesselinfo_script = self.prefix + "/writecustominstallerinfo.py"
 
 	def standarize_name(self, username):
 		"""
@@ -63,8 +63,10 @@ class generateInstaller:
 				output += "User " + user_key_dict[u] + "\n"
  		return output
 
-
-	def build_installer(username, dist_char):
+	def create_installer(self, user_key_dict, vessel_info):
+		
+		
+	def build_installer(self, username, dist_char, user_key_dict, vessels):
 	    '''
 	    returns url to the finished installer
 	    dist_char is in "lwm"
@@ -74,39 +76,38 @@ class generateInstaller:
 	    user_prefix = self.prefix + "/%s_dist"%(username)
 	    
 		# remove and recreate the prefix dir
-	    os.system("rm -Rf %s/"%(usr_prefix))
-	    os.system("mkdir %s/"%(usr_prefix))
+	    os.system("rm -Rf %s/"%(user_prefix))
+	    os.system("mkdir %s/"%(user_prefix))
 
 	    # write out to file the user's donor key
-	    f = open('%s/%s'%(usr_prefix, username),'w');
+	    f = open('%s/%s'%(user_prefix, username),'w');
 	    f.write("%s"%(geni_user.donor_pubkey))
 	    f.close()
 
 	    # write out to file the geni lookup key
-	    f = open('%s/%s_geni'%(usr_prefix, username),'w');
+	    f = open('%s/%s_geni'%(user_prefix, username),'w');
 	    f.write("%s"%(genilookuppubkey))
 	    f.close()
 
-
 	    # write out to file the vesselinfo to customize the installer
-	    vesselinfo = '''Percent 8\nOwner %s/%s\nUser %s/%s_geni\n'''%(usr_prefix, username, usr_prefix, username);
-	    f = open('%s/vesselinfo'%(usr_prefix),'w');
-	    f.write("%s"%(vesselinfo))
-	    f.close()
+	    # vesselinfo = '''Percent 8\nOwner %s/%s\nUser %s/%s_geni\n'''%(user_prefix, username, user_prefix, username);
+		vessel_info = output_vessel_info(user_key_dict, vessels)
+	    # f = open('%s/vesselinfo'%(user_prefix),'w');
+	    # f.write("%s"%(vesselinfo))
+	    # f.close()
 
-		
-	    vesselinfo_script = prefix + "writecustominstallerinfo.py"
-	    installer_script = prefix + "customize_installers.py"
+	    #vesselinfo_script = prefix + "writecustominstallerinfo.py"
+	    #installer_script = prefix + "customize_installers.py"
 
 	    # create the dir where vesselinfo will be created
 	    os.system("mkdir %s/vesselinfodir/"%(prefix))
 	    # create the vessel info
-	    cmd = "cd %s && python %s %s/vesselinfo %s/vesselinfodir 2> /tmp/customize.err > /tmp/customize.out"%(prefix, vesselinfo_script, prefix, prefix)
+	    cmd = "cd %s && python %s %s/vesselinfo %s/vesselinfodir 2> /tmp/customize.err > /tmp/customize.out"%(prefix, self.vesselinfo_script, prefix, prefix)
 	    #f = open("/tmp/out", "w")
 	    #f.write(cmd)
 	    os.system(cmd)
 	    # run carter's script to create the installer of the particular type ((w)in, (l)inux, or (m)ac)
-	    os.system("python %s %s %s/vesselinfodir/ %s/ > /tmp/installer.out 2> /tmp/installer.err"%(installer_script, dist_char, prefix, prefix))
+	    os.system("python %s %s %s/vesselinfodir/ %s/ > /tmp/installer.out 2> /tmp/installer.err"%(self.installer_script, dist_char, prefix, prefix))
 	    #os.system("python %s %s %s/vesselinfodir/ %s/ &> /tmp/out"%(carter_script, dist_char, prefix,prefix))
 	    # compose and return the url to which the user needs to be redirected
 	    # redir_url = "http://seattle.cs.washington.edu/dist/geni/%s_dist/"%(username)
@@ -120,7 +121,7 @@ if __name__ == "__main__":
 	host = '127.0.0.1'	# You should not use '' here, unless you have a real FQDN.
 	port = 8000
 	prefix = "/Users/shawiz/Development/research/www/remote_installer"
-	dl = "download"
+	dl_prefix = "download"
 	
 	# create the XMLRPC server
 	server = SimpleXMLRPCServer.SimpleXMLRPCServer((host, port))
