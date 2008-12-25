@@ -15,6 +15,12 @@
   made to the seattle repository. If any of the unit tests fail,
   emails are sent with the output of the unit testing to people to be
   notified.
+
+<Usage>
+  post-commit REPOS REV
+
+  Example:
+  post-commit /var/local/svn/ 807
 """
 
 import os
@@ -205,9 +211,34 @@ def check(repos, rvn):
   # perform a checkout into some temporary directory
   tmpdir = checkout(rvn)
   print "tmpdir is ", tmpdir
+
   
   # run the unit tests if necessary
-  success, output = run_tests(tmpdir)
+  success, test_output = run_tests(tmpdir)
+
+  rvn_info = command_output("svnlook info %s --revision %s"%(repos, rvn))
+  rvn_diff = command_output("svnlook diff %s --revision %s"%(repos, rvn))  
+  output = """
+Revision number:
+======================
+%s
+
+Change info:
+======================
+%s
+
+Changed files:
+======================
+%s
+
+Testing output:
+======================
+%s
+
+Revision diff:
+======================
+%s
+"""%(rvn, changed, rvn_info, test_output, rvn_diff)
   
   # remove the directory of the temporary checkout
   os.system("rm -Rf %s"%(tmpdir))    
@@ -237,7 +268,12 @@ def main():
   global notify_list
 
   # process program args
-  usage = "usage: %s REPOS REV\n\nRun a post-commit hook on a repository revision.\n"""%(sys.argv[0])
+  usage = """
+Usage: %s REPOS REV
+Run a post-commit hook on a repository revision.
+Example: %s /var/local/svn/ 807
+"""%(sys.argv[0], sys.argv[0])
+  
   if len(sys.argv) != 3:
     sys.stderr.write(usage)
     return 1
@@ -248,7 +284,9 @@ def main():
   success,output = check(repos, rvn)
 
   # if any of the tests failed..
-  if not success:
+  if success:
+    print "OK"
+  else:
     # tell the committing user what went wrong
     sys.stderr.write(output)
     
