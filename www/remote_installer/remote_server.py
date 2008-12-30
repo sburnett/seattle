@@ -100,7 +100,7 @@ class generateInstaller:
 		return output
 
 
-	def build_installer(self, user_key_dict, vessels):
+	def build_installer(self, user_key_dict, vessels, dist_str):
 		"""
 		<Purpose>
 			Create the customized installer by taking the user-key pair and
@@ -113,6 +113,9 @@ class generateInstaller:
 			vessels:
 				the vessel information given by the user
 				see method above for detailed format
+			dist_str:
+				string that contains any combination of letter w (Windows),
+				l (Linux), or m (Mac). example "lm"
 			
 		<Returns>
 			The url of the installer it builds
@@ -120,8 +123,6 @@ class generateInstaller:
 		
 		# a dummy username for testing (needs to be removed)
 		username = "foo"
-		# a dummy dist_char for testing (needs to be removed)
-		dist_char = "m"
 		
 		# prefix dir is specific to this user
 		user_prefix = self.prefix + "/%s_dist"%(username)
@@ -151,16 +152,25 @@ class generateInstaller:
 		
 		# create the vessel info
 		cmd = "cd %s && python %s %s/vesselinfo %s/vesselinfodir 2> /tmp/customize.err > /tmp/customize.out"%(self.prefix, self.vesselinfo_script, user_prefix, self.prefix)
-		#f = open("/tmp/out", "w")
-		#f.write(cmd)
+		# f = open("/tmp/out", "w")
+		# f.write(cmd)
 		os.system(cmd)
 		
 		# run carter's script to create the installer of the particular type ((w)in, (l)inux, or (m)ac)
-		os.system("python %s %s %s/vesselinfodir/ %s/ > /tmp/installer.out 2> /tmp/installer.err"%(self.installer_script, dist_char, self.prefix, self.prefix))
-		#os.system("python %s %s %s/vesselinfodir/ %s/ &> /tmp/out"%(carter_script, dist_char, prefix,prefix))
+		os.system("python %s %s %s/vesselinfodir/ %s/ > /tmp/installer.out 2> /tmp/installer.err"%(self.installer_script, dist_str, self.prefix, self.prefix))
+		# os.system("python %s %s %s/vesselinfodir/ %s/ &> /tmp/out"%(carter_script, dist_str, prefix,prefix))
+
+		# prepare a dict of urls to return
+		url_dict = { 'w': "http://seattle.cs.washington.edu/dist/geni/%s_dist/seattle_win.zip"%(username),\
+					 'l': "http://seattle.cs.washington.edu/dist/geni/%s_dist/seattle_linux.tgz"%(username),\
+					'm': "http://seattle.cs.washington.edu/dist/geni/%s_dist/seattle_mac.tgz"%(username)}
+		# delete the urls we don't need
+		for key, value in url_dict.items():
+			if (dist_str.find(key) == -1):
+				del url_dict[key]
 		
 		# compose and return the url to which the user needs to be redirected
-		return "http://seattle.cs.washington.edu/dist/geni/%s_dist/"%(username)	   
+		return url_dict   
 
 
 

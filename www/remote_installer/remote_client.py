@@ -38,7 +38,7 @@ def __genkey__(username):
 	return key
 
 
-def create_installer_with_keys(user_key_dict, vessel_info):
+def create_installer_with_keys(user_key_dict, vessel_info, dist_str):
 	"""
 	<Purpose>
 		Create the installe with given user-key pairs and vessel info
@@ -52,15 +52,18 @@ def create_installer_with_keys(user_key_dict, vessel_info):
 			percent is the percent of each vessel..
 			owner is the owner username of each vessel
 			u's are the usernames corresponding to users of each vessel
+		dist_str:
+			string that contains any combination of letter w (Windows),
+			l (Linux), or m (Mac). example "lm"
 	<Returns>
 		the url for the installer
 	"""
 
 	server = xmlrpclib.Server('http://localhost:8000')
-	return server.build_installer(user_key_dict, vessel_info)
+	return server.build_installer(user_key_dict, vessel_info, dist_str)
 	
 
-def create_installer_without_keys(vessel_info):
+def create_installer_without_keys(vessel_info, dist_str):
 	"""
 	<Purpose>
 		Create the installe with vessel info only
@@ -72,6 +75,9 @@ def create_installer_without_keys(vessel_info):
 			percent is the percent of each vessel..
 			owner is the owner username of each vessel
 			u's are the usernames corresponding to users of each vessel
+		dist_str:
+			string that contains any combination of letter w (Windows),
+			l (Linux), or m (Mac). example "lm"
 	<Returns>
 		the url for the installer
 	"""
@@ -84,7 +90,7 @@ def create_installer_without_keys(vessel_info):
 		for u in users:
 			user_key_dict[u] = __genkey__(u)
 
-	return create_installer_with_keys(user_key_dict, vessel_info)
+	return create_installer_with_keys(user_key_dict, vessel_info, dist_str)
 
 
 # varies depends on how many users we have
@@ -92,13 +98,16 @@ def create_installer_without_keys(vessel_info):
 #	create_installer_without_keys(vessels)
 
 
-def create_installer_one_user(username):
+def create_installer_one_user(username, dist_str):
 	"""
 	<Purpose>
 		Create the installe with only one user
 	<Arguments>
 		username:
 			username of the user
+		dist_str:
+			string that contains any combination of letter w (Windows),
+			l (Linux), or m (Mac). example "lm"
 	<Returns>
 		the url for the installer
 	"""
@@ -109,7 +118,7 @@ def create_installer_one_user(username):
 	# create the single-user vessel info
 	vessel_info = [(8, username, [])]
 	
-	return create_installer_with_keys(user_key_dict, vessel_info)
+	return create_installer_with_keys(user_key_dict, vessel_info, dist_str)
 
 
 # default user key dictionary for testing purpose
