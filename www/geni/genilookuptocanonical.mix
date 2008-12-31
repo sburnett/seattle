@@ -30,7 +30,7 @@ def combineandflushdatabase(nmhandle, nodename, vesseldict, keepthisstate):
   nodeID = rsa_publickey_to_string(vesseldict['nodekey'])
   dbnode = genidb.lookup_node(nodeID)
 
-  print time.time(),"clearing vessel state from DB"
+  print time.ctime(),"clearing vessel state from DB"
   # flushes this node's vessel state from the database.  It retains the keys
   # and other information
   genidb.clear_node_vessels(dbnode)

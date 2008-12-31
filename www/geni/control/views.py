@@ -725,3 +725,27 @@ def gen_new_key(request):
 
     # return the generated user info page
     return user_info(request,info=info)
+
+
+def construction(request):
+    """
+    <Purpose>
+        Used in case of website construction.
+
+    <Arguments>
+        request:
+            An HTTP request object
+
+    <Exceptions>
+        None.
+
+    <Side Effects>
+        None.
+
+    <Returns>
+        An HTTP response object that represents the user info page
+        succes. A redirect to a login page on error.
+    """
+    return direct_to_template(request,'control/construction.html', 
+                              {'msg' : 'The GENI website is down for development work. Please come again soon.'})
+                              

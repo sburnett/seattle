@@ -52,7 +52,7 @@ import traceback
 # import django settings for this django project (geni)
 from settings import *
 # import models that we use to interact with the geni database tables
-from control.models import User, Donation, Vessel, VesselMap, Share, VesselPorts, pop_key
+from control.models import User, Donation, Vessel, VesselMap, Share, VesselPort, pop_key
 # some functions will use transactions
 from django.db import transaction
 # django exceptions we might see
@@ -284,7 +284,7 @@ def create_node(nodeid, ip, port, status, version, donor_pubkey_string):
     return node
 
 
-def update_node(node_obj, version, ip, port, status):
+def update_node(node_obj, retdict, ip, port, status):
     """
     <Purpose>
         Updates the status, version, and node manager's ip:port for a node.
@@ -314,6 +314,7 @@ def update_node(node_obj, version, ip, port, status):
     <Returns>
         Always returns node_obj passed as argument
     """
+    version = retdict['version']
     
     # update the Donation object's fields
     node_obj.version = version
@@ -363,13 +364,13 @@ def clear_node_vessels(node_obj):
         print "removing vessels: " + str(vessels)
         for v in vessels:
             # delete all the vessel port entries
-            vports = VesselPorts.objects.filter(vessel = v)
+            vports = VesselPort.objects.filter(vessel = v)
             for vport in vports:
+                # delete all the corresponding vessel map entries
+                vmaps = VesselMap.objects.filter(vessel_port = vport)
+                for vmap in vmaps:
+                    vmap.delete()
                 vport.delete()
-            # delete all the vessel map entries
-            vmaps = VesselMap.objects.filter(vessel = v)
-            for vmap in vmaps:
-                vmap.delete()
             # delete the vessel record
             v.delete()
     except:
@@ -440,8 +441,8 @@ def add_node_vessels(node_obj, newstatus, vlist, vextra, vextra_ports):
         creating new records in the database corresponding to the node
 
     <Side Effects> 
-        Creates VesselPort, VesselMap, and Vessel records in the
-        database that correspond to the the node object.
+        Creates Vessel, and VesselPort records in the database that
+        correspond to the the node object.
 
     <Returns>
         Returns True on success. If this function fails then it raises
@@ -468,7 +469,7 @@ def add_node_vessels(node_obj, newstatus, vlist, vextra, vextra_ports):
             v_rec.save()
             # create the vessel->port mappings for all ports assigned to this vessel
             for vport in vports:
-                vport_rec = VesselPorts(vessel = v_rec, port = vport)
+                vport_rec = VesselPort(vessel = v_rec, port = vport)
                 vport_rec.save()
 
                 
@@ -480,7 +481,7 @@ def add_node_vessels(node_obj, newstatus, vlist, vextra, vextra_ports):
         vextra_rec.save()
         # create the vessel->port mapping for all ports assigned to the extra vessel
         for vport in vextra_ports:
-            vport_rec = VesselPorts(vessel = vextra_rec, port = vport)
+            vport_rec = VesselPort(vessel = vextra_rec, port = vport)
             vport_rec.save()
             
     except:

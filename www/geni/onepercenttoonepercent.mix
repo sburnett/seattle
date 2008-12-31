@@ -21,13 +21,13 @@ def updatedb(nmhandle, node, retdict, *args):
   if not dbnode:
     raise NodeError("Node "+node+" with ID '"+nodeID+"' does not have an entry in the database")
   # print "setting node " + str(dbnode) + " version " + retdict['version']
-  genidb.update_node(dbnode, retdict['version'], host, port, 'Ready')
+  genidb.update_node(dbnode, retdict, host, port, 'Ready')
 
   
 def main():
 
   # The format is: (startstate, endstate, function, args...)
-  statefunctionargtuplelist = [(onepercentpublickey, onepercentpublickey, updatedb)]
+  statefunctionargtuplelist = [(onepercent2publickey, onepercent2publickey, updatedb)]
 
   # check 10 nodes concurrently
   locateandprocessvessels(statefunctionargtuplelist, 'onepercenttoonepercent', 10, acceptnewnode=False, parallelinstances=10)

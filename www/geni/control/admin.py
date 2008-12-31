@@ -19,7 +19,7 @@
   See http://docs.djangoproject.com/en/dev/ref/contrib/admin/
 """
 
-from geni.control.models import User, Donation, Vessel, VesselPorts, VesselMap, Share
+from geni.control.models import User, Donation, Vessel, VesselPort, VesselMap, Share
 from django.contrib import admin
 
 class UserAdmin(admin.ModelAdmin):
@@ -74,8 +74,8 @@ class VesselAdmin(admin.ModelAdmin):
       Used internally by django
     """
         
-    list_display = ('donation', 'name', 'status', 'extra_vessel')
-    list_filter = ('donation', 'status', 'extra_vessel')
+    list_display = ('donation', 'name', 'status', 'extra_vessel', 'assigned')
+    list_filter = ('donation', 'status', 'extra_vessel', 'assigned')
 
 class VesselMapAdmin(admin.ModelAdmin):
     """
@@ -87,13 +87,13 @@ class VesselMapAdmin(admin.ModelAdmin):
       Used internally by django
     """
 
-    list_display = ('vessel', 'user', 'expiration')
+    list_display = ('vessel_port', 'user', 'expiration')
     list_filter = ('user',)
 
-class VesselPortsAdmin(admin.ModelAdmin):
+class VesselPortAdmin(admin.ModelAdmin):
     """
     <Purpose>
-      Customized admin view of the VesselPorts model
+      Customized admin view of the VesselPort model
     <Side Effects>
       None
     <Example Use>
@@ -109,7 +109,7 @@ admin.site.register(Donation, DonationAdmin)
 admin.site.register(Share, ShareAdmin)
 admin.site.register(User, UserAdmin)
 admin.site.register(VesselMap, VesselMapAdmin)
-admin.site.register(VesselPorts, VesselPortsAdmin)
+admin.site.register(VesselPort, VesselPortAdmin)
 admin.site.register(Vessel, VesselAdmin)
 
 

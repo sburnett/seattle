@@ -53,11 +53,11 @@ def main():
     	# grab all expired vessels from the database
         vmaps = genidb.get_expired_vesselmaps()
         for vmap in vmaps:
-            nmip = vmap.vessel.donation.ip
-            nmport = vmap.vessel.donation.port
-            vesselname = vmap.vessel.name
-            nodepubkey = vmap.vessel.donation.owner_pubkey
-            nodeprivkey = vmap.vessel.donation.owner_privkey
+            nmip = vmap.vessel_port.vessel.donation.ip
+            nmport = vmap.vessel_port.vessel.donation.port
+            vesselname = vmap.vessel_port.vessel.name
+            nodepubkey = vmap.vessel_port.vessel.donation.owner_pubkey
+            nodeprivkey = vmap.vessel_port.vessel.donation.owner_privkey
 	    # perform change users
             success,msg = changeusers.changeusers([""], nmip, nmport, vesselname, nodepubkey, nodeprivkey)
 

@@ -109,13 +109,21 @@ acceptdonationpublickey = rsa_file_to_publickey("acceptdonation.publickey")
 movingtoonepercentpublickey = rsa_file_to_publickey("movingtoonepercent.publickey")
 onepercentpublickey = rsa_file_to_publickey("onepercent.publickey")
 
+# Used as the second onepercentpublickey -- used to correct ivan's
+# mistake of deleting vesselport entries from the geni database
+movingtoonepercent2publickey = rsa_file_to_publickey("movingtoonepercent2.publickey")
+onepercent2publickey = rsa_file_to_publickey("onepercent2.publickey")
+
 
 # Getting us out of the mess we started with
 genilookuppublickey = rsa_file_to_publickey("genilookup.publickey")
 movingtogenilookuppublickey = rsa_file_to_publickey("movingtogenilookup.publickey")
 
 
-knownstates = [canonicalpublickey, acceptdonationpublickey, movingtoonepercentpublickey, onepercentpublickey, genilookuppublickey, movingtogenilookuppublickey]
+knownstates = [canonicalpublickey, acceptdonationpublickey, 
+               movingtoonepercentpublickey, onepercentpublickey,
+               movingtoonepercent2publickey, onepercent2publickey,
+               genilookuppublickey, movingtogenilookuppublickey]
 
 
 
@@ -125,29 +133,29 @@ def processnode(node, acceptnewnode, startstate, endstate, nodeprocessfunction, 
     # sometimes an empty string is returned by OpenDHT
     return
 
-  print time.time(),"Processing: ",node
+  print time.ctime(),"Processing: ",node
   try:
     nmhandle, nodevesseldict = getnodehandleanddict(node,acceptnewnode)
   except NMClientException, e:
-    print time.time(), "On node "+node+" error '"+str(e)+"' getting node handle"
+    print time.ctime(), "On node "+node+" error '"+str(e)+"' getting node handle"
     return
 
   # always clean up the handle
   try:
     if getnodestate(nmhandle, nodevesseldict)[0] != startstate:
       # Oh.   The DHT must contain old information
-      print time.time(), "Node no longer has state!"
+      print time.ctime(), "Node no longer has state!"
       return
 
     try:
       nodeprocessfunction(nmhandle, node, nodevesseldict, *args)
     except Exception, e:
-      print time.time(), "In nodeprocessfunction on node:"+node+" error '"+str(e)+"'"
+      print time.ctime(), "In nodeprocessfunction on node:"+node+" error '"+str(e)+"'"
     else:
       try:
         setnodestate(nmhandle, endstate)
       except Exception, e:
-        print time.time(), "In setnodestate on node:"+node+" error '"+str(e)+"'"
+        print time.ctime(), "In setnodestate on node:"+node+" error '"+str(e)+"'"
 
   finally:
     # handle was cleaned up...
@@ -209,10 +217,10 @@ def locateandprocessvessels(statefunctionargtuplelist, uniquename, sleeptime, ac
   # get a unique lock based upon the key
   if runonce.getprocesslock(lockname) != True:
     # Someone else has the lock...
-    print time.time(),"The lock is held.   Exiting"
+    print time.ctime(),"The lock is held.   Exiting"
     return
 
-  print time.time(),"Starting..."
+  print time.ctime(),"Starting..."
 
   # BUG: There could be a nasty race here where a node isn't seen as in a 
   # state because it doesn't advertise in time to be listed.
@@ -235,13 +243,13 @@ def locateandprocessvessels(statefunctionargtuplelist, uniquename, sleeptime, ac
       # the same node over and over -- allows us to eventually process
       # other nodes
       random.shuffle(nodelist)
-      print time.time(),"For start state '"+str(startstate['e'])[:10]+"...' found nodelist:",nodelist
+      print time.ctime(),"For start state '"+str(startstate['e'])[:10]+"...' found nodelist:",nodelist
       
 ############# NOTE: cachednodelist SHOULD BE REMOVED after 0.1c is deployed!
       # have a small chance to flush the cache to prevent nodes from being in 
       # the cache forever
       if random.random() < .1:
-        print time.time(), "Flushing cache"
+        print time.ctime(), "Flushing cache"
         cachednodelist = []
       cachednodelist = cachednodelist + nodelist
       cachednodelist = listops_uniq(cachednodelist)
@@ -253,7 +261,7 @@ def locateandprocessvessels(statefunctionargtuplelist, uniquename, sleeptime, ac
       try: 
         while not parallelize_isfunctionfinished(phandle):
           if not runonce.stillhaveprocesslock(lockname):
-            print time.time(),"I have lost the lock.   Exiting"
+            print time.ctime(),"I have lost the lock.   Exiting"
             return
           time.sleep(1)
 
@@ -364,7 +372,7 @@ def acceptnewnodehelper(nmhandle, host, port, retdict, dbnode):
   nodeID = rsa_publickey_to_string(retdict['nodekey'])
 
   if dbnode == None:
-    print time.time(),"No DB entry"
+    print time.ctime(),"No DB entry"
     # DB (no entry)        Node (donor key)
 
     dbnode = genidb.create_node(nodeID, host, port, 'Initializing', retdict['version'], rsa_publickey_to_string(donationownerpubkey))
@@ -385,7 +393,7 @@ def acceptnewnodehelper(nmhandle, host, port, retdict, dbnode):
   
   if donationownerpubkey != rsa_string_to_publickey(dbnode.owner_pubkey):
     # DB (per node key)    Node (donor key)
-    print time.time(), "DB per node key, node donorkey"
+    print time.ctime(), "DB per node key, node donorkey"
 
     # Now I need to change the node state...
     # change the owner.   First I need to set up the handle to use the old keys
@@ -400,7 +408,7 @@ def acceptnewnodehelper(nmhandle, host, port, retdict, dbnode):
     return dbnode
 
   # DB (per node key)    Node (per node key)
-  print time.time(), "DB per node key, node per node key"
+  print time.ctime(), "DB per node key, node per node key"
   
   # NOTE: The case that there is a node that has the state key, but the owner 
   # key isn't known by the database will be caught in getnodehandleanddict
@@ -595,7 +603,7 @@ def combinevessels(nmhandle, nodename, vesseldict, keepthisstate):
     try:
       newvessel = nmclient_signedsay(nmhandle, "JoinVessels", targetvessel, currentvessel)
     except NMClientException, e:
-      print time.time(), "Error '"+str(e)+"' joining vessels in combinevessels on node "+nodename
+      print time.ctime(), "Error '"+str(e)+"' joining vessels in combinevessels on node "+nodename
     
     targetvessel = newvessel
 

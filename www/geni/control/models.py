@@ -44,20 +44,17 @@ VESSEL_EXPIRE_TIME_SECS = 14400
 def pop_key():
     """
     <Purpose>
-        
-
+      Returns a new, never used 512 bit public and private key
     <Arguments>
-
+      None
     <Exceptions>
-        
-
+      None
     <Side Effects>
-        
-
+      Deletes the returned key from the keygen.keys_512 table
     <Returns>
-        
+      [] if no more keys are available
+      [public,private] new key pair
     """
-    
     cursor = connection.cursor()
     cursor.execute("BEGIN")
     cursor.execute("SELECT id,pub,priv FROM keygen.keys_512 limit 1")
@@ -69,63 +66,366 @@ def pop_key():
     cursor.execute("COMMIT")
     return [row[1],row[2]]
 
-def get_unacquired_vessels(geni_user, filter_str):
+def acquire_vessel(pubkey_list, vessel):
     """
     <Purpose>
-    
-
+      Responsible for changing the user public keys list on a vessel
     <Arguments>
-
+      pubkey_list:
+        list of public keys to associate as user keys with the vessel
+      vessel:
+        instance of Vessel class on which we need to set the user keys
     <Exceptions>
-        
-
+      None?
     <Side Effects>
-        
-
+      Changes the user public keys of a remote vessel
     <Returns>
-        
+      Returns True on success
+      Returns (False, explanation) on failure where explanation is a
+      string that explains the failure
     """
+    # issue the command to remote nodemanager
+    userpubkeystringlist = pubkey_list
+    nmip = vessel.donation.ip
+    nmport = int(vessel.donation.port)
+    vesselname = vessel.name
+    nodepubkey = vessel.donation.owner_pubkey
+    nodeprivkey = vessel.donation.owner_privkey
+    # explanation += " %s:%s:%s - \n\n"%(nmip,nmport,vesselname)
+    # explanation += "nodepubkey : %s<br>nodeprivkey: %s<br>"%(nodepubkey,nodeprivkey)
+    # explanation += "calling changeusers with: \npubkeystrlist %s\nnmip %s\nnmport %s\nvesselname %s\nnodepubkey %s\nnodeprivkey %s\n"%(userpubkeystringlist, nmip, nmport, vesselname, nodepubkey, nodeprivkey)
+    # explanation += " Acquiring %s:%s"%(nmip,nmport)
+    print "changeusers ", time.time()
+    success,msg = changeusers(userpubkeystringlist, nmip, nmport, vesselname, nodepubkey, nodeprivkey)
+    print "/changeusers " , time.time()
 
+    if success:
+        return True, ""
+    explanation = nmip + ":" + str(nmport) + " " + msg
+    return False, explanation
+
+
+def get_base_vessels(geni_user):
+    """
+    <Purpose>
+
+      Returns a base QuerySet of vessels that should accomodate a
+      user. The QuerySet vessels are filtered based on:
+      1) non-extra vessels only
+      2) vessels supporting the user's port
+      3) vessels are unassigned
+      4) vessels are on active donations
+    <Arguments>
+      geni_user:
+        an instance of the User class record for whom the vessels are intended
+    <Exceptions>
+      None?
+    <Side Effects>
+      None
+    <Returns>
+      Returns a django QuerySet object containing the vessel records
+      matching the stated requirements
+    """
     # consider vessels that are not 'extra vessels'
     v_non_extra = Vessel.objects.filter(extra_vessel=False)
     # consider vessels that match the geni_user's assigned port
-    v_right_port = v_non_extra.filter(vesselports__port__exact=geni_user.port)
+    v_right_port = v_non_extra.filter(vesselport__port__exact=geni_user.port)
     # consider unassigned vessels
-    v_unacquired = v_right_port.exclude(vesselmap__isnull=False)
+    v_unacquired = v_right_port.exclude(vesselport__vesselmap__isnull=False)
     # consider vessels on currently active donations
     v_active = v_unacquired.filter(donation__active__exact=True)
+    print "v_non_extra", v_non_extra.count()
+    print "v_right_port", v_right_port.count()
+    print "v_unacquired", v_unacquired.count()
+    print "v_active", v_active.count()
+    return v_active
 
-    print "v_non_extra", len(v_non_extra)
-    print "v_right_port", len(v_right_port)
-    print "v_unacquired", len(v_unacquired)
-    print "v_active", len(v_active)
+def create_vmaps(vessels, geni_user):
+    """
+    <Purpose>
+      Creates the VesselMap class instances matching the vessels and
+      saves them to the GENI database associated with the geni_user
+    <Arguments>
+      vessels:
+        An array of vessels for which to create the VesselMap entries
+      geni_user:
+        An instance of class User to match on VesselMap instances
+    <Exceptions>
+      None
+    <Side Effects>
+      Creates new vesselmap database entries
+    <Returns>
+      True on success, False on failure
+    """
+    expire_time = datetime.datetime.fromtimestamp(time.time() + VESSEL_EXPIRE_TIME_SECS)
+    for v in vessels:
+        # find the vessel port entry corresponding to this vessel and user's port
+        vports = VesselPort.objects.filter(vessel = v).filter(port = geni_user.port)
+        if len(vports) != 1:
+            return False
+        vport = vports[0]
+        # create and save the new vmap entries
+        print "create and save vmap ", time.time()
+        vmap = VesselMap(vessel_port = vport, user = geni_user, expiration = str(expire_time))
+        vmap.save()
+        print "/create and save vmap ", time.time()
+    return True
+
+
+def release_vessels(vessels):
+    """
+    <Purpose>
+      'Releases' a list of vessels by performing a changeusers on each
+      vessel and setting the user pubkeys list to [] on each vessel.
+    <Arguments>
+      vessels:
+        a list of vessels to release
+    <Exceptions>
+      None -- exceptions triggered by change users are caught and
+      ignored. The idea is to release as many vessels as possible.
+    <Side Effects>
+      Changes the user keys on vessels to []
+    <Returns>
+      True
+    """
+    # this must not fail -- it can however miss nodes that are offline
+    # at the time when we are releasing them
+    for v in vessels:
+        try:
+            success, ret = acquire_vessel([], v)
+        except:
+            print "exception raised in release_vessels"
+            
+        if not success:
+            print "release_vessels : " + str(ret)
+    return True
+
+
+def acquire_lan_vessels(geni_user, num):
+    """
+    <Purpose>
+      Acquires num number of LAN vessels for user geni_user. All the
+      acquired vessels are quaranteed to be in the same IP subnet. If
+      there is no large enough subset of vessels that have the same
+      subnet, this function fails and does not acquire any vessels for
+      the user.
+    <Arguments>
+      geni_user:
+        instance of User class for whom we are acquiring vessels
+      num:
+        number of vessels to acquire for the user
+    <Exceptions>
+      Not sure.
+    <Side Effects>
+      Performs a change users to geni_user on vessels acquired for the
+      user.
+    <Returns>
+      On success, returns (True, (summary, explanation, acquired))
+      where acquired is a list of vessels acquired for the geni
+      user. On failure returns (False, (summary, explanation)). In
+      boths cases, summary and explanation are strings that summarize
+      and explains the success\failure in less/more detail. On
+      failure, vessels that were acquired are released.
+    """
+
+    vessels = get_base_vessels(geni_user)
+
+    summary = ""
+    explanation = ""
     
-    vret = []
-    for v in v_active:
-        # perform filtering on ip (for LAN nodes)
-        if filter_str != "" and filter_str not in v.donation.ip:
+    qry = """SELECT count(*) as cnt, subnet
+             FROM control_donation
+             GROUP BY subnet
+             ORDER BY cnt DESC"""
+    cursor = connection.cursor()
+    cursor.execute(qry)
+    rows = cursor.fetchall()
+    if len(rows) == 0:
+        summary = "No lan subnets"
+        return False, (summary, explanation)
+
+    for row in rows:
+        cnt, subnet = row
+        if cnt < num:
+            explanation = summary = "Not enough LAN nodes available to acquire."
+            return False, (summary, explanation)
+        
+        lan_vessels = vessels.filter(donation__subnet__exact=subnet)
+        if lan_vessels.count() < num:
             continue
-        vret.append(v)
+        
+        # attempt to acquire num of these vessels
+        acquired = []
+        unacquired = []
+        explanation = ""
+        for v in lan_vessels:
+            success, ret = acquire_vessel([geni_user.pubkey], v)
+            if success:
+                acquired.append(v)
+                if len(acquired) == num:
+                    return True, (summary, explanation, acquired)
+            else:
+                unacquired.append(v)
+                explanation += " " + ret
+                if (lan_vessels.count() - len(unacquired)) < (num - len(acquired)):
+                    break
+                
+        # release all those vessels that were acquired
+        # here and go to next subnet of hosts
+        release_vessels(acquired)
+                
+    summary = str(len(rows)) + " Subnets available. Failed to acquire " + str(num) + " nodes in each subnet."
+    return False, (summary, explanation)
+
+
+def acquire_wan_vessels(geni_user, num):
+    """
+    <Purpose>
+      Acquires num number of WAN vessels for user geni_user. This
+      function guarantees that no two acquired vessels are in the same
+      subnet. If the diversity of available resources do not permit
+      this condition then the function fails and does not acquire any
+      vessels for the user.
+    <Arguments>
+      geni_user:
+        instance of User class for whom we are acquiring vessels
+      num:
+        number of vessels to acquire for the user
+    <Exceptions>
+      Not sure.
+    <Side Effects>
+      Performs a change users to geni_user on vessels acquired for the
+      user.
+    <Returns>
+      On success, returns (True, (summary, explanation, acquired))
+      where acquired is a list of vessels acquired for the geni
+      user. On failure returns (False, (summary, explanation)). In
+      boths cases, summary and explanation are strings that summarize
+      and explains the success\failure in less/more detail. On
+      failure, vessels that were acquired are released.
+    """
+    vessels = get_base_vessels(geni_user)
     
-    # shuffle the resulting set for a bit of randomness
-    random.shuffle(vret)
-    return vret
+    qry = """SELECT distinct subnet
+             FROM control_donation"""
+    cursor = connection.cursor()
+    cursor.execute(qry)
+    rows = cursor.fetchall()
+    summary = ""
+    explanation = ""
+    if len(rows) == 0:
+        summary = "No donated resources are available."
+        explanation = summary
+        return False, (summary, explanation)
+
+    # go through all the subnets
+    acquired = []
+    cnt = 0
+    for row in rows:
+        [subnet] = row
+        print "trying subnet " + str(subnet)
+        donations = Donation.objects.filter(subnet=subnet)
+        # try to grab a vessel from this subnet
+        for d in donations:
+            print "trying donation " + str(d)
+            # try to grab this donation's vessel
+            subnet_vessels = vessels.filter(donation=d)
+            if subnet_vessels.count() == 0:
+                # a donation without any vessels -- strange?
+                continue
+
+            for v in subnet_vessels:
+                success, ret = acquire_vessel([geni_user.pubkey], v)
+                if success:
+                    acquired.append(v)
+                    if len(acquired) == num:
+                        print "acquired all num ok"
+                        return True, (summary, explanation, acquired)
+                    break
+                explanation += ret
+            if success:
+                break
+
+        cnt += 1
+        if (len(rows) - cnt) < (num - len(acquired)):
+            # short-circuit
+            break
+
+    release_vessels(acquired)
+    summary = "Network diversity of available resources canot satisfy your request"
+    explanation = "Cannot find diverse WAN resources to satisfy a request for " + str(num) + " vessels"
+    return False, (summary, explanation)
+
+
+def acquire_rand_vessels(geni_user, num):
+    """
+    <Purpose>
+      Acquires num number of random vessels for user geni_user.
+    <Arguments>
+      geni_user:
+        instance of User class for whom we are acquiring vessels
+      num:
+        number of vessels to acquire for the user
+    <Exceptions>
+      Not sure.
+    <Side Effects>
+      Performs a change users to geni_user on vessels acquired for the
+      user.
+    <Returns>
+      On success, returns (True, (summary, explanation, acquired))
+      where acquired is a list of vessels acquired for the geni
+      user. On failure returns (False, (summary, explanation)). In
+      boths cases, summary and explanation are strings that summarize
+      and explains the success\failure in less/more detail. On
+      failure, vessels that were acquired are released.
+    """
+    explanation = ""
+    summary = ""
+    
+    # shuffle the base vessels set
+    vessels = get_base_vessels(geni_user)
+    vessels = list(vessels)
+    random.shuffle(vessels)
+
+    # acquire num vessels from the list
+    acquired = []
+    for v in vessels:
+        success, ret = acquire_vessel([geni_user.pubkey], v)
+        if success:
+            acquired.append(v)
+        else:
+            explanation += " " + ret
+
+        # we are only successful if we acquire exactly num vessels
+        if len(acquired) == num:
+            summary = "Acquired all the nodes."
+            return True, (summary, explanation, acquired)
+
+    release_vessels(acquired)
+    explanation = str(len(vessels)) + " vessels available. In these, failed to acquire " + str(num) + " vessels."
+    summary = "Failed to acquire nodes."
+    return False, (summary, explanation)
+
 
 def release_resources(geni_user, resource_id, all):
     """
     <Purpose>
-        
-
+      Releases either all resources (vesselmaps) or some specific
+      resource for a geni user.
     <Arguments>
-
+      geni_user:
+        instance of the User class indicating the geni user
+      resource_id (int):
+        indicates the specific vessel map record to delete
+      all (boolean):
+        if True then deletes all vessel maps for the user
     <Exceptions>
-        
-
+      Not sure.
     <Side Effects>
-        
-
+      Deletes some number of vessel map entries associated with the geni_user.
     <Returns>
-        
+      If all is False, returns a string representation of the vessel
+      that was removed. Otherwise returns an empty string
     """
 
     myresources = VesselMap.objects.filter(user=geni_user)
@@ -133,11 +433,12 @@ def release_resources(geni_user, resource_id, all):
     ret = ""
     for r in myresources:
         if (all is True) or (r.id == resource_id):
-            nmip = r.vessel.donation.ip
-            nmport = int(r.vessel.donation.port)
-            vesselname = r.vessel.name
-            nodepubkey = r.vessel.donation.owner_pubkey
-            nodeprivkey = r.vessel.donation.owner_privkey
+            v = r.vessel_port.vessel
+            nmip = v.donation.ip
+            nmport = int(v.donation.port)
+            vesselname = v.name
+            nodepubkey = v.donation.owner_pubkey
+            nodeprivkey = v.donation.owner_privkey
             success,msg = changeusers([""], nmip, nmport, vesselname, nodepubkey, nodeprivkey)
             if not success:
                 print msg
@@ -184,90 +485,45 @@ def acquire_resources(geni_user, num, env_type):
       explanation and summary is a summary explanation of why we
       failed.
     """
-    print "expire_time ", time.time()
-    expire_time = datetime.datetime.fromtimestamp(time.time() + VESSEL_EXPIRE_TIME_SECS)
-    print "/expire_time ", time.time()
     explanation = ""
+    summary = ""
+    env_type_func_map = {1 : acquire_lan_vessels,
+                         2 : acquire_wan_vessels,
+                         3 : acquire_rand_vessels}
     try:
-        summary = ""
-
-        print "total_free ", time.time()
-        total_free_vessel_count = len(Vessel.objects.all()) - len(VesselMap.objects.all())
-        print "/total_free ", time.time()
-        
-        vessels = []
-        if int(env_type) == 1:
-            # env_type is LAN
-            # summary += " env_type 1,"
-            filter_ips = "128.208.1."
-            print "get_unacq ", time.time()
-            vessels = get_unacquired_vessels(geni_user, filter_ips)
-            print "/get_unacq ", time.time()
-            
-        elif int(env_type) == 2:
-            # env_type is WAN
-            vessels_free = get_unacquired_vessels(geni_user, "")
-            # summary += " env_type 2"
-            for v in vessels_free:
-                if "128.208.1." not in v.donation.ip:
-                    vessels.append(v)
-                    
-        elif int(env_type) == 3:
-            # env_type is RAND
-            # summary += " env_type 3"
-            vessels = get_unacquired_vessels(geni_user, "")
-
-                    
-        if num > len(vessels):
-            num = len(vessels)
-            explanation += "No more nodes available (max %d)."%(num)
-            transaction.rollback()
-            summary += " No nodes available to acquire."
+        num_available = geni_user.vessel_credit_remaining()
+        if num > num_available:
+            # user wants too much
+            summary = "You do not have enough donations to acquire %d vessels"%(num)
             return False, (explanation, summary)
-        else:
-            explanation += "There are  " + str(total_free_vessel_count) + " vessels free. Your port is available on " + str(len(vessels)) + " of them."
-            
-        acquired = 0
-        #num_failed = 0
-        for v in vessels:
-            if (acquired >= num):
-                break
 
-            # issue the command to remote nodemanager
-            userpubkeystringlist = [geni_user.pubkey]
-            nmip = v.donation.ip
-            nmport = int(v.donation.port)
-            vesselname = v.name
-            nodepubkey = v.donation.owner_pubkey
-            nodeprivkey = v.donation.owner_privkey
-            # explanation += " %s:%s:%s - \n\n"%(nmip,nmport,vesselname)
-            # explanation += "nodepubkey : %s<br>nodeprivkey: %s<br>"%(nodepubkey,nodeprivkey)
-            # explanation += "calling changeusers with: \npubkeystrlist %s\nnmip %s\nnmport %s\nvesselname %s\nnodepubkey %s\nnodeprivkey %s\n"%(userpubkeystringlist, nmip, nmport, vesselname, nodepubkey, nodeprivkey)
-            # explanation += " Acquiring %s:%s"%(nmip,nmport)
-            print "changeusers ", time.time()
-            success,msg = changeusers(userpubkeystringlist, nmip, nmport, vesselname, nodepubkey, nodeprivkey)
-            print "/changeusers " , time.time()
-            if success:
-                acquired += 1
-                # create and save the new vmap entry
-                print "create and save vmap ", time.time()
-                vmap = VesselMap(vessel = v, user = geni_user, expiration = "%s"%(expire_time))
-                vmap.save()
-                print "/create and save vmap ", time.time()
-            else:
-                explanation += " " + nmip + ":" + str(nmport) + " " + msg
-            #else:
-            #    explanation += msg
-            #    break
-                #explanation += " added, "
-            #else:
-            # explanation += "%s, "%(msg)
-                #num_failed += 1
+        # charge the user for requested resources
+        geni_user.num_acquired_vessels += num
+
+        if num == 1:
+            acquire_func = acquire_rand_vessels
+        else:
+            acquire_func = env_type_func_map[int(env_type)]
+        # attempt to acquire resources
+        success, ret = acquire_func(geni_user, num)
+        
+        if not success:
+            summary, explanation = ret
+            explanation += "No more nodes available."
+            transaction.rollback()
+            return False, (explanation, summary)
+
+        summary, explanation, acquired = ret
+        ret = create_vmaps(acquired, geni_user)
+        if not ret:
+            release_vessels(acquired)
+            raise "create_vmaps failed"
             
-        if (num - acquired) != 0:
-            summary += " Failed to acquire %d vessel(s)."%(num-acquired)
+
+        #explanation += "There are  " + str(total_free_vessel_count) + " vessels free. Your port is available on " + str(len(vessels)) + " of them."
             
     except:
+        transaction.rollback()
         # a hack to get the traceback information into a string by
         # printing to file and then reading back from file
         f = open("/tmp/models_trace","w")
@@ -276,15 +532,12 @@ def acquire_resources(geni_user, num, env_type):
         f = open("/tmp/models_trace","r")
         explanation += f.read()
         f.close()
-        transaction.rollback()
         summary += " Failed to acquire vessel(s). Internal Error."
         return False, (explanation, summary)
     else:
         transaction.commit()
-        if acquired == 0:
-            return False, (explanation,summary)
-        summary += " Acquired %d vessel(s). "%(acquired)
-        return True, (acquired, explanation, summary)
+        summary += " Acquired %d vessel(s). "%(num)
+        return True, (num, explanation, summary)
 
 class User(models.Model):
     """
@@ -385,6 +638,44 @@ class User(models.Model):
         self.pubkey,self.privkey = pubpriv
         self.save()
         return True
+
+    def vessel_credit_remaining(self):
+        """
+        <Purpose>
+          Returns the number of vessels this user is allowed
+          to acquire at the moment.
+        <Arguments>
+          None
+        <Exceptions>
+          None
+        <Side Effects>
+          None
+        <Returns>
+          The number of vessels this user may acquire >= 0.
+        """
+        remaining = self.vessel_credit_limit() - self.num_acquired_vessels
+        if remaining < 0:
+            # this may happen when the vessels are in expiration mode
+            # but aren't expired yet
+            return 0
+        return remaining
+
+    def vessel_credit_limit(self):
+        """
+        <Purpose>
+          Returns the maximum number of allowed vessels this user may acquire
+        <Arguments>
+          None
+        <Exceptions>
+          None
+        <Side Effects>
+          None
+        <Returns>
+          The number of vessels this user is allowed to acquire
+        """
+        num_donations = Donation.objects.filter(user=self).filter(active=1).count()
+        max_num = 10 * (num_donations + 1)
+        return max_num
     
 class Donation(models.Model):
     """
@@ -404,6 +695,8 @@ class Donation(models.Model):
     ip = models.IPAddressField("Host IP address")
     # node manager port (last port known)
     port = models.IntegerField("Host node manager's port")
+    # machine's subnet address (deduced from the last known IP)
+    subnet = models.PositiveIntegerField("Host subnet address")
     # date this donation was added to the db, auto added to new instances saved
     date_added = models.DateTimeField("Date host added", auto_now_add=True)
     # date we last heard from this machine, this field will be updated
@@ -459,6 +752,8 @@ class Vessel(models.Model):
     status = models.CharField("Vessel status", max_length=1024)
     # extravessel boolean -- if True, this vessel is used for advertisements of geni's key
     extra_vessel = models.BooleanField()
+    # assigned -- if True this vessel is assigned to a user (i.e. there exists a VesselMap entry for this vessel)
+    assigned = models.BooleanField()
     def __unicode__(self):
         """
         <Purpose>
@@ -474,7 +769,7 @@ class Vessel(models.Model):
         """
         return "%s:%s"%(self.donation.ip,self.name)
 
-class VesselPorts(models.Model):
+class VesselPort(models.Model):
     """
     <Purpose>
       Defines the vesselport model
@@ -491,7 +786,7 @@ class VesselPorts(models.Model):
     def __unicode__(self):
         """
         <Purpose>
-          Produce a string representation of the VesselPorts model class
+          Produce a string representation of the VesselPort model class
         <Arguments>
           None
         <Exceptions>
@@ -499,7 +794,7 @@ class VesselPorts(models.Model):
         <Side Effects>
           None
         <Returns>
-          String representation of the VesselPorts class
+          String representation of the VesselPort class
         """
         return "%s:%s:%s"%(self.vessel.donation.ip, self.vessel.name, self.port)
 
@@ -513,8 +808,8 @@ class VesselMap(models.Model):
       See http://docs.djangoproject.com/en/dev/topics/db/models/
     """
 
-    # the vessel being assigned to a user
-    vessel = models.ForeignKey(Vessel)
+    # the vessel_port being assigned to a user
+    vessel_port = models.ForeignKey(VesselPort)
     # the user assigned to the vessel
     user = models.ForeignKey(User)
     # expiration date/time
@@ -532,7 +827,7 @@ class VesselMap(models.Model):
         <Returns>
           String representation of the VesselMap class
         """
-        return "%s:%s:%s"%(self.vessel.donation.ip, self.vessel.name, self.user.www_user.username)
+        return "%s:%s:%s"%(self.vessel_port.vessel.donation.ip, self.vessel_port.vessel.name, self.user.www_user.username)
 
     def time_remaining(self):
         """

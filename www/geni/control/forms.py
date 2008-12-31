@@ -70,6 +70,10 @@ def gen_get_form(geni_user,req_post=None):
     
     # number of vessels already used by this user
     myvessels = VesselMap.objects.filter(user = geni_user)
+
+    ## CHANGE max_num to:
+    # geni_user.vessel_credit_remaining()
+    ##
     
     if len(myvessels) > max_num:
         max_num = 0

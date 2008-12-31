@@ -45,6 +45,7 @@ admin.autodiscover()
 # django's geni application (see /etc/apache2/apache2.conf)
 prefix='geni/'
 
+
 urlpatterns = patterns('',
                        (r'^%s$'%(prefix), 'geni.accounts.views.login_redirect'), #'geni.accounts.views.login'), 
                        (r'^%saccounts/register$'%(prefix), 'geni.accounts.views.register',{},'register'),
@@ -63,3 +64,6 @@ urlpatterns = patterns('',
                        (r'^%sadmin_media/(?P<path>.*)$'%(prefix), 'django.views.static.serve', {'document_root': settings.ADMIN_MEDIA_ROOT}),
                        (r'^%smedia/(?P<path>.*)$'%(prefix), 'django.views.static.serve', {'document_root': settings.MEDIA_ROOT}),                          
 )
+
+# used in case of website work/construction
+#urlpatterns = patterns('', (r'^%s*'%(prefix), 'geni.control.views.construction', {}, 'construction'))
