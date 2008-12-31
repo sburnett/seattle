@@ -261,39 +261,3 @@ function update(Ajax) {
 function error() {
 	alert("Error, Ajax call failed");
 }
-
-	/*The next statements is used to position the Vessel Text (making it float over the shaded filling below.)
-			$("text" + i).style.bottom = (vesselinfo[3] - 45) + "%";
-			if (vesselinfo[2] <= 7) {
-				$("text" + i).style.bottom = (vesselinfo[3] - 15) + "%";
-			}
-			if (navigator.userAgent.match(/.*(MSIE 7.0)|(MSIE 6.0)/)) {
-				$("text" + i).style.bottom = (parseInt($("text" + i).style.bottom) + 20) + "%";
-			}
-			//$("text" + i).style.position = "absolute";
-			//$("text" + i).style.marginTop = (total + (2*(totalnumbersofar-1)) + (currentHeight/2) + 5 - $("fill" + i).style.paddingBottom) + "px";
-			//$("text" + i).style.left = "39.5%";
-			*/
-	//This tallies the global variables, this is used to help absolute position the text above
-	
-	/*$("text20").style.position = "relative";
-		if (totalallocatedunderfive < 5) {
-			$("text20").style.bottom = "0%";
-		} else if (totalallocatedunderfive <= 9) {
-			$("text20").style.bottom = -10 - (5*(totalallocatedunderfive-5)) + totalusageunderfive*1.15 + "%";
-		} else if (totalallocatedunderfive < 24) {
-			$("text20").style.bottom = -23.337 + (-.78453*totalallocatedunderfive) + totalusageunderfive*1.15 + "%";
-		} else {
-			$("text20").style.bottom = -41 + (-0.0417*totalallocatedunderfive) + totalusageunderfive*1.15 + "%";
-		}*/
-			
-			/*$("text20").style.position = "relative";
-			if (totalallocatedunderfive < 24) {
-				$("text20").style.bottom = 217.050361 * Math.pow(totalallocatedunderfive,-.4180229) + "%";
-			} else {
-				$("text20").style.bottom = 89.1479442 * Math.pow(totalallocatedunderfive,-.1148164) + "%";
-			}*/
-			
-			/*//$("text20").style.position = "absolute";
-		//$("text20").style.top = (total + (2*(totalnumbersofar-1)) + (totalallocatedunderfive/2) + 5) + "px";
-		//$("text20").style.left = "39.5%";*/
