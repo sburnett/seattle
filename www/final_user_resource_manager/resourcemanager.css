@@ -1,0 +1,132 @@
+/********************************************************************************************************
+<File Name>
+ resourcemanager.css
+
+<Started>
+  November 25, 2008
+
+<Author>
+  plipay@u.washington.edu
+  Peter Lipay
+
+<Purpose>
+  Provides critical styles necessary for the auto-updating functionality on resourcemanager.html to work properly and look good
+*********************************************************************************************************/
+
+body {
+	font-family: "Arial", "Helvetica", "Courier New", "Serif";
+	font-size: 14pt;
+   	min-width: 1072px;
+}
+
+table {
+	text-align: center;
+	border: 1px solid black;
+}
+
+
+td {
+	border: 3px solid black;
+}
+
+th {
+	padding: 10px;
+	text-align: center;
+	border: 3px solid black;
+}
+
+
+#header {
+	text-align: center;
+}
+
+/***********************
+* Processor_Resources
+* Stores  the graphical representation of the resources allocated to the Processor
+************************/
+
+#processorheader {
+	margin-left: 40%;
+}
+
+#pie {
+	float: left;
+	margin-top: 60px;
+	width: 30%;
+	height: 380px;
+}
+
+#maintable {
+	margin-top: 0px;
+	width: 20%;
+	float: left;
+	border-collapse: separate;
+	background-color: #FFFFCC;
+	min-width: 209px;
+}
+
+#vesselcontainer {
+	background-color: #EDE275;
+	border: 0 none;
+	padding: 0px;
+	margin: 0px;
+}
+
+#innertable {
+	margin-left: auto;
+	margin-right: auto;
+	min-height: 500px;
+	width: 100%;
+	border-collapse: collapse;
+}
+
+.vesselrow {
+	text-align: center;
+    padding: 0%;	
+	display: none;
+	background-repeat: no-repeat;
+	background-position: center;
+}
+
+.fillers {
+	background-color: #33FF00;
+	color: green;
+	filter:alpha(opacity=30);
+	-moz-opacity:0.3;
+	-khtml-opacity:0.3;
+	opacity: 0.3;
+}
+
+#row21 {
+	min-height: 14pt;
+	display: none;
+}
+
+#importantrow21 {
+	min-height: 14pt;
+}
+
+#empty {
+	height: 0%;
+}
+
+#toosmalltable {
+	margin-left: 3%;
+	margin-top: 40px;
+	display: inline;
+	border-collapse: collapse;
+	border: 0 none;
+}
+
+#caption2, #caption3 {
+	border: 3px solid black;
+	text-align: center;
+}
+
+#keytable {
+	margin-top: 40px;
+	margin-left: 3%;
+	display: inline;
+	border-collapse: collapse;
+	border: 0 none;
+}
