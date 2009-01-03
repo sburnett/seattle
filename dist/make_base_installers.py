@@ -281,7 +281,7 @@ def build(options, trunk_location, pubkey, privkey, output_dir, version=""):
     include_tests = False
     if "t" in options:
         include_tests = True
-    prepare_initial_files(trunk_location, options, pubkey, privkey, install_dir)
+    prepare_initial_files(trunk_location, include_tests, pubkey, privkey, install_dir)
     prepare_final_files(trunk_location, install_dir)
 
     # Now, package up the installer for each specified OS.
