@@ -1,8 +1,6 @@
 import os
 import platform
 import subprocess
-import win32api
-import win32con
 
 STARTER_SCRIPT_NAME = "start_seattle.bat"
 
@@ -14,9 +12,13 @@ def get_startup_folder(version):
     # Returns the startup folder if it can be found,
     # takes version either "XP" or "Vista"
     try:
-        # Try looking up the startup folder in the registry
-        keyHandle = win32api.RegOpenKeyEx(win32con.HKEY_CURRENT_USER, "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Shell Folders", 0, win32con.KEY_READ)
-        (startup_path, data_type) = win32api.RegQueryValueEx(keyHandle, "Startup")
+        # See if the installer executable found the startup folder
+        # in the registry
+        startup_file = open("startup.dat")
+        startup_path = ""
+        for line in startup_file:
+            if line:
+                startup_path = line
         if startup_path and os.path.exists(startup_path):
             return startup_path
         else:

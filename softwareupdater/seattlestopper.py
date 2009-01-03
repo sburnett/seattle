@@ -42,7 +42,7 @@ def killall():
     None.
   """
   for lockname in locklist:
-    retval = runocne.getprocesslock(lockname)
+    retval = runonce.getprocesslock(lockname)
     if retval == True:
       # The process wasn't running
       print "The lock '"+lockname+"' was not held."

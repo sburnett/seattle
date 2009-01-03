@@ -41,7 +41,7 @@ def get_inst_name(dist, version):
         base_name += ".tgz"
     return base_name
 
-def prepare_initial_files(trunk_location, pubkey, privkey, output_dir):
+def prepare_initial_files(trunk_location, include_tests, pubkey, privkey, output_dir):
     """
     <Purpose>
       Given the location of the repository's trunk, it will prepare the
@@ -78,8 +78,12 @@ def prepare_initial_files(trunk_location, pubkey, privkey, output_dir):
     os.chdir(trunk_location)
     # Remember all important locations relative to the trunk
     dist_dir = os.getcwd() + "/dist"
-    # Run preparetest, adding the files to the temp directory
-    os.popen("python preparetest.py " + output_dir)
+    # Run preparetest, including the unit tests if necessary,
+    # adding the files to the temp directory
+    if include_tests:
+        os.popen("python preparetest.py -t " + output_dir)
+    else:
+        os.popen("python preparetest.py " + output_dir)
     # Make sure that the folder is initially clean and correct
     clean_folder.clean_folder(dist_dir + "/initial_files.fi", output_dir)
     # Generate the metainfo file
@@ -215,7 +219,7 @@ def package_mac(dist_dir, install_dir, inst_name, output_dir):
     package_linux(dist_dir, install_dir, inst_name, output_dir)
 
 
-def build(which_os, trunk_location, pubkey, privkey, output_dir, version=""):
+def build(options, trunk_location, pubkey, privkey, output_dir, version=""):
     """
     <Purpose>
       Given the operating systems it should build installers for,
@@ -224,10 +228,12 @@ def build(which_os, trunk_location, pubkey, privkey, output_dir, version=""):
       deposit them all in the output directory.
 
     <Arguments>
-      which_os:
-        Letters which represent the OSes that build will build
-        installers for. Include "w" for Windows, "l" for Linux,
-        and "m" for Mac.
+      options:
+        Various options that influence how the installer is created.
+        At least one of "m", "l", or "w" must be included to indicate
+        which installer should be created - "m" for Mac, "l" for Linux,
+        "w" for Windows. Include "t" to indicate that the unit tests
+        should be included in the installers.
       trunk_location:
         The path to the trunk directory of the repository, used
         to find all the requisite files that make up the installer.
@@ -272,25 +278,28 @@ def build(which_os, trunk_location, pubkey, privkey, output_dir, version=""):
     dist_dir = os.getcwd() + "/dist"
     keys_dir = dist_dir + "/updater_keys"
     os.chdir(orig_dir)
-    prepare_initial_files(trunk_location, pubkey, privkey, install_dir)
+    include_tests = False
+    if "t" in options:
+        include_tests = True
+    prepare_initial_files(trunk_location, options, pubkey, privkey, install_dir)
     prepare_final_files(trunk_location, install_dir)
 
     # Now, package up the installer for each specified OS.
-    if "w" in which_os.lower():
+    if "w" in options.lower():
         # Package the Windows installer
         dist = "win"
         inst_name = get_inst_name(dist, version)
         package_win(dist_dir, install_dir, inst_name, temp_dir)
         shutil.copy2(temp_dir + "/" + inst_name, output_dir)
     
-    if "l" in which_os.lower():
+    if "l" in options.lower():
         # Package the Linux installer
         dist = "linux"
         inst_name = get_inst_name(dist, version)
         package_linux(dist_dir, install_dir, inst_name, temp_dir)
         shutil.copy2(temp_dir + "/" + inst_name, output_dir)
         
-    if "m" in which_os.lower():
+    if "m" in options.lower():
         # Package the Mac installer
         dist = "mac"
         inst_name = get_inst_name(dist, version)
