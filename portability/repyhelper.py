@@ -36,7 +36,8 @@ def get_shared_context():
   return shared_context
   
   
-#Ensure the generated module has as platform-independent and safe name as possible
+#Ensure the generated module has a safe name
+  # Can't use . in the name because import uses it for scope, so convert to _
 def _get_module_name(repyfilename):
   return repyfilename.replace(".", "_")
 
@@ -123,10 +124,10 @@ def _process_output_file(outfh, filename):
       includename = line.strip()[len('include '):]
       modulename = _get_module_name(includename)
       print >> outfh, "repyhelper.translate('" + includename + "')"
-      print >> outfh, "import", modulename
+      print >> outfh, "from", modulename, "import *"
       
     else:
-      print >> outfh, line
+      print >> outfh, line,
   
   
 def translate(repyfilename):
@@ -156,14 +157,13 @@ def translate(repyfilename):
   
   <Returns>
     The name of the Python module that was created in the current directory. This
-    string can be used with __import__ to import the translated module
+    string can be used with __import__ to import the translated module.
     If there was an error during translation returns the empty string.
   """
 
   if not os.path.isfile(repyfilename):
     raise ValueError("File " + repyfilename + " does not exist")
   
-  # Can't use . in the name because import uses it for scope, so convert to _
   modulename = _get_module_name(repyfilename)
   generatedfilename = modulename + ".py"
   

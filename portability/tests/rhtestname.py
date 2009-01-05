@@ -3,6 +3,7 @@ Author: Andreas Sekine
 Description
   Tests various file name formats for calls to translate
   
+  No output indicates success
 """
 import os
 import repyhelper
@@ -18,11 +19,13 @@ def prepare_file(filename):
     print "Error opening file for test:", filename
     return False
     
+    
 def cleanup(filename):
   if os.path.isfile(filename):
     os.remove(filename)
   else:
     print "Couldn't cleanup file", filename
+    
     
 def test_name(name, expected):
   if prepare_file(name):
@@ -34,7 +37,9 @@ def test_name(name, expected):
     cleanup(name)
 
     cleanup(translation_name + ".py")
-
+  
+  else:
+    print "ERROR: couldn't prepare test for filename", name
 
 
 test_name("rhtestname_file1.repy", "rhtestname_file1_repy")
