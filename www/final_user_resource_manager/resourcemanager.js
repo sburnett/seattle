@@ -13,15 +13,14 @@
   Constantly refreshes the tables and graphical displays on the resourcemanager.html page 
   using data from a file named "status" present in the same directory as this javascript.
   It is assumed that the "status" file carries the following format of comma seperated values:
-  First is the name of each Vessel (V1, V2, V3, etc),
-  Second is the Name of the Vessel Owner (Jim, Frank, whatever),
-  Third is a Decimal value representing the allocated percentage for that vessel out of 100% ,
-  Fourth is a Decimal value representing the in use percentage for that vessel out of 100%,
+  First is the Name of the Vessel Owner (Jim, Frank, whatever),
+  Second is a Decimal value representing the allocated percentage for that vessel out of 100% ,
+  Third is a Decimal value representing the in use percentage for that vessel out of 100%,
   Another important point is there must be exactly one empty line at the end of the data file    
   For Example:
-V1 , Jane , 30.0 , 11.0
-V2 , Justin , 50.0 , 75.2
-V3 , Issac , 20.0 , 14.3
+Jane , 30.0 , 11.0
+Justin , 50.0 , 75.2
+Issac , 20.0 , 14.3
 (empty line)
 ***************************************************************************/
 
@@ -38,11 +37,6 @@ Right now the colors alternate between three slightly different shades, they're 
 enough to be distinguishable to the user
 */
 var g_vesselcolors = ["#FFFFCC", "#fffee6", "#fdfdfd", "#FFFFCC", "#fffee6", "#fdfdfd", "#FFFFCC", "#fffee6", "#fdfdfd", "#FFFFCC", "#fffee6", "#fdfdfd", "#FFFFCC", "#fffee6", "#fdfdfd", "#FFFFCC", "#fffee6", "#fdfdfd", "#FFFFCC", "#fffee6", "#fdfdfd"];
-/*This variable is used so that hopefully the above colors will alternate regardless of the amount of vessels. Basically, without this, if the above colors alternated red, green, blue, for instance, if you had
-one vessel that was red, and then the next two vessels were less than 5% (meaning they wouldn't show up),  then the vessel after them would end up being red as well, since the colors are assigned simply based on the vessel number.
-Thus, you'd end up with two reds in a row.
-*/
-var g_coloroffset = 0;
 
 //Onload, the page is refreshed once, and then sets up a timer which refreshes the page every 'refreshrateinseconds' seconds
 window.onload = function() {
@@ -111,6 +105,14 @@ function update(Ajax) {
 			var vessels = Ajax.responseText.split("\n");
 		}
 		
+		/*This will sort the vessels in order of greatest allocated to smallest allocated. This is necessary because of the way the floating Text headers (V1, V2, etc)
+		    Since the headers are implemented using images (of which there are only 20), we run into the problem that if you have a bunch of less than 5% vessels (say, 30) first,
+		    then when we have a greater than 5% vessel (say Vessel #31), we don't have a V31 image. To address this, the vessels must be sorted from greatest to lowest. We do 
+	               this using the Array objects build in sort method, and we pass it a custom function 'compare' that sets up rules for comparing the vessels.
+		*/
+		vessels.sort(compare);
+		
+		
 		/*This loop handles the detailed elements of refreshing the page, cycling through each of the vessels present in the "vessels" variable.
 		It first rebuilds the data tables, then, if the current vessel has less than 5% allocated it increments the global variables totalallocatedunderfive 
 		and totalusageunderfive (to be later used in the < 5% graphical block). Otherwise, if the current vessel has at least 5% allocated, the loop 
@@ -119,8 +121,7 @@ function update(Ajax) {
 		for (var i=1;i<=vessels.length-1;i++) {
 			/* The below variable 'vesselinfo' is an array that stores the data for the current vessel being processed. So, vesselinfo[0] will give the vessel name (V1, V2, etc),
 			vesselinfo[1] will give the vessel owners name, vesselinfo[2] will give the vessels allocated percentage, and vesselinfo[3] will give the percentage currently in use by this vessel*/
-			var vesselinfo = vessels[i-1].split(","); 
-			
+			var vesselinfo = vessels[i-1].split(","); 		
 			/*The next section populates the data tables by creating and appending new rows and columns*/
 			
 			/*Here we create our row and column elements*/
@@ -132,10 +133,10 @@ function update(Ajax) {
 			var newinfocolumn4 = document.createElement("td");
 			
 			/*Here we populate our column elements*/
-			newinfocolumn1.textContent = vesselinfo[0];
-			newinfocolumn2.textContent = vesselinfo[1];
-			newinfocolumn3.textContent = vesselinfo[2] + "%";
-			newinfocolumn4.textContent = vesselinfo[3] + "%";
+			newinfocolumn1.textContent = "V" + i;
+			newinfocolumn2.textContent = vesselinfo[0];
+			newinfocolumn3.textContent = vesselinfo[1] + "%";
+			newinfocolumn4.textContent = vesselinfo[2] + "%";
 			/* The following try statements are done as a workaround for IE, as IE doesn't support the above textContent property*/
 			try { if(!newinfocolumn1.innerText) newinfocolumn1.innerText = newinfocolumn1.textContent; } catch(e) {}
 			try { if(!newinfocolumn2.innerText) newinfocolumn2.innerText = newinfocolumn2.textContent; } catch(e) {}
@@ -151,14 +152,14 @@ function update(Ajax) {
 			
 			/*This if block handles the case of a vessel having less than 5% allocated to it, thus, populating the special table of vessels
 			with less than 5% , and tallying the global variables so that the <5% resources vessel block will come into existence later on in the code*/
-			if (vesselinfo[2] < 5.0) {
-				g_totalallocatedunderfive += parseFloat(vesselinfo[2]); //This tallies the total amount allocated to the <5% block
+			if (vesselinfo[1] < 5.0) {
+				g_totalallocatedunderfive += parseFloat(vesselinfo[1]); //This tallies the total amount allocated to the <5% block
 				/*This tallies the total amount in use by the <5% block . Since its assumed that the usage percentage provided in the data file is
 				in terms of the percent allocated the below calculation is necessary. For instance, if in the data file 100% is listed as the usage percentage,
 				this is assumed to mean 100% of that particular vessel, so if that vessel only has 2% allocated to it, then only 2% is being used, not 100%.
 				The below calculation makes this conversion happen.
 				*/
-				g_totalusageunderfive += ((vesselinfo[3]/100)*vesselinfo[2]); 
+				g_totalusageunderfive += ((vesselinfo[2]/100)*vesselinfo[1]); 
 				
 				/*This section updates the <5% table which lists the vessels that make up the <5% block*/
 				
@@ -170,9 +171,9 @@ function update(Ajax) {
 				var newcolumn3 = document.createElement("td");
 				
 				/*Then we populate the column elements*/
-				newcolumn1.textContent = vesselinfo[0];
-				newcolumn2.textContent = vesselinfo[2] + "%";
-				newcolumn3.textContent = vesselinfo[3] + "%";
+				newcolumn1.textContent = "V" + i;
+				newcolumn2.textContent = vesselinfo[1] + "%";
+				newcolumn3.textContent = vesselinfo[2] + "%";
 				/*This is the IE fix for textContent mentioned earlier*/
 				try { if(!newcolumn1.innerText) newcolumn1.innerText = newcolumn1.textContent; } catch(e) {}
 				try { if(!newcolumn2.innerText) newcolumn2.innerText = newcolumn2.textContent; } catch(e) {}
@@ -183,10 +184,7 @@ function update(Ajax) {
 				newrow.appendChild(newcolumn2);
 				newrow.appendChild(newcolumn3);
 				$("toosmallbody").appendChild(newrow);
-				/*Finally, we increment the coloroffset variable, since the current vessel is less than 5%, and won't show up as its own vessel, we must increment the
-				variable so that the background colors will still appear in the proper order. See the description for coloroffset at the top of the page for more info.
-				*/
-				g_coloroffset++;
+				
 			/*Now, if the current vessel has at least 5% allocated to it, then it will show up on the page as its own vessel and not part of the <5% block, so we 
 			display the vessel using the below conditional code block.
 			*/
@@ -196,11 +194,11 @@ function update(Ajax) {
 				$("row" + i).parentNode.style.display = "block";
 				
 				/*Then we set its background color*/
-				$("row" + i).style.backgroundColor = g_vesselcolors[i-1-g_coloroffset];
+				$("row" + i).style.backgroundColor = g_vesselcolors[i-1];
 			
 				/*We must set the height of the td element using pixels for it to work, so the below variable takes the percentage height from the data file 
 				for the current vessel and converts it to pixels*/
-				var currentHeight = Math.round(vesselinfo[2]*5);
+				var currentHeight = Math.round(vesselinfo[1]*5);
 				
 				/*Now we set the proper allocated height of the current td element */
 				$("row" + i).style.height = currentHeight + "px";
@@ -208,19 +206,32 @@ function update(Ajax) {
 				
 				/*Now we set the proper height for the green progress bar inside our current td element. As mentioned before, the calculation below converts the relative percentage in 
 				the data to an absolute percentage for the whole graph, and then converts the height to pixels. This is necessary for the green bar to display properly in all browsers.*/
-				$("fill" + i).style.height = ((vesselinfo[3]*.01 * vesselinfo[2])*5) + "px";
+				$("fill" + i).style.height = ((vesselinfo[2]*.01 * vesselinfo[1])*5) + "px";
 				
 				/*Here we set a background image for the td element to take care of the floating text Caption on each of the vessels (V1, V2, V3). This was the only clean way I could come up
 				with to get the text to float perfectly in the center above the green TD element. The only alternative I've found is to use absolute or relative positioning, which becomes a 
 				nightmare quickly. So while this does add the burden of several images to load on the page, I think its worth it for code simplicity and cleanlines*/
 				$("row" + i).style.backgroundImage = "url(\"V" + i + ".jpg\")";
-				/*These are just a few IE specific fixes. The first statement causes a second div inside the td element to fill up any remaining space inside the td. This is necessary so that
-				the green bar doesn't float in the middle of the td element in IE browsers. The second statement is done because IE prefers the height to be assigned in percentages while 
-				firefox seems to prefer it in pixels. The last statement takes care of some minor visual glitches in IE*/
+				/*These are just a few IE specific fixes.*/  
 				if (navigator.userAgent.match(/.*(MSIE 7.0)|(MSIE 6.0)/)) {
-					$("empty" + i).style.height = (100 - (vesselinfo[3])) + "%";
-					$("fill" + i).style.height = vesselinfo[3] + "%";
-					$("fill" + i).style.borderBottom = "1px solid " + g_vesselcolors[i-1+g_coloroffset];
+					/*The below two statements make sure that the empty and fill divs are being displayed*/
+					$("empty" + i).style.display = "block"; 
+					$("fill" + i).style.display = "block";
+					/*This statement causes a second div inside the td element to fill up any remaining space inside the td. This is necessary so that
+					the green bar doesn't float in the middle of the td element in IE browsers. */
+					$("empty" + i).style.height = (100 - (vesselinfo[2])) + "%";
+					/*The below two if statements help address some bizare IE6 visual bugs */
+					if ((100 - (vesselinfo[2])) <= 2) {
+						$("empty" + i).style.display = "none";					
+					}
+					if (vesselinfo[2] == 0) {
+						$("fill" + i).style.display = "none";
+					}
+					/*This statement is done because IE prefers the height to be assigned in percentages while 
+					firefox seems to prefer it in pixels*/
+					$("fill" + i).style.height = vesselinfo[2] + "%";
+					/*This statement takes care of some minor visual glitches in IE*/
+					$("fill" + i).style.borderBottom = "1px solid " + g_vesselcolors[i-1];
 				}
 			}
 		}
@@ -260,7 +271,7 @@ function update(Ajax) {
 		/*The following statements rezero the global variables */
 		g_totalusageunderfive = 0;
 		g_totalallocatedunderfive = 0;
-		g_coloroffset = 0;
+		//g_coloroffset = 0;
 		g_justupdated = true;
 	}
 }
@@ -268,4 +279,21 @@ function update(Ajax) {
 //Prints an error message if the ajax call fails
 function error() {
 	alert("Error, Ajax call failed");
+}
+
+/*This function is comparing two vessel array elements (a and b).
+It returns -1 if the allocated amount of vessel a is greater than the allocated amount of vessel b.
+It returns 1 if the allocated amount of vessel b is greater than the allocated amount of vessel a.
+It returns 0 if the allocated amount of vessel a and vessel b is equal
+*/
+function compare(a, b) {
+	var currenta = a.split(",");
+	var currentb = b.split(",");
+	if (parseFloat(currenta[1]) > parseFloat(currentb[1])) {
+		return -1;
+	} else if (parseFloat(currenta[1]) < parseFloat(currentb[1])) {
+		return 1;
+	} else {
+		return 0;
+	}
 }

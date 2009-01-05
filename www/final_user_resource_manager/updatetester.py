@@ -4,7 +4,7 @@ names = ["Peter", "Armon", "Justin", "Ivan", "Carter", "Sean", "Joe", "Bob", "Jo
 
 while True:
   filehandle = open("status", "w")
-  numberofvessels = random.randint(1, 8)
+  numberofvessels = random.randint(1, 100)
   totalallocated = 100
   for i in range(0, numberofvessels):
     if totalallocated <= .1 :
@@ -14,7 +14,7 @@ while True:
     else :
 	  valueallocated = round(random.uniform(0, totalallocated), 1)
     valueinuse = round(random.uniform(0, 100), 1)
-    print >> filehandle, "V" + str(i+1), "," ,random.choice(names), "," ,valueallocated, "," , valueinuse
+    print >> filehandle, random.choice(names), "," ,valueallocated, "," , valueinuse
     totalallocated = totalallocated - valueallocated 
   filehandle.close()
   time.sleep(10)
