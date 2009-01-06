@@ -79,7 +79,8 @@ resource connport 12222
   fullresourcedata = nmclient_rawsay(nmhandle, "GetVesselResources",mynewestvessel)
   endingrestrictions = get_restrictions(fullresourcedata)
 
-  print "Warning, this test does not check vessel resource sizes..."
+  # commented out print statement so test does not result in failure when automatically run
+  # print "Warning, this test does not check vessel resource sizes..."
   if endingrestrictions.strip() != startingrestrictions.strip():
     print "'"+endingrestrictions.strip()+"' != '"+startingrestrictions.strip()+"'"
     raise Exception, "Restrictions are not preserved!"
