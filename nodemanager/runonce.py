@@ -199,12 +199,8 @@ def getprocesslockmutex(lockname):
 
   # We own it!
   if locked:
-    # Okay, it worked.   Now write something in the registry so others
-    # can find the PID
-    registryconn = _winreg.ConnectRegistry(None,_winreg.HKEY_CURRENT_USER)
-
     # get the place to write
-    thekey = openkey(registryconn, registrypath, write=True) 
+    thekey = openkey(_winreg.HKEY_CURRENT_USER, registrypath, write=True) 
 
     try:
       _winreg.SetValueEx(thekey,regkeyname,0, _winreg.REG_SZ, str(os.getpid()))
@@ -214,38 +210,25 @@ def getprocesslockmutex(lockname):
       raise
 
     _winreg.CloseKey(thekey)
-    _winreg.CloseKey(registryconn)
 
     return True      
 
-  # figure out the pid with the lock...
-  registryconn = _winreg.ConnectRegistry(None,_winreg.HKEY_CURRENT_USER)
   try:
-    thekey = openkey(registryconn, registrypath, write=False)
+    thekey = openkey(_winreg.HKEY_CURRENT_USER, registrypath, write=False)
   except WindowsError:
     # the key didn't exist.  Must be stored under another user...
     return False
 
   # I'll return once there are no more values or I've found the key...
   try:
-    # BUG: is there a better way to do this?
-    # shouldn't have more than 1024 keys...
-    for num in range(1024):
-      valuename, data, datatype = _winreg.EnumValue(thekey,num)
-      if valuename == regkeyname:
-        return int(data)
-
-    else:
-      # didn't find the key
-      return False
-
+    val, datatype = _winreg.QueryValueEx(thekey, regkeyname)
+    return val
   except EnvironmentError, e:                                          
     # not found...   This is odd.   The registry path is there, but no key...
     return False
 
   finally:
     _winreg.CloseKey(thekey)
-    _winreg.CloseKey(registryconn)
 
 # Release a windows mutex
 def releaseprocesslockmutex(lockname):
