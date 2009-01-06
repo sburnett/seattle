@@ -37,8 +37,12 @@ import shutil
 
 import threading
 
-import subprocess
-
+# This will fail on WinCE, and is handled latter
+try:
+  import subprocess
+except:
+  pass
+  
 import time
 
 # used in startvessel and stopvessel
