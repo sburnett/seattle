@@ -16,7 +16,7 @@
 body {
 	font-family: "Arial", "Helvetica", "Courier New", "Serif";
 	font-size: 12pt;
-   	min-width: 1000px;
+   	min-width: 800px;
 }
 
 table {
@@ -112,22 +112,13 @@ th {
 	height: 0%;
 }
 
-#toosmalltable {
-	margin-left: 3%;
-	margin-top: 40px;
-	display: inline;
-	border-collapse: collapse;
-	border: 0 none;
-}
-
 #caption2, #caption3 {
 	border: 3px solid black;
 	text-align: center;
 }
 
 #keytable {
-	margin-top: 40px;
-	margin-left: 3%;
+	margin-left: 15%;
 	display: inline;
 	border-collapse: collapse;
 	border: 0 none;

@@ -37,6 +37,7 @@ Right now the colors alternate between three slightly different shades, they're 
 enough to be distinguishable to the user
 */
 var g_vesselcolors = ["#FFFFCC", "#fffee6", "#fdfdfd", "#FFFFCC", "#fffee6", "#fdfdfd", "#FFFFCC", "#fffee6", "#fdfdfd", "#FFFFCC", "#fffee6", "#fdfdfd", "#FFFFCC", "#fffee6", "#fdfdfd", "#FFFFCC", "#fffee6", "#fdfdfd", "#FFFFCC", "#fffee6", "#fdfdfd"];
+var g_lessthanfiveaddedtotable = false;
 
 //Onload, the page is refreshed once, and then sets up a timer which refreshes the page every 'refreshrateinseconds' seconds
 window.onload = function() {
@@ -105,14 +106,13 @@ function update(Ajax) {
 			var vessels = Ajax.responseText.split("\n");
 		}
 		
-		/*This will sort the vessels in order of greatest allocated to smallest allocated. This is necessary because of the way the floating Text headers (V1, V2, etc)
+		/*This will sort the vessels in order of greatest allocated to smallest allocated. This is necessary because of the way the floating Text headers (V1, V2, etc) are done.
 		    Since the headers are implemented using images (of which there are only 20), we run into the problem that if you have a bunch of less than 5% vessels (say, 30) first,
 		    then when we have a greater than 5% vessel (say Vessel #31), we don't have a V31 image. To address this, the vessels must be sorted from greatest to lowest. We do 
-	               this using the Array objects build in sort method, and we pass it a custom function 'compare' that sets up rules for comparing the vessels.
+	               this using the Array objects buildt in sort method, and we pass it a custom function 'compare' that sets up rules for comparing the vessels.
 		*/
 		vessels.sort(compare);
-		
-		
+		g_lessthanfiveaddedtotable = false;
 		/*This loop handles the detailed elements of refreshing the page, cycling through each of the vessels present in the "vessels" variable.
 		It first rebuilds the data tables, then, if the current vessel has less than 5% allocated it increments the global variables totalallocatedunderfive 
 		and totalusageunderfive (to be later used in the < 5% graphical block). Otherwise, if the current vessel has at least 5% allocated, the loop 
@@ -124,8 +124,29 @@ function update(Ajax) {
 			var vesselinfo = vessels[i-1].split(","); 		
 			/*The next section populates the data tables by creating and appending new rows and columns*/
 			
+			if (!g_lessthanfiveaddedtotable && parseFloat(vesselinfo[1]) < 5) {
+				var newheaderrow = document.createElement("tr");
+				var newinfoheader = document.createElement("td");
+				newheaderrow.className = "addedtotable2";
+				if (navigator.userAgent.match(/.*(MSIE 7.0)|(MSIE 6.0)/)) {
+					for (var x = 0;x < newinfoheader.attributes.length;x++) {
+						if (newinfoheader.attributes[x].nodeName == "colSpan") {
+							newinfoheader.attributes[x].nodeValue = "4";
+						}
+					}
+				} else {
+					newinfoheader.writeAttribute("colspan","4");
+				}
+				newinfoheader.textContent = "< 5% Vessels";
+				try { if(!newinfoheader.innerText) newinfoheader.innerText = newinfoheader.textContent; } catch(e) {}
+				newheaderrow.appendChild(newinfoheader);
+				$("keybody").appendChild(newheaderrow);
+				g_lessthanfiveaddedtotable = true;
+			}
+			
 			/*Here we create our row and column elements*/
 			var newinforow = document.createElement("tr");
+			newinforow.style.backgroundColor = g_vesselcolors[i-1];
 			newinforow.className = "addedtotable2"; //This is done so that it is easy to remove this same element on the next refresh
 			var newinfocolumn1 = document.createElement("td");
 			var newinfocolumn2 = document.createElement("td");
@@ -150,41 +171,17 @@ function update(Ajax) {
 			newinforow.appendChild(newinfocolumn4);
 			$("keybody").appendChild(newinforow);
 			
-			/*This if block handles the case of a vessel having less than 5% allocated to it, thus, populating the special table of vessels
-			with less than 5% , and tallying the global variables so that the <5% resources vessel block will come into existence later on in the code*/
+			/*This if block handles the case of a vessel having less than 5% allocated to it, thus, 
+			tallying the global variables so that the <5% resources vessel block will come into existence later on in the code*/
 			if (vesselinfo[1] < 5.0) {
+				newinforow.style.backgroundColor = g_vesselcolors[20];
 				g_totalallocatedunderfive += parseFloat(vesselinfo[1]); //This tallies the total amount allocated to the <5% block
 				/*This tallies the total amount in use by the <5% block . Since its assumed that the usage percentage provided in the data file is
 				in terms of the percent allocated the below calculation is necessary. For instance, if in the data file 100% is listed as the usage percentage,
 				this is assumed to mean 100% of that particular vessel, so if that vessel only has 2% allocated to it, then only 2% is being used, not 100%.
 				The below calculation makes this conversion happen.
 				*/
-				g_totalusageunderfive += ((vesselinfo[2]/100)*vesselinfo[1]); 
-				
-				/*This section updates the <5% table which lists the vessels that make up the <5% block*/
-				
-				/*First we create the row and column elements*/
-				var newrow = document.createElement("tr");
-				newrow.className = "addedtotable2"; //Again, this makes this row easier to delete on the next update
-				var newcolumn1 = document.createElement("td");
-				var newcolumn2 = document.createElement("td");
-				var newcolumn3 = document.createElement("td");
-				
-				/*Then we populate the column elements*/
-				newcolumn1.textContent = "V" + i;
-				newcolumn2.textContent = vesselinfo[1] + "%";
-				newcolumn3.textContent = vesselinfo[2] + "%";
-				/*This is the IE fix for textContent mentioned earlier*/
-				try { if(!newcolumn1.innerText) newcolumn1.innerText = newcolumn1.textContent; } catch(e) {}
-				try { if(!newcolumn2.innerText) newcolumn2.innerText = newcolumn2.textContent; } catch(e) {}
-				try { if(!newcolumn3.innerText) newcolumn3.innerText = newcolumn3.textContent; } catch(e) {}
-				
-				/*Finally, we append the columns to the row and the row to the table*/
-				newrow.appendChild(newcolumn1);
-				newrow.appendChild(newcolumn2);
-				newrow.appendChild(newcolumn3);
-				$("toosmallbody").appendChild(newrow);
-				
+				g_totalusageunderfive += ((vesselinfo[2]/100)*vesselinfo[1]); 	
 			/*Now, if the current vessel has at least 5% allocated to it, then it will show up on the page as its own vessel and not part of the <5% block, so we 
 			display the vessel using the below conditional code block.
 			*/
