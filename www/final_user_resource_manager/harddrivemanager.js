@@ -37,7 +37,7 @@ Right now the colors alternate between three slightly different shades, they're 
 enough to be distinguishable to the user
 */
 var g_vesselcolors = ["#FFFFCC", "#fffee6", "#fdfdfd", "#FFFFCC", "#fffee6", "#fdfdfd", "#FFFFCC", "#fffee6", "#fdfdfd", "#FFFFCC", "#fffee6", "#fdfdfd", "#FFFFCC", "#fffee6", "#fdfdfd", "#FFFFCC", "#fffee6", "#fdfdfd", "#FFFFCC", "#fffee6", "#fdfdfd"];
-var g_tablecolors = ["#FFFFFF", "#f8f8f8", "#f0f0f0", "#E8E8E8",  "#f0f0f0", "#f8f8f8"];
+var g_tablecolors = ["#FFFFFF", "#f8f8f8", "#f0f0f0", "#E8E8E8", "#E0E0E0", "#D8D8D8", "#E0E0E0", "#E8E8E8", "#f0f0f0", "#f8f8f8"];
 var g_lessthanfiveaddedtotable = false;
 var g_totalinuse = 0;
 var g_currenttab = 0;
@@ -66,14 +66,14 @@ function call() {
 	/*Since Internet Explorer doesn't support Ajax.Request objects to be used on calls to local directories, this manual approach is necessary*/
 	if (navigator.userAgent.match(/.*(MSIE 7.0)|(MSIE 6.0)/)) {
 		xmlhttp = getXmlHttp();
-		xmlhttp.open("GET", "status1", true);
+		xmlhttp.open("GET", "status3", true);
 		xmlhttp.onreadystatechange = function() {
 			update(xmlhttp);
 		}
 		xmlhttp.send(null);
 		
 	}
-	new Ajax.Request("status1", 
+	new Ajax.Request("status3", 
 	{
 		method: "get",
 		onSuccess: update,
@@ -134,7 +134,7 @@ function update(Ajax) {
 		displays the current vessel on the page with the correct height and usage .
 		*/
 		for (var i=1;i<=vessels.length-1;i++) {
-			if (currentcolorindex > 5) {
+			if (currentcolorindex > 9) {
 				currentcolorindex = 0;
 			}
 			

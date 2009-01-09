@@ -37,7 +37,6 @@ Right now the colors alternate between three slightly different shades, they're 
 enough to be distinguishable to the user
 */
 var g_vesselcolors = ["#FFFFCC", "#fffee6", "#fdfdfd", "#FFFFCC", "#fffee6", "#fdfdfd", "#FFFFCC", "#fffee6", "#fdfdfd", "#FFFFCC", "#fffee6", "#fdfdfd", "#FFFFCC", "#fffee6", "#fdfdfd", "#FFFFCC", "#fffee6", "#fdfdfd", "#FFFFCC", "#fffee6", "#fdfdfd"];
-var g_tablecolors = ["#FFFFFF", "#f8f8f8", "#f0f0f0", "#E8E8E8",  "#f0f0f0", "#f8f8f8"];
 var g_lessthanfiveaddedtotable = false;
 var g_totalinuse = 0;
 var g_currenttab = 0;
@@ -66,14 +65,14 @@ function call() {
 	/*Since Internet Explorer doesn't support Ajax.Request objects to be used on calls to local directories, this manual approach is necessary*/
 	if (navigator.userAgent.match(/.*(MSIE 7.0)|(MSIE 6.0)/)) {
 		xmlhttp = getXmlHttp();
-		xmlhttp.open("GET", "status1", true);
+		xmlhttp.open("GET", "status2", true);
 		xmlhttp.onreadystatechange = function() {
 			update(xmlhttp);
 		}
 		xmlhttp.send(null);
 		
 	}
-	new Ajax.Request("status1", 
+	new Ajax.Request("status2", 
 	{
 		method: "get",
 		onSuccess: update,
@@ -127,17 +126,12 @@ function update(Ajax) {
 		*/
 		vessels.sort(compare);
 		g_lessthanfiveaddedtotable = false;
-		var currentcolorindex = 0;
 		/*This loop handles the detailed elements of refreshing the page, cycling through each of the vessels present in the "vessels" variable.
 		It first rebuilds the data tables, then, if the current vessel has less than 5% allocated it increments the global variables totalallocatedunderfive 
 		and totalusageunderfive (to be later used in the < 5% graphical block). Otherwise, if the current vessel has at least 5% allocated, the loop 
 		displays the current vessel on the page with the correct height and usage .
 		*/
 		for (var i=1;i<=vessels.length-1;i++) {
-			if (currentcolorindex > 5) {
-				currentcolorindex = 0;
-			}
-			
 			/* The below variable 'vesselinfo' is an array that stores the data for the current vessel being processed. So, vesselinfo[0] will give the vessel name (V1, V2, etc),
 			vesselinfo[1] will give the vessel owners name, vesselinfo[2] will give the vessels allocated percentage, and vesselinfo[3] will give the percentage currently in use by this vessel*/
 			var vesselinfo = vessels[i-1].split(","); 		
@@ -166,8 +160,7 @@ function update(Ajax) {
 			
 			/*Here we create our row and column elements*/
 			var newinforow = document.createElement("tr");
-			newinforow.style.backgroundColor = g_tablecolors[currentcolorindex];
-			currentcolorindex++;
+			//newinforow.style.backgroundColor = g_vesselcolors[i-1];
 			newinforow.className = "addedtotable2"; //This is done so that it is easy to remove this same element on the next refresh
 			var newinfocolumn1 = document.createElement("td");
 			var newinfocolumn2 = document.createElement("td");
