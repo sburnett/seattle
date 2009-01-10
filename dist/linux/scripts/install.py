@@ -16,6 +16,7 @@
 import os
 import re
 import sys
+import tempfile
 
 STARTER_SCRIPT_NAME = "start_seattle.sh"
 
@@ -117,16 +118,19 @@ def install():
     # Now we know they don't, so we should add it
     output("Adding to startup...")
     # First, generate a temp file with the user's crontab plus
-    # our task
+    # our task (tempfile module used as suggested in Jacob
+    # Appelbaum's patch)
     cron_line = '*/10 * * * * "' + os.getcwd() + '/' + STARTER_SCRIPT_NAME + '" &> "' + os.getcwd() + '/cron_log.txt"' +  os.linesep
     crontab_f = os.popen("crontab -l")
-    temp_f = open("temp.txt", "w")
+    fd, s_tmp = tempfile.mkstemp("temp", "seattle")
     for line in crontab_f:
-        temp_f.write(line)
-    temp_f.write(cron_line)
-    temp_f.close()
+        os.write(fd, line)
+    os.write(fd, cron_line)
+    os.close(fd)
+
     # Then, replace the crontab with that file
-    os.popen('crontab "' + os.getcwd() + '/temp.txt"')
+    os.popen('crontab "' + s_tmp + '"')
+    os.unlink(s_tmp)
     output("Done.")
     
     # Next, run the script to generate the node's keys
