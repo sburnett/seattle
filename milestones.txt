@@ -1,13 +1,45 @@
+# This file maintains sprint information for Seattle strike forces
+#
+# This file is composed of sprint snippets that are separated by
+# newlines and have the following format:
+#
+# :sprint
+# strikeforce
+# date
+# name1 task1
+# name2 task2
+#
+# Where:
+# strikeforce is the name of the strike force
+# date is in mm/dd/yyyy format
+# names are person names of those involved in the sprint
+# and tasks are short descriptions of the task corresponding to each person
+#
+# At the end of your development cycle for the sprint, pre-append an
+# svn revision number that contains all your comitted files to the line
+# with your name. For example, change this line:
+# name1 task1
+#
+# to this line (if your svn revision is rev1):
+# rev1 name1 task1
+#
+# Here is an example of a completed sprint snippet:
+# :sprint
+# 01/01/2009
+# eye candy
+# 807 alper
+# 810 sean
+
 :sprint
 01/15/2009
 recurrence and infection
-o carter	 
-o brent		 
-o sal		
-o cosmin	
+carter task1
+brent task2
+sal task3
+cosmin task4
 
 :sprint
 01/22/2009
 eye candy
-o alper		parallelize resource acquisition and release
-o sean		redesign GENI portal
+809 alper parallelize resource acquisition and release
+808 sean redesign GENI portal
