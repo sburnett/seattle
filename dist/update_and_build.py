@@ -26,7 +26,7 @@ INSTALL_DIR = "seattle_repy"
 DIST_DIR = "/var/www/dist"
 KEY_DIR = "/home/butaud/src/seattle/trunk/dist/updater_keys"
 
-DEBUG = True
+DEBUG = False
 
 def main():
     if len(sys.argv) < 2:
