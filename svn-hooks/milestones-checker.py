@@ -24,10 +24,13 @@ import sys
 import subprocess
 from copy import deepcopy
 from datetime import datetime
-import send_gmail
 
+enable_email = False
 svn_repo_path = '/var/local/svn/'
 notify_list = ["ivan@cs.washington.edu", "justinc@cs.washington.edu", 'jaehong@u.washington.edu']
+
+if enable_email:
+  import send_gmail
 
 def command_output(cmd):
   """
@@ -55,7 +58,7 @@ def parse_sprints(sprints_txt):
   format = ['date', 'force', 'users']
   sprint = None
 
-  for line in milestones_txt.split('\n'):
+  for line in sprints_txt.split('\n'):
       if line is '' or line.startswith('#'):
           continue
       
@@ -68,7 +71,6 @@ def parse_sprints(sprints_txt):
           continue
 
       if field == 'users':
-          line
           sprint[field].append(line)
       else:
           sprint[field] = line
@@ -105,8 +107,9 @@ def main():
   milestones_txt = command_output("svn cat http://seattle.cs.washington.edu/svn/seattle/trunk/milestones.txt")
 
   # setup gmail lib
-  gmail_user, gmail_pwd = open("/var/local/svn/hooks/gmail_account","r").read().strip().split()
-  send_gmail.init_gmail(gmail_user=gmail_user, gmail_pwd=gmail_pwd)
+  if enable_email:
+    gmail_user, gmail_pwd = open("/var/local/svn/hooks/gmail_account","r").read().strip().split()
+    send_gmail.init_gmail(gmail_user=gmail_user, gmail_pwd=gmail_pwd)
 
   # check if any of the sprint personnel are past deadline
   for sprint in parse_sprints(milestones_txt):
@@ -117,16 +120,20 @@ def main():
           notify_str = ""
           # check if we need to notify
           for user in sprint['users']:
-              if not user.startswith['X']:
-                  notify_str += '''
+            try:
+              rev = int(user.split(' ')[0])
+            except:
+              notify_str += '''
 User            %s
 Deadline        %s
 Strike force    %s'''%(user,sprint['date'],sprint['force']) + '\n'
-                  notify = True
+              notify = True
           
           if notify:
-              # send email to notify_list members
-              for email in notify_list:
+              print notify_str
+              if enable_email:
+                # send email to notify_list members
+                for email in notify_list:
                   send_gmail.send_gmail(email, "user(s) failed to meet sprint deadline %s"%(sprint['date']))
               
 if __name__ == "__main__":
