@@ -32,11 +32,11 @@
 
 :sprint
 01/15/2009
-recurrence and infection
-carter task1
-brent task2
-sal task3
-cosmin task4
+infection and recurrence
+carter build a clobbering uninstaller
+brent build a file system state checker
+sal ensure the spider program works
+cosmin build a disk space checker
 
 :sprint
 01/22/2009
