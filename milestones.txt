@@ -31,6 +31,26 @@
 # 810 sean
 
 :sprint
+01/14/2009
+all seattle developers
+alper try out the ticket system
+andreas try out the ticket system
+armon try out the ticket system
+anthony try out the ticket system
+brent try out the ticket system
+carter try out the ticket system
+cosmin try out the ticket system
+dennis try out the ticket system
+eric try out the ticket system
+jenn try out the ticket system
+michael try out the ticket system
+mitchell try out the ticket system
+sal try out the ticket system
+sean try out the ticket system
+
+
+
+:sprint
 01/15/2009
 infection and recurrence
 carter build a clobbering uninstaller
@@ -45,6 +65,20 @@ alper parallelize resource acquisition and release
 sean redesign GENI portal
 
 :sprint
+01/22/2009
+bot master
+sean circular logging on the software updater to the service vessel
+brent circular logging on the node manager to the service vessel
+
+:sprint
+01/29/2009
+measure twice cut once
+anthony get resource information on Linux
+brent get resource information on Windows XP / Vista
+carter get resource information on BSD / Mac
+armon get resource information on Windows Mobile
+
+:sprint
 02/05/2009
 indoctrination
 jenn web-server assignment and test cases for http and multi-client handling
@@ -52,3 +86,9 @@ alper seattle installations on emulab and node remote control interface
 eric emulab xmlrpc interface to control experimentation
 michael django backend interfaced with web frontend
 sal submission script, frontend work, and help with django backend
+
+:sprint
+02/12/2009
+2 + 2 = ?
+anthony RSA replacement
+
