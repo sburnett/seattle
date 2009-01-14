@@ -41,5 +41,14 @@ cosmin build a disk space checker
 :sprint
 01/22/2009
 eye candy
-809 alper parallelize resource acquisition and release
-808 sean redesign GENI portal
+alper parallelize resource acquisition and release
+sean redesign GENI portal
+
+:sprint
+02/05/2009
+indoctrination
+jenn web-server assignment and test cases for http and multi-client handling
+alper seattle installations on emulab and node remote control interface
+eric emulab xmlrpc interface to control experimentation
+michael django backend interfaced with web frontend
+sal submission script, frontend work, and help with django backend
