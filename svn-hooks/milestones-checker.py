@@ -27,7 +27,7 @@ from datetime import datetime
 
 enable_email = False
 svn_repo_path = '/var/local/svn/'
-notify_list = ["ivan@cs.washington.edu", "justinc@cs.washington.edu", 'jaehong@u.washington.edu']
+notify_list = ['ivan@cs.washington.edu, justinc@cs.washington.edu, jaehong@u.washington.edu']
 
 if enable_email:
   import send_gmail
@@ -105,6 +105,15 @@ def main():
 
   # grab latest milestones revision from the repo
   milestones_txt = command_output("svn cat http://seattle.cs.washington.edu/svn/seattle/trunk/milestones.txt")
+  
+# failure example:
+#  milestones_txt = """
+#:sprint
+#01/01/2009
+#eye candy
+#alper parallelize resource acquisition and release
+#sean redesign GENI portal
+#"""
 
   # setup gmail lib
   if enable_email:
@@ -122,11 +131,14 @@ def main():
           for user in sprint['users']:
             try:
               rev = int(user.split(' ')[0])
-            except:
+            except ValueError:
+              task = ' '.join(user.split(' ')[1:])
+              user = user.split(' ')[0]
               notify_str += '''
 User            %s
+Task            %s
 Deadline        %s
-Strike force    %s'''%(user,sprint['date'],sprint['force']) + '\n'
+Strike force    %s'''%(user, task, sprint['date'], sprint['force']) + '\n'
               notify = True
           
           if notify:
@@ -134,7 +146,7 @@ Strike force    %s'''%(user,sprint['date'],sprint['force']) + '\n'
               if enable_email:
                 # send email to notify_list members
                 for email in notify_list:
-                  send_gmail.send_gmail(email, "user(s) failed to meet sprint deadline %s"%(sprint['date']))
+                  send_gmail.send_gmail(email, "user(s) failed to meet sprint deadline %s"%(sprint['date']), notify_str, "")
               
 if __name__ == "__main__":
   sys.exit(main())
