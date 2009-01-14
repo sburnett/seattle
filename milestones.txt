@@ -56,7 +56,7 @@ infection and recurrence
 carter build a clobbering uninstaller
 brent build a file system state checker
 sal ensure the spider program works
-cosmin build a disk space checker
+cosmin build a process checker
 
 :sprint
 01/22/2009
