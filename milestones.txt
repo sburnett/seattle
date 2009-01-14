@@ -35,7 +35,7 @@
 all seattle developers
 alper try out the ticket system
 andreas try out the ticket system
-armon try out the ticket system
+853 armon try out the ticket system
 anthony try out the ticket system
 brent try out the ticket system
 carter try out the ticket system
@@ -76,7 +76,7 @@ measure twice cut once
 anthony get resource information on Linux
 brent get resource information on Windows XP / Vista
 carter get resource information on BSD / Mac
-armon get resource information on Windows Mobile
+853 armon get resource information on Windows Mobile
 
 :sprint
 02/05/2009
