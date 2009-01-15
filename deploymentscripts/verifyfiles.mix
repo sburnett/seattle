@@ -1,0 +1,214 @@
+"""
+<Program Name>
+  verifyfiles.py
+
+<Started On>
+  January 13, 2009
+
+<Author>
+  Brent Couvrette
+
+<Purpose>
+  This will look for a seattle install folder and if found, check to see if it
+  is valid according to the given installer.
+  
+<Usage>
+  This module can be used either as an import or standalone.  As an import,
+  just call verify_files, which will return a dictionary of problematic files.
+  See the docstring there for more details.
+  
+  When run as a standalone, it takes one argument, the path to an installer
+  tarball.  In this mode it will just call verify_files and pretty print the
+  returned dictionary.
+"""
+
+from repyportability import *
+import os
+import shutil
+import tarfile
+import tempfile
+
+include sha.repy
+
+def get_file_hash(filename):
+  """
+  <Purpose>
+    Computes the sha hash of the given file.
+    
+  <Side Effects>
+    None
+    
+  <Exceptions>
+    An exception could be thrown if there are problems reading the file.
+    
+  <Arguments>
+    filename - the path of the file to be hashed.
+    
+  <Return>
+    The hash of the given file.
+  """
+  fileobj = file(filename, 'rb')
+  filedata = fileobj.read()
+  fileobj.close()
+  
+  return sha_hexhash(filedata)
+  
+
+def get_file_info(installer_fn):
+  """
+  <Purpose>
+    Takes an installer file name and extracts a list of files and folders
+    that it should create, as well as some of their properties.
+
+  <Side Effects>
+    None?
+    
+  <Exceptions>
+    An exception should be thrown if installer_fn is not a path to a tar file
+
+  <Arguments>
+    installer_fn - The file name of the installer that we are checking against.
+
+  <Return>
+    A dictionary mapping the neccessary files and directories to a list of 
+    attributes of those files/directories.
+  """
+  # Extract the installer into a temp directory so we can check out all of
+  # its files.
+  tempdir = tempfile.mkdtemp()
+  installer_file = tarfile.open(installer_fn)
+  installer_file.extractall(tempdir)
+  
+  fileinfo_dict = {}
+  tempdir = tempdir + '/seattle_repy/'
+  for instfile in os.listdir(tempdir):
+    # For every file in the directory, determine if it is a regular file or a
+    # directory.  Put this information into a dictionary, adding the file's
+    # hash if it is a file.
+    # At this point our install should be flat except for maybe vessel folders
+    # which we don't want to look into anyways.
+    # I think that anything listed here must be either a file or a directory/
+    # Is this actually true?
+    if os.path.isfile(tempdir + instfile):
+      filehash = get_file_hash(tempdir + instfile)
+      fileinfo_dict[instfile] = ['file', filehash]
+    elif os.path.isdir(tempdir + instfile):
+      fileinfo_dict[instfile] = ['dir']
+    else:
+      fileinfo_dict[instfile] = ['unknown']
+      print 'Warning: ' + instfile + ' was in installer, but it is not a ' + \
+          'file or a directory.'
+  
+  shutil.rmtree(tempdir)
+  return fileinfo_dict
+
+def verify_files(installer_fn):
+  """
+  <Purpose>
+    Looks for a seattle_repy folder, and if found, verify that it matches a
+    install made by the given installer.
+
+  <Side Effects>
+    None?
+
+  <Arguments>
+    installer_fn - The file name of the installer that we are checking against.
+
+  <Returns>
+    Dictionary mapping problematic files to the reason for them being
+    problematic.  An empty dictionary indicates that the install is valid.
+  """
+  # Check to see if there is a seattle_repy folder in the current directory
+  if not (os.path.exists('seattle_repy') and os.path.isdir('seattle_repy')):
+    return {'seattle_repy': 'Error:Does not exist'}
+    
+  fileinfo_dict = get_file_info(installer_fn)
+  os.chdir('seattle_repy')
+  
+  filestatus_dict = {}
+  
+  for foundfile in os.listdir('.'):
+    # Check each file in the directory against the fileinfo_dict that we 
+    # extracted from the installer.
+    # Are there any special files that I should handle separately?
+    if foundfile == 'vesseldict':
+      # vesseldict is likely to be different than what came with the installer,
+      # so we will only check that it exists, and not bother with anything 
+      # else for now.
+      fileinfo_dict[foundfile] = 'found'
+    elif foundfile.startswith('resource.v'):
+      # There are likely to be more resource files than in the installer,
+      # and they will likely be different.  At this point we will assume
+      # they are ok, and just mark them as found.
+      fileinfo_dict[foundfile] = 'found'
+      # At this point we will assume that as long as there is any vessel
+      # resource file, that v1's has been accounted for, as v1's will likely
+      # not exist anymore.
+      fileinfo_dict['resource.v1'] = 'found'
+    elif foundfile.startswith('v') and os.path.isdir(foundfile):
+      # In this case it is almost certainly a vessel directory, and should
+      # just be marked as found.
+      fileinfo_dict[foundfile] = 'found'
+      # At this point we will assume that as long as there is any vessel
+      # directory, that v1 has been accounted for, as v1 will likely not
+      # exist anymore.
+      fileinfo_dict['v1'] = 'found'
+    elif foundfile == 'nodeman.cfg':
+      # nodeman.cfg changes during the install process, so for now it is
+      # good enough just knowing that it exists.
+      fileinfo_dict[foundfile] = 'found'
+    elif foundfile.endswith('.pyc'):
+      # .pyc files get automatically created when things are imported,
+      # so in general these files are to be expected, so we will just
+      # mark them as found, but otherwise ignore them.
+      fileinfo_dict[foundfile] = 'found'
+    elif 'stop' in foundfile:
+      # There may be vessel stop files that we can safely ignore.
+      fileinfo_dict[foundfile] = 'found'
+    elif 'log' in foundfile:
+      # vessel and softwareupdater logs can also safely be ignored.
+      fileinfo_dict[foundfile] = 'found'
+    elif 'status' in foundfile:
+      # Vessel status files can also safely be ignored.
+      fileinfo_dict[foundfile] = 'found'
+    elif fileinfo_dict.has_key(foundfile):
+      if fileinfo_dict[foundfile][0] == 'dir':
+        if not os.path.isdir(foundfile):
+          filestatus_dict[foundfile] = "Error:should be a directory, but \
+              it isn't"
+      elif fileinfo_dict[foundfile][0] == 'file':
+        if not os.path.isfile(foundfile):
+          filestatus_dict[foundfile] = "Error:should be a file, but isn't"
+        else:
+          filehash = get_file_hash(foundfile)
+          if not (filehash == fileinfo_dict[foundfile][1]):
+            filestatus_dict[foundfile] = "Error:Incorrect hash value"
+            
+      # The file was found regardless errors, so lets indicate that here.      
+      fileinfo_dict[foundfile] = 'found'
+    else:
+      # The file is not in the list of approved files.
+      if os.path.isfile(foundfile):
+        filestatus_dict[foundfile] = "Warning:Unknown file"
+      elif os.path.isdir(foundfile):
+        filestatus_dict[foundfile] = "Warning:Unknown directory"
+      
+  for reqfile in fileinfo_dict.keys():
+    # Make note of any files that should be there but were not found.
+    if fileinfo_dict[reqfile] != 'found':
+      filestatus_dict[reqfile] = "Error:required " + \
+          filestatus_dict[reqfile][0] + " not found"
+  
+  return filestatus_dict
+  
+  
+  
+if __name__ == "__main__":
+  filestatus = verify_files(sys.argv[1])
+  
+  for problem_file in filestatus.keys():
+    print problem_file + ':' + filestatus[problem_file]
+
+
+
+
