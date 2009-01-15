@@ -27,7 +27,7 @@ from datetime import datetime
 
 enable_email = False
 svn_repo_path = '/var/local/svn/'
-notify_list = ['ivan@cs.washington.edu, justinc@cs.washington.edu, jaehong@u.washington.edu']
+notify_list = ['seattle-devel@cs.washington.edu']
 
 if enable_email:
   import send_gmail
@@ -122,31 +122,42 @@ def main():
 
   # check if any of the sprint personnel are past deadline
   for sprint in parse_sprints(milestones_txt):
-      sprint_date = datetime.strptime("%s 23:59:59"%(sprint['date']), "%m/%d/%Y %H:%M:%S")
-      if sprint_date < datetime.now():
-          # sprint in the past
-          notify = False
-          notify_str = ""
+      sprint_date = datetime.strptime("%s 00:00:00"%(sprint['date']), "%m/%d/%Y %H:%M:%S")
+      #print sprint_date
+      if sprint_date <= datetime.now():
+          if sprint['date'] == datetime.now().strftime("%m/%d/%Y"):
+            # sprint due today
+            notify = True
+          else:
+            # sprint in the past
+            notify = False
+            
+          notify_str = '''
+For the %s sprint for the %s strike force:
+
+'''%(sprint['date'], sprint['force'])
           # check if we need to notify
           for user in sprint['users']:
             try:
-              rev = int(user.split(' ')[0])
+              rev = "Completed as of revision %i"%(int(user.split(' ')[0]))
             except ValueError:
-              task = ' '.join(user.split(' ')[1:])
-              user = user.split(' ')[0]
-              notify_str += '''
+              rev = "Failed to complete"
+              # always notify when someone failed in a sprint
+              notify = True
+              
+            task = ' '.join(user.split(' ')[1:])
+            user = user.split(' ')[0]
+            notify_str += '''
 User            %s
 Task            %s
-Deadline        %s
-Strike force    %s'''%(user, task, sprint['date'], sprint['force']) + '\n'
-              notify = True
+%s'''%(user, task, rev) + '\n\n'
           
           if notify:
-              print notify_str
-              if enable_email:
-                # send email to notify_list members
-                for email in notify_list:
-                  send_gmail.send_gmail(email, "user(s) failed to meet sprint deadline %s"%(sprint['date']), notify_str, "")
+            print notify_str
+            if enable_email:
+              # send email to notify_list members
+              for email in notify_list:
+                send_gmail.send_gmail(email, "[status] strike force: %s, sprint: %s"%(sprint['force'], sprint['date']), notify_str, "")
               
 if __name__ == "__main__":
   sys.exit(main())
