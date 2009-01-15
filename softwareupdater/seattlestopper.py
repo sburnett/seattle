@@ -51,7 +51,7 @@ def killall():
       print "The lock '" + lockname + "' was held by an unknown process."
     else:
       # We got the pid, we can stop the process
-      print "Stopping the process (pid: " + str(reval) + ") with lock " + lockname + "."
+      print "Stopping the process (pid: " + str(retval) + ") with lock " + lockname + "."
       nonportable.portablekill(retval)
 
       # Now acquire the lock for ourselves, looping until we

@@ -37,7 +37,7 @@ req nmadvertise.py
 req nmclient.repy
 req nmconnectionmanager.py
 req nminit.py
-req nmmain,py
+req nmmain.py
 req nmrequesthandler.py
 req nmresourcemath.py
 req nmstatusmonitor.py
@@ -71,8 +71,6 @@ req writemetainfo.py
 req parallelize.repy
 req seattlestarter.py
 req windows_api.py
-req windows_ce_os.py
 req uniqueid.repy
 req timeout_xmlrpclib.py
-req windows_ce_api.py
 req listops.repy
