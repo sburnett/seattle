@@ -1,0 +1,21 @@
+<html>
+  <head>
+  <title>Upload your assignment</title>
+  </head>
+  <body>
+    {% ifnotequal info "" %}
+    <p><font color="blue">
+	{{ info }}
+    </font></p><br>
+    {% endifnotequal %}
+  <form action="{% url upload %}" method="POST" enctype="multipart/form-data">
+  <table>
+    <tr><td>{{ form.email.label_tag }}<font color="red">*</font></td><td>{{ form.email }}</td></tr>
+    <tr><td>{{ form.class_code.label_tag }}<font color="red">*</font></td><td>{{ form.class_code }}</td></tr>
+    <tr><td>Assignment file</td><td><input type="file" name="assignment" id="id_assignment" /></td></tr>
+    <tr><td colspan=2><input align="center" type="submit" value="Submit" /></td></tr>
+    
+  </table>
+  </form>
+  </body>
+</html>
