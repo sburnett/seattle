@@ -2022,19 +2022,19 @@ def do_announce(pubkey,value,valuelifetime):
 
 def changeusers(userpubkeystringlist, nmip, nmport, vesselname, nodepubkeystring, nodeprivkeystring):
 
-  logfo = open("/tmp/log.out","a")
+##  logfo = open("/tmp/log.out","a")
   try:
     import time
-    print >> logfo, time.time(),"Start!"
-    logfo.flush()
+###    print >> logfo, time.time(),"Start!"
+#    logfo.flush()
     last = time.time()
   
     initialize_time_if_needed()
   
 
     now = time.time()
-    print >> logfo, now, now-last,"CreateHandle", nmip, nmport, vesselname
-    logfo.flush()
+###    print >> logfo, now, now-last,"CreateHandle", nmip, nmport, vesselname
+#    logfo.flush()
     last = now
     try:
       nmhandle = nmclient_createhandle(nmip, nmport)
@@ -2047,20 +2047,20 @@ def changeusers(userpubkeystringlist, nmip, nmport, vesselname, nodepubkeystring
     nmclient_set_handle_info(nmhandle, myhandleinfo)
 
     now = time.time()
-    print >> logfo, now, now-last,time.time(),"StopVessel"
-    logfo.flush()
+##    print >> logfo, now, now-last,time.time(),"StopVessel"
+#    logfo.flush()
     last = now
     try:
       nmclient_signedsay(nmhandle, "StopVessel", vesselname)
     except NMClientException, e:
       # this may fail because the vessel may not be started
       now = time.time()
-      print >> logfo, now, now-last, time.time(),"Exception raised calling StopVessel: " + str(e)
+##      print >> logfo, now, now-last, time.time(),"Exception raised calling StopVessel: " + str(e)
       last = now
 
     now = time.time()
-    print >> logfo, now, now-last, time.time(),"ChangeUsers"
-    logfo.flush()
+##    print >> logfo, now, now-last, time.time(),"ChangeUsers"
+#    logfo.flush()
     last = now
     # set the users...
     try:
@@ -2069,31 +2069,32 @@ def changeusers(userpubkeystringlist, nmip, nmport, vesselname, nodepubkeystring
       return False, "ChangeUsers failed: " + str(e)
 
     if userpubkeystringlist[0] != '':
-    #  print "key",rsa_string_to_publickey(userpubkeystringlist[0])
+#    #  print "key",rsa_string_to_publickey(userpubkeystringlist[0])
       now = time.time()
-      print >> logfo, now, now-last, time.time(),"advert: IP '"+nmip+"' port '"+str(nmport)+"' keystr '"+str(userpubkeystringlist[0])+"' key '"+str(rsa_string_to_publickey(userpubkeystringlist[0]))+"'"
-      logfo.flush()
+##      print >> logfo, now, now-last, time.time(),"advert: IP '"+nmip+"' port '"+str(nmport)+"' keystr '"+str(userpubkeystringlist[0])+"' key '"+str(rsa_string_to_publickey(userpubkeystringlist[0]))+"'"
+#      logfo.flush()
       last = now
       try:
         settimer(0.0, do_announce, (rsa_string_to_publickey(userpubkeystringlist[0]), nmip+":"+str(nmport), 750))
 #        advertise.announce(rsa_string_to_publickey(userpubkeystringlist[0]), nmip+":"+str(nmport), 750)
       except Exception, e:
         now = time.time()
-        print >> logfo, now, now-last, "Exception raised calling advertise.announce", e
-        logfo.flush()
+##        print >> logfo, now, now-last, "Exception raised calling advertise.announce", e
+#        logfo.flush()
         last = now
     else:
       now = time.time()
-      print >> logfo, now, now-last, time.time(),"XYZ: IP '"+nmip+"' port '"+str(nmport)+"' keystr '"+str(userpubkeystringlist[0])+"' no key"
-      logfo.flush()
+##      print >> logfo, now, now-last, time.time(),"XYZ: IP '"+nmip+"' port '"+str(nmport)+"' keystr '"+str(userpubkeystringlist[0])+"' no key"
+#      logfo.flush()
       last = now
 
     now = time.time()
-    print >> logfo, now, now-last, time.time(),"Finished!"
-    logfo.flush()
+##    print >> logfo, now, now-last, time.time(),"Finished!"
+#    logfo.flush()
     last = now
   finally:
-    logfo.close()
+    pass
+#    logfo.close()
  
   return True, "ok"
 
