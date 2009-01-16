@@ -27,14 +27,19 @@ from subprocess import *
 #p.stdin.write('ls');
 #print p.stdout;
 
-
 slice="root"
+script1='processChecker.sh'
+term1='ProcessCheckerFinished'
+
+script2='fileChecker.sh'
+term2='file_checker_finished'
+
 for server in file(sys.argv[1]):
 
  server=server.strip()#"192.168.0.22"
- if os.system("scp -o StrictHostKeyChecking=no -o BatchMode=yes processChecker.sh "+slice+"@"+server+":")!=0:
+ if os.system("scp -o StrictHostKeyChecking=no -o BatchMode=yes "+script1+" "+slice+"@"+server+":")!=0:
   print "scp failed for processChecker for "+server
- if os.system("scp -o StrictHostKeyChecking=no -o BatchMode=yes fileChecker.sh "+slice+"@"+server+":")!=0:
+ if os.system("scp -o StrictHostKeyChecking=no -o BatchMode=yes "+script2+" "+slice+"@"+server+":")!=0:
   print "scp failed for fileChecker for "+server
 
 # if True:
@@ -55,22 +60,58 @@ for server in file(sys.argv[1]):
 
 #(stdoutu, stderru)=p.communicate('./test.sh')#[0]
 #p=Popen('./test.sh',shell=True,stdout=PIPE,stdin=PIPE)
- (stdout, stderr)=p.communicate('./processChecker.sh;./fileChecker.sh;')#[0]
+ (stdout, stderr)=p.communicate('./'+script1+';'+'./'+script2+';')#[0]
 #repr(stdout)
 #print stdoutu
 
 #(stdout, stderr)=p.communicate('./test.sh')#[0]
 #print stdout
- print "Server: "+server
- if stdout.find("file_checker_finished")>=0:
-  print "  FILE CHECKER PASS"
- else: 
-  print "  FILE CHECKER ERROR"
+# for l in stdout.readline():
+#  print l
 
- if stdout.find("ProcessCheckerFinished")>=0:
-  print "  PROCESS CHECKER PASS"
- else: 
-  print "  PROCESS CHECKER ERROR"
+
+ print "Server: "+server
+ if stdout.find("file_checker_finished")<0:
+   print "  FILE CHECKER DIDN'T FINISH!"
+# else: 
+#  print "  FILE CHECKER FINISHED"
+
+ if stdout.find("ProcessCheckerFinished")<0:
+   print "  PROCESS CHECKER DIDIN'T FINISH!"
+# else: 
+#  print "  PROCESS CHECKER FINISHED"
+
+ output=stdout.split('\n');
+
+#indicates which scripts have passed 1=only first, 2=only second, 3=first and second etc.
+ passedScripts=0
+
+#need to rewrite this to use nicer math
+#line of output at which script ends
+ line=0
+ for i in range (0,len(output)):
+  if output[i].find(term1)>=0:
+   line=i
+   if i==0:
+    passedScripts=1
+  if output[i].find(term2)>=0:
+   if i-line==1:
+    passedScripts+=2
+
+ if passedScripts==0:
+  print "PROCESS CHECKER [FAILED]"
+  print "FILE CHECKER [FAILED]"
+ if passedScripts==1:
+  print "PROCESS CHECKER [PASSED]"
+  print "FILE CHECKER [FAILED]"
+ if passedScripts==2:
+  print "PROCESS CHECKER [FAILED]"
+  print "FILE CHECKER [PASSED]"
+ if passedScripts==3:
+  print "FILE CHECKER [PASSED]"
+  print "PROCESS CHECKER [PASSED]"
+
+
 
 
 #p.communicate('exit')
