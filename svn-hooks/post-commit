@@ -31,8 +31,9 @@ import svn.client
 import subprocess
 
 import send_gmail
+import daemonize
 
-notify_list = ["bestchai@gmail.com", "justinc@cs.washington.edu"]
+notify_list = ['bestchai@gmail.com, justinc@cs.washington.edu']
 
 def command_output(cmd):
   """
@@ -299,6 +300,6 @@ Example: %s /var/local/svn/ 807
 
   return 0
 
-
 if __name__ == "__main__":
+  daemonize.daemonize('/dev/null','/tmp/post-commit.log','/tmp/post-commit.log')
   sys.exit(main())
