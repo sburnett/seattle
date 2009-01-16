@@ -31,6 +31,7 @@ import django.contrib.auth as auth
 from django.views.generic.simple import direct_to_template
 from django.contrib.auth.forms import AuthenticationForm
 from django.core.urlresolvers import reverse
+from django.conf import settings
 
 from geni.control.models import User
 import forms
@@ -53,13 +54,13 @@ def register(request):
             # this creates and saves the geni user in the database
             geni_user = User(www_user = new_user, affiliation=form.cleaned_data['affiliation'], pubkey=txt_pubkey, privkey="")
             geni_user.save_new_user()
-            return HttpResponseRedirect("/geni/accounts/login")
+            return HttpResponseRedirect('/' + settings.URL_PREFIX + 'accounts/login')
     else:
         form = forms.UserCreationForm()
     return direct_to_template(request,'accounts/register.html', {'form' : form})
 
 def login_redirect(request):
-    return HttpResponseRedirect("/geni/accounts/login")
+    return HttpResponseRedirect('/' + settings.URL_PREFIX + "accounts/login")
 
 def login(request):
     '''
