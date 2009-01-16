@@ -55,7 +55,7 @@
 infection and recurrence
 874 carter build a clobbering uninstaller
 870 brent build a file system state checker
-sal ensure the spider program works
+882 sal ensure the spider program works
 863 cosmin build a process checker
 
 :sprint
