@@ -41,29 +41,24 @@ from django.conf import settings
 from django.contrib import admin
 admin.autodiscover()
 
-# this is our global url prefix that must match what Apache uses for
-# django's geni application (see /etc/apache2/apache2.conf)
-prefix='geni/'
-
-
 urlpatterns = patterns('',
-                       (r'^%s$'%(prefix), 'geni.accounts.views.login_redirect'), #'geni.accounts.views.login'), 
-                       (r'^%saccounts/register$'%(prefix), 'geni.accounts.views.register',{},'register'),
-                       (r'^%saccounts/login$'%(prefix), 'geni.accounts.views.login',{},'login'), 
-                       (r'^%saccounts/logout$'%(prefix), 'django.contrib.auth.views.logout_then_login',{},'logout'),
+                       (r'^%s$'%(settings.URL_PREFIX), 'geni.accounts.views.login_redirect'), #'geni.accounts.views.login'), 
+                       (r'^%saccounts/register$'%(settings.URL_PREFIX), 'geni.accounts.views.register',{},'register'),
+                       (r'^%saccounts/login$'%(settings.URL_PREFIX), 'geni.accounts.views.login',{},'login'), 
+                       (r'^%saccounts/logout$'%(settings.URL_PREFIX), 'django.contrib.auth.views.logout_then_login',{},'logout'),
                        
-                       (r'^%scontrol/'%(prefix), include('geni.control.urls')),
-                       (r'^%sdownload/'%(prefix), include('geni.download.urls')),
+                       (r'^%scontrol/'%(settings.URL_PREFIX), include('geni.control.urls')),
+                       (r'^%sdownload/'%(settings.URL_PREFIX), include('geni.download.urls')),
                        
                        # Uncomment the admin/doc line below and add 'django.contrib.admindocs' 
                        # to INSTALLED_APPS to enable admin documentation:
                        # (r'^admin/doc/', include('django.contrib.admindocs.urls')),
                        
                        # Uncomment the next line to enable the admin:
-                       (r'^%sadmin/(.*)'%(prefix), admin.site.root),
-                       (r'^%sadmin_media/(?P<path>.*)$'%(prefix), 'django.views.static.serve', {'document_root': settings.ADMIN_MEDIA_ROOT}),
-                       (r'^%smedia/(?P<path>.*)$'%(prefix), 'django.views.static.serve', {'document_root': settings.MEDIA_ROOT}),                          
+                       (r'^%sadmin/(.*)'%(settings.URL_PREFIX), admin.site.root),
+                       (r'^%sadmin_media/(?P<path>.*)$'%(settings.URL_PREFIX), 'django.views.static.serve', {'document_root': settings.ADMIN_MEDIA_ROOT}),
+                       (r'^%smedia/(?P<path>.*)$'%(settings.URL_PREFIX), 'django.views.static.serve', {'document_root': settings.MEDIA_ROOT}),                          
 )
 
 # used in case of website work/construction
-#urlpatterns = patterns('', (r'^%s*'%(prefix), 'geni.control.views.construction', {}, 'construction'))
+#urlpatterns = patterns('', (r'^%s*'%(settings.URL_PREFIX), 'geni.control.views.construction', {}, 'construction'))
