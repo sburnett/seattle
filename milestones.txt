@@ -30,23 +30,23 @@
 # 807 alper
 # 810 sean
 
-:sprint
-01/14/2009
-all seattle developers
-861 alper try out the ticket system
-855 andreas try out the ticket system
-853 armon try out the ticket system
-868 anthony try out the ticket system
-858 brent try out the ticket system
-859 carter try out the ticket system
-857 cosmin try out the ticket system
-851 dennis try out the ticket system
-852 eric try out the ticket system
-jenn try out the ticket system
-870 michael try out the ticket system
-mitchell try out the ticket system
-850 sal try out the ticket system
-866 sean try out the ticket system
+#:sprint
+#01/14/2009
+#all seattle developers
+#861 alper try out the ticket system
+#855 andreas try out the ticket system
+#853 armon try out the ticket system
+##868 anthony try out the ticket system
+#858 brent try out the ticket system
+#859 carter try out the ticket system
+#857 cosmin try out the ticket system
+#851 dennis try out the ticket system
+#852 eric try out the ticket system
+#jenn try out the ticket system
+#870michael try out the ticket system
+#mitchell try out the ticket system
+##850 sal try out the ticket system
+#866 sean try out the ticket system
 
 
 
