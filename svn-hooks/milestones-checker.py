@@ -107,11 +107,11 @@ def main():
   milestones_txt = command_output("svn cat http://seattle.cs.washington.edu/svn/seattle/trunk/milestones.txt")
   
 # failure example:
-#  milestones_txt = """
+  milestones_txt = """
 #:sprint
 #01/01/2009
 #eye candy
-#alper parallelize resource acquisition and release
+#789 alper parallelize resource acquisition and release
 #sean redesign GENI portal
 #"""
 
@@ -140,13 +140,15 @@ For the %s sprint for the %s strike force:
           for user in sprint['users']:
             try:
               rev = "Completed as of revision %i"%(int(user.split(' ')[0]))
+              task = ' '.join(user.split(' ')[2:])
+              user = user.split(' ')[1]
             except ValueError:
               rev = "Failed to complete"
               # always notify when someone failed in a sprint
               notify = True
+              task = ' '.join(user.split(' ')[1:])
+              user = user.split(' ')[0]
               
-            task = ' '.join(user.split(' ')[1:])
-            user = user.split(' ')[0]
             notify_str += '''
 User            %s
 Task            %s
