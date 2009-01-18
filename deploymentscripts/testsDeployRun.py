@@ -31,7 +31,7 @@ term1='ProcessCheckerFinished'
 script2='fileChecker.sh'
 term2='file_checker_finished'
 
-log=open('logs/'+strftime("%Y-%m-%d_%H:%M:%S"),'w');
+log=open('logs/'+strftime("%Y-%m-%d_%H.%M.%S"),'w');
 #message for output and log
 message=""
 
