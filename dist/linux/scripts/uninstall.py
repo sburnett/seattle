@@ -17,6 +17,7 @@ import re
 import os
 import seattlestopper
 import tempfile
+import sys
 
 STARTER_SCRIPT_NAME = "start_seattle.sh"
 
