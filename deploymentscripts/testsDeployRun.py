@@ -20,8 +20,10 @@
 
 import os
 import sys
+from time import strftime
 from subprocess import *
 
+#further assumption is that scripts run in this order
 slice="root"
 script1='processChecker.sh'
 term1='ProcessCheckerFinished'
@@ -29,34 +31,44 @@ term1='ProcessCheckerFinished'
 script2='fileChecker.sh'
 term2='file_checker_finished'
 
+log=open('logs/'+strftime("%Y-%m-%d %H:%M:%S"),'w');
+#message for output and log
+message=""
+
 for server in file(sys.argv[1]):
+
+ m="\n----\nServer: "+server
+ print m; log.write(m)
 
  server=server.strip()
  if os.system("scp -o StrictHostKeyChecking=no -o BatchMode=yes "+script1+" "+slice+"@"+server+":")!=0:
-  print "scp failed for processChecker for "+server
+  m="scp failed for processChecker for "+server
+  print m;log.write(m)
+
  if os.system("scp -o StrictHostKeyChecking=no -o BatchMode=yes "+script2+" "+slice+"@"+server+":")!=0:
-  print "scp failed for fileChecker for "+server
+  m="scp failed for fileChecker for "+server
+  print m; log.write(m)
 
 #open up a pipe for ssh communication
  p=Popen('ssh '+server,shell=True,stdout=PIPE,stdin=PIPE) 
- print "-----"
 
 #execute scripts on the remote server
  (stdout, stderr)=p.communicate('./'+script1+';'+'./'+script2+';')#[0]
-
- print "Server: "+server
+ 
 
 #indicate if script did not terminate properly
 
  if stdout.find(term1)<0:
-   print "  PROCESS CHECKER DIDIN'T FINISH!"
+   m="  PROCESS CHECKER DIDIN'T FINISH!"
 # else: 
-#  print "  PROCESS CHECKER FINISHED"
+#  m="  PROCESS CHECKER FINISHED"
+   print m; log.write(m)
 
  if stdout.find(term2)<0:
-   print "  FILE CHECKER DIDN'T FINISH!"
+   m="  FILE CHECKER DIDN'T FINISH!"
 # else: 
-#  print "  FILE CHECKER FINISHED"
+#  m="  FILE CHECKER FINISHED"
+   print m; log.write(m)
 
 #split the output into an array
  output=stdout.split('\n');
@@ -79,18 +91,16 @@ for server in file(sys.argv[1]):
     passedScripts+=2
 
  if passedScripts==0:
-  print "PROCESS CHECKER [FAILED]"
-  print "FILE CHECKER [FAILED]"
+  m="PROCESS CHECKER [FAILED]\nFILE CHECKER [FAILED]"
  if passedScripts==1:
-  print "PROCESS CHECKER [PASSED]"
-  print "FILE CHECKER [FAILED]"
+  m="PROCESS CHECKER [PASSED]\nFILE CHECKER [FAILED]"
  if passedScripts==2:
-  print "PROCESS CHECKER [FAILED]"
-  print "FILE CHECKER [PASSED]"
+  m="PROCESS CHECKER [FAILED]\nFILE CHECKER [PASSED]"
  if passedScripts==3:
-  print "FILE CHECKER [PASSED]"
-  print "PROCESS CHECKER [PASSED]"
+  m="FILE CHECKER [PASSED]\nPROCESS CHECKER [PASSED]"
+
+ print m; log.write(m)
 
  if stderr:
-  print "ERRORS in STDERR!"
-  print stderr
+  m="ERRORS in STDERR!\n"+stderr
+  print m; log.write(m)
