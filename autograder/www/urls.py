@@ -39,7 +39,9 @@ from django.conf import settings
 
 urlpatterns = patterns('',
                        # assignment upload view
-                       (r'^%supload/'%(settings.URL_ROOT), 'autograder.upload.views.upload', {}, 'upload')
+                       (r'^%supload/'%(settings.URL_PREFIX), 'autograder.upload.views.upload', {}, 'upload'),
                        # see all uploaded assignments
-                       (r'^%see_uploads/'%(settings.URL_ROOT), 'autograder.upload.views.see_uploads', {}, 'see_uploads')
+                       (r'^%suploads/'%(settings.URL_PREFIX), 'autograder.upload.views.see_uploads', {}, 'see_uploads'),
+                       (r'^%spreview/(?P<classcode>\w+)/(?P<email>\w+)'%(settings.URL_PREFIX), 'autograder.upload.views.preview', {}, 'preview'),
+                       (r'^%smedia/(?P<path>.*)$'%(settings.URL_PREFIX), 'django.views.static.serve', {'document_root': settings.MEDIA_ROOT}),
 )

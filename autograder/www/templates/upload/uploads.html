@@ -3,13 +3,13 @@
 <body>
 {% include "common/banner.html" %}
 
-<h1>Current uploads</h1>
+<h2>Current uploads</h2>
 
 <table>
 
-  <tr><td>Class code</td><td>Email</td></tr>
-  {% for classcode,email in upload_entries %}
-  <tr><td>{{ classcode }}</td><td>{{ email }}</td></tr>
+  <tr><td>Class code</td><td>Email</td><td>Submission</td></tr>
+  {% for classcode, email in upload_entries %}
+  <tr><td>{{ classcode }}</td><td>{{ email }}</td><td>{% url preview classcode=classcode email=email %}</tr>
   {% endfor %}
   
 </table>

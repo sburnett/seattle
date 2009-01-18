@@ -32,7 +32,7 @@ from django.views.generic.simple import direct_to_template
 from django.http import HttpResponseRedirect
 from django.http import HttpResponse
 from django.conf import settings
-import globs
+import glob
 
 # import local forms used by the upload application
 import forms
@@ -91,7 +91,6 @@ def upload(request):
                               {'info' : info, 'form' : forms.UploadAssignmentForm()})
 
 
-
     
 def see_uploads(request):
     """
@@ -116,7 +115,11 @@ def see_uploads(request):
 
     upload_entries = []
     for file in uploaded_files:
+        file = file.split(settings.ASSIGNMENT_UPLOAD_PATH)[1]
         classcode, email = file.split("_")
-        upload_entries.append((classcode,email))
+        upload_entries.append((classcode, email, file))
         
     return direct_to_template(request, 'upload/uploads.html', {'upload_entries' : upload_entries})
+
+def preview(request, classcode, email):
+    #return django.views.static.serve', {'document_root': settings.MEDIA_ROOT}),                          
