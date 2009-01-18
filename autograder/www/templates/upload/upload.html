@@ -3,11 +3,21 @@
   <title>Upload your assignment</title>
   </head>
   <body>
+
     {% ifnotequal info "" %}
     <p><font color="blue">
 	{{ info }}
     </font></p><br>
     {% endifnotequal %}
+
+    {% if form.class_code.errors or form.email.errors %}
+	<p><font color="red">
+	Please correct the following:
+		{{ form.class_code.errors }}
+		{{ form.email.errors }}
+        </font></p><br>
+    {% endif %}
+
   <form action="{% url upload %}" method="POST" enctype="multipart/form-data">
   <table>
     <tr><td>{{ form.email.label_tag }}<font color="red">*</font></td><td>{{ form.email }}</td></tr>
