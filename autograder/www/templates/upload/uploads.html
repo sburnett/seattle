@@ -1,0 +1,20 @@
+{% include "common/header.html" %}
+{% block content %}
+<body>
+{% include "common/banner.html" %}
+
+<h1>Current uploads</h1>
+
+<table>
+
+  <tr><td>Class code</td><td>Email</td></tr>
+  {% for classcode,email in upload_entries %}
+  <tr><td>{{ classcode }}</td><td>{{ email }}</td></tr>
+  {% endfor %}
+  
+</table>
+
+
+</body>
+{% endblock %}
+{% include "common/footer.html" %}

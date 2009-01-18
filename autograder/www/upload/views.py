@@ -32,6 +32,7 @@ from django.views.generic.simple import direct_to_template
 from django.http import HttpResponseRedirect
 from django.http import HttpResponse
 from django.conf import settings
+import globs
 
 # import local forms used by the upload application
 import forms
@@ -53,8 +54,7 @@ def upload(request):
         the upload form.
 
     <Returns>
-        An HTTP response object that represents the user info
-        page on succes.
+        An HTTP response object that represents the upload page on succes.
     """
 
     info = ''
@@ -87,7 +87,36 @@ def upload(request):
             # the form is invalid
             pass
             
-    return direct_to_template(request, 'upload/upload.html', {'info' : info, 'form' : forms.UploadAssignmentForm()})
+    return direct_to_template(request, 'upload/upload.html',
+                              {'info' : info, 'form' : forms.UploadAssignmentForm()})
+
+
+
     
+def see_uploads(request):
+    """
+    <Purpose>
+        Shows the user a table of all the assignment uploads
 
+    <Arguments>
+        request:
+            An HTTP request object            
 
+    <Exceptions>
+        None
+
+    <Side Effects>
+        None
+
+    <Returns>
+        An HTTP response object that represents the current uploads
+    """
+
+    uploaded_files = glob.glob(settings.ASSIGNMENT_UPLOAD_PATH + "*")
+
+    upload_entries = []
+    for file in uploaded_files:
+        classcode, email = file.split("_")
+        upload_entries.append((classcode,email))
+        
+    return direct_to_template(request, 'upload/uploads.html', {'upload_entries' : upload_entries})

@@ -40,4 +40,6 @@ from django.conf import settings
 urlpatterns = patterns('',
                        # assignment upload view
                        (r'^%supload/'%(settings.URL_ROOT), 'autograder.upload.views.upload', {}, 'upload')
+                       # see all uploaded assignments
+                       (r'^%see_uploads/'%(settings.URL_ROOT), 'autograder.upload.views.see_uploads', {}, 'see_uploads')
 )
