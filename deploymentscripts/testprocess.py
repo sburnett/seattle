@@ -202,9 +202,9 @@ if (updater_num == 1):
 
   #check if the memory usage (in KB) is too large or to small, typical usage is about 4500KB
   if (int(updater_mem) > 9000):
-    print "[SoftwareUpdater] Software Updater memory usage is unussually high."
+    print "[SoftwareUpdater] Software Updater memory usage is unusually high."
   elif (int(updater_mem) < 2000):
-    print "[SoftwareUpdater] Software Updater memory usage is unussually low."
+    print "[SoftwareUpdater] Software Updater memory usage is unusually low."
 
 
 
@@ -223,7 +223,9 @@ if (updater_num == 1):
   updater_stat = rawcode[0]
 
   #check if the state is Stopped (T), Dead (X), or Defunct (Z)
-  if (updater_stat == "T" or updater_stat == "X" or updater_stat == "T"):
+  # CNB: I changed the third test from 'updater_stat == "T"' - 
+  # I'm assuming this was a typo
+  if (updater_stat == "T" or updater_stat == "X" or updater_stat == "Z"):
     print "[SoftwareUpdater] Software Updater process is Stopped, Dead, or Defunct."
 
 
@@ -276,9 +278,9 @@ if (nm_num == 1):
 
   #check if the memory usage (in KB) is too large or to small, typical usage is about 70000KB
   if (int(nm_mem) > 130000):
-    print "[NodeManager] Node Manager memory usage is unussually high."
+    print "[NodeManager] Node Manager memory usage is unusually high."
   elif (int(nm_mem) < 20000):
-    print "[NodeManager] Node Manager memory usage is unussually low."
+    print "[NodeManager] Node Manager memory usage is unusually low."
 
 
 
@@ -297,7 +299,9 @@ if (nm_num == 1):
   nm_stat = rawcode[0]
 
   #check if the state is Stopped (T), Dead (X), or Defunct (Z)
-  if (nm_stat == "T" or nm_stat == "X" or nm_stat == "T"):
+  # CNB: See my earlier edit, I think the original double 
+  # 'nm_stat == "T"' was a typo.
+  if (nm_stat == "T" or nm_stat == "X" or nm_stat == "Z"):
     print "[NodeManager] Node Manager process is Stopped, Dead, or Defunct."
 
 
