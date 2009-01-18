@@ -18,19 +18,19 @@ import make_base_installers
 import os
 import sys
 import shutil
+import subprocess
 
 # For unique temp folders
 PROGRAM_NAME = "build_and_update"
 UPDATER_SITE = "/home/couvb/public_html/updatesite"
 INSTALL_DIR = "seattle_repy"
 DIST_DIR = "/var/www/dist"
-KEY_DIR = "/home/butaud/src/seattle/trunk/dist/updater_keys"
 
 DEBUG = False
 
 def main():
-    if len(sys.argv) < 2:
-        print "usage: python build_and_update.py trunk/location/ [version]"
+    if len(sys.argv) < 4:
+        print "usage: python update_and_build.py trunk/location/ publickey privatekey [version]"
     else:
         if not DEBUG:
             # Confirm that the user really wants to update all the software
@@ -38,18 +38,24 @@ def main():
             print "Are you sure you want to proceed? (y/n)"
             if raw_input()[0].lower() == "y":
                 if len(sys.argv) < 3:
-                    build_and_update(sys.argv[1])
+                    build_and_update(sys.argv[1], sys.argv[2], sys.argv[3])
                 else:
-                    build_and_update(sys.argv[1], sys.argv[2])
+                    build_and_update(sys.argv[1], sys.argv[2], 
+                                     sys.argv[3], sys.argv[4])
             else:
                 print "Use make_base_installers instead to just create installers."
         else:
             # If we're in DEBUG mode, don't bother to confirm
             if len(sys.argv) < 3:
-                build_and_update(sys.argv[1])
+                build_and_update(sys.argv[1], sys.argv[2], sys.argv[3])
             else:
-                build_and_update(sys.argv[1], sys.argv[2])
-def build_and_update(trunk_location, version=""):
+                build_and_update(sys.argv[1], sys.argv[2], 
+                                 sys.argv[3], sys.argv[4])
+
+
+
+
+def build_and_update(trunk_location, pubkey, privkey, version=""):
     """
     <Purpose>
       Builds the installers, copying the proper files to the software updater
@@ -77,6 +83,7 @@ def build_and_update(trunk_location, version=""):
     update_dir = UPDATER_SITE + "/real"
     if DEBUG:
         update_dir = UPDATER_SITE + "/test"
+    
     # First, make the temp directories
     temp_dir = "/tmp/" + PROGRAM_NAME + str(os.getpid())
     if not os.path.exists(temp_dir):
@@ -85,15 +92,16 @@ def build_and_update(trunk_location, version=""):
     if os.path.exists(install_dir):
         shutil.rmtree(install_dir)
     os.mkdir(install_dir)
+    
     # Next, prepare the installation files
-    pubkey = KEY_DIR + "/updater.publickey"
-    privkey = KEY_DIR + "/updater.privatekey"
-    make_base_installers.prepare_initial_files(trunk_location, pubkey, privkey, install_dir)
+    make_base_installers.prepare_initial_files(trunk_location, False, pubkey, privkey, install_dir)
     
     # Copy the files to the updater site
-    os.popen("rm -f " + update_dir + "/*")
-    os.popen("cp " + install_dir + "/* " + update_dir)
-    
+    p = subprocess.Popen("rm -f " + update_dir + "/*", shell=True)
+    p.wait()
+    p = subprocess.Popen("cp " + install_dir + "/* " + update_dir, shell=True)
+    p.wait()
+
     # Finish preparing the installation files
     make_base_installers.prepare_final_files(trunk_location, install_dir)
     
