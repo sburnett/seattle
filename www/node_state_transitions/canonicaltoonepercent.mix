@@ -1,0 +1,173 @@
+""" 
+Author: Justin Cappos
+
+Module: Polling program for GENI.   It looks for donations, sets them up, and
+        writes the new info in the database.   
+
+Start date: October 18th, 2008
+
+
+"""
+
+include pollinglib.py
+
+
+
+# BUG: What about the advertise flag?
+
+# BUG: What if a program is running an a donated vessel?
+
+
+
+def noop(*args):
+  # in some cases I don't want to do anything (i.e. just change state)
+  pass
+
+
+
+def get_usableports(resourcedata):
+  # Private.   A helper function for onepercentdivide
+  # Find the list of ports where we have both connports and messports
+
+  connports = []
+  messports = []
+
+  for line in resourcedata.split('\n'):
+
+    if line.startswith('resource'):
+      (linejunk, resourcetype, value) = line.split()
+      if resourcetype == 'connport':
+        # I do int(float(x)) because x might be '13253.0'
+        connports.append(int(float(value)))
+      if resourcetype == 'messport':
+        messports.append(int(float(value)))
+
+  return listops_intersect(connports, messports)
+
+
+
+
+def onepercentdivide(nmhandle, node, vesseldict, resourcetemplate):
+  # the only function I need to write... (adopted mostly from pollvessels.py)
+
+  print "One percent starting on:",node
+
+  # need to figure out the name of the canonical vessel
+
+  # get the key used in the handle...
+  myhandleinfo = nmclient_get_handle_info(nmhandle)
+  mypublickey = myhandleinfo['publickey']
+
+  donatedvesselname = None
+
+  # I'm only interested in the vessels I control...
+  for vesselname in vesseldict['vessels']:
+
+    if vesseldict['vessels'][vesselname]['ownerkey'] == mypublickey:
+      
+      if donatedvesselname:
+        # Already a donation!
+        raise NodeError("Multiple vessels on node "+node+".   It is not in the canonical state!")
+      donatedvesselname = vesselname
+
+
+  if not donatedvesselname:
+    raise NodeError("No valid vessel on node "+node+".   It is not in the canonical state!")
+
+  
+
+  # I need to get the resource information so I know what I'm dealing with...  
+  donatedresourcedata = nmclient_rawsay(nmhandle, "GetVesselResources",donatedvesselname)  
+  usableports = get_usableports(donatedresourcedata)
+
+  # let's reorder the ports (we'll use a random subset)
+  random.shuffle(usableports)
+
+
+  # currentvessel will store the chunk we're going to split.   It starts with
+  # the donated resources and will end up having the "left overs" after this
+  # loop.
+  currentvessel = donatedvesselname
+
+  # This will contain tuples of (vesselname, port list)
+  newvesselinfolist = []
+
+  # I'm going to add the ports 10 at a time to the resourcetemplate
+  # I'll exit when running out of ports or if I'm unable to split
+  while True:
+
+    if len(usableports) < 10:
+      # too few ports
+      break
+
+    # Note the template has 10 ports hardcoded.   I perhaps should have been smarter
+    desiredresourcedata = resourcetemplate % (str(usableports[0]),str(usableports[1]), str(usableports[2]),str(usableports[3]),str(usableports[4]),str(usableports[5]),str(usableports[6]),str(usableports[7]),str(usableports[8]),str(usableports[9]),str(usableports[0]),str(usableports[1]), str(usableports[2]),str(usableports[3]),str(usableports[4]),str(usableports[5]),str(usableports[6]),str(usableports[7]),str(usableports[8]),str(usableports[9]))
+
+    # I'm using the first 10, so let's remove them from the list of usable ports
+    usedports = usableports[:10]
+    usableports = usableports[10:]
+    
+
+    try:
+      splitvesselretval = nmclient_signedsay(nmhandle, "SplitVessel", currentvessel, desiredresourcedata)
+    except NMClientException, e:
+      # if the failure is due to inability to split further, we're okay
+      if 'Insufficient quantity:' in str(e):
+        break
+      raise
+    
+
+    # Get the new vessel names.   The "left" vessel has the leftovers, the 
+    # "right" is of the size we requested.
+    newvesselname1, newvesselname2 = splitvesselretval.split()
+
+    currentvessel = newvesselname1 
+    newvesselinfolist.append((newvesselname2, usedports))
+
+    # Let's remove the state from the new vessel... (if not, then I'll rely
+    # on setnodestate to do this for me and it might choose the wrong vessel)
+
+    nmclient_signedsay(nmhandle, "ChangeUsers", newvesselname2, '')
+
+
+
+  nodeID = rsa_publickey_to_string(vesseldict['nodekey'])
+
+  # look up the node info using its key. if no such node found,
+  # node will be None, otherwise it will be a Donation object
+  # linked to the db.
+  dbnode = genidb.lookup_node(nodeID)
+  if not dbnode:
+    raise NodeError("Fatal! Node "+node+" is not in database after checking!")
+
+  genidb.add_node_vessels(dbnode, 'Intermediate', newvesselinfolist, currentvessel,usableports)
+
+  
+
+
+
+
+def main():
+
+  # We're simply saying we want to go from canonical to movingtoonepercent via 
+  # noop (i.e. set any canonical systems to transition), go from 
+  # movingtoonepercent to onepercent by onepercentdivide (i.e. set up the 
+  # vessels using the resource file listed), and any nodes that didn't make the
+  # transition should be moved from movingtoonepercent back to canonical
+  # (i.e. to try again)
+  onepercentresourcefo = file("onepercent.resources")
+  onepercentresourcetemplate = onepercentresourcefo.read()
+  onepercentresourcefo.close()
+
+  # The format is: (startstate, endstate, function, args...)
+  statefunctionargtuplelist = [ 
+      (canonicalpublickey, movingtoonepercent2publickey, noop),
+      (movingtoonepercent2publickey, onepercent2publickey, onepercentdivide, onepercentresourcetemplate),
+      (movingtoonepercent2publickey, canonicalpublickey, combinevessels, movingtoonepercent2publickey)]
+
+  locateandprocessvessels(statefunctionargtuplelist, 'canonicaltoonepercent', 10)
+  
+
+
+if __name__ == '__main__':
+  main()
