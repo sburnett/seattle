@@ -7,14 +7,21 @@
   October 3, 2008
 
 <Description>
-This script has been adapted from the bash script preparetest.
-The script first erases all the files in the target folder, then copies the necessary test files to it. Afterwards, the .mix files in the target folder are run through the preprocessor.
-It is required that the folder passed in as an argument to the script exists.
+  This script has been adapted from the bash script preparetest.  The
+  script first erases all the files in the target folder, then copies
+  the necessary test files to it. Afterwards, the .mix files in the
+  target folder are run through the preprocessor.  It is required that
+  the folder passed in as an argument to the script exists.
 
-Usage:
-preparetest.py <target_folder> <-t>
+<Usage>
+  preparetest.py <target_folder> <-t>
 
-if -t is specified, the repy tests will also be included, otherwise, they will not
+  if -t is specified, the repy tests will also be included, otherwise, they will not
+
+<Notes>
+  This file is used as a library by trunk/www/deploy_state_transitions.py
+  If you make ANY changes to this file please let Ivan know so that the
+  other script can continue to function correctly. Thanks. (IB 01/19/09)
 
 """
 
