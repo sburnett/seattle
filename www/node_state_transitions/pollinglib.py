@@ -336,8 +336,9 @@ def getnodehandleanddict(node, acceptnewnode=False):
 
 
   except:
+    # left for further debugging, but not essential since the
+    # exception is re-raised and printed further up the stack
     print time.ctime(),"Exception in getnodehandleanddict"
-    print "Exception: "
     traceback.print_exc(file=sys.stdout)
     nmclient_destroyhandle(thisnmhandle)
     raise
