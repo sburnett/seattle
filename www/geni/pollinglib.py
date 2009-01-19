@@ -94,6 +94,7 @@ import logging
 import sys
 import time
 import genidb
+import traceback
 
 
 
@@ -330,6 +331,9 @@ def getnodehandleanddict(node, acceptnewnode=False):
 
 
   except:
+    print time.ctime(),"Exception in getnodehandleanddict"
+    print "Exception: "
+    traceback.print_exc(file=sys.stdout)
     nmclient_destroyhandle(thisnmhandle)
     raise
 
@@ -376,7 +380,7 @@ def acceptnewnodehelper(nmhandle, host, port, retdict, dbnode):
     # DB (no entry)        Node (donor key)
 
     dbnode = genidb.create_node(nodeID, host, port, 'Initializing', retdict['version'], rsa_publickey_to_string(donationownerpubkey))
-
+    print time.ctime(),'create_node success with dbnode nodeID', nodeID
     # Now I need to change the node state...
     # change the owner.   First I need to set up the handle to use the old keys
     myhandleinfo = nmclient_get_handle_info(nmhandle)

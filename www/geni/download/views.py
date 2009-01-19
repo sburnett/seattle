@@ -62,8 +62,8 @@ def build_installer(username, dist_char):
     f.close()
 
     # paths to custominstallerinfo and carter's customize_installers script
-    vesselinfopy = "/home/ivan/trunk/test/writecustominstallerinfo.py"
-    carter_script = "/home/ivan/trunk/dist/customize_installers.py"
+    vesselinfopy = "/home/geni/trunk/test/writecustominstallerinfo.py"
+    carter_script = "/home/geni/trunk/dist/customize_installers.py"
     
     # create the dir where vesselinfo will be created
     os.system("mkdir %s/vesselinfodir/"%(prefix))
@@ -76,7 +76,7 @@ def build_installer(username, dist_char):
     os.system("python %s %s %s/vesselinfodir/ %s/ > /tmp/carter.out 2> /tmp/carter.err"%(carter_script, dist_char, prefix,prefix))
     #os.system("python %s %s %s/vesselinfodir/ %s/ &> /tmp/out"%(carter_script, dist_char, prefix,prefix))
     # compose and return the url to which the user needs to be redirected
-    redir_url = "http://seattle.cs.washington.edu/dist/geni/%s_dist/"%(username)
+    redir_url = "http://seattlegeni.cs.washington.edu/dist/geni/%s_dist/"%(username)
     return True, redir_url
 
 def mac(request,username):

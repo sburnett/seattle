@@ -50,7 +50,7 @@ import datetime
 # useful for outputting the stack trace when there is a django exception
 import traceback
 # import django settings for this django project (geni)
-from settings import *
+from geni_private.settings import *
 # import models that we use to interact with the geni database tables
 from control.models import User, Donation, Vessel, VesselMap, Share, VesselPort, pop_key
 # some functions will use transactions
@@ -266,9 +266,12 @@ def create_node(nodeid, ip, port, status, version, donor_pubkey_string):
 
     # get a new set of host-specific owner keys for this host
     (owner_pubkey_str, owner_privkey_str) = get_new_keys()
+
+    subnet = 
     
     # build new Donation record
     node = Donation(user=guser,
+                    subnet=subnet,
                     pubkey=nodeid,
                     ip = ip,
                     port = port,
