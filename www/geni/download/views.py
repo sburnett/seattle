@@ -62,8 +62,8 @@ def build_installer(username, dist_char):
     f.close()
 
     # paths to custominstallerinfo and carter's customize_installers script
-    vesselinfopy = "/home/geni/trunk/test/writecustominstallerinfo.py"
-    carter_script = "/home/geni/trunk/dist/customize_installers.py"
+    vesselinfopy = "/home/geni/trunk_do_not_update/test/writecustominstallerinfo.py"
+    carter_script = "/home/geni/trunk_do_not_update/dist/customize_installers.py"
     
     # create the dir where vesselinfo will be created
     os.system("mkdir %s/vesselinfodir/"%(prefix))
