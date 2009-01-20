@@ -1,0 +1,18 @@
+#specify simulator and delcare tb commands
+set ns [new Simulator]
+source tb_compat.tcl
+
+#declare nodes
+set nodeA [$ns node]
+
+#declare node os
+tb-set-node-os $nodeA FEDORA8-STD
+
+
+
+tb-set-node-tarfiles $nodeA /usr/kimbrl /proj/Seattle/tarfiles/hello.tar
+
+tb-set-node-startcmd $nodeA "/usr/kimbrl/runner.sh &> /proj/Seattle/autograder/results/out.txt"
+
+#start the simulator
+$ns run
