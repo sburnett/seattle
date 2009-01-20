@@ -122,4 +122,4 @@ def see_uploads(request):
     return direct_to_template(request, 'upload/uploads.html', {'upload_entries' : upload_entries})
 
 def preview(request, classcode, email):
-    #return django.views.static.serve', {'document_root': settings.MEDIA_ROOT}),                          
+    return direct_to_template(request, 'upload/uploads.html', {'upload_entries' : upload_entries})
