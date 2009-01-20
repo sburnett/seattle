@@ -20,8 +20,9 @@ def updatedb(nmhandle, node, retdict, *args):
   dbnode = genidb.lookup_node(nodeID)
   if not dbnode:
     raise NodeError("Node "+node+" with ID '"+nodeID+"' does not have an entry in the database")
-  # print "setting node " + str(dbnode) + " version " + retdict['version']
+
   genidb.update_node(dbnode, retdict, host, port, 'Ready')
+  print time.ctime(), "updated node db record with version " + str(dbnode.version) + ", status " + str(dbnode.status)
 
   
 def main():
