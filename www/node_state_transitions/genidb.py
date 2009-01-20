@@ -52,7 +52,7 @@ import traceback
 # import django settings for this django project (geni)
 from geni_private.settings import *
 # import models that we use to interact with the geni database tables
-from geni.control.models import User, Donation, Vessel, VesselMap, Share, VesselPort, pop_key
+from geni_production.geni.control.models import User, Donation, Vessel, VesselMap, Share, VesselPort, pop_key
 # some functions will use transactions
 from django.db import transaction
 # django exceptions we might see
@@ -498,7 +498,9 @@ def add_node_vessels(node_obj, newstatus, vlist, vextra, vextra_ports):
     return True
 
 
-# if __name__ == '__main__':
+if __name__ == '__main__':
+    print "new rand pub/priv key pair: "
+    print pop_key()
 #     owner_key_str = '102581760161525849299480945390773462604452516673727153784436170616998785707093 828932698601553000080805048876997096119480280205665028530494046780633311955857068025674724327917536303134469749169449682860787080843248925875229718762166573070303171801656742580803907000114678479476569028271760705524370153555002217325596530079500410486609590403866179677127524204126433713843094372680813899'
 #     donor_privkey = get_donor_privkey(owner_key_str)
 #     donor_privkey = get_donor_privkey(owner_key_str+"1")
