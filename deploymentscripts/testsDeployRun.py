@@ -20,87 +20,58 @@
 
 import os
 import sys
+import myutil
 from time import strftime
 from subprocess import *
 
 #further assumption is that scripts run in this order
 slice="root"
-script1='processChecker.sh'
-term1='ProcessCheckerFinished'
+expectedOutput='ProcessCheckerFinished\nfile_checker_finished'
 
-script2='fileChecker.sh'
-term2='file_checker_finished'
+commandLine='tar -xf stuff.tar; ./processCheckerFail.sh; ./fileChecker.sh;'
 
-log=open('logs/'+strftime("%Y-%m-%d_%H.%M.%S"),'w');
+logfo=open('logs/'+strftime("%Y-%m-%d_%H.%M.%S"),'w');
+logfo.write("EOUEU")
 #message for output and log
 message=""
 
-for server in file(sys.argv[1]):
+def copy_run(server):
+  m="\n----\nServer: "+server
+  print m
+  logfo.write(m)
+  
+  server=server.strip()
+  if os.system("scp -o StrictHostKeyChecking=no -o BatchMode=yes stuff.tar "+slice+"@"+server+":")!=0:
+    m="scp failed for processChecker for "+server
+    print m
+    logfo.write(m)
 
- m="\n----\nServer: "+server
- print m; log.write(m)
+  #open up a pipe for ssh communication
+  p=Popen('ssh '+server,shell=True,stdout=PIPE,stdin=PIPE) 
 
- server=server.strip()
- if os.system("scp -o StrictHostKeyChecking=no -o BatchMode=yes "+script1+" "+slice+"@"+server+":")!=0:
-  m="scp failed for processChecker for "+server
-  print m;log.write(m)
+  #execute scripts on the remote server
+  (stdoutStr, stderrStr)=p.communicate(commandLine)    #commandLine)#[0]
+  print stdoutStr 
+  #indicate if script did not terminate properly
 
- if os.system("scp -o StrictHostKeyChecking=no -o BatchMode=yes "+script2+" "+slice+"@"+server+":")!=0:
-  m="scp failed for fileChecker for "+server
-  print m; log.write(m)
+  print stdoutStr
+  logfo.write(stdoutStr)
+  
+  if stdoutStr!=expectedOutput:
+    m="PROBLEM OCCURRED!"
+    print m
+    logfo.write(m)
 
-#open up a pipe for ssh communication
- p=Popen('ssh '+server,shell=True,stdout=PIPE,stdin=PIPE) 
+  if stderrStr:
+    m="ERRORS in STDERR!\n"+stderr
+    print m
+    logfo.write(m)
 
-#execute scripts on the remote server
- (stdout, stderr)=p.communicate('./'+script1+';'+'./'+script2+';')#[0]
- 
+    
+serverlist=[]
+for server in file(sys.argv[1]):                                                                                                         
+  serverlist.append(server.strip()) 
 
-#indicate if script did not terminate properly
-
- if stdout.find(term1)<0:
-   m="  PROCESS CHECKER DIDIN'T FINISH!"
-# else: 
-#  m="  PROCESS CHECKER FINISHED"
-   print m; log.write(m)
-
- if stdout.find(term2)<0:
-   m="  FILE CHECKER DIDN'T FINISH!"
-# else: 
-#  m="  FILE CHECKER FINISHED"
-   print m; log.write(m)
-
-#split the output into an array
- output=stdout.split('\n');
-
-#indicates which scripts have passed 1=only first, 2=only second, 3=first and second etc.
- passedScripts=0
-
-
-#line of output at which script ends
- line=0
-#these are a rough check if there are any problems(from the output)
-#need to rewrite this to use nicer math
- for i in range (0,len(output)):
-  if output[i].find(term1)>=0:
-   line=i
-   if i==0:
-    passedScripts=1
-  if output[i].find(term2)>=0:
-   if i-line==1:
-    passedScripts+=2
-
- if passedScripts==0:
-  m="PROCESS CHECKER [FAILED]\nFILE CHECKER [FAILED]"
- if passedScripts==1:
-  m="PROCESS CHECKER [PASSED]\nFILE CHECKER [FAILED]"
- if passedScripts==2:
-  m="PROCESS CHECKER [FAILED]\nFILE CHECKER [PASSED]"
- if passedScripts==3:
-  m="FILE CHECKER [PASSED]\nPROCESS CHECKER [PASSED]"
-
- print m; log.write(m)
-
- if stderr:
-  m="ERRORS in STDERR!\n"+stderr
-  print m; log.write(m)
+myutil.do_file(copy_run, serverlist, 20) 
+print "GOOTD"
+logfo.close()
