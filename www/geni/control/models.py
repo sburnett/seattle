@@ -526,13 +526,8 @@ def acquire_resources(geni_user, num, env_type):
         transaction.rollback()
         # a hack to get the traceback information into a string by
         # printing to file and then reading back from file
-        f = open("/tmp/models_trace","w")
-        traceback.print_exc(None,f)
-        f.close()
-        f = open("/tmp/models_trace","r")
-        explanation += f.read()
-        f.close()
-        summary += " Failed to acquire vessel(s). Internal Error."
+        traceback.print_tb(file=sys.stdout)
+        summary += " Failed to acquire vessel(s). Internal Error. Please contact ivan@cs.washington.edu"
         return False, (explanation, summary)
     else:
         transaction.commit()
