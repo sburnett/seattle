@@ -34,7 +34,7 @@ expectedOutput='ProcessCheckerFinished\nfile_checker_finished'
 commandLine='tar -xf stuff.tar; ./processCheckerFail.sh; ./fileChecker.sh;'
 
 logfo=open('logs/'+strftime("%Y-%m-%d_%H.%M.%S"),'w');
-logfo.write("EOUEU")
+
 #message for output and log
 message=""
 
@@ -52,6 +52,7 @@ def copy_run(server):
     m="scp failed for processChecker for "+server
     print m
     logtmp.write(m)
+    exit(0)
 
   #open up a pipe for ssh communication
   p=Popen('ssh '+server,shell=True,stdout=PIPE,stdin=PIPE) 
@@ -90,5 +91,6 @@ for filename in files:
   logfo.write(content)
 
 logfo.close()
+#delete temporary files
 for filename in files:
   os.remove(filename)
