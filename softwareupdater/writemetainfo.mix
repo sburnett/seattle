@@ -62,7 +62,7 @@ def get_previous_entries():
   return returned_dict
 
 
-def create_metainfo_file(privatekeyfilename, publickeyfilename):
+def create_metainfo_file(privatekeyfilename, publickeyfilename, new=False):
   previous_entries = get_previous_entries()
 
   outstring = ''
@@ -84,7 +84,7 @@ def create_metainfo_file(privatekeyfilename, publickeyfilename):
     filehash = get_file_hash(filename)
     filesize = os.path.getsize(filename)
 
-    if filename not in previous_entries:
+    if filename not in previous_entries and not new:
       print "Warning: '"+filename+"' not in previous metainfo file!"
 
     elif (filehash != previous_entries[filename][0] and filesize == previous_entries[filename][1]) or (filehash == previous_entries[filename][0] and filesize != previous_entries[filename][1]):
@@ -99,7 +99,8 @@ def create_metainfo_file(privatekeyfilename, publickeyfilename):
 
   # Okay, great.   We should have it all ready now.   Let's sign our data
   # and report what we're doing
-  print "Writing a metafile with updates to:"+ ' '.join(updatedlist)
+  if not new:
+     print "Writing a metafile with updates to:"+ ' '.join(updatedlist)
 
   # timestamp now, expire in 30 days...
   outsigneddata = signeddata_signdata(outstring, rsa_file_to_privatekey(privatekeyfilename), rsa_file_to_publickey(publickeyfilename), time_gettime(), time_gettime()+60*60*24*30)   
@@ -113,11 +114,13 @@ def create_metainfo_file(privatekeyfilename, publickeyfilename):
 
 
 def main():
-  if len(sys.argv) != 3:
-    print "usage: writemetainfo.py privkeyfile publickeyfile"
+  if len(sys.argv) < 3:
+    print "usage: writemetainfo.py privkeyfile publickeyfile [-n]"
     sys.exit(1)
-
-  create_metainfo_file(sys.argv[1], sys.argv[2])
+  elif len(sys.argv) == 3:
+  create_metainfo_file(sys.argv[1], sys.argv[2])
+  else:
+    create_metainfo_file(sys.argv[1], sys.argv[2], True)
   
 
 

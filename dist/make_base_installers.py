@@ -89,7 +89,7 @@ def prepare_initial_files(trunk_location, include_tests, pubkey, privkey, output
     # Generate the metainfo file
     os.chdir(output_dir)
     writemetainfo = imp.load_source("writemetainfo", "writemetainfo.py")
-    writemetainfo.create_metainfo_file(real_privkey, real_pubkey)
+    writemetainfo.create_metainfo_file(real_privkey, real_pubkey, True)
     os.chdir(orig_dir)
 
 def prepare_final_files(trunk_location, output_dir):
