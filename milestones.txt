@@ -91,3 +91,7 @@ sal submission script, frontend work, and help with django backend
 2 + 2 = ?
 anthony RSA replacement
 
+:sprint
+01/31/2009
+micro machines
+carter make sure the installer is portable to Windows Mobile

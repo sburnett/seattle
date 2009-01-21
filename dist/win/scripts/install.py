@@ -113,7 +113,7 @@ def post_startup_steps(prog_path, added_to_startup):
     output("Done.")
     # Finally, call the script that starts the node manager and software
     # updater
-    os.system("start /min start_seattle.bat")
+    os.popen("start /min start_seattle.bat")
     if added_to_startup == 1:
         # If everything went smoothly, display basic success messages
         output("Seattle was successfully installed on your computer.")
