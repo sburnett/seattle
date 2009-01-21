@@ -288,7 +288,7 @@ if (nm_num == 1):
 #node manager running.
 if (nm_num == 1):
   #first get the process id from the output
-  nm_pid = (updater_out.split())[1]
+  nm_pid = (nm_out.split())[1]
   
   #get the state code for the process
   ps = subprocess.Popen('ps o pid,stat ' + str(nm_pid) + ' | grep -v PID', shell=True, stdout=subprocess.PIPE)
