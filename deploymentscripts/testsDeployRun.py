@@ -1,22 +1,21 @@
 #!/usr/bin/python
 """
 <Program Name>
-  testsDeployRun.py
+testsDeployRun.py
 
 <Started>
-  Jan, 2008
+Jan, 2008
 
 <Author>
-  sal@cs.washington.edu
-  Salikh Bagaveyev
+sal@cs.washington.edu
+Salikh Bagaveyev
 
 <Purpose>
-  Deploy and run tests. Report summary.
+Deploy and run tests. Report summary.
 
 <Usage>
-  provide a file with a list of servers as an argument
+provide a file with a list of servers as an argument
 """
-
 
 import os
 import sys
@@ -25,7 +24,13 @@ import tempfile
 import glob
 
 from time import strftime
-from subprocess import *
+#from subprocess import *
+import subprocess
+
+# use this instead:
+#       import subprocess
+# how you use it in the code:
+#       subprocess.function()
 
 #further assumption is that scripts run in this order
 slice="root"
@@ -33,7 +38,6 @@ expectedOutput='ProcessCheckerFinished\nfile_checker_finished'
 
 commandLine='tar -xf stuff.tar; ./processCheckerFail.sh; ./fileChecker.sh;'
 
-logfo=open('logs/'+strftime("%Y-%m-%d_%H.%M.%S"),'w');
 
 #message for output and log
 message=""
@@ -43,7 +47,9 @@ def copy_run(server):
   tempfilename = tempfilename.split('/')[-1]
   print tempfilename
   logtmp=open('logs/'+tempfilename,'w')#'+strftime("%Y-%m-%d_%H.%M.%S"),'w');
-  m="\n----\nServer: "+server
+  m = '\n\n' + '-' * 50 + '\n'
+  m += "Testing on node: " + server + "\n"
+  m += '-' * 50 + '\n'
   print m
   logtmp.write(m)
   
@@ -55,7 +61,7 @@ def copy_run(server):
     exit(0)
 
   #open up a pipe for ssh communication
-  p=Popen('ssh '+server,shell=True,stdout=PIPE,stdin=PIPE) 
+  p=subprocess.Popen('ssh '+server,shell=True,stdout=subprocess.PIPE,stdin=subprocess.PIPE) 
 
   #execute scripts on the remote server
   (stdoutStr, stderrStr)=p.communicate(commandLine)    #commandLine)#[0]
@@ -75,22 +81,24 @@ def copy_run(server):
     print m
     logtmp.write(m)
 
-    
-serverlist=[]
-for server in file(sys.argv[1]):                                                                                                         
-  serverlist.append(server.strip()) 
+if __name__ == "__main__":
+  logfo=open('logs/'+strftime("%Y-%m-%d_%H.%M.%S"),'w');
 
-myutil.do_file(copy_run, serverlist, 20) 
+  serverlist=[]
+  for server in file(sys.argv[1]):                                                                                                         
+    serverlist.append(server.strip()) 
 
-#combine all of the files together
-files = glob.glob('logs/tmp*')
-for filename in files:
-  file=open(filename,'r')
-  content=file.read()
-  file.close()
-  logfo.write(content)
+  myutil.do_file(copy_run, serverlist, 20) 
 
-logfo.close()
-#delete temporary files
-for filename in files:
-  os.remove(filename)
+  #combine all of the files together
+  files = glob.glob('logs/tmp*')
+  for filename in files:
+    file=open(filename,'r')
+    content=file.read()
+    file.close()
+    logfo.write(content)
+
+  logfo.close()
+  #delete temporary files
+  for filename in files:
+    os.remove(filename)
