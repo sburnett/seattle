@@ -33,7 +33,7 @@ import subprocess
 #       subprocess.function()
 
 #further assumption is that scripts run in this order
-slice="root"
+sliceLogin="root"
 expectedOutput='ProcessCheckerFinished\nfile_checker_finished'
 
 commandLine='tar -xf stuff.tar; ./processCheckerFail.sh; ./fileChecker.sh;'
@@ -43,6 +43,30 @@ commandLine='tar -xf stuff.tar; ./processCheckerFail.sh; ./fileChecker.sh;'
 message=""
 
 def copy_run(server):
+  """
+  <Purpose>
+    Run test scripts on the remote computer by copying a file to the
+    node (using scp) specified by argument "server", execute the test on that
+    server capture output into the temporary log files. Then it
+    reports if the execution was a success or a failure.
+
+  <Arguments>
+    server:
+       A node IP/hostname to/at which upload/execute script/commands
+
+  <Exceptions>
+    None   
+
+  <Side Effects>
+    Creates local log files with remote execution output. Uploads files to remote computer using scp
+    and executes them there.
+
+  <Returns>
+    None.
+  """
+
+
+
   tempfilename = tempfile.mktemp()
   tempfilename = tempfilename.split('/')[-1]
   print tempfilename
@@ -54,7 +78,7 @@ def copy_run(server):
   logtmp.write(m)
   
   server=server.strip()
-  if os.system("scp -o StrictHostKeyChecking=no -o BatchMode=yes stuff.tar "+slice+"@"+server+":")!=0:
+  if os.system("scp -o StrictHostKeyChecking=no -o BatchMode=yes stuff.tar "+sliceLogin+"@"+server+":")!=0:
     m="scp failed for processChecker for "+server
     print m
     logtmp.write(m)
@@ -77,13 +101,17 @@ def copy_run(server):
     logtmp.write(m)
 
   if stderrStr:
-    m="ERRORS in STDERR!\n"+stderr
+    m="ERRORS in STDERR!\n"+stderrStr
     print m
     logtmp.write(m)
+
+
+
 
 if __name__ == "__main__":
   logfo=open('logs/'+strftime("%Y-%m-%d_%H.%M.%S"),'w');
 
+  # Reads the server list file specified in the command line 
   serverlist=[]
   for server in file(sys.argv[1]):                                                                                                         
     serverlist.append(server.strip()) 
@@ -93,9 +121,9 @@ if __name__ == "__main__":
   #combine all of the files together
   files = glob.glob('logs/tmp*')
   for filename in files:
-    file=open(filename,'r')
-    content=file.read()
-    file.close()
+    tmplog_file=open(filename,'r')
+    content=tmplog_file.read()
+    tmplog_file.close()
     logfo.write(content)
 
   logfo.close()
