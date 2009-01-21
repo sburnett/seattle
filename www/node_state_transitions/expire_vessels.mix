@@ -69,6 +69,7 @@ def main():
 		# delete vmap record from the database
 		vmap.delete()
         sleep(60)
+	print time.ctime(), "."
 
 	
 if __name__ == '__main__':
