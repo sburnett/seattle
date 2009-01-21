@@ -18,6 +18,7 @@ import re
 import sys
 import tempfile
 import createnodekeys
+import subprocess
 
 STARTER_SCRIPT_NAME = "start_seattle.sh"
 
@@ -183,7 +184,8 @@ def install(install_dir, silent=0):
     os.popen("chmod u+x " + install_dir + "/uninstall.sh")
     
     # Start the program
-    os.popen(install_dir + "/" + STARTER_SCRIPT_NAME + ' > /dev/null 2> /dev/null&')
+    p = subprocess.Popen(install_dir + "/" + STARTER_SCRIPT_NAME)
+    p.wait()
     output("Started!", silent)
         
     # Inform the user of what happened
