@@ -191,5 +191,6 @@ def install(install_dir, silent=0):
     output("If you would like to uninstall seattle at any time, run the uninstall.sh script located in this directory.", silent)
 
 
+
 if __name__ == "__main__":
     main()

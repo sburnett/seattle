@@ -7,5 +7,5 @@
 
 cd "%PROG_PATH%"
 
-python nmmain.py > /dev/null 2> /dev/null&
-python softwareupdater.py > /dev/null 2> /dev/null&
+python nmmain.py > /dev/null 2> /dev/null < /dev/null&
+python softwareupdater.py > /dev/null 2> /dev/null < /dev/null&
