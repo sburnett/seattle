@@ -46,6 +46,7 @@ req openDHTadvertise.py
 req persist.py
 req random.repy
 req repy.py
+req repy_constants.py
 req repyportability.py
 req repypp.py
 req restrictions.py
@@ -62,7 +63,6 @@ req stopfilewatcher.py
 req time.repy
 req timeutil.py
 req tracebackrepy.py
-req win_cpu_nanny
 req seattlestopper.py
 req testrunonce.py
 req createnodekeys.py

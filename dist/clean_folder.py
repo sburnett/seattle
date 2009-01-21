@@ -147,10 +147,10 @@ def clean_folder(instr_path, dir_to_clean):
             if not required:
                 unrecognized_files.append(filename)
     for filename in unrecognized_files:
-        output("Warning: unrecognized file " + filename + " in " + dir_to_clean)
+        output("Warning: unrecognized file " + filename)
     for i in range(len(req_files)):
         if not req_files_found[i]:
-            output("Error: required file " + req_files[i] + " not found in " + dir_to_clean)
+            output("Error: required file " + req_files[i] + " not found")
 
 
 def main():

@@ -89,7 +89,7 @@ def prepare_initial_files(trunk_location, include_tests, pubkey, privkey, output
     # Generate the metainfo file
     os.chdir(output_dir)
     writemetainfo = imp.load_source("writemetainfo", "writemetainfo.py")
-    writemetainfo.create_metainfo_file(real_privkey, real_pubkey)
+    writemetainfo.create_metainfo_file(real_privkey, real_pubkey, True)
     os.chdir(orig_dir)
 
 def prepare_final_files(trunk_location, output_dir):
@@ -285,12 +285,14 @@ def build(options, trunk_location, pubkey, privkey, output_dir, version=""):
     prepare_final_files(trunk_location, install_dir)
 
     # Now, package up the installer for each specified OS.
+    packages = []
     if "w" in options.lower():
         # Package the Windows installer
         dist = "win"
         inst_name = get_inst_name(dist, version)
         package_win(dist_dir, install_dir, inst_name, temp_dir)
         shutil.copy2(temp_dir + "/" + inst_name, output_dir)
+        packages.append(inst_name)
     
     if "l" in options.lower():
         # Package the Linux installer
@@ -298,17 +300,27 @@ def build(options, trunk_location, pubkey, privkey, output_dir, version=""):
         inst_name = get_inst_name(dist, version)
         package_linux(dist_dir, install_dir, inst_name, temp_dir)
         shutil.copy2(temp_dir + "/" + inst_name, output_dir)
-        
+        packages.append(inst_name)
+
     if "m" in options.lower():
         # Package the Mac installer
         dist = "mac"
         inst_name = get_inst_name(dist, version)
         package_mac(dist_dir, install_dir, inst_name, temp_dir)
         shutil.copy2(temp_dir + "/" + inst_name, output_dir)
+        packages.append(inst_name)
 
     # Clean up the temp directory
     shutil.rmtree(temp_dir)
-        
+    
+    print ""
+    print "Done!"
+    print "Created the following files in " + output_dir + ":"
+    for package in packages:
+        print package
+
+
+    
 def main():
     if len(sys.argv) < 6:
         print "usage: python make_base_installer.py m|l|w path/to/trunk/ pubkey privkey output/dir/"
