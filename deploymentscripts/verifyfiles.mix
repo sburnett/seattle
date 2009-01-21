@@ -104,7 +104,7 @@ def get_file_info(installer_fn):
   return fileinfo_dict
 
 
-def verify_files(installer_tar = None, installer_dict = None):
+def verify_files(installer_tar = None, installer_dict = None, look_dir = '.'):
   """
   <Purpose>
     Looks for a seattle_repy folder, and if found, verify that it matches a
@@ -117,7 +117,10 @@ def verify_files(installer_tar = None, installer_dict = None):
     installer_tar - The file name of the installer tar that should be used to
                     verify the install.
     installer_dict - The file name of the dictionary file that should be used
-                     to verify the install
+                     to verify the install.
+
+    look_dir - The directory to look for the seattle_repy directory.  Defaults
+               to '.'
 
     Note that only one of installer_tar and installer_dict needs to be given.
     This function will use whichever one is given, or installer_dict if both
@@ -132,7 +135,8 @@ def verify_files(installer_tar = None, installer_dict = None):
     problematic.  An empty dictionary indicates that the install is valid.
   """
   # Check to see if there is a seattle_repy folder in the current directory
-  if not (os.path.exists('seattle_repy') and os.path.isdir('seattle_repy')):
+  if not (os.path.exists(look_dir + '/seattle_repy') and \
+      os.path.isdir(look_dir + '/seattle_repy')):
     return {'seattle_repy': 'Error:Does not exist'}
    
   if installer_tar == None and installer_dict == None:
@@ -142,7 +146,9 @@ def verify_files(installer_tar = None, installer_dict = None):
   else:
     fileinfo_dict = get_file_info(installer_fn)
 
-  os.chdir('seattle_repy')
+  oldcwd = os.getcwd()
+
+  os.chdir(look_dir + '/seattle_repy')
   
   filestatus_dict = {}
   
@@ -217,7 +223,9 @@ def verify_files(installer_tar = None, installer_dict = None):
     if fileinfo_dict[reqfile] != 'found':
       filestatus_dict[reqfile] = "Error:required " + \
           filestatus_dict[reqfile][0] + " not found"
-  
+
+  os.chdir(oldcwd)  
+
   return filestatus_dict
   
 
@@ -231,7 +239,7 @@ def main():
     with the -writefile mode of this script.  With no options it will assume
     the filename given is an installer tarball, and will check based on that.
   <Usage>
-    python verifyfiles.py [-writefile | -readfile] in_fn [out_fn]
+    python verifyfiles.py [-writefile | -readfile] in_fn [out_fn] [look_dir]
   """
   
   if len(sys.argv) == 2:
@@ -253,11 +261,17 @@ def main():
       exit(0)
     elif sys.argv[1] == '-readfile':
       # Get the filestatus based on the given dictionary file.
-      filestatus = verify_files(installer_dict = sys.argv[2])
-    else:
-      print 'Usage: python verifyfiles.py [-writefile | -readfile] \
-             in_fn [out_fn]'
-      exit(0)
+      if len(sys.argv) > 3:
+        # a look_dir was given
+        filestatus = verify_files(installer_dict = sys.argv[2], 
+            look_dir = sys.argv[3])
+      else:
+        # No look_dir was given
+        filestatus = verify_files(installer_dict = sys.argv[2])
+  else:
+    print 'Usage: python verifyfiles.py [-writefile | -readfile] \
+           in_fn [out_fn]'
+    exit(0)
 
   for problem_file in filestatus.keys():
     print problem_file + ':' + filestatus[problem_file]
