@@ -196,6 +196,9 @@ def verify_files(installer_tar = None, installer_dict = None, look_dir = '.'):
     elif 'status' in foundfile:
       # Vessel status files can also safely be ignored.
       fileinfo_dict[foundfile] = 'found'
+    elif 'start_seattle.sh' == foundfile:
+      # start_seattle.sh changes during install, just note its presence
+      fileinfo_dict[foundfile] = 'found'
     elif fileinfo_dict.has_key(foundfile):
       if fileinfo_dict[foundfile][0] == 'dir':
         if not os.path.isdir(foundfile):
@@ -207,7 +210,8 @@ def verify_files(installer_tar = None, installer_dict = None, look_dir = '.'):
         else:
           filehash = get_file_hash(foundfile)
           if not (filehash == fileinfo_dict[foundfile][1]):
-            filestatus_dict[foundfile] = "Error:Incorrect hash value"
+            filestatus_dict[foundfile] = "Error:File has changed \
+                (Incorrect hash value)"
             
       # The file was found regardless errors, so lets indicate that here.      
       fileinfo_dict[foundfile] = 'found'
