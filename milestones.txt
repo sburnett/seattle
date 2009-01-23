@@ -68,7 +68,7 @@ sean redesign GENI portal
 01/22/2009
 bot master
 sean circular logging on the software updater to the service vessel
-brent circular logging on the node manager to the service vessel
+937 brent circular logging on the node manager to the service vessel
 
 :sprint
 01/29/2009

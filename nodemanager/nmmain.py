@@ -1,5 +1,7 @@
 """ 
 Author: Justin Cappos
+  Modified by Brent Couvrette to make use of circular logging.
+
 
 Module: Node Manager main program.   It initializes the other modules and
         doesn't do much else.
@@ -27,6 +29,14 @@ they do not terminate prematurely (restarting them as necessary).
 
 """
 
+# The circular logger makes nanny calls.  Because this is not being called
+# from repy, what would the nanny do?  Here we truncate the nanny calls with
+# repyportability.  Do we want to truncate them, or should the nodemanager's
+# log be rate limited as well?  Would an attacker plausibly be able to say,
+# crash a thread so repeatedly that the logging makes a noticable impact on 
+# the system? - Brent Couvrette
+from repyportability import *
+
 import time
 
 import threading
@@ -49,7 +59,12 @@ import misc
 import runonce
 
 # for harshexit...
-import nonportable 
+import nonportable
+
+# import logging so we can log to a circular log - Brent Couvrette
+import logging
+
+import traceback
 
 
 # One problem we need to tackle is should we wait to restart a failed service
@@ -81,7 +96,10 @@ reasonableruntime = 30
 # and drop by
 decreaseamount = .5
 
-
+# The circular log file that things will be written to when log is called.
+# log will automatically set this up the first time it is called. 
+# - Brent Couvrette
+log_file = None
 
 # BUG: what if the data on disk is corrupt?   How do I recover?   What is the
 # "right thing"?   I could run nminit again...   Is this the "right thing"?
@@ -90,6 +108,27 @@ version = "0.1b"
 
 # Our settings
 configuration = {}
+
+def log(text):
+  """
+  <Purpose>
+    Logs the given text to the circular log buffer.
+
+  <Author>
+    Brent Couvrette - couvb@cs.washington.edu
+  """
+  global log_file
+  
+  if log_file is None:
+    # If log_file is not a circular_logger, it should be created.
+    # Do we want the location of the log file hardcoded here or as an argument?
+    log_file = logging.circular_logger('v2/nodemanager.log')
+
+  # I append a \n because I feel it is best to assume that the given text did
+  # not do so.  This way if we are wrong, there is just an extra newline, but
+  # the log is still readable.  If we left off the newline and we are wrong,
+  # we are left with a hard to read log, which makes it much less useful.
+  log_file.write(str(text)+'\n')
 
 
 
@@ -148,7 +187,8 @@ def start_accept_thread():
     else:
       # start the AcceptThread and set it to a daemon.   I think the daemon 
       # setting is unnecessary since I'll clobber on restart...
-      acceptthread = nmconnectionmanager.AcceptThread(misc.getmyip(), configuration['ports'])
+      acceptthread = nmconnectionmanager.AcceptThread(misc.getmyip(), 
+          configuration['ports'])
       acceptthread.setDaemon(True)
       acceptthread.start()
 
@@ -223,6 +263,39 @@ def start_status_thread(vesseldict,sleeptime):
     started_waitable_thread('status')
   
 
+def handle_exception(frame, event, arg):
+  """
+  <Author>
+    Brent Couvrette
+    couvb@cs.washington.edu
+  <Purpose>
+    This function is made to be used as an argument to settrace, and it will
+    write exception tracebacks to the log, and ignore all other events.
+  
+  <Arguments>
+    frame - The current stack frame.  Not used here.
+    event - String identifying which event is being thrown.  We only care to
+            look for 'exception' events.  See the python documentation for 
+            details on other possible values.
+    arg - The value of arg depends on the type of event.  In the case of the
+          exception event, it should be a tuple of the form (exception, value,
+          traceback).
+  <Return>
+    None when we find an exception so we do as little tracing as possible.  
+    Otherwise we must return this function so that it will get called in the
+    future and catch the exception
+  """
+  if event.find('exception') != -1:
+    exceptionstring = "[ERROR]:"
+    for line in traceback.format_exception(arg[0], arg[1], arg[2]):
+      # Combine the traceback into all one string
+      exceptionstring = exceptionstring + line
+
+    log(exceptionstring)
+    return None
+  else:
+    return handle_exception
+    
 
 
 # lots of little things need to be initialized...   
@@ -238,14 +311,15 @@ def main():
     pass
   else:
     if gotlock:
-      print "Another node manager process (pid: "+str(gotlock)+") is running"
+      log("[ERROR]:Another node manager process (pid: " + str(gotlock) + 
+          ") is running")
     else:
-      print "Another node manager process is running"
+      log("[ERROR]:Another node manager process is running")
     return
 
   
   # I'll grab the necessary information first...
-  print "loading config"
+  log("[INFO]:Loading config")
   # BUG: Do this better?   Is this the right way to engineer this?
   configuration = persist.restore_object("nodeman.cfg")
   
@@ -253,6 +327,15 @@ def main():
   # BUG: What if my external IP changes?   (A problem throughout)
   
   vesseldict = nmrequesthandler.initialize(misc.getmyip(),configuration['publickey'],version)
+
+  # Set the trace function to all the threads to handle_exception here that
+  # will log exceptions from all of our threads.  Note:
+  # "The settrace() function is intended only for implementing debuggers, 
+  # profilers, coverage tools and the like. Its behavior is part of the 
+  # implementation platform, rather than part of the language definition, and
+  # thus may not be available in all Python implementations." - taken directly
+  # from the python documentation.  Is this ok here?
+  threading.settrace(handle_exception)
 
   # Start accept thread...
   myname = start_accept_thread()
@@ -269,30 +352,30 @@ def main():
 
   # we should be all set up now.   
 
-  print "started"
+  log("[INFO]:Started")
   # BUG: Need to exit all when we're being upgraded
   while True:
 
     if not is_accept_thread_started():
-      print "At ",time.time(),"restarting accept..."
+      log("[WARN]:At " + str(time.time()) + " restarting accept...")
       newname = start_accept_thread(vesseldict)
       # I have just updated the name for the advert thread...
       nmadvertise.myname = newname
         
     if not is_worker_thread_started():
-      print "At ",time.time(),"restarting worker..."
+      log("[WARN]:At " + str(time.time()) + " restarting worker...")
       start_worker_thread(configuration['pollfrequency'])
 
     if should_start_waitable_thread('advert','Advertisement Thread'):
-      print "At ",time.time(),"restarting advert..."
+      log("[WARN]:At " + str(time.time()) + " restarting advert...")
       start_advert_thread(vesseldict,myname)
 
     if should_start_waitable_thread('status','Status Monitoring Thread'):
-      print "At ",time.time(),"restarting status..."
+      log("[WARN]:At " + str(time.time()) + " restarting status...")
       start_status_thread(vesseldict,configuration['pollfrequency'])
 
     if not runonce.stillhaveprocesslock("seattlenodemanager"):
-      print "The node manager lost the process lock..."
+      log("[ERROR]:The node manager lost the process lock...")
       nonportable.harshexit(55)
 
     time.sleep(configuration['pollfrequency'])
