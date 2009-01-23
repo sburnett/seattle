@@ -30,6 +30,7 @@
 import random
 import datetime
 import time
+import sys
 import traceback
 
 from django.db import models
@@ -195,9 +196,9 @@ def release_vessels(vessels):
             success, ret = acquire_vessel([], v)
         except:
             print "exception raised in release_vessels"
-            
-        if not success:
-            print "release_vessels : " + str(ret)
+        else:
+            if not success:
+                print "release_vessels : " + str(ret)
     return True
 
 
@@ -526,8 +527,9 @@ def acquire_resources(geni_user, num, env_type):
         transaction.rollback()
         # a hack to get the traceback information into a string by
         # printing to file and then reading back from file
-        traceback.print_tb(file=sys.stdout)
+        #traceback.print_tb(file=sys.stdout)
         summary += " Failed to acquire vessel(s). Internal Error. Please contact ivan@cs.washington.edu"
+        summary += ''.join(traceback.format_exception(sys.exc_info()[0],sys.exc_info()[1],sys.exc_info()[2]))
         return False, (explanation, summary)
     else:
         transaction.commit()
