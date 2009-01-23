@@ -4,6 +4,9 @@
 	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
 	<title>My GENI - GENI</title>
 	<link href="style.css" rel="stylesheet" type="text/css" />
+	<script type="text/javascript" src="scripts/jquery.js" charset="utf-8"></script>
+	<script type="text/javascript" src="scripts/mygeni.js" charset="utf-8"></script>
+	
 </head>
 
 <body>
@@ -15,7 +18,7 @@
 	<div id="navigator">
 		
 		<div id="tabs">
-			<span id="meta">shawiz: <a href="#">Help</a> <a href="#">Logout</a></span>
+			<span id="meta">shawiz: <a href="help.html">Help</a> <a href="#">Logout</a></span>
 			<table>
 				<tr>
 					<td><a href="index.html">Profile</a></td>
@@ -33,20 +36,24 @@
 				<h3>My Credits (donated by)</h3>
 				<table class="credits">
 					<tr id="credits">
-						<td class="me"></td>
-						<td class="red"></td>
-						<td class="green"></td>
-						<td class="yellow"></td>
-						<td class="blue"></td>
+					<!--
+						<td class="me">20%</td>
+						<td class="red">10%</td>
+						<td class="green">25%</td>
+						<td class="yellow">30%</td>
+						<td class="blue">15%</td>
+					-->
 					</tr>
 				</table>
 				<table class="names">
 					<tr id="creditnames">
+					<!--
 						<td width="20%">Me</td>
 						<td width="10%">Joe</td>
 						<td width="25%">Justin</td>
 						<td width="30%">Peter</td>
 						<td width="15%">Ivan</td>
+					-->
 					</tr>
 				</table>
 				
@@ -55,30 +62,98 @@
 			<div class="bar">
 				<h3>Resource Usage (used by)</h3>
 				<table class="usage">
-					<!--
-					<tr class="theader">
-						<td class="one">edit x</td>
-						<td class="two">edit x</td>
-						<td class="three">edit x</td>
-						<td class="four">edit x</td>
-					</tr>
-					-->
-					<tr id="shares">
-						<td class="one"></td>
-						<td class="two"></td>
-						<td class="three"></td>
-						<td class="free"></td>
+					<tr id="usage">
+						<!--
+						<td class="one"><a href="#">x</a>30%</td>
+						<td class="two"><a href="#">x</a>45%</td>
+						<td class="three"><a href="#">x</a>10%</td>
+						<td class="free"><a href="#">+</a>15%</td>
+						-->
 					</tr>
 				</table>
 				<table class="names">
-					<tr id="sharenames">
+					<tr id="usagenames">
+					<!--
 						<td width="30%">Justin</td>
 						<td width="45%">Ivan</td>
 						<td width="10%">Me</td>
 						<td width="25%">Free</td>
+					-->
 					</tr>
 				</table>
 				
+			</div>
+			
+			<div id="tables">
+				<table id="creditothers" class="users">
+					<caption>Other donated resources</caption>
+					<tr class="odd">
+						<th>Username</td>
+						<th>Percent</td>
+						<th>Actions</td>
+					</tr>
+					<tr class="even">
+						<td>empty</td>
+						<td>empty</td>
+						<td><button>Edit</button> <button>Delete</button></td>
+					</tr>
+					<tr class="odd">
+						<td>empty</td>
+						<td>empty</td>
+						<td><button>Edit</button> <button>Delete</button></td>
+					</tr>
+					<tr class="even">
+						<td>empty</td>
+						<td>empty</td>
+						<td><button>Edit</button> <button>Delete</button></td>
+					</tr>
+					<tr class="odd">
+						<td>empty</td>
+						<td>empty</td>
+						<td><button>Edit</button> <button>Delete</button></td>
+					</tr>
+					<tr class="even">
+						<td></td>
+						<td></td>
+						<td></td>
+					</tr>
+				</table>
+				
+				<table id="usageothers" class="users">
+					<caption>Resource shared by others</caption>
+					<tr class="odd">
+						<th>Username</td>
+						<th>Percent</td>
+						<th>Actions</td>
+					</tr>
+					<tr class="even">
+						<td>empty</td>
+						<td>empty</td>
+						<td><button>Edit</button> <button>Delete</button></td>
+					</tr>
+					<tr class="odd">
+						<td>empty</td>
+						<td>empty</td>
+						<td><button>Edit</button> <button>Delete</button></td>
+					</tr>
+					<tr class="even">
+						<td>empty</td>
+						<td>empty</td>
+						<td><button>Edit</button> <button>Delete</button></td>
+					</tr>
+					<tr class="odd">
+						<td>empty</td>
+						<td>empty</td>
+						<td><button>Edit</button> <button>Delete</button></td>
+					</tr>
+					<tr class="even">
+						<td></td>
+						<td></td>
+						<td></td>
+					</tr>
+				</table>
+				
+
 			</div>
 			
 		</div>

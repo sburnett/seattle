@@ -205,6 +205,25 @@ table.usage {
 	height: 80px;
 }
 
+table.credits tr td, table.usage tr td {
+	color: #888;
+	text-align: center;
+	padding: 8px;
+}
+
+table.credits tr td span, table.usage tr td span {
+    font-size: 14pt;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+table.usage tr td a {
+	float: right;
+	font-size: 12pt;
+	color: #888;
+	margin-left: 8px;
+}
+
 table.names {
 	border-spacing: 0px;
 	width: 100%;
@@ -267,6 +286,36 @@ td.three {
     background-color: #ccc;
 }
 
+table.users {
+    display: none;
+    width: 100%;
+    margin: 20px auto;
+    border-spacing: 3px;
+    border: 2px solid #999;
+}
+
+table.users caption {
+    font-weight: bold;
+}
+
+table.users tr td{
+    height: 25px;
+    text-align: center;
+}
+    
+table.users tr th {
+    font-weight: bold;
+    background-color: #666;
+    color: #fff;
+}
+
+table.users tr.odd {
+    background-color: #fff;
+}
+
+table.users tr.even {
+    background-color: #eee;
+}
 
 
 /******************************
@@ -299,3 +348,25 @@ table.vessels tr.even {
     background-color: #eee;
 }
 
+
+/******************************
+* STYLESHEET FOR help.html
+*******************************/
+
+#toc {
+    float: right;
+    border: 2px solid #999;
+    width: 200px;
+    padding: 10px 15px;
+    background-color: #fff;
+    margin: 10px 0;
+}
+
+#toc ul {
+    margin: 5px 10px;
+    list-style: disc inside;
+}
+
+P {
+    margin: 10px auto 20px 0;
+}
