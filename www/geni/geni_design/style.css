@@ -242,50 +242,6 @@ table.usage tr.theader {
     padding-right: 10px;
 }
 
-td.me {
-    width: 20%;
-    background-color: #ccc;
-}
-
-td.red {
-    width: 10%;
-    background-color: #ffcccc;
-}
-
-td.green {
-    width: 25%;
-    background-color: #ccffcc;
-}
-
-td.yellow {
-    width: 30%;
-    background-color: #ffffcc;
-}
-
-td.blue {
-    width: 15%;
-    background-color: #99ccff;
-}
-
-td.free {
-    background-color: #fff;
-}
-
-td.one {
-    width: 30%;
-    background-color: #ccffcc;
-}
-
-td.two {
-    width: 45%;
-    background-color: #99ccff;
-}
-
-td.three {
-    width: 10%;
-    background-color: #ccc;
-}
-
 table.users {
     display: none;
     width: 100%;
