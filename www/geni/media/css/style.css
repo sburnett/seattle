@@ -322,6 +322,27 @@ table.users tr.even {
 * STYLESHEET FOR myvessels.html
 *******************************/
 
+#getresources {
+    width: 90%;
+    border: 2px solid #999;
+    margin: 0 auto;
+    background-color: #fff;
+    padding: 10px 0;
+    font-size: 12pt;
+    text-align: center;
+    color: #666;
+}
+
+#getresources #caption {
+    color: #444;
+    font-weight: bold;
+    margin: 0 15px 0 0;
+}
+
+#getresources form input, #getresources form select {
+    margin-right: 10px;
+}
+
 table.vessels {
     width: 90%;
     margin: 20px auto;

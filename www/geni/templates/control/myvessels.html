@@ -29,6 +29,32 @@
 		
 	<div id="main">
 		<div id="middle">
+			<div id="getresources">
+				
+				<form action="myvessels_submit" method="get" accept-charset="utf-8">
+					<span id="caption">Get more resources</span>
+					<span>Number of vessels</span>
+					<select name="numvessels">
+						<option>1</option>
+						<option>2</option>
+						<option>3</option>
+						<option>4</option>
+						<option>5</option>
+						<option>6</option>
+						<option>7</option>
+						<option>8</option>
+						<option>9</option>
+						<option>10</option>
+					</select>
+					<span>Environment</span>
+					<select name="environment">
+						<option>LAN</option>
+						<option>WAN</option>
+						<option>Random</option>
+					</select>
+					<input type="submit" value="Get">
+				</form>
+			</div>
 			<table class="vessels">
 				<tr class="odd">
 					<th>Vessel ID</td>
