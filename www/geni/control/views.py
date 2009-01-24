@@ -563,9 +563,13 @@ def user_info(request,info=""):
     if not success:
         return ret
     geni_user = ret
-    return direct_to_template(request,'control/user_info.html',
+    #return direct_to_template(request,'control/user_info.html',
+    #                          {'geni_user' : geni_user,
+    #                           'info' : info })
+    return direct_to_template(request,'control/profile.html',
                               {'geni_user' : geni_user,
-                               'info' : info })
+                               'info' : info,
+                               'pagetitle' : 'Profile'})
 
     
 @login_required()
