@@ -226,40 +226,6 @@ def start_status_thread(vesseldict,sleeptime):
     started_waitable_thread('status')
   
 
-def handle_exception(frame, event, arg):
-  """
-  <Author>
-    Brent Couvrette
-    couvb@cs.washington.edu
-  <Purpose>
-    This function is made to be used as an argument to settrace, and it will
-    write exception tracebacks to the log, and ignore all other events.
-  
-  <Arguments>
-    frame - The current stack frame.  Not used here.
-    event - String identifying which event is being thrown.  We only care to
-            look for 'exception' events.  See the python documentation for 
-            details on other possible values.
-    arg - The value of arg depends on the type of event.  In the case of the
-          exception event, it should be a tuple of the form (exception, value,
-          traceback).
-  <Return>
-    None when we find an exception so we do as little tracing as possible.  
-    Otherwise we must return this function so that it will get called in the
-    future and catch the exception
-  """
-  if event.find('exception') != -1:
-    exceptionstring = "[ERROR]:"
-    for line in traceback.format_exception(arg[0], arg[1], arg[2]):
-      # Combine the traceback into all one string
-      exceptionstring = exceptionstring + line
-
-    servicelogger.log(exceptionstring)
-    return None
-  else:
-    return handle_exception
-    
-
 
 # lots of little things need to be initialized...   
 def main():
@@ -293,15 +259,6 @@ def main():
   # BUG: What if my external IP changes?   (A problem throughout)
   
   vesseldict = nmrequesthandler.initialize(misc.getmyip(),configuration['publickey'],version)
-
-  # Set the trace function to all the threads to handle_exception here that
-  # will log exceptions from all of our threads.  Note:
-  # "The settrace() function is intended only for implementing debuggers, 
-  # profilers, coverage tools and the like. Its behavior is part of the 
-  # implementation platform, rather than part of the language definition, and
-  # thus may not be available in all Python implementations." - taken directly
-  # from the python documentation.  Is this ok here?
-  threading.settrace(handle_exception)
 
   # Start accept thread...
   myname = start_accept_thread()

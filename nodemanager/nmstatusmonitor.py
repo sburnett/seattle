@@ -15,11 +15,18 @@ are likely needed anyways for things like CPU and memory resource restrictions
 on platforms that don't support correct thread / signaling interaction.
 """
 
+import sys
+
+import traceback
+
 import threading
 
 import statusstorage
 
 import time
+
+import servicelogger
+
 
 # The amount of time we allow without an update before we declare a vessel 
 # dead...
@@ -71,61 +78,70 @@ class statusthread(threading.Thread):
     threading.Thread.__init__(self,name = "Status Monitoring Thread")
 
   def run(self):
-    while True:
+    try:
+      while True:
 
-      # the race condition here is that they might delete something and I will
-      # check it.   This is okay.   I'll end up getting a KeyError when trying
-      # to update the dictionary (checked below) or look at the old entry.
-      for vesselname in self.statusdict.keys()[:]:
+        # the race condition here is that they might delete something and I will
+        # check it.   This is okay.   I'll end up getting a KeyError when trying
+        # to update the dictionary (checked below) or look at the old entry.
+        for vesselname in self.statusdict.keys()[:]:
 
-        try:
-          statusfilename = self.statusdict[vesselname]['statusfilename']
-          oldstatus = self.statusdict[vesselname]['status']
-        except KeyError:
-          # race condition, this was removed in the meantime.
-          continue
-
-
-        # there should be a status file (assuming we've inited)
-
-        try: 
-          status,timestamp = statusstorage.read_status(statusfilename)
-        except IOError, e:
-          if e[0] == 2:
-            # file not found.   
-            # hmm, I guess this means it's starting up now 
-            if oldstatus != 'Fresh':
-              print "Error, no status file for vessel '"+vesselname+"' with status '"+oldstatus+"'"
-              # BUG: What do I do here?   Does it help to throw an error?
-             
+          try:
+            statusfilename = self.statusdict[vesselname]['statusfilename']
+            oldstatus = self.statusdict[vesselname]['status']
+          except KeyError:
+            # race condition, this was removed in the meantime.
             continue
+  
+  
+          # there should be a status file (assuming we've inited)
+  
+          try: 
+            status,timestamp = statusstorage.read_status(statusfilename)
+          except IOError, e:
+            if e[0] == 2:
+              # file not found.   
+              # hmm, I guess this means it's starting up now 
+              if oldstatus != 'Fresh':
+                servicelogger.log("Error, no status file for vessel '"+vesselname+"' with status '"+oldstatus+"'")
+                # BUG: What do I do here?   Does it help to throw an error?
+                pass
+               
+              continue
         
-        # The status has a timestamp in case the process is killed harshly and 
-        # needs to be restarted.   This allows ordering of status reports
-        staleness = time.time() - timestamp
-
-        if staleness < 0:
-          # time is running backwards, likely a NTP update (allow it)...
-#          print "Time is running backwards by increment '"+str(staleness)+"', allowing this"
-          newstatus = status
+          # The status has a timestamp in case the process is killed harshly and 
+          # needs to be restarted.   This allows ordering of status reports
+          staleness = time.time() - timestamp
+  
+          if staleness < 0:
+            # time is running backwards, likely a NTP update (allow it)...
+#            print "Time is running backwards by increment '"+str(staleness)+"', allowing this"
+            newstatus = status
          
-        elif staleness > updatebound:  
-          # stale?
-          newstatus = oldstatus
+          elif staleness > updatebound:  
+            # stale?
+            newstatus = oldstatus
 
-          if oldstatus == 'Started':
+            if oldstatus == 'Started':
+  
+              # BUG: What happens if we're wrong and it's alive?   What do we do?
+              # How do we detect and fix this safely?
+              newstatus = 'Stale'
+              # We set the timestamp so that our update happens in the table...
+              timestamp = time.time() - updatebound
+  
+          else:
+            # it seems to be okay.   Use the given status
+            newstatus = status
+            
+          update_status(self.statusdict, vesselname, newstatus, timestamp)
+  
+        time.sleep(self.sleeptime)
+    
+    except Exception,e:
+      exceptionstring = "[ERROR]:"
+      for line in traceback.format_tb(sys.last_traceback):
+        exceptionstring = exceptionstring + line
 
-            # BUG: What happens if we're wrong and it's alive?   What do we do?
-            # How do we detect and fix this safely?
-            newstatus = 'Stale'
-            # We set the timestamp so that our update happens in the table...
-            timestamp = time.time() - updatebound
-
-        else:
-          # it seems to be okay.   Use the given status
-          newstatus = status
-          
-        update_status(self.statusdict, vesselname, newstatus, timestamp)
-
-      time.sleep(self.sleeptime)
-
+      servicelogger.log(exceptionstring)
+      raise e

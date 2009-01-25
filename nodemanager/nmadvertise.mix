@@ -20,6 +20,13 @@ import misc
 
 import threading
 
+import servicelogger
+
+import sys
+
+import traceback
+
+
 # The frequency of updating the advertisements
 adfrequency = 300
 
@@ -65,48 +72,58 @@ class advertthread(threading.Thread):
     threading.Thread.__init__(self, name = "Advertisement Thread")
 
   def run(self):
-    while True:
-      # remove stale items from the advertise dict.   This is important because
-      # we're using membership in the dict to indicate a need to advertise
-      clean_advertise_dict()
+    # Put everything in a try except block so that if badness happens, we can
+    # log it before dying.
+    try:
+      while True:
+        # remove stale items from the advertise dict.   This is important because
+        # we're using membership in the dict to indicate a need to advertise
+        clean_advertise_dict()
 
-      # this list contains the keys we will advertise
-      advertisekeylist = []
+        # this list contains the keys we will advertise
+        advertisekeylist = []
 
-      # make a copy so there isn't an issue with a race
-      for vesselname in self.addict.keys()[:]:
+        # make a copy so there isn't an issue with a race
+        for vesselname in self.addict.keys()[:]:
 
-        try:
-          thisentry = self.addict[vesselname].copy()
-        except KeyError:
-          # the entry must have been removed in the meantime.   Skip it!
-          continue
+          try:
+            thisentry = self.addict[vesselname].copy()
+          except KeyError:
+            # the entry must have been removed in the meantime.   Skip it!
+            continue
 
-        # if I advertise the vessel...
-        if thisentry['advertise']:
-          # add the owner key if not there already...
-          if rsa_publickey_to_string(thisentry['ownerkey']) not in lastadvertisedict and thisentry['ownerkey'] not in advertisekeylist:
-            advertisekeylist.append(thisentry['ownerkey'])
+          # if I advertise the vessel...
+          if thisentry['advertise']:
+            # add the owner key if not there already...
+            if rsa_publickey_to_string(thisentry['ownerkey']) not in lastadvertisedict and thisentry['ownerkey'] not in advertisekeylist:
+              advertisekeylist.append(thisentry['ownerkey'])
 
-          # and all user keys if not there already
-          for userkey in thisentry['userkeys']:
-            if rsa_publickey_to_string(userkey) not in lastadvertisedict and userkey not in advertisekeylist:
-              advertisekeylist.append(userkey)
+            # and all user keys if not there already
+            for userkey in thisentry['userkeys']:
+              if rsa_publickey_to_string(userkey) not in lastadvertisedict and userkey not in advertisekeylist:
+                advertisekeylist.append(userkey)
 
-      # now that I know who to announce to, send messages to annouce my IP and 
-      # port to all keys I support
-      for advertisekey in advertisekeylist:
-        try:
-          advertise.announce(advertisekey, str(myname), adTTL)
-          # mark when we advertise
-          lastadvertisedict[rsa_publickey_to_string(advertisekey)] = getruntime()
-        except Exception, e:
-          print e
-          # print the error and exit (we'll be restarted)
-          return
+        # now that I know who to announce to, send messages to annouce my IP and 
+        # port to all keys I support
+        for advertisekey in advertisekeylist:
+          try:
+            advertise.announce(advertisekey, str(myname), adTTL)
+            # mark when we advertise
+            lastadvertisedict[rsa_publickey_to_string(advertisekey)] = getruntime()
+          except Exception, e:
+            servicelogger.log(e)
+            # print the error and exit (we'll be restarted)
+            return
 
-      # wait to avoid sending too frequently
-      misc.do_sleep(adsleepfrequency)
+        # wait to avoid sending too frequently
+        misc.do_sleep(adsleepfrequency)
+    except Exception, e:
+      exceptionstring = "[ERROR]:"
+      for line in traceback.format_tb(sys.last_traceback):
+        exceptionstring = exceptionstring + line
+  
+      servicelogger.log(exceptionstring)
+      raise e
 
 
 

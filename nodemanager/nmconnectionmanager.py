@@ -48,6 +48,13 @@ import time
 # does the actual request handling
 import nmrequesthandler
 
+import sys
+
+import traceback
+
+import servicelogger
+
+
 # the global list of connections waiting to be serviced
 # each item is a tuple of (socketobj, IP)
 connection_list = []
@@ -103,46 +110,54 @@ class AcceptThread(threading.Thread):
     threading.Thread.__init__(self, name="AcceptThread")
 
   def run(self):
-    while True:
-      # get the connection.   I'm not catching errors because I believe they
-      # should not occur
-      connection,addr = self.listeningsocket.accept()
+    try:
+      while True:
+        # get the connection.   I'm not catching errors because I believe they
+        # should not occur
+        connection,addr = self.listeningsocket.accept()
+  
+        # okay, I have the connection.   I want to insert it if there aren't 3
+        # already from this IP.
+        # I might have a race here where while I check a connection is removed.
+        # it's benign and only prevents me from handling a connection from a
+        # client with many connections
 
-      # okay, I have the connection.   I want to insert it if there aren't 3
-      # already from this IP.
-      # I might have a race here where while I check a connection is removed.
-      # it's benign and only prevents me from handling a connection from a
-      # client with many connections
+        # first count the connections in the connection_list
+        connectioncount = 0
+        for junksocket, IP in connection_list[:]:
+          # I don't care about the port, only the IP.
+          if IP == addr[0]:
+            connectioncount = connectioncount + 1
+  
+        # Now add the connections that have been removed by the worker
+        # I use a try, except block here to prevent a race condition on checking
+        # the key is in the dict and looking at the list (i.e. the worker might 
+        # delete the list in the meantime)
+        try:
+          # the IP is the only thing we care about
+          connectioncount = connectioncount + len(connection_dict[addr[0]])
+  
+        except KeyError:
+          # this means there are no connections from this IP.   That's fine.
+          pass
+  
+        if connectioncount > 3:
+          # we're rejecting to prevent DOS by grabbing lots of connections
+          connection.close()
+          continue
+  
+        # All is well!   add the socket and IP to the list
+        connection_list.append((connection,addr[0]))
+    except:
+      exceptionstring = "[ERROR]:"
+      for line in traceback.format_tb(sys.last_traceback):
+        exceptionstring = exceptionstring + line
 
-      # first count the connections in the connection_list
-      connectioncount = 0
-      for junksocket, IP in connection_list[:]:
-        # I don't care about the port, only the IP.
-        if IP == addr[0]:
-          connectioncount = connectioncount + 1
+      servicelogger.log(exceptionstring)
+      raise e
 
-      # Now add the connections that have been removed by the worker
-      # I use a try, except block here to prevent a race condition on checking
-      # the key is in the dict and looking at the list (i.e. the worker might 
-      # delete the list in the meantime)
-      try:
-        # the IP is the only thing we care about
-        connectioncount = connectioncount + len(connection_dict[addr[0]])
-
-      except KeyError:
-        # this means there are no connections from this IP.   That's fine.
-        pass
-
-      if connectioncount > 3:
-        # we're rejecting to prevent DOS by grabbing lots of connections
-        connection.close()
-        continue
-
-      # All is well!   add the socket and IP to the list
-      connection_list.append((connection,addr[0]))
-      
-
-
+  
+  
 ##### ORDER IN WHICH CONNECTIONS ARE HANDLED
 
 # Each connection should be handled after all other IP addresses with this
@@ -220,17 +235,26 @@ class WorkerThread(threading.Thread):
     threading.Thread.__init__(self, name="WorkerThread")
 
   def run(self):
+    try: 
 
-    while True:
-      # if there are any requests, add them to the dict.
-      add_requests()
-      
-      if len(connection_dict)>0:
-        # get the "first" request
-        conn = pop_request()
-        nmrequesthandler.handle_request(conn)
-      else:
-        # check at most twice a second (if nothing is new)
-        time.sleep(self.sleeptime)
- 
+      while True:
+        # if there are any requests, add them to the dict.
+        add_requests()
+        
+        if len(connection_dict)>0:
+          # get the "first" request
+          conn = pop_request()
+          nmrequesthandler.handle_request(conn)
+        else:
+          # check at most twice a second (if nothing is new)
+          time.sleep(self.sleeptime)
 
+    except:
+      exceptionstring = "[ERROR]:"
+      for line in traceback.format_tb(sys.last_traceback):
+        exceptionstring = exceptionstring + line
+
+      servicelogger.log(exceptionstring)
+      raise e
+   
+  

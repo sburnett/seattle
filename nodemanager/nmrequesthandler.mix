@@ -34,6 +34,9 @@ import traceback
 # for using time_updatetime
 from repyportability import *
 
+import servicelogger
+
+
 def initialize(myip, publickey, version):
   
   # this allows requests to specify they should only be enacted by us (by 
@@ -68,7 +71,7 @@ def handle_request(socketobj):
 
     # I can't handle this, let's exit
     # BUG: REMOVE LOGGING IN PRODUCTION VERSION (?)
-    print e
+    servicelogger.log(str(e))
     return
 
   # handle the request as appropriate
