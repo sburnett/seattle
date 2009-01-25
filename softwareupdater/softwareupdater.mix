@@ -10,7 +10,7 @@ robust, and simple (in that order).
 Usage:  ./softwareupdater.py
 
 
-Updated 1/23/2009 make logging use circular logger - Sean Ren
+Updated 1/23/2009 use servicelogger to log errors - Xuanhua (Sean)s Ren
 
 
 """
@@ -31,8 +31,8 @@ import tempfile
 import runonce
 import nonportable  # Used for sys.exit
 
-# Import logging so we can use circular logger
-import logging
+# Import servicelogger to do logging
+import servicelogger
 
 include signeddata.repy
 include sha.repy
@@ -40,10 +40,6 @@ include sha.repy
 # MIX: fix the fact that I don't have or need the getruntime() call...
 def time_gettime():
   return time_seconds_from_1900_to_1970 + time.time()
-
-
-# where I log my errors to
-logfileobj = None
 
 
 softwareurl = "http://seattle.cs.washington.edu/couvb/updatesite/test/"
@@ -54,28 +50,8 @@ softwareurl = "http://seattle.cs.washington.edu/couvb/updatesite/test/"
 softwareupdatepublickey = {'e':13221289395445914976130679314453626168966276217387787137080871341273852287573185994316352310444900014240262985628610006672282068241549946863146960020013171, 'n':1589456940628178955622789749467545098429716176817312937418225345848632319292218339145226317399290629352674850322043552215595238300420898593467248333987806485667943573607695797169463632993260829462338883909633640668087994191157092930310301121714211922849471156670352177769152675051338521583192110381238628036973343453550038815066340543971127144267796668792727916870140829333544141931409253248778119440181349458837376093509047447913691446118992104354729154198141235419080987635709890725086481369056205089476633891607372392333981127723122192237324181348217014560722397261768689966319923830564263221938291067470882342071}
 
 
-# The circular log file that things will be written to when log is called.
-# log will automatically set this up the first time it is called. 
-# - Sean Ren
-log_file = None
-
-def log(data):
-  """
-  <Purpose>
-    Logs the given data to the circular log buffer.
-
-  <Author>
-    Xuanhua (Sean) Ren - shawiz@cs.washington.edu
-  """
-  global log_file
-  
-  if log_file is None:
-    # If log_file is not a circular_logger, it should be created.
-    # Do we want the location of the log file hardcoded here or as an argument?
-    log_file = logging.circular_logger('../v2/softwareupdater.log')
-
-  log_file.write(str(data)+'\n')
-
+# initialize the servicelogger to log on the softwareupdater file
+servicelogger.init("softwareupdater")
 
 
 def get_file_hash(filename):
@@ -95,7 +71,7 @@ def safe_download(serverpath, filename, destdir, filesize):
     urllib.urlretrieve(serverpath+filename,destdir+filename)
     return True
   except Exception,e:
-    log(e)
+    servicelogger.log(e)
     return False
  
 #  # how much we have left to download
@@ -166,12 +142,12 @@ def do_rsync(serverpath, destdir, tempdir):
       # hmm, a warning...   
       if len(reasons) == 1 and reasons[0] == 'Cannot check expiration':
         # we should probably allow this.  The node may be offline 
-        log("Warning:"+str(reasons))
+        servicelogger.log("Warning:"+str(reasons))
         #print "Warning:"+str(reasons)
         pass
       elif 'Timestamps match' in reasons:
         # Already seen this one...
-        log(reasons)
+        servicelogger.log(reasons)
         #print str(reasons)
         return []
 
@@ -189,24 +165,24 @@ def do_rsync(serverpath, destdir, tempdir):
           if comment in signeddata_fatal_comments:
             # If there is a different fatal comment still there, still log it
             # and don't perform the update.
-            log(reasons)
+            servicelogger.log(reasons)
             #print str(reasons)
             return []
             
           if comment in signeddata_warning_comments:
             # If there is a different warning comment still there, log the
             # warning.  We will take care of specific behavior shortly.
-            log(comment)
+            servicelogger.log(comment)
             
         if 'Timestamps match' in reasons:
           # Act as we do above when timestamps match
           # Already seen this one...
-          log(reasons)
+          servicelogger.log(reasons)
           #print str(reasons)
           return []
       else:
         # Let's assume this is a bad thing and exit
-        log(reasons)
+        servicelogger.log(reasons)
         return []
 
   # now it's time to update
@@ -239,7 +215,7 @@ def do_rsync(serverpath, destdir, tempdir):
 
       # oh crap!   The hash doesn't match what we thought
       if get_file_hash(tempdir+filename) != filehash:
-        log("Hash mismatch on file '"+filename+"'")
+        servicelogger.log("Hash mismatch on file '"+filename+"'")
         #print 'Hash download: '+str(filehash)
         #print 'Hash computed: '+str(get_file_hash(tempdir+filename))
         raise RsyncError, "Hash of file '"+filename+"' does not match information in metainfo file"
