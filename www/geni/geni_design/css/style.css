@@ -300,6 +300,7 @@ table.users tr.even {
     top: 0;
     left: 0;
     width: 100%;
+    display: none;
 }
 
 #dialogframe #getresourcesdialog {
