@@ -1,25 +1,13 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml">
-<head>
-	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-	<title>Profile - GENI</title>
-	<link href="style.css" rel="stylesheet" type="text/css" />
-</head>
-
-<body>
-	<div id="header">
-		<span id="logo"><a href="index.html">GENI</a></span>
-		<span id="caption">Global Environment for Network Innovations using Seattle</span>		
-	</div>
+{% include "common/loggedin_header.html" %}
 	
 	<div id="navigator">
 		
 		<div id="tabs">
-			<span id="meta">shawiz: <a href="help.html">Help</a> <a href="#">Logout</a></span>
+			<span id="meta">{{ user.username }}: <a href="{% url help %}">Help</a> <a href="{% url logout %}">Logout</a></span>
 			<table>
 				<tr>
-					<td><a href="index.html">Profile</td>
-					<td><a href="mygeni.html">My GENI</a></td>
+					<td><a href="{% url user_info %}">Profile</td>
+					<td><a href="{% url donations %}">My GENI</a></td>
 					<td class="active">My Vessels</td>
 					<td>Get Donations</td>
 				</tr>
@@ -30,64 +18,63 @@
 	<div id="main">
 		<div id="middle">
 			<div id="getresources">
-				<form action="myvessels_submit" method="get" accept-charset="utf-8">
-					<span id="caption">Get more resources</span>
-					<span>Number of vessels</span>
-					<select name="numvessels">
-						<option>1</option>
-						<option>2</option>
-						<option>3</option>
-						<option>4</option>
-						<option>5</option>
-						<option>6</option>
-						<option>7</option>
-						<option>8</option>
-						<option>9</option>
-						<option>10</option>
-					</select>
-					<span>Environment</span>
-					<select name="environment">
-						<option>LAN</option>
-						<option>WAN</option>
-						<option>Random</option>
-					</select>
-					<input type="submit" value="Get">
+			        {% ifnotequal get_form None %}
+				<form method="POST" action="{% url get_resources %}">
+				  <span id="caption">Get more resources</span>
+
+				    <font color="red">  {{ get_form.num.errors }}</font>
+				    <font color="red">  {{ get_form.env.errors }}</font>
+				      <span>Number of vessels</span>
+				      {{ get_form.num }}
+				      <span>Environment</span>
+				      {{ get_form.env }}
+				      <input type="submit" value="Get"/>
 				</form>
+				{% ifnotequal action_summary "" %}
+					<font color="red">  {{ action_summary }} </font>
+				{% endifnotequal %}
+				{% ifnotequal action_explanation "" %}
+					<font color="red">  Details: {{ action_explanation }} </font>
+				{% endifnotequal %}
+				{% else %}
+					<font color="red">  Donate more nodes to acquire more resources. </font><br>
+				{% endifnotequal %}
 			</div>
 			<table class="vessels">
 				<tr class="odd">
+				        <th>
+					  
+					  {% ifnotequal num_vessels 0 %}
+					  <form method="POST" action="{% url del_all_resources %}">
+					    <input type="submit" value="remove all"> </input>
+					  </form>
+					  {% endifnotequal %}
+					  
+					</td>
 					<th>Vessel ID</td>
 					<th>Vessel Status</td>
 					<th>Expires in</td>
 				</tr>
-				<tr class="even">
-					<td>empty</td>
-					<td>empty</td>
-					<td>empty</td>
+
+ 				{% for vmap in my_vessels %}
+				<tr class="{{ vmap.evenodd }}">
+				    <td>
+				      <form method="POST" action="{% url del_resource %}">
+					<input type="submit" value="remove"> </input>
+					<input type="hidden" name="delresource_{{ vmap.id }}"> </input>
+				      </form>
+				    </td>
+				    <td>
+				      {{ vmap.vessel_port.vessel.donation.ip }}:{{ vmap.vessel_port.vessel.donation.port }}:{{ vmap.vessel_port.vessel.name }} 
+				    </td><td>
+				      {{ vmap.vessel_port.vessel.status }}
+				    </td><td> {{ vmap.time_remaining }}
+				    </td>
 				</tr>
-				<tr class="odd">
-					<td>empty</td>
-					<td>empty</td>
-					<td>empty</td>
-				</tr>
-				<tr class="even">
-					<td>empty</td>
-					<td>empty</td>
-					<td>empty</td>
-				</tr>
-				<tr class="odd">
-					<td>empty</td>
-					<td>empty</td>
-					<td>empty</td>
-				</tr>
-				<tr class="even">
-					<td></td>
-					<td></td>
-					<td></td>
-				</tr>
+				{% endfor %}
+				
 			</table>
 		</div>
 	</div>
 
-</body>
-</html>
+{% include "common/loggedin_footer.html" %}

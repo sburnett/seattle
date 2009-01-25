@@ -1,33 +1,21 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml">
-<head>
-	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-	<title>Profile - GENI</title>
-	<link href="style.css" rel="stylesheet" type="text/css" />
-	<script type="text/javascript" src="scripts/jquery.js" charset="utf-8"></script>
-	
-</head>
+{% include "common/loggedin_header.html" %}
 
-<body>
-	<div id="header">
-		<span id="logo"><a href="index.html">GENI</a></span>
-		<span id="caption">Global Environment for Network Innovations using Seattle</span>		
-	</div>
-	
 	<div id="navigator">
 		
 		<div id="tabs">
-			<span id="meta">shawiz: <a href="help.html">Help</a> <a href="#">Logout</a></span>
+			<span id="meta">Logged in as {{ user.username }}: <a href="{% url help %}">Help</a>, <a href="{% url logout %}">Logout</a></span>
+
 			<table>
 				<tr>
-					<td><a href="index.html">Profile</a></td>
-					<td><a href="mygeni.html">My GENI</a></td>
-					<td><a href="myvessels.html">My Vessels</a></td>
+					<td><a href="{% url user_info %}">Profile</a></td>
+					<td><a href="{% url donations %}">My GENI</a></td>
+					<td><a href="{% url used_resources %}">My Vessels</a></td>
 					<td>Get Donations</td>
 				</tr>
 			</table>
 		</div>
 	</div>
+
 		
 	<div id="main">
 		<div id="middle">
@@ -51,5 +39,4 @@
 		</div>
 	</div>
 
-</body>
-</html>
+{% include "common/loggedin_footer.html" %}
