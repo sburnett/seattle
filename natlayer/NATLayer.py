@@ -494,14 +494,15 @@ class NATConnection():
     
     <Exceptions>
       If the socket is closed, an EnvironmentError is raised.
-    
+      If the connection is not initialized, an AttributeError is raised.
+      
     <Returns>
       A frame object. None on failure.
     """
     # Check if we are initialized
     if not self.connectionInit:
-      return None
-    
+      raise AttributeError, "NAT Connection is not yet initialized!"
+      
     # Init frame
     frame = NATFrame()
     
@@ -519,10 +520,13 @@ class NATConnection():
     <Arguments>
       frame:
         The frame to send over the network
+    
+    <Exceptions>
+      If the connection is not initialized, an AttributeError is raised.
     """
-    # Check for init
+    # Check if we are initialized
     if not self.connectionInit:
-      return
+      raise AttributeError, "NAT Connection is not yet initialized!"
       
     # Send the frame!
     self.socket.send(frame.toString())
@@ -538,10 +542,13 @@ class NATConnection():
        
       data:
         The data to send to the target.
+        
+    <Exceptions>
+      If the connection is not initialized, an AttributeError is raised.  
     """
-    # Check for init
+    # Check if we are initialized
     if not self.connectionInit:
-      return
+      raise AttributeError, "NAT Connection is not yet initialized!"
       
     # Build the frame
     frame = NATFrame()
