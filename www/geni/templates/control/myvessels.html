@@ -57,7 +57,7 @@
 				</tr>
 
  				{% for vmap in my_vessels %}
-				<tr class="{{ vmap.evenodd }}">
+				<tr class="{% cycle 'odd' 'even' %}">
 				    <td>
 				      <form method="POST" action="{% url del_resource %}">
 					<input type="submit" value="remove"> </input>

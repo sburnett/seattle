@@ -346,14 +346,6 @@ def used_resources(request, get_form=False, action_explanation="", remove_explan
     # this user's used vessels
     my_vessels = VesselMap.objects.filter(user = geni_user).order_by('expiration')
 
-    evenodd = "even"
-    for vmap in my_vessels:
-        vmap.evenodd = evenodd
-        if evenodd == 'even':
-            evenodd = 'odd'
-        else:
-            evenodd = 'even'
-
     # return the used resources page constructed from a template
     return direct_to_template(request,'control/myvessels.html',
                               {'pagetitle' : 'My Vessels',
