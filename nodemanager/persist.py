@@ -105,8 +105,20 @@ def commit_object(object, filename):
 # reads the disk version of an object from a file with the provided name
 def restore_object(filename):
 
+  # BUG FIX:   Previously I just did os.listdir('.') below.   This makes 
+  # this function fail if hte file isn't in this directory.
+
+  # I need to find the directory of the object.   
+  filedirectory = os.path.dirname(filename)
+  # however, for some silly reason, this sometimes returns '' instead of '.'
+  if filedirectory == '':
+    filedirectory = '.'
+
+  # I'm assuming that listdir is an atomic way that I'll be able to check for
+  # the existence of filename and filename.new
+
   # either filename or filename+'.new' must exist (or else something is wrong)
-  filelist = os.listdir('.')
+  filelist = os.listdir(filedirectory)
   
   if filename not in filelist and filename+'.new' not in filelist:
     raise ValueError, "Filename '"+filename+"' missing."
