@@ -268,7 +268,7 @@ def initialize_state():
   keys = rsa_gen_pubpriv_keys(100)
   configuration['publickey'] = keys[0]
   configuration['privatekey'] = keys[1]
-
+  configuration['service_vessel'] = 'v2'
 
   print "Writing config file..."
   # write the config file...
