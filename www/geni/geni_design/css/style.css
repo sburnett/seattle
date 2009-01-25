@@ -83,24 +83,6 @@ body {
     margin: 5px 0;
 }
 
-/*
-#tabs ul li {
-    padding: 5px 15px;
-    font-size: 16pt;
-    margin: 0;
-    border-top: 1px solid #222;
-    border-right: 2px solid #222;
-    border-left: 2px solid #222;
-    display: inline;
-}
-
-#tabs ul li.active {
-    background-color: #222;
-    color: #fff;
-}
-
-*/
-
 #tabs table {
     border-collapse: collapse;
     border-spacing: 0;
@@ -123,7 +105,7 @@ body {
     width: 100%;
     height: 400px;
     padding: 40px 0;
-    background-image: url(images/bg.png);
+    background-image: url(../images/bg.png);
     background-repeat: repeat-x;
 }
 
@@ -131,6 +113,35 @@ body {
     margin: 0 auto;
     width: 70%;
 }
+
+
+/******************************
+* STYLESHEET FOR login.html
+*******************************/
+table.login{
+    margin: 20px auto;
+    border-collapse: collapse;
+	border-spacing: 0;
+	width: 70%;
+	font-size: 14pt;
+}
+
+table.login tr td.key {
+    text-align: right;
+    height: 40px;
+    font-weight: bold;
+}
+
+table.login tr td.value {
+    padding-left: 15px;
+}
+
+table.login tr td.value input {
+    padding: 1px;
+    font-size: 14pt;
+}
+
+
 
 /******************************
 * STYLESHEET FOR index.html
@@ -271,6 +282,38 @@ table.users tr.odd {
 
 table.users tr.even {
     background-color: #eee;
+}
+
+#overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: #ccc;
+    opacity: 0.5;
+    display: none;
+}
+
+#dialogframe {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+}
+
+#dialogframe #getresourcesdialog {
+    margin: 150px auto;
+    padding: 20px;
+    width: 400px;
+    height: 200px;
+    background-color: #fff;
+    border: 1px solid #999;
+}
+
+#dialogframe #getresourcesdialog { 
+    
+    
 }
 
 

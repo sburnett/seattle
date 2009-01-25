@@ -15,15 +15,12 @@
 	</div>
 	
 	<div id="navigator">
-		
 		<div id="tabs">
-			<span id="meta">shawiz: <a href="help.html">Help</a> <a href="#">Logout</a></span>
 			<table>
 				<tr>
-					<td><a href="index.html">Profile</a></td>
-					<td><a href="mygeni.html">My GENI</a></td>
-					<td><a href="myvessels.html">My Vessels</a></td>
-					<td>Get Donations</td>
+					<td class="active">Login</td>
+					<td>Register</td>
+					<td>Help</td>
 				</tr>
 			</table>
 		</div>
@@ -31,23 +28,24 @@
 		
 	<div id="main">
 		<div id="middle">
-			<div id="toc">
-				<h4>Table of Content</h4>
-				<ul>
-					<li>a</li>
-					<li>b</li>
-					<li>c</li>
-					<li>d</li>
-					<li>e</li>
-				</ul>
-			</div>
-			<h2>Help</h2>
-			<h3>A</h3>
-			<p>awejfoweoawnvnvahwuefnfwvuwabv buheowejfowvnn hfwehvweh0h nwefjw-fjnvBNCIUBS NCNwhfbwevbiuVB bbUuiBieuf</p>
-			<h3>B</h3>
-			<p>kamvewnnv jfjw fonwfojownfownf owendoncw owen wwoenvn fwefncwNVNWMVWMVPOVMPMV mv wvmwpovmvewm pwM</P>
-			<h3>C</h3>
-			
+			<form action="myvessels_submit" method="get" accept-charset="utf-8">
+				<table class="login">
+					<tr>
+						<td class="key">Username</td>
+						<td class="value"><input type="text" name="username" /></td>
+					</tr>
+					<tr>
+						<td class="key">Password</td>
+						<td class="value"><input type="password" name="password" /></td>
+					</tr>
+					<tr>
+						<td class="key"></td>
+						<td class="value"><input type="submit" value="Login" /></td>
+					</tr>
+				</table>
+				
+			</form>
+
 		</div>
 	</div>
 
