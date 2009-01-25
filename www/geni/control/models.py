@@ -37,7 +37,7 @@ from django.db import models
 from django.contrib.auth.models import User as DjangoUser
 from django.db import connection
 from django.db import transaction
-from node_state_transitions.changeusers import changeusers
+# from node_state_transitions.changeusers import changeusers
 
 # 4 hours worth of seconds
 VESSEL_EXPIRE_TIME_SECS = 14400

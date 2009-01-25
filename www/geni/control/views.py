@@ -346,9 +346,18 @@ def used_resources(request, get_form=False, action_explanation="", remove_explan
     # this user's used vessels
     my_vessels = VesselMap.objects.filter(user = geni_user).order_by('expiration')
 
+    evenodd = "even"
+    for vmap in my_vessels:
+        vmap.evenodd = evenodd
+        if evenodd == 'even':
+            evenodd = 'odd'
+        else:
+            evenodd = 'even'
+
     # return the used resources page constructed from a template
-    return direct_to_template(request,'control/used_resources.html',
-                              {'geni_user' : geni_user,
+    return direct_to_template(request,'control/myvessels.html',
+                              {'pagetitle' : 'My Vessels',
+                               'geni_user' : geni_user,
                                'num_vessels' : len(my_vessels),
                                'my_vessels' : my_vessels,
                                'sh_vessels' : shvessels,
@@ -752,4 +761,27 @@ def construction(request):
     """
     return direct_to_template(request,'control/construction.html', 
                               {'msg' : 'The GENI website is down for development work. Please come again soon.'})
+
+def help(request):
+    """
+    <Purpose>
+        Used to show the help page
+
+    <Arguments>
+        request:
+            An HTTP request object
+
+    <Exceptions>
+        None.
+
+    <Side Effects>
+        None.
+
+    <Returns>
+        An HTTP response object that represents the help page on
+        succes. A redirect to a login page on error.
+    """
+    return direct_to_template(request,'control/help.html', 
+                              {'pagetitle' : 'Help'})
+    
                               

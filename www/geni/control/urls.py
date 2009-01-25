@@ -55,7 +55,10 @@ urlpatterns = patterns('geni.control.views',
                        (r'^priv_key$', 'dl_priv_key', {}, 'priv_key'),
                        (r'^pub_key$', 'dl_pub_key', {}, 'pub_key'),
 
-                       # donations functions
+                       # donations functions:
                        (r'^new_share$', 'new_share', {}, 'new_share'),
                        (r'^del_share$', 'del_share', {}, 'del_share'),
+
+                       # help functions:
+                       (r'^help$', 'help', {}, 'help'),                           
 )
