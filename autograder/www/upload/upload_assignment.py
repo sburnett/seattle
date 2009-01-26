@@ -1,6 +1,6 @@
 """
 <Program Name>
-  upload.py
+  upload_assignment.py
 
 <Started>
   Jan, 2008
@@ -13,37 +13,54 @@
   upload a file using POST to the server (for grading)
 
 <Usage>
-  provide a file to upload as an argument
+  provide a file to upload as an argument:
+  python upload_assignment.py [classcode] [email] [filename]
+
+  Notes: server script expects the following fields to be provided by this script:
+  classcode: class code for the assignment
+  email: email address of the submitter
+  file: file to be submitted
+  
 """
 
 import httplib
 import mimetypes
 import mimetools
+import os
 import sys
 
-"""
-post file(s) to the server
-url: remote script that accepts files
-fields: a list of field,value pairs 
-files: files to upload (name, filename, content)
 
-"""
-def post(host, url, fields, files):
-  content_type, body = encode(fields, files)
+host="192.168.0.11"
+url="http://192.168.0.11/cgi-bin/upload/up.cgi"
+
+def post_to_webserver(host, url, fields, files):
+  """
+   post file(s) to the server
+   url: remote script that accepts files
+   fields: a list of field,value pairs 
+   files: files to upload (name, filename, content)
+
+  """
+
+  content_type, body = encode_post_msg(fields, files)
   #create an http connection
   http_conn = httplib.HTTPConnection(host)
   headers = {
         'User-Agent': 'UA',
         'Content-Type': content_type
         }
-  http_conn.request('POST', url, body, headers)
+  try:
+    http_conn.request('POST', url, body, headers)
+  except:
+    print "Error occurred while posting: %s : %s" % sys.exc_info()[:2]
+    sys.exit(0)
   #wait for response
   res = http_conn.getresponse()
   return res.status, res.reason, res.read()
 
 
 #get content type and body for posting
-def encode(fields, files):
+def encode_post_msg(fields, files):
 
   boundary =  mimetools.choose_boundary()
 
@@ -68,14 +85,41 @@ def encode(fields, files):
 
   return content_type, body
 
-#upload provided file and see results
-def pst():
-  nameval=[["dir","images"]]
-  nfv=[["file",sys.argv[1],open(sys.argv[1]).read()]]
-  (a,b,c)=post("192.168.0.11","http://192.168.0.11/cgi-bin/upload/up.cgi",nameval,nfv)
-  print a
-  print b
-  print c
 
-pst()
+#check provided arguments
+def checkArgs(args):
+  if len(args)!=4:
+    return False
+  if os.path.isdir(args[3]) == True: 
+    print "Must provide a file"
+    return False
+  if os.path.getsize(args[3])> 1048576:
+    print "File size cannot exceed 1Mb"
+    return False
+  if args[3].split('.')[-1] not in ("zip","tar"):
+    print "Should provide zip or tar file"
+    return False
+
+
+#upload provided file and see results
+if __name__ == "__main__":
+
+
+  if checkArgs(sys.argv)==False:
+    print "Invalid arguments - usage: python upload_assignment [classcode] [email] [filename]"
+    exit(0)
+
+  #variables and corresponding values
+  var_vals=[["classcode",sys.argv[1]],["email",sys.argv[2]],["dir","images"]]
+  
+  file_to_upload=[["file",sys.argv[3],open(sys.argv[3]).read()]]
+
+  #get status, reasono and body of the response
+  (status,reason,body)=post_to_webserver(host, url, var_vals, file_to_upload)
+
+  print status
+  print reason
+  print body
+
+
   
