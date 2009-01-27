@@ -18,6 +18,7 @@
 import os
 import sys
 import shutil
+import subprocess
 
 PROGRAM_NAME = "build_installers"
 
@@ -57,7 +58,9 @@ def append_to_zip(zip_file, folder_to_append, zip_file_dir):
     # idiosyncracies.
     os.chdir(temp_dir)
     zip_file_name = zip_file.split("/")[-1]
-    os.popen("zip -r " + zip_file_name + " " + zip_file_dir)
+    p = subprocess.Popen("zip -r " + zip_file_name + " " + 
+                         zip_file_dir, shell=True)
+    p.wait()
     os.chdir(orig_dir)
     shutil.copy2(temp_dir + "/" + zip_file_name, zip_file)
     shutil.rmtree(temp_dir)
@@ -99,7 +102,8 @@ def append_to_tar(tarball, folder_to_append, tarball_dir):
     os.mkdir(append_path)
     # Copy the files to be appended over
     command = "cp -r " + folder_to_append + "/* " + append_path
-    os.popen(command)
+    p = subprocess.Popen(command, shell=True)
+    p.wait()
     # Copy the tarball over
     shutil.copy2(tarball, temp_dir)
     # Navigate to the temp directory to deal with tar's idiosyncrasies.
@@ -107,7 +111,8 @@ def append_to_tar(tarball, folder_to_append, tarball_dir):
     # Unzip the tarball so we can append files to it.
     zipped_tarball_name = tarball.split("/")[-1]
     command = "gzip -d " + zipped_tarball_name
-    os.popen(command)
+    p = subprocess.Popen(command, shell=True)
+    p.wait()
     # Append the appropriate files to the tarball.
     base_tarball_name = ""
     if zipped_tarball_name.endswith(".tar.gz"):
@@ -117,11 +122,13 @@ def append_to_tar(tarball, folder_to_append, tarball_dir):
         # Assume the original file was "*.tgz".
         base_tarball_name = zipped_tarball_name[:-4]
     command = "tar -rf " + base_tarball_name + ".tar " + tarball_dir
-    os.popen(command)
+    p = subprocess.Popen(command, shell=True)
+    p.wait()
     # Zip up the tarball, make sure it is named appropriately, and copy
     # it back to its original location.
     command = "gzip " + base_tarball_name + ".tar"
-    os.popen(command)
+    p = subprocess.Popen(command, shell=True)
+    p.wait()
     os.chdir(orig_dir)
     shutil.copy2(temp_dir + "/" + base_tarball_name + ".tar.gz", tarball)
    
