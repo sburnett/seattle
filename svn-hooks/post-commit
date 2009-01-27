@@ -29,11 +29,18 @@ import tempfile
 import svn.core
 import svn.client
 import subprocess
+import re
+import traceback
 
 import send_gmail
 import daemonize
 
 notify_list = ['bestchai@gmail.com, justinc@cs.washington.edu']
+
+# we require run_tests.py to generate a line that matches the
+# following regular expression string:
+passed_failed_re_str = r"(\d+) tests passed, (\d+) tests failed"
+passed_failed_re = re.compile(passed_failed_re_str)
 
 def command_output(cmd):
   """
@@ -166,11 +173,19 @@ def run_tests(tmpdir):
   output = command_output(cmd)
   
   lines = output.split("\n")
-  # print "output:", lines
-  print "last line split is", lines[-2].split(",")
-  num_failed = int(lines[-2].split(",")[1].split()[0])
-  print "num_failed is ", num_failed
-  return (num_failed == 0), output
+  print "output is:", lines
+
+  for line in lines:
+    match = passed_failed_re.match(line)
+    if match:
+      num_passed, num_failed =  match.groups()
+      print "num_passed is ", num_passed
+      print "num_failed is ", num_failed
+      return (num_failed == '0'), output
+  
+  err_output = "re.compile() match failure with regular expression: " + spassed_failed_re_str
+  output = err_output + "\n" + "="*40 + "\n" + output
+  return False, output
 
 
 def check(repos, rvn):
@@ -282,7 +297,11 @@ Example: %s /var/local/svn/ 807
   rvn = sys.argv[2]
 
   # check the repository:rvn
-  success,output = check(repos, rvn)
+  try:
+    success,output = check(repos, rvn)
+  except:
+    success = False
+    output = ''.join(traceback.format_exception(sys.exc_info()[0],sys.exc_info()[1],sys.exc_info()[2]))
 
   # if any of the tests failed..
   if success:
@@ -300,6 +319,24 @@ Example: %s /var/local/svn/ 807
 
   return 0
 
+
+
+
 if __name__ == "__main__":
   daemonize.daemonize('/dev/null','/tmp/post-commit.log','/tmp/post-commit.log')
   sys.exit(main())
+
+
+
+"""
+Traceback (most recent call last):
+  File "/var/local/svn/hooks/post-commit", line 305, in <module>
+    sys.exit(main())
+  File "/var/local/svn/hooks/post-commit", line 285, in main
+    success,output = check(repos, rvn)
+  File "/var/local/svn/hooks/post-commit", line 218, in check
+    success, test_output = run_tests(tmpdir)
+  File "/var/local/svn/hooks/post-commit", line 171, in run_tests
+    num_failed = int(lines[-2].split(",")[1].split()[0])
+IndexError: list index out of range
+"""
