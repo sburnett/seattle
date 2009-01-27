@@ -17,6 +17,7 @@ import os
 import sys
 import imp
 import shutil
+import subprocess
 
 import clean_folder
 import build_installers
@@ -81,9 +82,13 @@ def prepare_initial_files(trunk_location, include_tests, pubkey, privkey, output
     # Run preparetest, including the unit tests if necessary,
     # adding the files to the temp directory
     if include_tests:
-        os.popen("python preparetest.py -t " + output_dir)
+        p = subprocess.Popen("python preparetest.py -t " + 
+                             output_dir, shell=True)
+        p.wait()
     else:
-        os.popen("python preparetest.py " + output_dir)
+        p = subprocess.Popen("python preparetest.py " + 
+                             output_dir, shell=True)
+        p.wait()
     # Make sure that the folder is initially clean and correct
     clean_folder.clean_folder(dist_dir + "/initial_files.fi", output_dir)
     # Generate the metainfo file
@@ -183,7 +188,9 @@ def package_linux(dist_dir, install_dir, inst_name, output_dir):
     temp_tarball = inst_name + "temp_" + str(os.getpid()) + ".tgz"
     orig_dir = os.getcwd()
     os.chdir(install_dir + "/..")
-    os.popen("tar -czf " + temp_tarball + " " + INSTALL_DIR)
+    p = subprocess.Popen("tar -czf " + temp_tarball + 
+                         " " + INSTALL_DIR, shell=True)
+    p.wait()
     shutil.move(temp_tarball, orig_dir)
     os.chdir(orig_dir)
     shutil.move(temp_tarball, output_dir + "/" + inst_name)
@@ -312,7 +319,7 @@ def build(options, trunk_location, pubkey, privkey, output_dir, version=""):
 
     # Clean up the temp directory
     shutil.rmtree(temp_dir)
-    
+
     print ""
     print "Done!"
     print "Created the following files in " + output_dir + ":"
@@ -321,6 +328,7 @@ def build(options, trunk_location, pubkey, privkey, output_dir, version=""):
 
 
     
+
 def main():
     if len(sys.argv) < 6:
         print "usage: python make_base_installer.py m|l|w path/to/trunk/ pubkey privkey output/dir/"
