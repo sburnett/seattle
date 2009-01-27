@@ -100,7 +100,7 @@ def main():
                 # We couldn't find the startup folder, note that we couldn't,
                 # but move on with the install
                 # TODO: It should be relatively simple to allow the user to
-                # manually enter the location of their startup file, if they
+                # manually enter the location of their startup folder, if they
                 # so desire
                 output("Failed.")
                 added_to_startup = 0
@@ -111,6 +111,23 @@ def post_startup_steps(prog_path, added_to_startup):
     output("Generating identity key (may take a few minutes)...")
     subprocess.call(["pythonw.exe", "createnodekeys.py"])
     output("Done.")
+
+    # Set the program's path in repyconstants.py
+    const_f = open(prog_path + "/repy_constants.py")
+    lines = []
+    for line in const_f:
+        to_append = line
+        if line.startswith("PATH_PYTHON_INSTALL"):
+            to_append = 'PATH_PYTHON_INSTALL = "' + prog_path + '"\n'
+        if line.startswith("PATH_SEATTLE_INSTALL"):
+            to_append = 'PATH_SEATTLE_INSTALL = "' + prog_path + '"\n'
+        lines.append(to_append)
+    const_f.close()
+    const_f = open(prog_path + "/repy_constants.py", "w")
+    const_f.writelines(lines)
+    const_f.close()
+
+
     # Finally, call the script that starts the node manager and software
     # updater
     os.popen("start /min start_seattle.bat")
