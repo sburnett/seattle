@@ -35,11 +35,21 @@ url="http://192.168.0.11/cgi-bin/upload/up.cgi"
 
 def post_to_webserver(host, url, fields, files):
   """
-   post file(s) to the server
+  <Purpose>
+    post file(s) to the server    
+
+  <Arguments>
    url: remote script that accepts files
    fields: a list of field,value pairs 
    files: files to upload (name, filename, content)
 
+  <Exceptions>
+    HTTPrequest.request can raise exceptions which are caught and cause program to terminate with the cause message
+
+  <Side Effects>
+    Uploads files to remote computer using POST
+  <Returns>
+    status, reason and body of the response as strings.
   """
 
   content_type, body = encode_post_msg(fields, files)
@@ -59,8 +69,22 @@ def post_to_webserver(host, url, fields, files):
   return res.status, res.reason, res.read()
 
 
-#get content type and body for posting
+
 def encode_post_msg(fields, files):
+  """
+  <Purpose>
+   prepare content type and body for posting
+
+  <Arguments>
+   fields: a list of field,value pairs 
+   files: files to upload (name, filename, content)
+
+  <Exceptions>
+   None
+
+  <Returns>
+   content type and encoded body for posting
+  """
 
   boundary =  mimetools.choose_boundary()
 
@@ -71,6 +95,7 @@ def encode_post_msg(fields, files):
     data.append('Content-Disposition: form-data; name="%s"' % key)
     data.append('')
     data.append(value)
+  #if multiple files provided, attach them 
   for (key, filename, value) in files:
     data.append('--' + boundary)
     data.append('Content-Disposition: form-data; name="%s"; filename="%s"' % (key, filename))
@@ -114,7 +139,7 @@ if __name__ == "__main__":
   
   file_to_upload=[["file",sys.argv[3],open(sys.argv[3]).read()]]
 
-  #get status, reasono and body of the response
+  #get status, reason and body of the response
   (status,reason,body)=post_to_webserver(host, url, var_vals, file_to_upload)
 
   print status
