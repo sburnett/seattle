@@ -19,7 +19,6 @@ provide a file with a list of servers as an argument
 
 import os
 import sys
-import myutil
 import tempfile
 import glob
 
@@ -107,16 +106,59 @@ def copy_run(server):
 
 
 
+#execute provided function with items in the list as arguments (used by run_parallel)
+def exec_list(func, list):
+  for item in list:
+    func(item)
+
+#runs provided function on the list of ip addresses in parallel (originally written by Justin Cappos)
+def run_parallel(func, fulllist, forkthreads = 10):
+  
+  list = []
+  for num in range(forkthreads):
+    list.append([])
+
+  thread = 0
+  #distribute list of ip addresses to paralllizable slots
+  for line in fulllist:
+    list[thread%forkthreads].append(line.strip())
+    thread = thread + 1
+  
+  for num in range(forkthreads):
+    if os.fork()==0:
+      if num<len(list):
+        exec_list(func,list[num])
+        os._exit(0)
+  
+  for num in range(forkthreads):
+    if num<len(list):
+      os.wait()
+
+
+#check provided program aguments
+def checkArgs(args):
+  if len(args)!=2:
+    return False
+  if os.path.isdir(args[1]): 
+    print "Must provide a file"
+    return False
+
 
 if __name__ == "__main__":
+  
+  if checkArgs(sys.argv)==False:
+    print "Invalid arguments - usage: python testsDeployRun.py [iplist_file]"
+    exit(0)
+
+  #combined logs file
   logfo=open('logs/'+strftime("%Y-%m-%d_%H.%M.%S"),'w');
 
   # Reads the server list file specified in the command line 
   serverlist=[]
   for server in file(sys.argv[1]):                                                                                                         
     serverlist.append(server.strip()) 
-
-  myutil.do_file(copy_run, serverlist, 20) 
+  
+  run_parallel(copy_run, serverlist, 20) 
 
   #combine all of the files together
   files = glob.glob('logs/tmp*')
