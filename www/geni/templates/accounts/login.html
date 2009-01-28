@@ -1,32 +1,40 @@
-{% include "common/header.html" %}
-	</head>
+{% extends "accounts_base.html" %}
+
+{% block title %}
+Login - GENI
+{% endblock title %}
+
+{% block nav_login %}
+<td class="active">Login</td>
+{% endblock nav_login %}
+
 {% block content %}
+	<div id="main">
+		<div id="middle">
 
-<body>
-{% include "common/banner.html" %}
+		  <form method="post" action="{% url login %}">
+		  <h3>Login</h3><br><br>
+		  {% if err %}
+		  <p><font color="red">{{ err }}</font></p><br>
+		  {% endif %}
 
-<div id="Tabs"> 
-  
-  
-  <form method="post" action="{% url login %}">
-    <h3>Login</h3><br><br>
-    {% if err %}
-    <p><font color="red">{{ err }}</font></p><br>
-    {% endif %}
-    
-    {{ form.username.label_tag }} {{ form.username }}<br>
-    {{ form.password.label_tag }} {{ form.password }} <br>
-    <input type="submit" value="login" />
-    <input type="hidden" name="next" value="{{ next }}" />
-  </form>
-
-  
-  <br><b>OR</b><br><br>
-  
-  <a href="{% url register %}">Register for a New Account</a>
-  
-</div>
-</body>
-{% endblock %}
-
-{% include "common/footer.html" %}
+		  <table class="login">
+		    <tr>
+		      <td class="key">   {{ form.username.label_tag }}</td>
+		      <td class="value"> {{ form.username }} </td>
+		    </tr>
+		    <tr>
+		      <td class="key">   {{ form.password.label_tag }}</td>
+		      <td class="value"> {{ form.password }} </td>
+		    </tr>
+		    <tr>
+		      <td class="key"></td>
+		      <td class="value"><input type="submit" value="Login" /></td>
+		      <input type="hidden" name="next" value="{{ next }}" />
+		    </tr>
+		  </table>    
+		  </form>
+		  
+		</div>
+	</div>
+{% endblock content %}

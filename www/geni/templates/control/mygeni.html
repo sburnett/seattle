@@ -1,35 +1,19 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml">
-<head>
-	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-	<title>My GENI - GENI</title>
-	<link href="style.css" rel="stylesheet" type="text/css" />
-	<script type="text/javascript" src="scripts/jquery.js" charset="utf-8"></script>
-	<script type="text/javascript" src="scripts/mygeni.js" charset="utf-8"></script>
-	
-</head>
+{% extend "control_base.html" %}
 
-<body>
-	<div id="header">
-		<span id="logo"><a href="index.html">GENI</a></span>
-		<span id="caption">Global Environment for Network Innovations using Seattle</span>		
-	</div>
-	
-	<div id="navigator">
-		
-		<div id="tabs">
-			<span id="meta">shawiz: <a href="help.html">Help</a> <a href="#">Logout</a></span>
-			<table>
-				<tr>
-					<td><a href="index.html">Profile</a></td>
-					<td class="active">My GENI</td>
-					<td><a href="myvessels.html">My Vessels</a></td>
-					<td>Get Donations</td>
-				</tr>
-			</table>
-		</div>
-	</div>
-		
+{% block title %}
+My GENI - GENI
+{% endblock title %}
+
+{% block script %}
+<script type="text/javascript" src="scripts/jquery.js" charset="utf-8"></script>
+<script type="text/javascript" src="scripts/mygeni.js" charset="utf-8"></script>
+{% end block script %}
+
+{% block nav_mygeni %}
+<td class="active">My GENI</td>
+{% endblock nav_mygeni %}
+
+{% block content %}
 	<div id="main">
 		<div id="middle">
 			<div class="bar">
@@ -158,6 +142,6 @@
 			
 		</div>
 	</div>
+	
+{% endblock content %}
 
-</body>
-</html>

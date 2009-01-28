@@ -1,47 +1,59 @@
-{% include "common/header.html" %}
-	<script src="{{ MEDIA_URL }}register.js" type="text/javascript"></script>
-	</head>
+{% extends "accounts_base.html" %}
+
+{% block title %}
+Profile - GENI
+{% endblock title %}
+
+{% block nav_register %}
+<td class="active">Register</td>
+{% endblock nav_register %}
+
 {% block content %}
+	<div id="main">
+		<div id="middle">
 
-<body>
-{% include "common/banner.html" %}
+		  <form action="{% url register %}" method="POST" enctype="multipart/form-data">
 
-<div id="Tabs"> 
+		  {% if form.username.errors or form.password1.errors or form.password2.errors or form.affiliation.errors or form.pubkey.errors %}
+		  <p><font color="red">
+		  Please correct the following:
+		  {{ form.username.errors }}
+		  {{ form.password1.errors }}
+		  {{ form.password2.errors }}
+		  {{ form.affiliation.errors }}
+		  {{ form.pubkey.errors }}
+		  </font></p><br>
+		  {% endif %}
 
-  <h3>Register for a GENI account</h3><br>
-	<div id="registration">
-	  <form action="{% url register %}" method="POST" enctype="multipart/form-data">
+		  <table class="login">
+		    <tr>
+		      <td class="key"> {{ form.username.label_tag }}</td>
+		      <td class="value">{{ form.username }}</td>
+		    </tr>
+		    <tr>
+		      <td class="key">{{ form.password1.label_tag }}</td>
+		      <td class="value">{{ form.password1 }}</td>
+		    </tr>
+		    <tr>
+		      <td class="key">{{ form.password2.label_tag }}</td>
+		      <td class="value">{{ form.password2 }}</td>
+		    </tr>
+		    <tr>
+		      <td class="key">{{ form.affiliation.label_tag }}</td>
+		      <td class="value">{{ form.affiliation }}</td>
+		    </tr>
+		    <tr>
+		      <td class="key">{{ form.pubkey.label_tag }}</td>
+		      <td class="value">{{ form.gen_upload_choice }}</td>
+		      <td class="value">{{ form.pubkey }}</td>
+		    </tr>
+		    <tr>
+		      <td class="key"></td>
+		      <td class="value"><input type="submit" value="Register" /></td>
+		    </tr>
+		  </table>
+		  </form>
 
-	    {% if form.username.errors or form.password1.errors or form.password2.errors or form.affiliation.errors or form.pubkey.errors %}
-	    <p><font color="red">
-		Please correct the following:
-		{{ form.username.errors }}
-		{{ form.password1.errors }}
-		{{ form.password2.errors }}
-		{{ form.affiliation.errors }}
-		{{ form.pubkey.errors }}
-	    </font></p><br>
-	    {% endif %}
-
-	    <table id="Log-In-Table">
-	      <tr><td class="loginlabel"> {{ form.username.label_tag }}<font color="red">*</font></td><td> {{ form.username }}</td></tr>
-	      <tr><td class="loginlabel">{{ form.password1.label_tag }}<font color="red">*</font></td><td> {{ form.password1 }}</td></tr>
-	      <tr><td class="loginlabel">{{ form.password2.label_tag }}<font color="red">*</font></td><td> {{ form.password2 }}</td></tr>
-	      <tr><td class="loginlabel">{{ form.affiliation.label_tag }}<font color="red">*</font></td><td> {{ form.affiliation }}</td></tr>
-	      <tr><td class="loginlabel">{{ form.pubkey.label_tag }}</td><td>{{ form.gen_upload_choice }}<br>{{ form.pubkey }}</td></tr>
-		</table>
-		<div id="Log-In">
-		<input id="registerbutton" align="center" type="submit" value="Register" />
-		<br/>
-		<br/> 
-	   <b class="center">OR</b>
-       <br/>
-       <a class="center" href="{% url login %}">Log In</a>
-	   </div>
-	  </form>
-
+		</div>
 	</div>
-  
-
-{% endblock %}
-{% include "common/footer.html" %}
+{% endblock content %}

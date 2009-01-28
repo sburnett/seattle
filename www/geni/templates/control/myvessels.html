@@ -1,20 +1,14 @@
-{% include "common/loggedin_header.html" %}
-	
-	<div id="navigator">
-		
-		<div id="tabs">
-			<span id="meta">{{ user.username }}: <a href="{% url help %}">Help</a> <a href="{% url logout %}">Logout</a></span>
-			<table>
-				<tr>
-					<td><a href="{% url user_info %}">Profile</td>
-					<td><a href="{% url donations %}">My GENI</a></td>
-					<td class="active">My Vessels</td>
-					<td>Get Donations</td>
-				</tr>
-			</table>
-		</div>
-	</div>
-		
+{% extends "control_base.html" %}
+
+{% block title %}
+My Vessels - GENI
+{% endblock title %}
+
+{% block nav_myvessels %}
+<td class="active">My Vessels</td>
+{% endblock nav_myvessels %}
+
+{% block content %}
 	<div id="main">
 		<div id="middle">
 			<div id="getresources">
@@ -77,4 +71,5 @@
 		</div>
 	</div>
 
-{% include "common/loggedin_footer.html" %}
+{% endblock content %}
+

@@ -1,4 +1,12 @@
-{% include "common/loggedin_header.html" %}
+{% extends "control_base.html" %}
+
+{% block title %}
+Help - GENI
+{% endblock title %}
+
+
+{% block content %}
+	<div id="main">
 
 	<div id="navigator">
 		
@@ -39,4 +47,5 @@
 		</div>
 	</div>
 
-{% include "common/loggedin_footer.html" %}
+
+{% endblock content %}
