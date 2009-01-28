@@ -1,4 +1,4 @@
-{% extends "control_base.html" %}
+{% extends "control/control_base.html" %}
 
 {% block title %}
 Help - GENI
@@ -6,25 +6,6 @@ Help - GENI
 
 
 {% block content %}
-	<div id="main">
-
-	<div id="navigator">
-		
-		<div id="tabs">
-			<span id="meta">Logged in as {{ user.username }}: <a href="{% url help %}">Help</a>, <a href="{% url logout %}">Logout</a></span>
-
-			<table>
-				<tr>
-					<td><a href="{% url user_info %}">Profile</a></td>
-					<td><a href="{% url donations %}">My GENI</a></td>
-					<td><a href="{% url used_resources %}">My Vessels</a></td>
-					<td>Get Donations</td>
-				</tr>
-			</table>
-		</div>
-	</div>
-
-		
 	<div id="main">
 		<div id="middle">
 			<div id="toc">

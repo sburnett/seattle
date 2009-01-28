@@ -9,18 +9,17 @@
 		<div id="tabs">
 			<table>
 				<tr>
-				  <td class="active">Login</td>
-					{% block nav_login %}
-					<td><a href="{% url login %}">Login</a></td>
-					{% endblock nav_login %}
+				  {% block nav_login %}
+				  <td><a href="{% url login %}">Login</a></td>
+				  {% endblock nav_login %}
 
-					{% block nav_register %}
-					<td><a href="{% url register %}">Register</a></td>
-					{% endblock nav_register %}
+				  {% block nav_register %}
+				  <td><a href="{% url register %}">Register</a></td>
+				  {% endblock nav_register %}
 
-					{% block nav_help %}
-					<td>Help</td>
-					{% endblock nav_help %}
+				  {% block nav_help %}
+				  <td>Help</td>
+				  {% endblock nav_help %}
 				</tr>
 			</table>
 		</div>

@@ -178,7 +178,7 @@ def donations(request,share_form=None):
     has_donations = (len(mydonations) != 0)
     has_shares = (len(myshares) != 0)
     
-    return direct_to_template(request,'control/donations.html',
+    return direct_to_template(request,'control/mygeni.html',
                               {'geni_user' : geni_user,
                                'has_donations' : has_donations,
                                'donations' : mydonations, 
