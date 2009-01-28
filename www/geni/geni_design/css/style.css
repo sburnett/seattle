@@ -116,7 +116,7 @@ body {
 
 
 /******************************
-* STYLESHEET FOR login.html
+* STYLESHEET FOR login.html and register.html
 *******************************/
 table.login{
     margin: 20px auto;
@@ -139,6 +139,10 @@ table.login tr td.value {
 table.login tr td.value input {
     padding: 1px;
     font-size: 14pt;
+}
+
+table.login tr td.value select {
+    font-size: 10pt;
 }
 
 
