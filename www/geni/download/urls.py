@@ -39,8 +39,12 @@ from django.contrib import admin
 admin.autodiscover()
 
 urlpatterns = patterns('geni.download.views',
+                       # show the main download page for downloading installers
                        (r'^(?P<username>\w{3,32})/$', 'download', {}, 'installers'),
-                       (r'^(?P<username>\w{3,32})/seattle_mac.tgz$', 'mac', {}, 'mac'),
-                       (r'^(?P<username>\w{3,32})/seattle_linux.tgz$', 'linux', {}, 'linux'),
-                       (r'^(?P<username>\w{3,32})/seattle_win.zip$', 'win', {}, 'win'),
+                       # build and download the mac installer
+                       (r'^(?P<username>\w{3,32})/seattle_mac.tgz$', 'build_mac_installer', {}, 'mac'),
+                       # build and download the linux installer
+                       (r'^(?P<username>\w{3,32})/seattle_linux.tgz$', 'build_linux_installer', {}, 'linux'),
+                       # build and download the windows installer
+                       (r'^(?P<username>\w{3,32})/seattle_win.zip$', 'build_win_installer', {}, 'win'),
 )

@@ -40,25 +40,36 @@ admin.autodiscover()
 
 urlpatterns = patterns('geni.control.views',
                        # top level urls and functions:
+                       # show the user info page for this user listing the public/private keys, and user information
                        (r'^user_info$', 'user_info', {}, 'user_info'),
+                       # show the current donation for this user
                        (r'^donations$', 'donations', {}, 'donations'),
+                       # show the used resources page (with all the currently acquired vessels)
                        (r'^used_resources$', 'used_resources', {}, 'used_resources'),
+                       # show the help page
+                       (r'^help$', 'help', {}, 'help'),
                        
                        # used_resources functions:
+                       # get new resources (from form)
                        (r'^get_resources$', 'get_resources', {}, 'get_resources'),
+                       # delete some specific resource for this user (from form)
                        (r'^del_resource$', 'del_resource', {}, 'del_resource'),
+                       # delete all resources for this user (from form)
                        (r'^del_all_resource$', 'del_all_resources', {}, 'del_all_resources'),
                        
                        # user_info functions:
+                       # generate a new public/private key pair for the user (from form)
                        (r'^gen_new_key$', 'gen_new_key', {}, 'gen_new_key'),
+                       # delete the user's private key from the server (from form)
                        (r'^del_priv$', 'del_priv', {}, 'del_priv'),
+                       # download the user's private key (from form)
                        (r'^priv_key$', 'dl_priv_key', {}, 'priv_key'),
+                       # download the user's public key (from form)
                        (r'^pub_key$', 'dl_pub_key', {}, 'pub_key'),
 
                        # donations functions:
+                       # create a new share with another use (from form)
                        (r'^new_share$', 'new_share', {}, 'new_share'),
+                       # delete an existing share with another user (from form)
                        (r'^del_share$', 'del_share', {}, 'del_share'),
-
-                       # help functions:
-                       (r'^help$', 'help', {}, 'help'),                           
 )

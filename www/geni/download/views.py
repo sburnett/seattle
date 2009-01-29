@@ -109,7 +109,7 @@ def download(request, username):
 
 
 
-def mac(request, username):
+def build_mac_installer(request, username):
     """
    <Purpose>
       Allows the user to download a Mac/OSX distribution of Seattle
@@ -141,7 +141,7 @@ def mac(request, username):
 
 
 
-def linux(request,username):
+def build_linux_installer(request,username):
     """
    <Purpose>
       Allows the user to download a Linux distribution of Seattle
@@ -173,7 +173,7 @@ def linux(request,username):
 
 
 
-def win(request,username):
+def build_win_installer(request,username):
     """
    <Purpose>
       Allows the user to download a Windows distribution of Seattle
