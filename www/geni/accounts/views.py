@@ -1,6 +1,6 @@
 """
 <Program Name>
-  views.py
+  accounts/views.py
 
 <Started>
   October, 2008
@@ -34,12 +34,34 @@ from django.core.urlresolvers import reverse
 from django.conf import settings
 
 from geni.control.models import User
-import forms
+import geni.accounts.forms as forms
+
+
+
 
 def register(request):
-    '''
-    User registration page
-    '''
+    """
+   <Purpose>
+      Generate the user registration page HTTP response object
+
+   <Arguments>
+      request:
+         An HTTP request object
+
+   <Exceptions>
+      Returns exceptions when the DBMS connection is
+      unavailable.
+
+   <Side Effects>
+      Registers a new user in the GENI database with fields specified
+      by the HTML registration form.
+
+   <Returns>
+      HTTP response object representing the server's respond to registration
+      
+   <FixMe>
+      Would want to add validation of user email, and other features to here
+    """
     if request.method == 'POST':
         form = forms.UserCreationForm(request.POST, request.FILES)
         if form.is_valid():
@@ -59,13 +81,55 @@ def register(request):
         form = forms.UserCreationForm()
     return direct_to_template(request,'accounts/register.html', {'form' : form})
 
+
+
+
 def login_redirect(request):
+    """
+   <Purpose>
+      Return an HTTP redirection object that will redirect the user to
+      the GENI login page.
+
+   <Arguments>
+      request:
+         An HTTP request object
+
+   <Exceptions>
+      None
+
+   <Side Effects>
+      Redirects the user that issues the HTTP request to the login page.
+
+   <Returns>
+      HTTP redirection response object
+    """
     return HttpResponseRedirect('/' + settings.URL_PREFIX + "accounts/login")
 
+
+
+
+
 def login(request):
-    '''
-    User login page
-    '''
+    """
+   <Purpose>
+      Logs the user in by verifying their username/password. Checks if
+      the user's browser supports cookies, and if it does then it sets
+      up a persistent session for the user via cookies.
+      
+   <Arguments>
+      request:
+         An HTTP request object
+
+   <Exceptions>
+      None
+
+   <Side Effects>
+      Depending on the login success, might redirect the user to the
+      login page or redirect them to the user_info page (see control/)
+
+   <Returns>
+      HTTP response object that represents 
+    """
     ltemplate = 'accounts/login.html'
     err = ""
     if request.method == 'POST':
@@ -86,8 +150,8 @@ def login(request):
                     request.session.delete_test_cookie()
                 except:
                     pass
-                #except:
-                #    pass
+
+                # Login successful!
                 # Redirect to a success page.
                 return HttpResponseRedirect(reverse("user_info"))
             else:

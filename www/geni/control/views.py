@@ -1,6 +1,6 @@
 """
 <Program Name>
-  views.py
+  control/views.py
 
 <Started>
   October, 2008
@@ -80,6 +80,8 @@ def __validate_guser__(request):
     except User.DoesNotExist:
         ret = HttpResponseRedirect("/geni/accounts/login")
         return ret, False
+
+
 
 def __dl_key__(request,pubkey=True):
     """
@@ -189,6 +191,9 @@ def donations(request,share_form=None):
                                'share_form' : share_form})
 
 
+
+
+
 @login_required()
 def del_share(request):
     """
@@ -238,6 +243,8 @@ def del_share(request):
 
     # return the donations page
     return donations(request)
+
+
 
     
 @login_required()
@@ -294,6 +301,8 @@ def new_share(request):
 
 ########################## Functions dealing with the used resources page
 
+
+
 @login_required()
 def used_resources(request, get_form=False, action_explanation="", remove_explanation="", action_summary=""):
     """
@@ -348,8 +357,7 @@ def used_resources(request, get_form=False, action_explanation="", remove_explan
 
     # return the used resources page constructed from a template
     return direct_to_template(request,'control/myvessels.html',
-                              {'pagetitle' : 'My Vessels',
-                               'geni_user' : geni_user,
+                              {'geni_user' : geni_user,
                                'num_vessels' : len(my_vessels),
                                'my_vessels' : my_vessels,
                                'sh_vessels' : shvessels,
@@ -357,6 +365,8 @@ def used_resources(request, get_form=False, action_explanation="", remove_explan
                                'action_explanation' : action_explanation,
                                'remove_explanation' : remove_explanation,
                                "action_summary" : action_summary})
+
+
 
 
 @login_required()
@@ -458,6 +468,8 @@ def del_all_resources(request):
     return used_resources(request,remove_explanation="Removed all resources")
 
 
+
+
 @login_required()
 def get_resources(request):
     """
@@ -530,6 +542,8 @@ def get_resources(request):
                           action_summary=action_summary)
 
 
+
+
 ########################## Functions dealing with the user info page
     
 @login_required()
@@ -569,8 +583,9 @@ def user_info(request,info=""):
     #                           'info' : info })
     return direct_to_template(request,'control/profile.html',
                               {'geni_user' : geni_user,
-                               'info' : info,
-                               'pagetitle' : 'Profile'})
+                               'info' : info})
+
+
 
     
 @login_required()
@@ -621,6 +636,8 @@ def del_priv(request):
     return user_info(request, info=del_msg)
 
 
+
+
 @login_required()
 def dl_pub_key(request):
     """
@@ -653,6 +670,8 @@ def dl_pub_key(request):
     return __dl_key__(request,True)
 
 
+
+
 @login_required()
 def dl_priv_key(request):
     """
@@ -683,6 +702,8 @@ def dl_priv_key(request):
     if not request.method == 'POST':
         return user_info(request)
     return __dl_key__(request,False)
+
+
 
 
 @login_required()
@@ -732,6 +753,11 @@ def gen_new_key(request):
     return user_info(request,info=info)
 
 
+
+
+########################## Functions dealing with non-interactive pages (e.g. Help page or construction page)
+
+@login_required()
 def construction(request):
     """
     <Purpose>
@@ -754,6 +780,9 @@ def construction(request):
     return direct_to_template(request,'control/construction.html', 
                               {'msg' : 'The GENI website is down for development work. Please come again soon.'})
 
+
+
+@login_required()
 def help(request):
     """
     <Purpose>
@@ -773,7 +802,6 @@ def help(request):
         An HTTP response object that represents the help page on
         succes. A redirect to a login page on error.
     """
-    return direct_to_template(request,'control/help.html', 
-                              {'pagetitle' : 'Help'})
+    return direct_to_template(request,'control/help.html', {})
     
                               
