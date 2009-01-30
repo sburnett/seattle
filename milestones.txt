@@ -75,7 +75,7 @@ sean circular logging on the software updater to the service vessel
 measure twice cut once
 anthony get resource information on Linux
 brent get resource information on Windows XP / Vista
-carter get resource information on BSD / Mac
+1014 carter get resource information on BSD / Mac
 853 armon get resource information on Windows Mobile
 
 :sprint
@@ -94,4 +94,4 @@ anthony RSA replacement
 :sprint
 01/31/2009
 micro machines
-carter make sure the installer is portable to Windows Mobile
+1013 carter make sure the installer is portable to Windows Mobile
