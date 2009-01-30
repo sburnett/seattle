@@ -1,4 +1,4 @@
-# This file maintains sprint information for Seattle strike forces
+ # This file maintains sprint information for Seattle strike forces
 #
 # This file is composed of sprint snippets that are separated by
 # newlines and have the following format:
@@ -73,7 +73,7 @@ bot master
 :sprint
 01/29/2009
 measure twice cut once
-anthony get resource information on Linux
+1022 anthony get resource information on Linux
 brent get resource information on Windows XP / Vista
 1014 carter get resource information on BSD / Mac
 853 armon get resource information on Windows Mobile
