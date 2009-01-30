@@ -29,6 +29,8 @@ INSTALL_DIR = "seattle_repy"
 # The base name of each installer = for instance, "seattle_win.zip"
 INSTALLER_NAME = "seattle"
 
+
+
 def get_inst_name(dist, version):
     # Given the OS it is for and the version, returns
     # the proper name for the installer. Meant for
@@ -36,11 +38,15 @@ def get_inst_name(dist, version):
     base_name = INSTALLER_NAME + version + "_" + dist
     if dist == "win":
         base_name += ".zip"
+    if dist == "winmob":
+        base_name += ".zip"
     if dist == "linux":
         base_name += ".tgz"
     if dist == "mac":
         base_name += ".tgz"
     return base_name
+
+
 
 def prepare_initial_files(trunk_location, include_tests, pubkey, privkey, output_dir):
     """
@@ -97,6 +103,8 @@ def prepare_initial_files(trunk_location, include_tests, pubkey, privkey, output
     writemetainfo.create_metainfo_file(real_privkey, real_pubkey, True)
     os.chdir(orig_dir)
 
+
+
 def prepare_final_files(trunk_location, output_dir):
     """
     <Purpose>
@@ -125,6 +133,8 @@ def prepare_final_files(trunk_location, output_dir):
     # Run clean_folder a second time to make sure the final
     # directory is in good shape.
     clean_folder.clean_folder(trunk_location + "/dist/final_files.fi", output_dir)
+
+
 
 def package_win(dist_dir, install_dir, inst_name, output_dir):
     """
@@ -158,7 +168,52 @@ def package_win(dist_dir, install_dir, inst_name, output_dir):
     build_installers.append_to_zip(output_dir + "/" + inst_name, install_dir, INSTALL_DIR)
     # Finally, add the Windows specific scripts to the zip file
     build_installers.append_to_zip(output_dir + "/" + inst_name, dist_dir + "/win/scripts", INSTALL_DIR)
+
+
+
+
+def package_winmob(dist_dir, install_dir, inst_name, output_dir):
+    """
+    <Purpose>
+      Packages the installation files and appends the necessary scripts to create the Linux installer.
+      
+    <Arguments>
+      dist_dir:
+        The location of the dist directory in the trunk.
+      install_dir:
+        The location of the installation files.
+      inst_name:
+        The name that the final installer should have.
+      output_dir:
+        The final location of the installer.
+
+    <Exceptions>
+      IOError on bad filepaths.
+
+    <Side Effects>
+      None.
+
+    <Returns>
+      None.      
+    """
+    # First, package up the install directory into a zip file
+    temp_zipfile = inst_name + "temp_" + str(os.getpid()) + ".zip"
+    orig_dir = os.getcwd()
+    os.chdir(install_dir + "/..")
+    p = subprocess.Popen("zip -r " + temp_zipfile + " " 
+                         + INSTALL_DIR, shell=True)
+    p.wait()
+    shutil.move(temp_zipfile, orig_dir)
+    os.chdir(orig_dir)
+    shutil.move(temp_zipfile, output_dir + "/" + inst_name)
     
+    # Now, append the Mobile specific files to the tarball
+    build_installers.append_to_zip(output_dir + "/" + inst_name, 
+                                   dist_dir + "/winmob/scripts",
+                                   INSTALL_DIR)
+
+
+
 def package_linux(dist_dir, install_dir, inst_name, output_dir):
     """
     <Purpose>
@@ -197,6 +252,8 @@ def package_linux(dist_dir, install_dir, inst_name, output_dir):
     # Now, append the Linux-specific scripts to the tarball
     build_installers.append_to_tar(output_dir + "/" + inst_name, dist_dir + "/linux/scripts", INSTALL_DIR)
 
+
+
 def package_mac(dist_dir, install_dir, inst_name, output_dir):
     """
     <Purpose>
@@ -224,6 +281,27 @@ def package_mac(dist_dir, install_dir, inst_name, output_dir):
     """
     # For now, just runs the Linux installer packager
     package_linux(dist_dir, install_dir, inst_name, output_dir)
+    
+    # Uncomment the following to build the Mac installer separately,
+    # but make sure that the appropriate files are in the /mac/scripts
+    # directory first.
+    """
+    # First, create a new tarball with the standard files
+    temp_tarball = inst_name + "temp_" + str(os.getpid()) + ".tgz"
+    orig_dir = os.getcwd()
+    os.chdir(install_dir + "/..")
+    p = subprocess.Popen("tar -czf " + temp_tarball + 
+                         " " + INSTALL_DIR, shell=True)
+    p.wait()
+    shutil.move(temp_tarball, orig_dir)
+    os.chdir(orig_dir)
+    shutil.move(temp_tarball, output_dir + "/" + inst_name)
+    
+    # Now, append the Mac specific files to the created tarball
+    build_installers.append_to_tar(output_dir + "/" + inst_name, 
+                                   dist_dir + "/mac/scripts",
+                                   INSTALL_DIR)
+    """
 
 
 def build(options, trunk_location, pubkey, privkey, output_dir, version=""):
@@ -237,10 +315,11 @@ def build(options, trunk_location, pubkey, privkey, output_dir, version=""):
     <Arguments>
       options:
         Various options that influence how the installer is created.
-        At least one of "m", "l", or "w" must be included to indicate
+        At least one of "m", "l", "w", "i", or "a" must be included to indicate
         which installer should be created - "m" for Mac, "l" for Linux,
-        "w" for Windows. Include "t" to indicate that the unit tests
-        should be included in the installers.
+        "w" for Windows, "i" for Windows Mobile, or "a" for all.
+        Include "t" to indicate that the unit tests should be included \
+        in the installers.
       trunk_location:
         The path to the trunk directory of the repository, used
         to find all the requisite files that make up the installer.
@@ -272,6 +351,7 @@ def build(options, trunk_location, pubkey, privkey, output_dir, version=""):
     if not os.path.exists(output_dir):
         raise IOError("Output directory does not exist.")
     orig_dir = os.getcwd()
+    
     # First, create a temp directory
     temp_dir = "/tmp/" + PROGRAM_NAME + str(os.getpid())
     if not os.path.exists(temp_dir):
@@ -281,6 +361,7 @@ def build(options, trunk_location, pubkey, privkey, output_dir, version=""):
         shutil.rmtree(install_dir)
     os.mkdir(install_dir)
     os.chdir(trunk_location)
+    
     # Remember all important locations relative to the trunk
     dist_dir = os.getcwd() + "/dist"
     keys_dir = dist_dir + "/updater_keys"
@@ -293,7 +374,7 @@ def build(options, trunk_location, pubkey, privkey, output_dir, version=""):
 
     # Now, package up the installer for each specified OS.
     packages = []
-    if "w" in options.lower():
+    if "w" in options.lower() or "a" in options.lower():
         # Package the Windows installer
         dist = "win"
         inst_name = get_inst_name(dist, version)
@@ -301,7 +382,7 @@ def build(options, trunk_location, pubkey, privkey, output_dir, version=""):
         shutil.copy2(temp_dir + "/" + inst_name, output_dir)
         packages.append(inst_name)
     
-    if "l" in options.lower():
+    if "l" in options.lower() or "a" in options.lower():
         # Package the Linux installer
         dist = "linux"
         inst_name = get_inst_name(dist, version)
@@ -309,11 +390,19 @@ def build(options, trunk_location, pubkey, privkey, output_dir, version=""):
         shutil.copy2(temp_dir + "/" + inst_name, output_dir)
         packages.append(inst_name)
 
-    if "m" in options.lower():
+    if "m" in options.lower() or "a" in options.lower():
         # Package the Mac installer
         dist = "mac"
         inst_name = get_inst_name(dist, version)
         package_mac(dist_dir, install_dir, inst_name, temp_dir)
+        shutil.copy2(temp_dir + "/" + inst_name, output_dir)
+        packages.append(inst_name)
+
+    if "i" in options.lower() or "a" in options.lower():
+        # Package the Windows Mobile installer
+        dist = "winmob"
+        inst_name = get_inst_name(dist, version)
+        package_winmob(dist_dir, install_dir, inst_name, temp_dir)
         shutil.copy2(temp_dir + "/" + inst_name, output_dir)
         packages.append(inst_name)
 
@@ -331,7 +420,7 @@ def build(options, trunk_location, pubkey, privkey, output_dir, version=""):
 
 def main():
     if len(sys.argv) < 6:
-        print "usage: python make_base_installer.py m|l|w path/to/trunk/ pubkey privkey output/dir/"
+        print "usage: python make_base_installer.py m|l|w|i|a|t path/to/trunk/ pubkey privkey output/dir/"
     else:
         build(sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5])
 

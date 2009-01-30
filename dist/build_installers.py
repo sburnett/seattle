@@ -131,7 +131,7 @@ def append_to_tar(tarball, folder_to_append, tarball_dir):
     p.wait()
     os.chdir(orig_dir)
     shutil.copy2(temp_dir + "/" + base_tarball_name + ".tar.gz", tarball)
-   
+    shutil.rmtree(temp_dir)
 
 
 def main():
