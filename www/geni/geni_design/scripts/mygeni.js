@@ -26,6 +26,9 @@ $(document).ready(function() {
 	create_label(usagenames, "Me",30);
 	create_label(usagenames, "Free", 35);
 	
+	$("#getresourcesbutton").click(get_resources_dialog);
+	$("#getresourcesdialog button").click(close_dialog);
+	
 });
 
 
@@ -47,11 +50,13 @@ function create_block(bar, username, width, isClosable) {
 			block.attr("id", "free");
 			
 			var get = $(document.createElement('a'));
+			get.attr('id','getresourcesbutton');
 			get.attr('href','#');
 			get.text('get');
 			block.append(get);
 			
 			var share = $(document.createElement('a'));
+			share.attr('id','shareresources');
 			share.attr('href','#');
 			share.text('share');
 			block.append(share);
@@ -147,6 +152,17 @@ function show_table(isClosable) {
 	}
 }
 
+
+
+
+function get_resources_dialog() {
+	$("#dialogframe").fadeIn("slow");
+	$("#overlay").fadeIn("slow");
+}
+
+function close_dialog() {
+	$(this).parent().parent().hide();
+}
 
 /*
 	Generate a color in hex notation for a username, which assigns different

@@ -67,7 +67,7 @@ alper parallelize resource acquisition and release
 :sprint
 01/22/2009
 bot master
-sean circular logging on the software updater to the service vessel
+968 sean circular logging on the software updater to the service vessel
 937 brent circular logging on the node manager to the service vessel
 
 :sprint

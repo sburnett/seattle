@@ -295,7 +295,7 @@ table.users tr.even {
     width: 100%;
     height: 100%;
     background-color: #ccc;
-    opacity: 0.5;
+    opacity: 0.3;
     display: none;
 }
 
@@ -308,17 +308,28 @@ table.users tr.even {
 }
 
 #dialogframe #getresourcesdialog {
-    margin: 150px auto;
+    margin: 180px auto;
     padding: 20px;
-    width: 400px;
-    height: 200px;
+    width: 300px;
+    height: 140px;
     background-color: #fff;
     border: 1px solid #999;
+    text-align: center;
 }
 
-#dialogframe #getresourcesdialog { 
-    
-    
+#dialogframe #getresourcesdialog h3 {
+    margin: 5px auto;
+    font-size: 16pt;
+}
+
+#dialogframe #getresourcesdialog form {
+    margin-top: 15px;
+}
+
+#dialogframe #getresourcesdialog input,
+#dialogframe #getresourcesdialog button {
+    margin-top: 20px;
+    font-size: 10pt;
 }
 
 
