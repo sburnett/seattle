@@ -51,7 +51,7 @@ def main():
 
   # Get hard drive space, defaulting to 1 gig
   disk_space = 1000000000
-  pipe = getShellPipe("df .")
+  pipe = getShellPipe("df -k .")
   seenFirstLine = False
   for line in pipe:
     if seenFirstLine:  
