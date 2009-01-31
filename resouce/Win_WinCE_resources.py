@@ -36,10 +36,12 @@ totalDisk = diskInfo["totalBytes"]
 freeDisk = diskInfo["freeBytes"]
   
 # Get meminfo
+memInfo = windows_api.globalMemoryInfo()
+totalMem = memInfo["totalPhysical"]
+
 if windows_api.MobileCE:
-  totalMem = 32*1024*1024 # 32 Meg limit
+  totalMem = min(totalMem, 32*1024*1024) # 32 Meg limit per process
 else:
-  memInfo = windows_api.globalMemoryInfo()
   totalMem = memInfo["totalPhysical"]
   
 # Default to 1, for WinCE
@@ -81,6 +83,8 @@ socketMax = handleMax # Half of the object limit
 print "resource cpu ", numCPU
 print "resource memory ", totalMem
 print "resource diskused ", freeDisk
+
+# The following are more per-process things
 print "resource events ", threadMax
 print "resource filesopened ", handleMax
 print "resource insockets ", socketMax/2
