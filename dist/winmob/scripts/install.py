@@ -15,6 +15,8 @@
 import os
 import platform
 import windows_api
+import nonportable
+
 
 STARTER_SCRIPT_NAME = "start_seattle.py"
 
@@ -39,7 +41,6 @@ def get_startup_folder(version):
                 return startup_path
             else:
                 raise Exception
-
         except:    
             # Try locating the startup folder by looking at the registry key
             key_handle = _winreg.OpenKey(_winreg.HKEY_CURRENT_USER, "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Shell Folders")
@@ -61,6 +62,9 @@ def get_startup_folder(version):
             startup_path = os.environ.get("HOMEDRIVE") + os.environ.get("HOMEPATH") + "\\Start Menu\\Programs\\Startup"
             if os.path.exists(startup_path):
                 return startup_path
+        elif version == "WindowsCE":
+            # Look in probable Mobile places
+            startup_path = "\\Windows\\Startup"
         return ""
 
 
@@ -74,8 +78,8 @@ def main():
         output("This installer is designed for use on Windows XP or Vista only.")
         output("Please download the correct installer for your operating system and try again.")
     else:
-        if not (platform.release() == "Vista" or platform.release() == "XP"):
-            # If it's not XP or Vista, display error and fail
+        if not (nonportable.ostype == "WindowsCE"):
+            # If it's not Windows Mobile, display error and fail
             output("Unsupported Windows Version: " + platform.system + " " + platform.release)
         else:
             # Correct version of Windows, go ahead with the install
