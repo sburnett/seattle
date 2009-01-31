@@ -51,16 +51,13 @@ def main():
 
   # Get hard drive space, defaulting to 1 gig
   disk_space = 1000000000
-  pipe = getShellPipe("df")
+  pipe = getShellPipe("df .")
   seenFirstLine = False
-  line_num = 0
   for line in pipe:
-    line_num += 1
-    if seenFirstLine:
-      disk_space = 0  
+    if seenFirstLine:  
       line_s = re.split("\\s*", line)
       if len(line_s) >= 6 and line:
-        disk_space += (int(line_s[2]) + int(line_s[3])) * 1000
+        disk_space = ((int(line_s[2]) + int(line_s[3])) * 1000)
     else:
       seenFirstLine = True
   pipe.close()
