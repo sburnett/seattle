@@ -41,13 +41,30 @@ def main():
   pipe.close()
 
   # Get max files open, defaulting to 1000
+  # Make sure that 10% of the total system
+  # is not more than the per process limit
   files_open = 1000
+  files_open_per_proc = False
+  files_open_total = False
   pipe = getShellPipe("sysctl kern.maxfiles")
   for line in pipe:
     line_s = line.split(" ")
     if len(line_s) > 1:
-      files_open = int(line_s[1])
+      files_open_total = int(line_s[1])
   pipe.close()
+  pipe = getShellPipe("sysctl kern.maxfilesperproc")
+  for line in pipe:
+    line_s = line.split(" ")
+    if len(line_s) > 1:
+      files_open_per_proc = int(line_s[1])
+  pipe.close()
+  if files_open_per_proc and files_open_total:
+    files_open = min(files_open_per_proc * 10, files_open_total)
+  elif files_open_per_proc:
+    files_open = 10 * files_open_per_proc
+  elif files_open_total:
+    files_open = files_open_total
+
 
   # Get hard drive space, defaulting to 1 gig
   disk_space = 1000000000
@@ -64,11 +81,20 @@ def main():
 
   # Get the max number of processes, defaulting to 100
   events = 100
-  pipe = getShellPipe("sysctl kern.maxproc")
+  pipe = getShellPipe("sysctl kern.maxprocperuid")
   for line in pipe:
     line_s = line.split(" ")
     if len(line_s) > 1:
       events = int(line_s[1])
+  pipe.close()
+
+  # Get the max number of sockets, defaulting to 512
+  maxsockets = 512
+  pipe = getShellPipe("sysctl kern.ipc.maxsockets")
+  for line in pipe:
+    line_s = line.split(" ")
+    if len(line_s) > 1:
+      maxsockets = int(line_s[1])
   pipe.close()
   
   print "resource cpu", num_cpu * 100
@@ -76,7 +102,8 @@ def main():
   print "resource filesopened", files_open
   print "resource diskused", disk_space
   print "resource events", events
-
+  print "resource insockets", maxsockets / 2
+  print "resource outsockets", maxsockets / 2
 
 if __name__ == "__main__":
     main()
