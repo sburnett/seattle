@@ -74,7 +74,7 @@ def main():
     if seenFirstLine:  
       line_s = re.split("\\s*", line)
       if len(line_s) >= 6 and line:
-        disk_space = ((int(line_s[2]) + int(line_s[3])) * 1000)
+        disk_space = (int(line_s[3])) * 1024
     else:
       seenFirstLine = True
   pipe.close()
@@ -97,7 +97,7 @@ def main():
       maxsockets = int(line_s[1])
   pipe.close()
   
-  print "resource cpu", num_cpu * 100
+  print "resource cpu", num_cpu
   print "resource memory", phys_mem
   print "resource filesopened", files_open
   print "resource diskused", disk_space
