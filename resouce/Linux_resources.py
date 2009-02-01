@@ -9,12 +9,8 @@
   Anthony Honstain
 
 <Purpose>
-  Measure the following resources
-  resource cpu .50
-  resource memory 20000000   # 20 Million bytes
-  resource diskused 10000000 # 10 MB
-  resource events 10
-  resource filesopened 5
+  Measure system resources on a Linux system, makes
+  extensive use of /proc files 
 
 <TODO>
   How to handle failures in these methods they dont
@@ -25,66 +21,35 @@
 import commands
 import sys
 
-def parse_proc(keyword, file):
-  """
-  Instead of using re module or grep I do a parse of my own, probably
-  not very roboust.  
-
-  @param keyword: will search line by line for the keyword
-  @param file: file name to search in  
-  
-  Should this method throw exception if bad file name?
-  How should it indicate if the keyword was not found?
-  Currently it uses a similar format to 
-  commands.getstatusoutput() and returns a tuple is the
-  first element being a linux exit value 0 or 1
-
-  For now I will return a similar format to grep
-  a tuple (exit code, line with information)
-  since two different methods use this.
-  """
-  try:
-    openfile = open(file, 'r') 
-  except IOError:     
-    #print 'Error: IOError bad file'
-    return (1, '')
-
-  #Read each line of the file and then compare each word in the line
-  #to the desired string.
-  for line in openfile:
-    read_data = line.split()
-
-    for word in read_data:
-      if word == keyword:
-        openfile.close()
-        return (0, read_data)
-  #print "Error: File not found."
-  openfile.close()
-  return (1, '')
-
 def get_cpu():
   
   #Stores integer value for number of cores
   cpucores = ''
-  
-  #example value for searchresult: (0, ['cpu', 'cores',':', '2')  
-  searchresult = parse_proc("cores", "/proc/cpuinfo")
-       
-  #This will catch a failed file-opening/parse
-  if (searchresult[0] != 0):
-	print 'Error: failed to find cpu core info'
-	#TODO---
-    #grep command failed to find cpu core info
-    #THROW EXCEPTION OR RETURN DEFAULT?
+  cpudefault = 1
 
-  corestring = searchresult[1]
-  cpucores = corestring[len(corestring)-1] 
-    
-  #TODO--- 
-  #Needs to return appropriate float for percent of
-  #cpu usage. NOT JUST THE NUMBER OF CORES. 
-  #Should I catch a non-integer here?   
-  return cpucores
+  try:
+    openfile = open("/proc/cpuinfo", 'r') 
+  except IOError:     
+    return cpudefault
+
+  #Read each line of the file and then compare 
+  #each word in the line to the desired string.
+  for line in openfile:
+    splitline = line.split()
+
+    for word in splitline:
+      #example value for desired read_data
+      #['cpu', 'cores',':', '2'] 
+      if word == "cores":
+        cpucores = splitline[3]
+        openfile.close()       
+        try:
+          return int(cpucores)
+        except ValueError:
+          return cpudefault
+
+  openfile.close()
+  return cpudefault  
   
 
 def get_memory():
@@ -97,33 +62,51 @@ def get_memory():
   swap is not counted.
   """
 
-  #Stores an integer representing the number of free kB
-  memory = 0
+  memory = ''
+  memorydefault = 20000000
   
-  #example value for searchresult: (0, ['MemTotal:', '2066344', 'kB'])  
-  searchresult = parse_proc("MemTotal:", "/proc/meminfo")
+  try:
+    openfile = open("/proc/meminfo", 'r') 
+  except IOError:     
+    return memorydefault
 
-  if (searchresult[0] != 0):
-	return 20000000
-    #TODO---
-    #THROW EXCEPTION OR RETURN DEFAULT?
-    
-  memstring = searchresult[1]
-  memory = memstring[len(memstring)-2]
+  #Read each line of the file and then compare 
+  #each word in the line to the desired string.
+  for line in openfile:
+    splitline = line.split()
 
-  #Assuming memory will be stored in kB
-  #memory is converted to bytes using 1kb = 10^3 bytes
-  memory = int(memory) * (10**3) 
-    
-  #Note for later, kb string is stored if needed in memstring[len(memstring)-1]
-  return memory
+    for word in splitline:
+      #example value for desired splitline
+      #['MemTotal:', '2066344', 'kB']
+      if word == "MemTotal:":
+        memory = splitline[1]
+        openfile.close()  
+     
+        try:
+          memory = long(memory)
+        except ValueError:
+          return memorydefault
+        #Assuming memory will be stored in kB
+        #memory is converted to bytes using 1kb = 10^3 bytes
+        memory = memory * (10**3) 
+        return memory  
+  
+  openfile.close()
+  return memorydefault
 
 
 def get_diskused():
   """
-  Returns the total size of the parition/mount that the
+  Returns the total size in Bytes of the parition/mount that the
   working directory is on.
   """
+
+  disksize = 0
+  disksizedefault = 10000000
+ 
+  #blocksize unit is bytes
+  blocksize = 0
+  freeblocks = 0
 
   #Basic commands for linux stat
   # stat arguement -f get filesystem info
@@ -131,33 +114,31 @@ def get_diskused():
   #   %s block size (faster transfer)
   #   %S Fundamental block size (for block count)
   #   %b Total data blocks in the file system.
-  rawdatareturn = commands.getstatusoutput('stat -f  -c "%S %b" $PWD')
-  
-  #blocksize unit is bytes
-  blocksize = 0
+  statresult = commands.getstatusoutput('stat -f  -c "%S %b" $PWD')
    
-  freeblocks = 0
- 
   # Test because if first element of tuple is other than 0
   # then the exit status of the linux command is an error.
-  if (rawdatareturn[0] != 0):
-    # Anthony Jan 19 2009:
-    # TODO--- 
-    # Returns the value from the restriction.txt file
-    #print 'Error: stat command had error'
-    #print rawdatareturn[1]
-    return 10000000
+  if (statresult[0] != 0):
+    #Failed
+    return disksizedefault
     
-  temp = (rawdatareturn[1]).split()
-  blocksize = int(temp[0])
-  freeblocks = int(temp[1])
+  statresult = (statresult[1]).split()
+  #Example of expected value for statresult
+  #['4096', '3751807']
 
-  totalbytes = blocksize*freeblocks
-  
-  #Conversion made using 1MB = 10**6Bytes
-  #totalmb = totalbytes / (10**6)
- 
-  return totalbytes 
+  try:
+    blocksize = long(statresult[0])
+  except ValueError:
+    return disksizedefault
+
+  try:
+    freeblocks = long(statresult[1])
+  except ValueError:
+    return disksizedefault
+
+  disksize = blocksize * freeblocks 
+  return disksize 
+
 
 def get_freediskspace():
   """
@@ -166,41 +147,46 @@ def get_freediskspace():
 
   Will return the disk space available for non-super users
   in the working directory (integer/long number of bytes). 
+ 
   """
-  # Basic commands for linux stat
+
+  disksize = 0
+  disksizedefault = 10000000
+ 
+  #blocksize unit is bytes
+  blocksize = 0
+  freeblocks = 0
+
+  #Basic commands for linux stat
   # stat arguement -f get filesystem info
   # stat arguement -c use valid format sequence
   #   %s block size (faster transfer)
   #   %S Fundamental block size (for block count)
   #   %a free blocks available to non-super user
-  rawdatareturn = commands.getstatusoutput('stat -f  -c "%S %a" $PWD')
-  
-  #blocksize unit is bytes
-  blocksize = 0
-  
-  #free blocks for non-super user  
-  freeblocks = 0
- 
+  statresult = commands.getstatusoutput('stat -f  -c "%S %a" $PWD')
+   
   # Test because if first element of tuple is other than 0
   # then the exit status of the linux command is an error.
-  if (rawdatareturn[0] != 0):
-    # Anthony Jan 19 2009:
-    # TODO--- 
-    # Just returns default value from restrictions.txt
-    #print 'Error: stat command had error'
-    #print rawdatareturn[1]
-    return 10000000
+  if (statresult[0] != 0):
+    #Failed
+    return disksizedefault
     
-  temp = (rawdatareturn[1]).split()
-  blocksize = int(temp[0])
-  freeblocks = int(temp[1])
+  statresult = (statresult[1]).split()
+  #Example of expected value for statresult
+  #['4096', '3751807']
 
-  totalbytes = blocksize*freeblocks
-  
-  #Conversion made using 1MB = 10**6Bytes
-  #totalmb = totalbytes / (10**6)
- 
-  return totalbytes 
+  try:
+    blocksize = long(statresult[0])
+  except ValueError:
+    return disksizedefault
+
+  try:
+    freeblocks = long(statresult[1])
+  except ValueError:
+    return disksizedefault
+
+  disksize = blocksize * freeblocks 
+  return disksize 
 
 
 def get_events():
