@@ -11,6 +11,7 @@
 # Mobile 6 is 1 gig, but lets play it safe
 # http://www.addlogic.se/articles/articles/windows-ce-6-memory-architecture.html
 # I can't find a handle limit for Mobile, but lets just use 1/4 of desktop (50)
+# Windows Mobile 6 has a 64K handle limit (system wide)
 
 # Windows Info
 # CPU's: %NUMBER_OF_PROCESSORS%
@@ -22,13 +23,15 @@
 
 # 10,000 File handle limit on Windows XP, but see object limit
 # See: http://support.microsoft.com/kb/327699
-# Total user objects can be between 200 and 65K
+# Total user objects can be between 200 and 18K per proc
+# System limit of 64K
 # See: http://msdn.microsoft.com/en-us/library/ms725486(VS.85).aspx
 # So, lets use the lowest possible to play it safe
 
 # Loopback is a special case of network, we can do the same benchmark with a local addr
 
 import windows_api
+import _winreg
 
 # Get disk info, using current directory
 diskInfo = windows_api.diskUtil(None)
@@ -71,6 +74,10 @@ if windows_api.MobileCE:
 else:
   # Hard limit at 512
   threadMax = min(128*numCPU,512)
+
+# 
+handleLimit = min(65,536, 10000)
+
   
 handleMax = 100 # Half of the object limit
 
