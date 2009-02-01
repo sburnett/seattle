@@ -115,6 +115,9 @@ def encode_post_msg(fields, files):
 def checkArgs(args):
   if len(args)!=4:
     return False
+  if os.path.exists(args[3]) == False:
+    print "File doesn't exist"
+    return False
   if os.path.isdir(args[3]) == True: 
     print "Must provide a file"
     return False
