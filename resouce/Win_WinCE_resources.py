@@ -20,18 +20,21 @@
 # Lets do 1/4 of this, times the number of CPU's
 # http://msdn.microsoft.com/en-us/library/ms684957.aspx
 # Max Memory: 4 gigs on 32bit, but getMem info can handle up to 64 gig for 64bit machines
+# 64 sockets per app by default, see: http://msdn.microsoft.com/en-us/library/aa923605.aspx
 
-# 10,000 File handle limit on Windows XP, but see object limit
 # See: http://support.microsoft.com/kb/327699
 # Total user objects can be between 200 and 18K per proc
 # System limit of 64K
 # See: http://msdn.microsoft.com/en-us/library/ms725486(VS.85).aspx
 # So, lets use the lowest possible to play it safe
+# 64 sockets per app by default, see: http://msdn.microsoft.com/en-us/library/ms739169(VS.85).aspx
+
+# libc._getmaxstdio() gives us the maximum number of file handles
 
 # Loopback is a special case of network, we can do the same benchmark with a local addr
 
 import windows_api
-import _winreg
+import ctypes # Used to query for max file handles
 
 # Get disk info, using current directory
 diskInfo = windows_api.diskUtil(None)
@@ -75,17 +78,10 @@ else:
   # Hard limit at 512
   threadMax = min(128*numCPU,512)
 
-# 
-handleLimit = min(65,536, 10000)
+libc = ctypes.cdll.msvcrt  
+handleMax = libc._getmaxstdio() # Query C run-time for maximum file handles
 
-  
-handleMax = 100 # Half of the object limit
-
-# Assume 1/4th on Mobile
-if windows_api.MobileCE:
-  handleMax = handleMax / 4
-
-socketMax = handleMax # Half of the object limit
+socketMax = 64 # By default, only 64 sockets per app, both mobile and desktop
 
 print "resource cpu ", numCPU
 print "resource memory ", totalMem
@@ -96,5 +92,3 @@ print "resource events ", threadMax
 print "resource filesopened ", handleMax
 print "resource insockets ", socketMax/2
 print "resource outsockets ", socketMax/2
-
-
