@@ -109,18 +109,20 @@ function edit_block(username, width) {
 		var label = $("#labelusage" + username);
 		var old_percent = parseInt($("#usage" + username + " span").text());
 		var free_percent = parseInt($("#usageFree span").text());
-		if (width == 0) {
-			block.remove();
-			label.remove();
-		} else {
-			$("#usage" + username + " span").text(width + '%');
-			block.css("width", width + '%');
-			label.css("width", width + '%');
-		}
 		var new_free_percent = free_percent + old_percent - width;
-		$("#usageFree span").text(new_free_percent + '%');
-		$("#usageFree").css("width", new_free_percent + '%');
-		$("#labelusageFree").css("width", new_free_percent + '%');
+		if (new_free_percent >= 0) {
+			if (width == 0) {
+				block.remove();
+				label.remove();
+			} else {
+				$("#usage" + username + " span").text(width + '%');
+				block.css("width", width + '%');
+				label.css("width", width + '%');
+			}
+			$("#usageFree span").text(new_free_percent + '%');
+			$("#usageFree").css("width", new_free_percent + '%');
+			$("#labelusageFree").css("width", new_free_percent + '%');
+		}
 	}
 }
 
@@ -145,20 +147,31 @@ function create_label(names, username, width, isClosable) {
 function change_percent() {
 	var dialog = $(document.createElement("div"));
 	dialog.attr("id", "changepercentdialog");
-	dialog.html('<h3>Change Percent</h3><input name="' + $(this).parent().attr("id") + '" type="text" /> %<br />');
+	dialog.html('<h3>Change Percent</h3>');
+	var input = $(document.createElement("input"));
+	input.attr("name", $(this).parent().attr("id"));
+	input.attr("type", "text");
+	input.val(parseInt($(this).text()));
+	input.click(function () { $(this).val("") });
+	var symbol = $(document.createElement("span"));
+	symbol.html(" %<br />");
 	var cancel = $(document.createElement("button"));
 	cancel.text("Cancel");
 	var save = $(document.createElement("button"));
 	save.text("Save");
-	cancel.click(close_dialog);
+	cancel.click(function () {
+		close_dialog();
+		$(this).parent().remove();
+	});
 	save.click(save_percent);
+	dialog.append(input);
+	dialog.append(symbol);
 	dialog.append(cancel);
 	dialog.append(save);
 	$("#dialogframe").append(dialog);
 	$("#dialogframe").fadeIn("fast");
 	$("#overlay").fadeIn("fast");
 	$("#changepercentdialog").fadeIn("fast");
-	
 }
 
 function save_percent() {

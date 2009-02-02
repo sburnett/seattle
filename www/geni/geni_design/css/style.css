@@ -344,8 +344,7 @@ table.users tr.even {
     padding: 1px;
 }
 
-#dialogframe #shareresourcesdialog span,
-#dialogframe #changepercentdialog span {
+#dialogframe #shareresourcesdialog span {
     display: block;
     width: 80px;
     text-align: right;
