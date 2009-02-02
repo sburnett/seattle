@@ -24,9 +24,10 @@ import subprocess
 PROGRAM_NAME = "build_and_update"
 UPDATER_SITE = "/home/couvb/public_html/updatesite"
 INSTALL_DIR = "seattle_repy"
-DIST_DIR = "/var/www/dist"
+#DIST_DIR = "/var/www/dist"
+DIST_DIR = "/home/butaud/temp/dist"
 
-DEBUG = False
+DEBUG = True
 
 def main():
     if len(sys.argv) < 4:

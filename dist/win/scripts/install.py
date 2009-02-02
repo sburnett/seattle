@@ -8,6 +8,7 @@ STARTER_SCRIPT_NAME = "start_seattle.bat"
 def output(text):
     print text
 
+
 def get_startup_folder(version):
     # Returns the startup folder if it can be found,
     # takes version either "XP" or "Vista"

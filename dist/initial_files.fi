@@ -12,7 +12,6 @@ del *.pyc
 del *.mix
 del *.publickey
 del *.privatekey
-del nmtest*
 del foo.py
 del foowrite.py
 del generatekeys.py
