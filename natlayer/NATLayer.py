@@ -352,6 +352,10 @@ class NATConnection():
   # This needs to be set by the forwarder
   frameHandler = None
   
+  # Locks, this is to make sure only one thread is reading or writing at any time
+  readLock = None
+  writeLock = None
+  
   def __init__(self, mac, forwarderIP, forwarderPort):
     """
     <Purpose>
@@ -369,6 +373,9 @@ class NATConnection():
       
       forwarderPort:
         The port on the forwarder to connect to
+   
+    <Exceptions>
+        As from socket.connect, etc.
     """
     # Save our mac address
     self.ourMAC = mac.replace(":","")
@@ -379,6 +386,10 @@ class NATConnection():
       self.connectionInit = True
     else:
       self.socket = openconn(forwarderIP, forwarderPort)
+      
+    # Setup socket locks
+    self.readLock = getlock()
+    self.writeLock = getlock()
   
   # Closes the NATConnection, and cleans up
   def close(self):
@@ -422,6 +433,10 @@ class NATConnection():
       A socket object if the connection succedded, None on failure.
       Check NATConnection.error to see the error.
     """
+    # Make sure we have all the locks
+    self.readLock.acquire()
+    self.writeLock.acquire()
+    
     # Create init frame
     frInit = NATFrame()
     frInit.initAsClient(self.ourMAC, serverMac)
@@ -433,6 +448,10 @@ class NATConnection():
     frResp = NATFrame()
     frResp.initFromSocket(self.socket)
 
+    # Release the locks
+    self.readLock.release()
+    self.writeLock.release()
+    
     # Check the response
     if frResp.frameMesgType != INIT_STATUS:
       raise EnvironmentError, "Unexpected Response Frame!"
@@ -461,6 +480,10 @@ class NATConnection():
       True if the connection succedded, False on failure.
       Check NATConnection.error to see the error.
     """
+    # Make sure we have all the locks
+    self.readLock.acquire()
+    self.writeLock.acquire()
+    
     # Create init frame
     frInit = NATFrame()
     frInit.initAsServer(self.ourMAC)
@@ -472,6 +495,10 @@ class NATConnection():
     frResp = NATFrame()
     frResp.initFromSocket(self.socket)
 
+    # Release the locks
+    self.readLock.release()
+    self.writeLock.release()
+    
     # Check the response
     if frResp.frameMesgType != INIT_STATUS:
       raise EnvironmentError, "Unexpected Response Frame!"
@@ -502,12 +529,19 @@ class NATConnection():
     # Check if we are initialized
     if not self.connectionInit:
       raise AttributeError, "NAT Connection is not yet initialized!"
-      
+            
     # Init frame
     frame = NATFrame()
     
-    # Construct frame, this blocks
-    frame.initFromSocket(self.socket)
+    try:
+      # Get the read lock
+      self.readLock.acquire()
+      
+      # Construct frame, this blocks
+      frame.initFromSocket(self.socket)
+    finally:
+      # Release the lock
+      self.readLock.release()
     
     # Return the frame
     return frame
@@ -527,9 +561,16 @@ class NATConnection():
     # Check if we are initialized
     if not self.connectionInit:
       raise AttributeError, "NAT Connection is not yet initialized!"
-      
-    # Send the frame!
-    self.socket.send(frame.toString())
+    
+    try:
+      # Get the send lock
+      self.writeLock.acquire()
+        
+      # Send the frame!
+      self.socket.send(frame.toString())
+    finally:
+      # release the send lock
+      self.writeLock.release()
     
   def send(self,targetMac, data):
     """
