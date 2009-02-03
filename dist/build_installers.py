@@ -133,12 +133,28 @@ def append_to_tar(tarball, folder_to_append, tarball_dir):
     shutil.copy2(temp_dir + "/" + base_tarball_name + ".tar.gz", tarball)
     shutil.rmtree(temp_dir)
 
+    
+def print_usage():
+    print """
+usage: python build_installers.py tarball folder_to_append tarball_dir"
+where: tarball ends with .tgz or .zip
+"""
 
+    
 def main():
     if len(sys.argv) < 4:
-        print "usage: python build_installers.py tarball folder_to_append tarball_dir"
+        print_usage()
+        return
+
+    tarball, folder_to_append, tarball_dir = sys.argv[1:]
+    if tarball.endswith("tgz"):
+        append_to_tar(tarball, folder_to_append, tarball_dir)
+    elif tarball.endswith("zip"):
+        append_to_zip(tarball, folder_to_append, tarball_dir)
     else:
-        append_to_tar(sys.argv[1], sys.argv[2], sys.argv[3])
+        print_usage()
+    return
+
 
 if __name__ == "__main__":
     main()
