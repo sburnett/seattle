@@ -349,12 +349,21 @@ class NATConnection():
   listenHandle = None 
   
   # Callback function that is passed a socket object and frame when it is received
-  # This needs to be set by the forwarder
+  # This needs to be set by the forwarder, this is also used by waitforconn
   frameHandler = None
   
   # Locks, this is to make sure only one thread is reading or writing at any time
   readLock = None
   writeLock = None
+  
+  # This is so that client data can be buffered for the sockets
+  # This is used for waitforconn, to handle recieving data out of requested order
+  # e.g. socket A does a recv but we recieve 5 frames for socket B first
+  # 
+  # Each client is represented by their string mac, which corresponds to another dictionary
+  # This dictionary has 3 indexes, "lock" which is a lock for: "data" which is just a string, "closed" is wheter the socket is closed
+  clientDataBuffer = {}
+  clientDataLock = None
   
   def __init__(self, mac, forwarderIP, forwarderPort):
     """
@@ -556,7 +565,7 @@ class NATConnection():
         The frame to send over the network
     
     <Exceptions>
-      If the connection is not initialized, an AttributeError is raised.
+      If the connection is not initialized, an AttributeError is raised.  Socket error can be raised if the socket is closed during transmission.
     """
     # Check if we are initialized
     if not self.connectionInit:
@@ -585,7 +594,7 @@ class NATConnection():
         The data to send to the target.
         
     <Exceptions>
-      If the connection is not initialized, an AttributeError is raised.  
+      If the connection is not initialized, an AttributeError is raised. Socket error can be raised if the socket is closed during transmission.
     """
     # Check if we are initialized
     if not self.connectionInit:
@@ -600,3 +609,142 @@ class NATConnection():
     # Send it!
     self.sendFrame(frame)
 
+  def waitforconn(self, function):
+    """
+    <Purpose>
+    Waits for a connection to a port. Calls function with a socket-like object if it succeeds.
+
+    <Arguments>
+      function:
+        The function to call. It should take five arguments: (remotemac, socketlikeobj, thisnatcon).
+        If your function has an uncaught exception, the socket-like object it is using will be closed.
+
+    <Side Effects>
+      Starts an event handler that listens for connections.
+
+    <Returns>
+      Nothing
+    """
+    # Setup the user function to call if there is a new client
+    self.frameHandler = function
+    
+    # Create lock
+    self.clientDataLock = getlock()
+    
+    # Launch event to handle this
+    settimer(0, self._socketReader, ())
+  
+  
+  # Handles a client closing a connection
+  def _closeCONN(fromMac):
+    # Lock the client
+    self.clientDataBuffer[fromMac]["lock"].acquire()
+    
+    # Set it to be closed
+    self.clientDataBuffer[fromMac]["closed"] = True
+    
+    # Unlock
+    self.clientDataBuffer[fromMac]["lock"].release()
+      
+  # This is launched as an even for waitforconn
+  def _socketReader(self):
+    while True:
+      # Read in a frame
+      frame = self.recv()
+      fromMac = frame.frameMACAddress
+      
+      # Handle CONN_TERM
+      if frame.frameMesgType == CONN_TERM:
+        self._closeCONN(fromMac)
+        return
+        
+      # We only want to handle data forwarding requests
+      # TODO: fix this
+      if frame.frameMesgType != DATA_FORWARD:
+        print "unhandled frame type: ", frame.frameMesgType
+        return
+      
+      # Get the lock
+      self.clientDataLock.acquire()
+      
+      # Does this client socket exists? If so, append to their buffer
+      if fromMac in self.clientDataBuffer:
+        # Use the socket lock so that this is thread safe
+        self.clientDataBuffer[fromMac]["lock"].acquire()
+        self.clientDataBuffer[fromMac]["data"] += frame.frameContent
+        self.clientDataBuffer[fromMac]["lock"].release()
+        
+      # This is a new client, we need to call the user callback function
+      else:
+        # Create a new socket
+        socketlike = NATSocket(self, fromMac)
+        
+        # Create the entry for it, add the data to it
+        self.clientDataBuffer[fromMac] = {"lock":getlock(),"data":"","closed":False}
+        self.clientDataBuffer[fromMac]["data"] = frame.frameContent
+        
+        # Make sure the user code is safe
+        try:
+          self.frameHandler(fromMac, socketlike, self)
+        except:
+          # Close the socket
+          socketlike.close()
+        
+      self.clientDataLock.release()
+       
+       
+# A socket like object with an understanding that it is part of a NAT Connection
+# Has the same functions as the socket like object in repy
+class NATSocket():
+  # Pointer to the master NAT Connection
+  natcon = None
+  
+  # Connected client mac
+  clientMac = ""
+  
+  def __init__(self, natcon, clientMac):
+    self.natcon = natcon
+    self.clientMac = clientMac
+  
+  def close(self):
+    # Tell the forwarder to terminate the client connection
+    self.natcon.sendFrame(NATFrame().initAsConnTermMsg(self.clientMac))
+    
+    # Clean-up
+    self.natcon.clientDataLock.acquire() # Get the main lock
+    self.natcon.clientDataBuffer[self.clientMac]["lock"].acquire() # Probably not necessary, but oh well
+    self.natcon.clientDataBuffer[self.clientMac]["data"] = "" # Clear the buffer
+    del self.natcon.clientDataBuffer[self.clientMac] # Remove the entry 
+    self.natcon.clientDataLock.release()
+
+  def recv(self,bytes):
+    # Check if the socket is closed, raise an exception
+    if self.natcon.clientDataBuffer[self.clientMac]["closed"]:
+      self.close() # Clean-up
+      raise EnvironmentError, "The socket has been closed!"
+      
+    # Get our own lock
+    self.natcon.clientDataBuffer[self.clientMac]["lock"].acquire()
+    
+    # Read up to bytes
+    data = self.natcon.clientDataBuffer[self.clientMac]["data"][:bytes] 
+    
+    # Strip bytes from the string
+    self.natcon.clientDataBuffer[self.clientMac]["data"] = self.natcon.clientDataBuffer[self.clientMac]["data"][bytes:] 
+    
+    # Release the lock
+    self.natcon.clientDataBuffer[self.clientMac]["lock"].release() 
+    
+    return data
+
+  def send(self,data):
+    # Check if the socket is closed, raise an exception
+    if self.natcon.clientDataBuffer[self.clientMac]["closed"]:
+      self.close() # Clean-up
+      raise EnvironmentError, "The socket has been closed!"
+    
+    # Instruct the NATConnection object to send our data
+    # to the client specified for this socket
+    
+    self.natcon.send(self.clientMac, data)
+    
