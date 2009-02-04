@@ -3,17 +3,12 @@ include NATLayer.py
 # Must be pre-processed by repypp
 # Takes 1 argument, the server's MAC
 
-# Responds "Hi Back!" to every frame
-
-def echoSocket(socket):
+def newClient(remotemac, socketlikeobj, thisnatcon):
   while True:
-    data = socket.recv(1024)
+    data = socketlikeobj.recv(1024)
     if data != "":
       num = int(data)
-      socket.send(str(num+1))
-    
-def newClient(remotemac, socketlikeobj, thisnatcon):
-  settimer(0, echoSocket, [socketlikeobj])
+      socketlikeobj.send(str(num+1))
 
 if callfunc == "initialize":
   mac = callargs[0]

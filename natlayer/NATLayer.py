@@ -626,6 +626,10 @@ class NATConnection():
     <Returns>
       Nothing
     """
+    # Check if we are initialized
+    if not self.connectionInit:
+      raise AttributeError, "NAT Connection is not yet initialized!"
+      
     # Setup the user function to call if there is a new client
     self.frameHandler = function
     
@@ -685,9 +689,9 @@ class NATConnection():
         self.clientDataBuffer[fromMac] = {"lock":getlock(),"data":"","closed":False, "nodatalock":getlock()}
         self.clientDataBuffer[fromMac]["data"] = frame.frameContent
         
-        # Make sure the user code is safe
+        # Make sure the user code is safe, launch an event for it
         try:
-          self.frameHandler(fromMac, socketlike, self)
+          settimer(0,self.frameHandler, (fromMac, socketlike, self))
         except:
           # Close the socket
           socketlike.close()
