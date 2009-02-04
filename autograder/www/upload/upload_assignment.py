@@ -30,8 +30,11 @@ import os
 import sys
 
 
-host="192.168.0.11"
-url="http://192.168.0.11/cgi-bin/upload/up.cgi"
+#host="192.168.0.11"
+host="seattle.cs.washington.edu:8080"
+#url="http://192.168.0.11/cgi-bin/upload/up.cgi"
+#url="http://seattle.cs.washington.edu:8080/autograder/upload/views.py"
+url="/autograder/upload/"
 
 def post_to_webserver(host, url, fields, files):
   """
@@ -138,7 +141,8 @@ if __name__ == "__main__":
     exit(0)
 
   #variables and corresponding values
-  var_vals=[["classcode",sys.argv[1]],["email",sys.argv[2]],["dir","images"]]
+#  var_vals=[["id_class_code",sys.argv[1]],["id_email",sys.argv[2]],["dir","images"]]
+  var_vals=[["class_code",sys.argv[1]],["email",sys.argv[2]]]
   
   file_to_upload=[["file",sys.argv[3],open(sys.argv[3]).read()]]
 
