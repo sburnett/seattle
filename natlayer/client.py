@@ -23,18 +23,23 @@ if callfunc == "initialize":
   
   # Print message everyX packets
   everyX = 20
-  
   num = 1
-  while True:
-    run = getruntime()
-    socket.send(str(num))
-    num = num + 1
-    data = socket.recv(1024)
-    if data == str(num):
+  
+  try:
+    while True:
+      run = getruntime()
+      socket.send(str(num))
       num = num + 1
-      diff = getruntime()-run
-      avgDiff = (avgDiff + diff)
-      packets = packets +1
+      data = socket.recv(1024)
+      if data == str(num):
+        num = num + 1
+        diff = getruntime()-run
+        avgDiff = (avgDiff + diff)
+        packets = packets +1
       
-      if packets % everyX == 0:
-        print packets, ": Got Response! ", (1/diff), "Packets/sec ",  (1/(avgDiff/packets)), " Avg. Packets/sec"
+        if packets % everyX == 0:
+          print packets, ": Got Response! ",  (1/(avgDiff/packets)), " Avg. Packets/sec"
+  
+  finally:
+    print "Closing the socket..."
+    socket.close()

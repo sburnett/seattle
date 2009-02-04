@@ -361,7 +361,8 @@ class NATConnection():
   # e.g. socket A does a recv but we recieve 5 frames for socket B first
   # 
   # Each client is represented by their string mac, which corresponds to another dictionary
-  # This dictionary has 3 indexes, "lock" which is a lock for: "data" which is just a string, "closed" is wheter the socket is closed
+  # This dictionary has 4 indexes, "lock" which is a lock for: "data" which is just a string, "closed" is wheter the socket is closed
+  # "nodatalock" is locked when there is no data, this allows the NATConnection to unblock a thread that is waiting for data
   clientDataBuffer = {}
   clientDataLock = None
   
@@ -672,6 +673,7 @@ class NATConnection():
         # Use the socket lock so that this is thread safe
         self.clientDataBuffer[fromMac]["lock"].acquire()
         self.clientDataBuffer[fromMac]["data"] += frame.frameContent
+        self.clientDataBuffer[fromMac]["nodatalock"].release() # There is now data
         self.clientDataBuffer[fromMac]["lock"].release()
         
       # This is a new client, we need to call the user callback function
@@ -680,7 +682,7 @@ class NATConnection():
         socketlike = NATSocket(self, fromMac)
         
         # Create the entry for it, add the data to it
-        self.clientDataBuffer[fromMac] = {"lock":getlock(),"data":"","closed":False}
+        self.clientDataBuffer[fromMac] = {"lock":getlock(),"data":"","closed":False, "nodatalock":getlock()}
         self.clientDataBuffer[fromMac]["data"] = frame.frameContent
         
         # Make sure the user code is safe
@@ -692,8 +694,6 @@ class NATConnection():
         
       self.clientDataLock.release()
        
-# How long to block if there is no data, this is done in a loop until there is data
-RECV_BLOCK_INTERVAL = 0.005
        
 # A socket like object with an understanding that it is part of a NAT Connection
 # Has the same functions as the socket like object in repy
@@ -735,29 +735,27 @@ class NATSocket():
     if self.natcon.clientDataBuffer[self.clientMac]["closed"]:
       self.close() # Clean-up
       raise EnvironmentError, "The socket has been closed!"
-    
-    # Initial data, this is the first run
-    data = ""
-    first = True
-    
-    while len(data) == 0:
-      # If there is no data, and this is not the first time around, block for a bit to wait for data
-      if not first:
-        sleep(RECV_BLOCK_INTERVAL)
         
-      # Get our own lock
-      self.natcon.clientDataBuffer[self.clientMac]["lock"].acquire()
+    # Block until there is data
+    # This lock is released whenever new data arrives, or if there is data remaining to be read
+    self.natcon.clientDataBuffer[self.clientMac]["nodatalock"].acquire()
+    self.natcon.clientDataBuffer[self.clientMac]["nodatalock"].release()
     
-      # Read up to bytes
-      data = self.natcon.clientDataBuffer[self.clientMac]["data"][:bytes] 
-    
-      # Strip bytes from the string
-      self.natcon.clientDataBuffer[self.clientMac]["data"] = self.natcon.clientDataBuffer[self.clientMac]["data"][bytes:] 
-    
-      # Release the lock
-      self.natcon.clientDataBuffer[self.clientMac]["lock"].release() 
+    # Get our own lock
+    self.natcon.clientDataBuffer[self.clientMac]["lock"].acquire()
+  
+    # Read up to bytes
+    data = self.natcon.clientDataBuffer[self.clientMac]["data"][:bytes] 
+  
+    # Strip bytes from the string
+    self.natcon.clientDataBuffer[self.clientMac]["data"] = self.natcon.clientDataBuffer[self.clientMac]["data"][bytes:] 
+  
+    # Set the no data lock if there is none
+    if len(self.natcon.clientDataBuffer[self.clientMac]["data"]) == 0:
+      self.natcon.clientDataBuffer[self.clientMac]["nodatalock"].acquire()
       
-      first = False
+    # Release the lock
+    self.natcon.clientDataBuffer[self.clientMac]["lock"].release() 
     
     return data
 
