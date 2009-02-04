@@ -447,7 +447,7 @@ table.vessels tr.even {
 }
 
 table#downloads {
-    margin: 10px auto;
+    margin: 10px auto 80px auto;
 	border-spacing: 0;
 	border: 1px solid #999;
 	width: 90%;
