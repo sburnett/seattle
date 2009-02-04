@@ -774,8 +774,17 @@ class NATSocket():
     self.clientMac = clientMac
   
   def close(self):
-    # Tell the forwarder to terminate the client connection
-    self.natcon.sendFrame(NATFrame().initAsConnTermMsg(self.clientMac))
+    """
+    <Purpose>
+      Closes the socket. This will close the client connection if possible.
+      
+    <Side effects>
+      The socket will no longer be usable.
+    """
+    # If the NATConnection is still initialized, then lets send a close message
+    if self.natcon.connectionInit:
+      # Tell the forwarder to terminate the client connection
+      self.natcon.sendFrame(NATFrame().initAsConnTermMsg(self.clientMac))
     
     # Clean-up
     self.natcon.clientDataLock.acquire() # Get the main lock
@@ -784,6 +793,9 @@ class NATSocket():
     del self.natcon.clientDataBuffer[self.clientMac] # Remove the entry 
     self.natcon.clientDataLock.release()
 
+    # Remove connection to natcon
+    self.natcon = None
+    
   def recv(self,bytes):
     """
     <Purpose>
@@ -792,6 +804,9 @@ class NATSocket():
     <Arguments>
       bytes:
         Read up to "bytes" input
+    
+    <Exceptions>
+      If the socket is closed, an EnvironmentError will be raised.
         
     <Returns>
       A string with length up to bytes
@@ -825,6 +840,18 @@ class NATSocket():
     return data
 
   def send(self,data):
+    """
+    <Purpose>
+      To send data over the socket. This operation will block. 
+    
+    <Arguments>
+      data:
+        Send string data over the socket.
+    
+    <Exceptions>
+      If the socket is closed, an EnvironmentError will be raised.
+        
+    """
     # Check if the socket is closed, raise an exception
     if self.natcon.clientDataBuffer[self.clientMac]["closed"]:
       self.close() # Clean-up
