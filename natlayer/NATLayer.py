@@ -403,15 +403,36 @@ class NATConnection():
   
   # Closes the NATConnection, and cleans up
   def close(self):
+    """
+    <Purpose>
+      Closes the NATConnection object.
+     
+    """
+    # Prevent more reading or writing
+    self.readLock.acquire()
+    self.writeLock.acquire()
+    
     self.connectionInit = False
     
+    # Close the real socket
     if self.socket != None:
       self.socket.close()
       self.socket = None
     
+    # Stop the internal listner
     if self.listenHandle != None:
       stopcomm(self.listenHandle)
       self.listenHandle = None
+      
+    # Get the buffer lock  
+    self.clientDataLock.acquire()
+    
+    # Close each individual socket
+    for clt in self.clientDataBuffer:
+      self._closeCONN(clt)
+    
+    # Release the buffer lock
+    self.clientDataLock.release()
       
   # Handles incoming frames
   def _incomingFrame(self,remoteip,remoteport,inSocket,thisCommHandle,listenCommHandle):
