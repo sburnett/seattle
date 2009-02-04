@@ -30,8 +30,12 @@ fieldset, img {
 	border: 0;
 }
 
-ol, ul {
+ul {
 	list-style: none;
+}
+
+ol {
+    list-style-position: inside;
 }
 
 a {
@@ -422,6 +426,50 @@ table.vessels tr.odd {
 table.vessels tr.even {
     background-color: #eee;
 }
+
+/******************************
+* STYLESHEET FOR getdonations.html
+*******************************/
+#downloadlink {
+    margin: 0 auto 10px;
+    width: 90%;
+    text-align: center;
+}
+
+#downloadlink p {
+    margin: 8px;
+}
+
+#downloadlink a {
+    color: #0066ff;
+    padding: 5px;
+    background-color: #fff;
+}
+
+table#downloads {
+    margin: 10px auto;
+	border-spacing: 0;
+	border: 1px solid #999;
+	width: 90%;
+	background-color: #fff;
+	border-collapse: collapse;
+}
+
+table#downloads tr {
+    border: 1px solid #ccc;
+}
+
+table#downloads tr td {
+    padding: 20px 25px;
+    font-size: 11pt;
+}
+
+table#downloads tr td a {
+    color: #0066ff;
+    font-size: 14pt;
+    font-weight: bold;
+}
+
 
 
 /******************************
