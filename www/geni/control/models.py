@@ -67,7 +67,7 @@ def pop_key():
     cursor.execute("COMMIT")
     return [row[1],row[2]]
 
-def acquire_vessel(pubkey_list, vessel):
+def acquire_vessel(vessel, pubkey_list):
     """
     <Purpose>
       Responsible for changing the user public keys list on a vessel
@@ -193,7 +193,7 @@ def release_vessels(vessels):
     # at the time when we are releasing them
     for v in vessels:
         try:
-            success, ret = acquire_vessel([], v)
+            success, ret = acquire_vessel(v, [])
         except:
             print "exception raised in release_vessels"
         else:
@@ -255,21 +255,34 @@ def acquire_lan_vessels(geni_user, num):
         if lan_vessels.count() < num:
             continue
         
-        # attempt to acquire num of these vessels
+        # alpers - this is the start of parallelized acquisition
+        # Attempts to acquire the the number of vessels left in each iteration of the while loop,
+        # iterating again if the full number attempted is not achieved.
         acquired = []
-        unacquired = []
         explanation = ""
-        for v in lan_vessels:
-            success, ret = acquire_vessel([geni_user.pubkey], v)
-            if success:
-                acquired.append(v)
-                if len(acquired) == num:
-                    return True, (summary, explanation, acquired)
-            else:
-                unacquired.append(v)
-                explanation += " " + ret
-                if (lan_vessels.count() - len(unacquired)) < (num - len(acquired)):
-                    break
+        start_index = 0
+        end_index = num
+        while start_index < len(lan_vessels) and \
+              end_index < len(lan_vessels):
+            
+            print "Trying to acquire " + str(num-len(acquired)) + \
+                " vessels starting at index " + str(start_index)
+            
+            subset = lan_vessels[start_index : end_index]
+            new_acquired, new_explanation = parallel_acquire_vessels(subset, geni_user)
+            
+            acquired.extend(new_acquired)
+            explanation += " " + new_explanation
+            
+            # if all requested vessels have been acquired, flee the function
+            if len(acquired) == num:
+                return True, (summary, explanation, acquired)
+            
+            # otherwise, increase the lan_vessel index parameters based on the number of vessels
+            # that were able to be acquired (start_index - end_index will be the number of vessels
+            # attempted to be acquired on the next iteration)
+            start_index += len(subset)
+            end_index = start_index + num - len(acquired)
                 
         # release all those vessels that were acquired
         # here and go to next subnet of hosts
@@ -319,39 +332,75 @@ def acquire_wan_vessels(geni_user, num):
         explanation = summary
         return False, (summary, explanation)
 
-    # go through all the subnets
+    # alpers - this is the start of parallelized acquisition
     acquired = []
     cnt = 0
+
+    vessel_subnets = {}
     for row in rows:
         [subnet] = row
-        print "trying subnet " + str(subnet)
+        print "working on populating subnet: " + str(subnet)
         donations = Donation.objects.filter(subnet=subnet)
-        # try to grab a vessel from this subnet
+
+        # try to grab all vessels (limit 10 artificially) in this subnet
+        vessel_subnets[subnet] = []
+        subnet_vessel_limit = 10
         for d in donations:
-            print "trying donation " + str(d)
-            # try to grab this donation's vessel
             subnet_vessels = vessels.filter(donation=d)
             if subnet_vessels.count() == 0:
                 # a donation without any vessels -- strange?
                 continue
-
-            for v in subnet_vessels:
-                success, ret = acquire_vessel([geni_user.pubkey], v)
-                if success:
-                    acquired.append(v)
-                    if len(acquired) == num:
-                        print "acquired all num ok"
-                        return True, (summary, explanation, acquired)
-                    break
-                explanation += ret
-            if success:
+            if len(vessel_subnets[subnet]) > subnet_vessel_limit:
                 break
-
-        cnt += 1
-        if (len(rows) - cnt) < (num - len(acquired)):
-            # short-circuit
+            else:
+                vessel_subnets[subnet].extend(subnet_vessels)
+            
+        # Attempts to prevent function from populating a huge list that it will hardly use.
+        # This line is super-suspect, although this saves the time of aggregating a list, it
+        # *can* be possible that 2x the number of vessels requested can all fail.
+        if len(vessel_subnets.keys()) > (num * 2):
             break
 
+    # we've collected our collection of vessels, let's try to acquire some 
+    while not len(vessel_subnets.keys()) < (num - len(acquired)):
+        print "starting acquisition loop"
+        vessels_to_submit = {}
+        subnets_to_delete = []
+        # populate our vessel subset, make another hash so we know which subnet each came from
+        for k, v in vessel_subnets.iteritems():
+            if len(vessels_to_submit.keys()) < (num - len(acquired)):
+                # if a subnet has been exhausted of available vessels, remove it from the 
+                # potential vessel source list
+                if len(v) == 0:
+                    subnets_to_delete.append(k)
+
+                # otherwise, remove the specific vessel from the subnet and save it in the submission queue
+                else:
+                    vessels_to_submit[v.pop(0)] = k
+            else:
+                break
+
+        # iteritems() doesn't like when keys are deleted in the middle of a loop, 
+        # so vessel_subnets is clean up here
+        for key in subnets_to_delete:
+            del vessel_subnets[key]
+
+        # submit jobs
+        new_acquired, new_explanation = parallel_acquire_vessels(vessels_to_submit.keys(), geni_user)
+        acquired.extend(new_acquired)
+
+        if len(acquired) == num:
+            print "acquired all num ok"
+            return True, (summary, explanation, acquired)
+
+        print "didn't find enough nodes (only " + str(len(acquired)) + "), retrying loop"
+        
+        # very important to ensure WAN case - remove the subnet from the list of available vessels
+        for vessel in new_acquired:
+            subnet = vessels_to_submit[vessel]
+            del vessel_subnets[subnet]
+
+    # otherwise, fall through
     release_vessels(acquired)
     summary = "Network diversity of available resources canot satisfy your request"
     explanation = "Cannot find diverse WAN resources to satisfy a request for " + str(num) + " vessels"
@@ -388,19 +437,32 @@ def acquire_rand_vessels(geni_user, num):
     vessels = list(vessels)
     random.shuffle(vessels)
 
-    # acquire num vessels from the list
+    # alpers - this is the start of parallelized acquisition
     acquired = []
-    for v in vessels:
-        success, ret = acquire_vessel([geni_user.pubkey], v)
-        if success:
-            acquired.append(v)
-        else:
-            explanation += " " + ret
+    explanation = ""
+    start_index = 0
+    end_index = num
+    while start_index < len(vessels) and \
+          end_index < len(vessels):
+      
+        print "Trying to acquire " + str(num-len(acquired)) + \
+            " vessels starting at index " + str(start_index)
+    
+        subset = vessels[start_index : end_index]
+        new_acquired, new_explanation = parallel_acquire_vessels(subset, geni_user)
+    
+        acquired.extend(new_acquired)
+        explanation += " " + new_explanation
 
-        # we are only successful if we acquire exactly num vessels
+        # if all requested vessels have been acquired, flee the function
         if len(acquired) == num:
             summary = "Acquired all the nodes."
             return True, (summary, explanation, acquired)
+    
+        # otherwise, increase the vessel index parameters based on the number of vessels
+        # that were able to be acquired and retry
+        start_index += len(subset)
+        end_index = start_index + num - len(acquired)
 
     release_vessels(acquired)
     explanation = str(len(vessels)) + " vessels available. In these, failed to acquire " + str(num) + " vessels."
@@ -951,3 +1013,6 @@ def test_acquire_node(username,nodeip,vesselname):
     print "calling changeusers with: \npubkeystrlist %s\nnmip %s\nnmport %s\nvesselname %s\nnodepubkey %s\nnodeprivkey %s\n"%(userpubkeystringlist, nmip, nmport, vesselname, nodepubkey, nodeprivkey)
     success,msg = changeusers(userpubkeystringlist, nmip, nmport, vesselname, nodepubkey, nodeprivkey)
     print "returned: ", success, msg
+
+
+from parallelvesselacquisition import parallel_acquire_vessels

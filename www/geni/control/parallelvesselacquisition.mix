@@ -1,0 +1,89 @@
+"""
+<Program Name>
+  parallelizevesselacquisition.{mix,py}
+
+<Started>
+  January 30th, 2009
+
+<Author>
+  Alper Sarikaya
+  Ivan Beschastnikh
+
+<Purpose>
+  The module provides functionality for acquiring vessels in parallel.  The
+  parallelize functions from repy are used in to acquire vessels asynchronously.
+
+  One key aspect of the imports here is that they are circular.  In models.{mix,py},
+  the import for this module is at the bottom to prevent recursive (unwanted) loading
+  of module functionality.
+
+"""
+
+from models import acquire_vessel
+
+from repyportability import *
+include parallelize.repy
+
+
+def parallel_acquire_vessels(vessel_list, geni_user):
+    """
+    <Purpose>
+      Acquires the vessels given in parallel.
+
+    <Arguments>
+      vessel_list:
+        The list of vessel objects to obtain.
+      geni_user:
+        The user object that is attempting to reserve the vessels.
+
+    <Exceptions>
+      This method should strictly return no exceptions; explanations and vessel_list - acquired 
+      should explain failures in this function.
+
+    <Side Effects>
+      None.
+
+    <Returns>
+      Returns a (acquired, explanation) tuple:
+        acquired:
+          The list of vessel objects successfully acquired by the function.
+        summary:
+          Any verbose output describing the success and/or failure of vessel acquisition.
+
+    """
+
+    phandles = []
+    acquired = []
+    explanation = ""
+
+    # start all acquisition, store handles in array
+    # NOTE: vessels are locked at database level; if 2+ users try to get the same vessel, only one
+    # acquisition will atomically succeed
+    for vessel in vessel_list:
+        phandles.append(parallelize_initfunction([vessel], acquire_vessel,
+                                                 1, [geni_user.pubkey]))
+
+    # wait until all handles are done running
+    done_phandles = []
+    while not len(phandles) == 0:
+        for i in range(len(phandles)):
+            if i >= len(phandles):
+                break
+            if parallelize_isfunctionfinished(phandles[i]):
+                done_phandles.append(phandles.pop(i))
+        time.sleep(0.2)
+
+    # check status of obtained vessels, append approved acquisitions to 'acquired' list
+    # NOTE: I assume here that acquire_vessel will NEVER throw an exception
+    #       i.e. result['returned'] will always be populated (server will err otherwise)
+    # CLAIFICATION: result['returned'][0] consists of (vessel, (bool_acquired, explanation))
+    for phandle in done_phandles:
+        result = parallelize_getresults(phandle)
+        result = result['returned'][0]
+        if result[1][0]:
+            acquired.append(result[0])
+        else:
+            explanation += " " + result[1][1]
+        parallelize_closefunction(phandle)
+
+    return acquired, explanation
