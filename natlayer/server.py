@@ -14,6 +14,7 @@ if callfunc == "initialize":
   
   while True:
     frame = natcon.recv()
-    print frame
-    natcon.send(frame.frameMACAddress, "Hi Back!")
+    num = int(frame.frameContent)
+    
+    natcon.send(frame.frameMACAddress, str(num+1))
     

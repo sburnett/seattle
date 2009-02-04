@@ -9,8 +9,8 @@ def echoSocket(socket):
   while True:
     data = socket.recv(1024)
     if data != "":
-      print data
-      socket.send("Hi Back!")
+      num = int(data)
+      socket.send(str(num+1))
     
 def newClient(remotemac, socketlikeobj, thisnatcon):
   settimer(0, echoSocket, [socketlikeobj])
@@ -24,4 +24,3 @@ if callfunc == "initialize":
   
   natcon.waitforconn(newClient)
   
-  print "Last Print"

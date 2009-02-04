@@ -18,9 +18,23 @@ if callfunc == "initialize":
 
   print "Connected! Saying hi now."
 
+  avgDiff = 0
+  packets = 0
+  
+  # Print message everyX packets
+  everyX = 20
+  
+  num = 1
   while True:
-    socket.send("Hi There!")
-    sleep(.5)
+    run = getruntime()
+    socket.send(str(num))
+    num = num + 1
     data = socket.recv(1024)
-    if data == "Hi Back!":
-      print "Got Response!"
+    if data == str(num):
+      num = num + 1
+      diff = getruntime()-run
+      avgDiff = (avgDiff + diff)
+      packets = packets +1
+      
+      if packets % everyX == 0:
+        print packets, ": Got Response! ", (1/diff), "Packets/sec ",  (1/(avgDiff/packets)), " Avg. Packets/sec"

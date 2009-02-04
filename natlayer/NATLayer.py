@@ -692,6 +692,8 @@ class NATConnection():
         
       self.clientDataLock.release()
        
+# How long to block if there is no data, this is done in a loop until there is data
+RECV_BLOCK_INTERVAL = 0.005
        
 # A socket like object with an understanding that it is part of a NAT Connection
 # Has the same functions as the socket like object in repy
@@ -718,22 +720,44 @@ class NATSocket():
     self.natcon.clientDataLock.release()
 
   def recv(self,bytes):
+    """
+    <Purpose>
+      To read data from the socket. This operation will block until some data is available. It will not block if some, non "bytes" amount is available. 
+    
+    <Arguments>
+      bytes:
+        Read up to "bytes" input
+        
+    <Returns>
+      A string with length up to bytes
+    """
     # Check if the socket is closed, raise an exception
     if self.natcon.clientDataBuffer[self.clientMac]["closed"]:
       self.close() # Clean-up
       raise EnvironmentError, "The socket has been closed!"
+    
+    # Initial data, this is the first run
+    data = ""
+    first = True
+    
+    while len(data) == 0:
+      # If there is no data, and this is not the first time around, block for a bit to wait for data
+      if not first:
+        sleep(RECV_BLOCK_INTERVAL)
+        
+      # Get our own lock
+      self.natcon.clientDataBuffer[self.clientMac]["lock"].acquire()
+    
+      # Read up to bytes
+      data = self.natcon.clientDataBuffer[self.clientMac]["data"][:bytes] 
+    
+      # Strip bytes from the string
+      self.natcon.clientDataBuffer[self.clientMac]["data"] = self.natcon.clientDataBuffer[self.clientMac]["data"][bytes:] 
+    
+      # Release the lock
+      self.natcon.clientDataBuffer[self.clientMac]["lock"].release() 
       
-    # Get our own lock
-    self.natcon.clientDataBuffer[self.clientMac]["lock"].acquire()
-    
-    # Read up to bytes
-    data = self.natcon.clientDataBuffer[self.clientMac]["data"][:bytes] 
-    
-    # Strip bytes from the string
-    self.natcon.clientDataBuffer[self.clientMac]["data"] = self.natcon.clientDataBuffer[self.clientMac]["data"][bytes:] 
-    
-    # Release the lock
-    self.natcon.clientDataBuffer[self.clientMac]["lock"].release() 
+      first = False
     
     return data
 
