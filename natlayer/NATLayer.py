@@ -339,10 +339,14 @@ class NATFrame():
 
 # This helps abstract the details of a NAT connection    
 class NATConnection():
-  error = None # Keeps track of the last error
+  # Keeps track of the last error during init client/server
+  # In the case of recvTuple, this becomes an array of non-handled frames (e.g. non- DATA_FORWARD)
+  error = None 
   ourMAC = "" # What is our MAC?
   connectionInit = False # Is everything setup?
-  socket = None # This is the main socket
+
+  # This is the main socket
+  socket = None 
   
   # This is a handle to the connection listener
   # If this is not None, then we are a forwarder
@@ -405,7 +409,8 @@ class NATConnection():
   def close(self):
     """
     <Purpose>
-      Closes the NATConnection object.
+      Closes the NATConnection object. Also closes all sockets associated with this connection.
+      
      
     """
     # Prevent more reading or writing
@@ -779,7 +784,8 @@ class NATSocket():
       Closes the socket. This will close the client connection if possible.
       
     <Side effects>
-      The socket will no longer be usable.
+      The socket will no longer be usable. Socket behavior is undefined after calling this method,
+      and most likely Runtime Errors will be encountered.
     """
     # If the NATConnection is still initialized, then lets send a close message
     if self.natcon.connectionInit:
