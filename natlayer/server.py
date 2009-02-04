@@ -13,8 +13,7 @@ if callfunc == "initialize":
   print "Connected! Starting echo."
   
   while True:
-    frame = natcon.recv()
-    num = int(frame.frameContent)
-    
-    natcon.send(frame.frameMACAddress, str(num+1))
+    (fromMac, data) = natcon.recvTuple()
+    num = int(data)
+    natcon.send(fromMac, str(num+1))
     

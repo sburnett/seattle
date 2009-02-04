@@ -548,11 +548,15 @@ class NATConnection():
   def recv(self):
     """
     <Purpose>
-      Receives a frame and returns it.
+      Receives a frame and returns it. If you want a socket-like interface, with 
+      more abstraction, see waitforconn.
     
     <Exceptions>
       If the socket is closed, an EnvironmentError is raised.
       If the connection is not initialized, an AttributeError is raised.
+    
+    <Remarks>
+      This function will return all types of incoming frames.
       
     <Returns>
       A frame object. None on failure.
@@ -576,6 +580,42 @@ class NATConnection():
     
     # Return the frame
     return frame
+    
+  def recvTuple(self):
+    """
+    <Purpose>
+      Receives a frame and returns it as a tuple.
+
+    <Exceptions>
+      If the socket is closed, an EnvironmentError is raised.
+      If the connection is not initialized, an AttributeError is raised.
+
+    <Remarks>
+      This function will only return when it receives a valid DATA_FORWARD frame.
+      All other frame types will be added to the NATConnection.error array.
+      
+    <Returns>
+      A tuple, (fromMac, content)
+    """
+    # Check if we are initialized
+    if not self.connectionInit:
+      raise AttributeError, "NAT Connection is not yet initialized!"
+
+    # Set the error field to an array, append all non-data forward frames
+    self.error = [] 
+    
+    # Only return a data frame
+    while True:
+      # Read in a frame
+      frame = self.recv()
+      
+      if frame.frameMesgType != DATA_FORWARD:
+        self.error.append(frame)
+      else:
+        break
+
+    # Return the frame
+    return (frame.frameMACAddress, frame.frameContent)
   
   def sendFrame(self,frame):
     """
