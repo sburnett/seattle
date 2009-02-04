@@ -5,10 +5,16 @@ session_start();
 echo $_SESSION['count'];
 
 $prefix = "/var/www/customized_installer";
-$carter_script = "/home/ivan/trunk/dist/customize_installers.py";
+$carter_script = "/home/ivan/trunk/dist/build_installers.py";
 $vesselinfopy = "/home/ivan/trunk/test/writecustominstallerinfo.py";
 $sid = session_id();
 $dl_prefix = "$prefix/download/$sid";
+$base_installer_prefix = "/var/www/dist";
+
+$win_base_installer = "seattle_win.zip";
+$lin_base_installer = "seattle_linux.tgz";
+$mac_base_installer = "seattle_mac.tgz";
+$installers = array($mac_base_installer, $lin_base_installer, $win_base_installer);
 
 if (isset($_POST)) {
 	if ($_POST['action'] == 'adduser') {
@@ -42,10 +48,19 @@ if (isset($_POST)) {
 		file_put_contents("h2","");
                 exec("python $vesselinfopy $dl_prefix/vesselsinfo.txt $dl_prefix/vesselsinfo/");
 
-		//$cmd = 
-		file_put_contents("h3","cd $dl_prefix/ && python $carter_script mlw $dl_prefix/vesselsinfo $dl_prefix/ > /tmp/carter.out.php 2> /tmp/carter.err.php");
                 exec("mkdir $dl_prefix/tmp/");
-		exec("cd $dl_prefix/ && python $carter_script mlw $dl_prefix/vesselsinfo $dl_prefix/ > /tmp/carter.out.php 2> /tmp/carter.err.php");
+
+                # old way of building installers:
+                # exec("cd $dl_prefix/ && python $carter_script mlw $dl_prefix/vesselsinfo $dl_prefix/ > /tmp/carter.out.php 2> /tmp/carter.err.php");
+
+                # new way of building installers (these next lines replace the previous invocation):
+                ###
+                foreach ($installers as &$installer) {
+			file_put_contents("h3","python $carter_script $dl_prefix/$installer $dl_prefix/vesselsinfo seattle_repy > /tmp/carter.out.php 2> /tmp/carter.err.php");
+			exec("cp $base_installer_prefix/$installer $dl_prefix/");
+			exec("python $carter_script $dl_prefix/$installer $dl_prefix/vesselsinfo seattle_repy > /tmp/carter.out.php 2> /tmp/carter.err.php");
+		}
+                ###
 		
 		file_put_contents("h4","");
 		exec("zip -j $dl_prefix/private.zip $dl_prefix/*.privatekey");
