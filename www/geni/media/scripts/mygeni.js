@@ -9,25 +9,45 @@ $(document).ready(function() {
 	create_block(credits, "Sean", 10, false);
 	create_block(credits, "Others", 15, false);
 	
-	create_label(creditnames, "Me", 35);
-	create_label(creditnames, "Ivan", 25);
-	create_label(creditnames, "Justin", 15);
-	create_label(creditnames, "Sean", 10);
-	create_label(creditnames, "Others", 15);
+	create_label(creditnames, "Me", 35, false);
+	create_label(creditnames, "Ivan", 25, false);
+	create_label(creditnames, "Justin", 15, false);
+	create_label(creditnames, "Sean", 10, false);
+	create_label(creditnames, "Others", 15, false);
 	
 	var usage = $("#usage");
 	var usagenames = $("#usagenames");
-	create_block(usage, "Justin", 15, true);
-	create_block(usage, "Others", 20, true);
-	create_block(usage, "Me", 30, true);
+	create_block(usage, "Justin", 3, true);
+	create_block(usage, "Kate", 5, true);
+	create_block(usage, "Man", 8, true);
+	create_block(usage, "Me", 21, true);
+	create_block(usage, "Kevin", 14, true);
+	create_block(usage, "Others", 14, true);
 	create_block(usage, "Free", 35, true);
-	create_label(usagenames, "Justin", 15);
-	create_label(usagenames, "Others", 20);
-	create_label(usagenames, "Me",30);
-	create_label(usagenames, "Free", 35);
+	create_label(usagenames, "Justin", 3, true);
+	create_label(usagenames, "Kate", 5, true);
+	create_label(usagenames, "Man", 8, true);
+	create_label(usagenames, "Me", 21, true);
+	create_label(usagenames, "Kevin", 14, true);
+	create_label(usagenames, "Others", 14, true);
+	create_label(usagenames, "Free", 35, true);
 	
+	$("#getresourcesbutton").click(get_resources_dialog);	
+	$("#getresourcesdialog button").click(close_dialog);
+	
+	$("#shareresources").click(share_resources_dialog);
+	$("#shareresourcesdialog button").click(close_dialog);
 });
 
+/*
+
+function add_user(username, width, isClosable) {
+	var credits = $("#credits");
+	var creditnames = $("#creditnames");
+	create_block(credits, username, width, isClosable);
+	create_label(creditnames, username, width, isClosable);
+}
+*/
 
 /*
     Create a block with given width and background color,
@@ -43,15 +63,16 @@ function create_block(bar, username, width, isClosable) {
 	percent.text(width + '%');
 
 	if (isClosable) {
+		block.attr("id", "usage" + username);
 		if (username == "Free") {
-			block.attr("id", "free");
-			
 			var get = $(document.createElement('a'));
+			get.attr('id','getresourcesbutton');
 			get.attr('href','#');
 			get.text('get');
 			block.append(get);
 			
 			var share = $(document.createElement('a'));
+			share.attr('id','shareresources');
 			share.attr('href','#');
 			share.text('share');
 			block.append(share);
@@ -60,12 +81,14 @@ function create_block(bar, username, width, isClosable) {
 			var close = $(document.createElement('a'));
 			close.attr('href','#');
 			close.text('x');
-			close.click(remove_block);
+			close.click(function() {
+				edit_block(username, 0);
+			});
 			block.append(close);
-			// percent.click(change_percent);
-			
+			percent.click(change_percent);
 		}
 	}
+	
 	if (username == "Others") {
 		percent.click(function () { show_table(isClosable) });
 	}
@@ -77,32 +100,42 @@ function create_block(bar, username, width, isClosable) {
 
 /*
 	Change the block's width both in terms of its label and
-	actual width
+	actual width. Resize free block to	fit the width of the bar.
+	Remove the block from the usage bar if width is 0
 */
-function edit_block(block, width) {
-	$(block).children("span").text(width + '%');
-	block.css("width", width + '%');
+function edit_block(username, width) {
+	if (username != "Free") {
+		var block = $("#usage" + username);
+		var label = $("#labelusage" + username);
+		var old_percent = parseInt($("#usage" + username + " span").text());
+		var free_percent = parseInt($("#usageFree span").text());
+		var new_free_percent = free_percent + old_percent - width;
+		if (new_free_percent >= 0) {
+			if (width == 0) {
+				block.remove();
+				label.remove();
+			} else {
+				$("#usage" + username + " span").text(width + '%');
+				block.css("width", width + '%');
+				label.css("width", width + '%');
+			}
+			$("#usageFree span").text(new_free_percent + '%');
+			$("#usageFree").css("width", new_free_percent + '%');
+			$("#labelusageFree").css("width", new_free_percent + '%');
+		}
+	}
 }
 
-
-/*
-	Remove the block from the usage bar and resize free block to
-	fit the width of the bar
-*/
-function remove_block() {
-	var removed_percent = parseInt($(this).next().text());
-	$(this).parent().remove();
-	var free_percent = parseInt($("#free span").text());
-	edit_block($("#free"), free_percent + removed_percent);
-}
 
 /*
 	Create a name label with given width and append it to
 	the given name table.
 */
-
-function create_label(names, username, width) {
+function create_label(names, username, width, isClosable) {
 	var label = $(document.createElement('td'));
+	if (isClosable) {
+		label.attr("id", "labelusage" + username);
+	}
 	label.text(username);
 	label.css({
 		'width': width + '%'
@@ -110,29 +143,45 @@ function create_label(names, username, width) {
 	names.append(label);
 }
 
-function change_percent() {
-	$(this).attr("id", "percent");
-	
-	var input = $(document.createElement("input"));
-	input.attr("type", "text");
-	input.attr("id", "percent_input");
-	input.blur(save_percent);
-	// var save = $(document.createElement("button"));
-	// save.text("save");
-	// save.click(save_percent);
 
-	$(this).empty();
-	$(this).append(input);
-	$(this).append(' % ');
-	// $(this).append(save);	
+function change_percent() {
+	var dialog = $(document.createElement("div"));
+	dialog.attr("id", "changepercentdialog");
+	dialog.html('<h3>Change Percent</h3>');
+	var input = $(document.createElement("input"));
+	input.attr("name", $(this).parent().attr("id"));
+	input.attr("type", "text");
+	input.val(parseInt($(this).text()));
+	input.click(function () { $(this).val("") });
+	var symbol = $(document.createElement("span"));
+	symbol.html(" %<br />");
+	var cancel = $(document.createElement("button"));
+	cancel.text("Cancel");
+	var save = $(document.createElement("button"));
+	save.text("Save");
+	cancel.click(function () {
+		close_dialog();
+		$(this).parent().remove();
+	});
+	save.click(save_percent);
+	dialog.append(input);
+	dialog.append(symbol);
+	dialog.append(cancel);
+	dialog.append(save);
+	$("#dialogframe").append(dialog);
+	$("#dialogframe").fadeIn("fast");
+	$("#overlay").fadeIn("fast");
+	$("#changepercentdialog").fadeIn("fast");
 }
 
 function save_percent() {
-	var percent_input = $("#percent_input").val();
-	var new_percent = $(document.createElement('span'));
-	new_percent.text(percent_input + '%');
-	new_percent.click(change_percent);
-	$("#percent").replaceWith(new_percent);
+	var input = $("#changepercentdialog input");
+	var percent = input.val();
+	var username = input.attr("name").substring(5);
+	$(this).parent().remove();
+	$("#dialogframe").hide();
+	$("#overlay").hide();
+	edit_block(username, percent);
 }
 
 
@@ -145,6 +194,27 @@ function show_table(isClosable) {
 	} else {
 		$("#creditothers").toggle();
 	}
+}
+
+
+
+function get_resources_dialog() {
+	$("#dialogframe").fadeIn("fast");
+	$("#overlay").fadeIn("fast");
+	$("#getresourcesdialog").fadeIn("fast");
+}
+
+
+function share_resources_dialog() {
+	$("#dialogframe").fadeIn("fast");
+	$("#overlay").fadeIn("fast");
+	$("#shareresourcesdialog").fadeIn("fast");
+}
+
+function close_dialog() {
+	$(this).parent().parent().hide();
+	$("#dialogframe").hide();
+	$("#overlay").hide();
 }
 
 
