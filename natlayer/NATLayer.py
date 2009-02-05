@@ -727,6 +727,8 @@ class NATConnection():
   
   # Handles a client closing a connection
   def _closeCONN(fromMac):
+    # We just need to set the closed flag, since the socket will detect that and close itself
+    
     # Lock the client
     self.clientDataBuffer[fromMac]["lock"].acquire()
     
@@ -740,7 +742,7 @@ class NATConnection():
   # Increases the amount we can send out
   def _conn_buf_size(fromMac, num):
     # Return if we are not buffering
-    if not self.BUFFERING:
+    if (self.defaultBufSize == -1):
       return
       
     # Lock the client
@@ -757,6 +759,9 @@ class NATConnection():
           
   # This is launched as an even for waitforconn
   def _socketReader(self):
+    # This thread is responsible for reading all incoming frames,
+    # so it pushes data into the buffers, initializes new threads for each new client
+    # and handles all administrative frames
     while True:
       # Read in a frame
       frame = self.recv()
@@ -777,7 +782,7 @@ class NATConnection():
         raise Exception, "Unhandled Frame type: ", frame.frameMesgType
         return
       
-      # Get the lock
+      # Get the main dictionary lock
       self.clientDataLock.acquire()
       
       # Does this client socket exists? If so, append to their buffer
@@ -795,6 +800,9 @@ class NATConnection():
         self.clientDataBuffer[fromMac]["incomingAvailable"] -= frame.frameContentLength
         
         self.clientDataBuffer[fromMac]["lock"].release()
+        
+        # Need to release the lock now
+        self.clientDataLock.release()
         
       # This is a new client, we need to call the user callback function
       else:
@@ -820,13 +828,15 @@ class NATConnection():
           settimer(0,self.frameHandler, (fromMac, socketlike, self))
         except:
           # Release the lock prior to closing the socket, otherwise this will block
+          # since socket.close requires this lock to clean-up everything
           self.clientDataLock.release()
+          
           # Close the socket
           socketlike.close()
         else:
-          # We need to release it anyways
+          # We need to release it if there is no exception
           self.clientDataLock.release()
-        
+      
        
 # A socket like object with an understanding that it is part of a NAT Connection
 # Has the same functions as the socket like object in repy
@@ -862,13 +872,13 @@ class NATSocket():
       self.natcon.sendFrame(NATFrame().initAsConnTermMsg(self.clientMac))
     
     # Clean-up
-    self.natcon.clientDataLock.acquire() # Get the main lock
+    self.natcon.clientDataLock.acquire() # Get the main lock, since we are modifying the dict
     self.natcon.clientDataBuffer[self.clientMac]["lock"].acquire() # Probably not necessary, but oh well
-    self.natcon.clientDataBuffer[self.clientMac]["data"] = "" # Clear the buffer
+    self.natcon.clientDataBuffer[self.clientMac]["data"] = "" # Clear the buffer, again probably unnecessary
     del self.natcon.clientDataBuffer[self.clientMac] # Remove the entry 
     self.natcon.clientDataLock.release()
 
-    # Remove connection to natcon
+    # Remove connection to natcon, to prevent trying to send or recv again
     self.natcon = None
     
   def recv(self,bytes):
@@ -911,8 +921,10 @@ class NATSocket():
       # Create CONN_BUF_SIZE frame
       buf_frame = NATFrame()
       buf_frame.initAsConnBufSizeMsg(self.clientMac, self.natcon.defaultBufSize)
+      
       # Send it to the Forwarder
       self.natcon.sendFrame(buf_frame)
+      
       # Increase our incoming buffer
       self.natcon.clientDataBuffer[self.clientMac]["incomingAvailable"] = self.natcon.defaultBufSize
     
@@ -961,6 +973,7 @@ class NATSocket():
           # Reduce the size of outgoing avail
           self.natcon.clientDataBuffer[self.clientMac]["outgoingAvailable"] -= len(data)
         
+        # We need to explicitly leave the loop
         break
         
       # We need to send chunks, while waiting for more outgoing B/W
@@ -976,6 +989,6 @@ class NATSocket():
         # sends us a CONN_BUF_SIZE message
         self.natcon.clientDataBuffer[self.clientMac]["outgoingLock"].acquire()
       
-        # Trim data
+        # Trim data to only what isn't sent syet
         data = data[outgoingAvailable:]
           
