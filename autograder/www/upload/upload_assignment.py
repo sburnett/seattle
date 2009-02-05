@@ -152,6 +152,9 @@ if __name__ == "__main__":
   print status
   print reason
   print body
-
+  if "Assignment uploaded successfully." in body:
+    print "ASSIGNMENT UPLOADED"
+  else: 
+    print "Problem Occurred, see output for details"
 
   
