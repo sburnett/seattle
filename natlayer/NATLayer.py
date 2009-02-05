@@ -83,7 +83,7 @@ class NATFrame():
     self.frameMesgType = INIT_CLIENT
   
   
-  def initAsServer(self,serverMac):
+  def initAsServer(self,serverMac,buf):
     """
     <Purpose>
       Prepares the frame to be used for a server initiation.
@@ -92,6 +92,8 @@ class NATFrame():
       serverMAC:
             The MAC address of the server (this machine). This should be a string representation.
 
+      buf:
+            The default incoming and outgoing buffer size will be set to this. When they reach 0, they will be expanded by this amount. -1 indicates buffering is disabled.
     <Exceptions>
             Raises an ValueError exception if the MAC(s) are not of proper length.
             
@@ -106,9 +108,9 @@ class NATFrame():
     # Set the client mac in the frame
     self.frameMACAddress = serverMac.replace(":","")
 
-    # Set the content length
-    self.frameContent = ""
-    self.frameContentLength = 0
+    # Set the content and length
+    self.frameContent = str(buf)
+    self.frameContentLength = len(self.frameContent)
 
     # Set the correct frame message type
     self.frameMesgType = INIT_SERVER
@@ -345,6 +347,11 @@ class NATConnection():
   ourMAC = "" # What is our MAC?
   connectionInit = False # Is everything setup?
 
+  # Default incoming and outgoing buffer size expansion value
+  # Defaults to 128 kilobytes
+  # -1 to disable
+  defaultBufSize = 128*1024
+  
   # This is the main socket
   socket = None 
   
@@ -365,8 +372,11 @@ class NATConnection():
   # e.g. socket A does a recv but we recieve 5 frames for socket B first
   # 
   # Each client is represented by their string mac, which corresponds to another dictionary
-  # This dictionary has 4 indexes, "lock" which is a lock for: "data" which is just a string, "closed" is wheter the socket is closed
+  # This dictionary has 6 indexes, "lock" which is a lock for: "data" which is just a string, "closed" is wheter the socket is closed
   # "nodatalock" is locked when there is no data, this allows the NATConnection to unblock a thread that is waiting for data
+  # "incomingAvailable", bytes receivable
+  # "outgoingAvailable", bytes sendable
+  # "outgoingLock" is locked if the outgoingAvailable is 0
   clientDataBuffer = {}
   clientDataLock = None
   
@@ -504,11 +514,17 @@ class NATConnection():
       return None
     
   # Initializes connection to forwarder as a server
-  def initServerConnection(self):
+  def initServerConnection(self,buf=128*1024):
     """
     <Purpose>
       Initializes TCP socket to multiplex data between server and forwarder
 
+    <Arguments>
+      buf:
+        The default incoming and outgoing buffer expansion size.
+        The buffer will be expanded by this much when it reaches 0.
+        Defaults to 128 kilobytes. Set to -1 to disable.
+        
     <Exceptions>
       Throws an EnvironmentError if an unexpected response is received.
       
@@ -516,13 +532,16 @@ class NATConnection():
       True if the connection succedded, False on failure.
       Check NATConnection.error to see the error.
     """
+    # Setup the buffer
+    self.defaultBufSize = buf
+    
     # Make sure we have all the locks
     self.readLock.acquire()
     self.writeLock.acquire()
     
     # Create init frame
     frInit = NATFrame()
-    frInit.initAsServer(self.ourMAC)
+    frInit.initAsServer(self.ourMAC,buf)
     
     # Send the frame
     self.socket.send(frInit.toString())
@@ -716,7 +735,26 @@ class NATConnection():
     
     # Unlock
     self.clientDataBuffer[fromMac]["lock"].release()
+
+  # Handles a forwarder CONN_BUF_SIZE message
+  # Increases the amount we can send out
+  def _conn_buf_size(fromMac, num):
+    # Return if we are not buffering
+    if not self.BUFFERING:
+      return
       
+    # Lock the client
+    self.clientDataBuffer[fromMac]["lock"].acquire()
+    
+    # Set it to the new amount
+    self.clientDataBuffer[fromMac]["outgoingAvailable"] = num
+    
+    # Release the outgoing lock, this unblocks socket.send
+    self.clientDataBuffer[fromMac]["outgoingLock"].release()
+    
+    # Unlock
+    self.clientDataBuffer[fromMac]["lock"].release()
+          
   # This is launched as an even for waitforconn
   def _socketReader(self):
     while True:
@@ -728,11 +766,15 @@ class NATConnection():
       if frame.frameMesgType == CONN_TERM:
         self._closeCONN(fromMac)
         return
-        
-      # We only want to handle data forwarding requests
-      # TODO: fix this
+      
+      # Handle CONN_BUF_SIZE
+      if frame.frameMesgType == CONN_BUF_SIZE:
+        self._conn_buf_size(fromMac, int(frame.frameContent))
+        return
+          
+      # We only want to handle data forwarding requests, so panic
       if frame.frameMesgType != DATA_FORWARD:
-        print "unhandled frame type: ", frame.frameMesgType
+        raise Exception, "Unhandled Frame type: ", frame.frameMesgType
         return
       
       # Get the lock
@@ -742,18 +784,31 @@ class NATConnection():
       if fromMac in self.clientDataBuffer:
         # Use the socket lock so that this is thread safe
         self.clientDataBuffer[fromMac]["lock"].acquire()
+        
+        # Append the new data
         self.clientDataBuffer[fromMac]["data"] += frame.frameContent
-        self.clientDataBuffer[fromMac]["nodatalock"].release() # There is now data
+        
+        # Release the lock now that there is data
+        self.clientDataBuffer[fromMac]["nodatalock"].release() 
+        
+        # Reduce amount of incoming data available
+        self.clientDataBuffer[fromMac]["incomingAvailable"] -= frame.frameContentLength
+        
         self.clientDataBuffer[fromMac]["lock"].release()
         
       # This is a new client, we need to call the user callback function
       else:
         # Create a new socket
-        socketlike = NATSocket(self, fromMac)
+        # Disables buffering if self.defaultBufSize is -1
+        socketlike = NATSocket(self, fromMac, (self.defaultBufSize != -1))
         
         # Create the entry for it, add the data to it
-        self.clientDataBuffer[fromMac] = {"lock":getlock(),"data":"","closed":False, "nodatalock":getlock()}
+        self.clientDataBuffer[fromMac] = {"lock":getlock(),"data":"","closed":False, "nodatalock":getlock(),"incomingAvailable":self.defaultBufSize,"outgoingAvailable":self.defaultBufSize,"outgoingLock":getlock()}
+        
         self.clientDataBuffer[fromMac]["data"] = frame.frameContent
+        
+        # Reduce amount of incoming data available
+        self.clientDataBuffer[fromMac]["incomingAvailable"] -= frame.frameContentLength
         
         # Make sure the user code is safe, launch an event for it
         try:
@@ -774,9 +829,15 @@ class NATSocket():
   # Connected client mac
   clientMac = ""
   
-  def __init__(self, natcon, clientMac):
+  # Flags whether buffering limits are enabled
+  # This determines whether or not the socket respects incomingAvailable and
+  # outgoingAvailable
+  BUFFERING = True
+  
+  def __init__(self, natcon, clientMac,buf=True):
     self.natcon = natcon
     self.clientMac = clientMac
+    self.BUFFERING = buf
   
   def close(self):
     """
@@ -836,6 +897,17 @@ class NATSocket():
     # Strip bytes from the string
     self.natcon.clientDataBuffer[self.clientMac]["data"] = self.natcon.clientDataBuffer[self.clientMac]["data"][bytes:] 
   
+    # Check if there is more incoming buffer available, if not, send a CONN_BUF_SIZE
+    # This does not count against the outgoingAvailable quota
+    if self.BUFFERING and self.natcon.clientDataBuffer[self.clientMac]["incomingAvailable"] <= 0:
+      # Create CONN_BUF_SIZE frame
+      buf_frame = NATFrame()
+      buf_frame.initAsConnBufSizeMsg(self.clientMac, self.natcon.defaultBufSize)
+      # Send it to the Forwarder
+      self.natcon.sendFrame(buf_frame)
+      # Increase our incoming buffer
+      self.natcon.clientDataBuffer[self.clientMac]["incomingAvailable"] = self.natcon.defaultBufSize
+    
     # Set the no data lock if there is none
     if len(self.natcon.clientDataBuffer[self.clientMac]["data"]) == 0:
       self.natcon.clientDataBuffer[self.clientMac]["nodatalock"].acquire()
@@ -863,8 +935,39 @@ class NATSocket():
       self.close() # Clean-up
       raise EnvironmentError, "The socket has been closed!"
     
-    # Instruct the NATConnection object to send our data
-    # to the client specified for this socket
+    # Send chunks of data until it is all sent
+    while True:
+      # Make sure we have available outgoing bandwidth
+      self.natcon.clientDataBuffer[self.clientMac]["outgoingLock"].acquire()
+      self.natcon.clientDataBuffer[self.clientMac]["outgoingLock"].release()
     
-    self.natcon.send(self.clientMac, data)
-    
+      # How much outgoing traffic is available?
+      outgoingAvailable = self.natcon.clientDataBuffer[self.clientMac]["outgoingAvailable"]
+      
+      # If we can, just send it all at once
+      if not self.BUFFERING or len(data) < outgoingAvailable:
+        # Instruct the NATConnection object to send our data
+        self.natcon.send(self.clientMac, data)
+        
+        if self.BUFFERING:
+          # Reduce the size of outgoing avail
+          self.natcon.clientDataBuffer[self.clientMac]["outgoingAvailable"] -= len(data)
+        
+        break
+        
+      # We need to send chunks, while waiting for more outgoing B/W
+      else:
+        # Get a chunk of data, and send it
+        chunk = data[:outgoingAvailable]
+        self.natcon.send(self.clientMac, chunk)
+      
+        # Reduce the size of outgoing avail
+        self.natcon.clientDataBuffer[self.clientMac]["outgoingAvailable"] = 0
+
+        # Lock the outgoing lock, so that we block until the forwarder
+        # sends us a CONN_BUF_SIZE message
+        self.natcon.clientDataBuffer[self.clientMac]["outgoingLock"].acquire()
+      
+        # Trim data
+        data = data[outgoingAvailable:]
+          
