@@ -59,5 +59,8 @@ if callfunc == 'initialize':
 
   sleep(1)
 
+  if vesselinfo['vessels'][myvessel]['status'] == 'Terminated':
+    raise Exception, "Vessel is unexpectedly terminated! Expected vessel to be stopped."
+    
   if vesselinfo['vessels'][myvessel]['status'] != 'Stopped':
     raise Exception, "Vessel is not stopped after request (is this due to lagging status updates)?..."
