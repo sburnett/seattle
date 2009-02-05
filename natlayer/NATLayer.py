@@ -803,9 +803,14 @@ class NATConnection():
         socketlike = NATSocket(self, fromMac, (self.defaultBufSize != -1))
         
         # Create the entry for it, add the data to it
-        self.clientDataBuffer[fromMac] = {"lock":getlock(),"data":"","closed":False, "nodatalock":getlock(),"incomingAvailable":self.defaultBufSize,"outgoingAvailable":self.defaultBufSize,"outgoingLock":getlock()}
-        
-        self.clientDataBuffer[fromMac]["data"] = frame.frameContent
+        self.clientDataBuffer[fromMac] = {
+        "lock":getlock(), # This is a general lock, so that only one thread is accessing this dict
+        "data":frame.frameContent, # This is the real buffer
+        "closed":False, # This signals that the virtual socket should be closed on the next recv/send operation (it will clean up, and then throw an exception)
+        "nodatalock":getlock(), # This lock is used to block socket.recv when there is no data in the buffer, it greatly improves efficiency
+        "incomingAvailable":self.defaultBufSize, # Amount the forwarder can still send us
+        "outgoingAvailable":self.defaultBufSize, # Amount we can send the forwarder
+        "outgoingLock":getlock()} # This allows us to block socket.send while we wait for a CONN_BUF_SIZE message from the forwarder.
         
         # Reduce amount of incoming data available
         self.clientDataBuffer[fromMac]["incomingAvailable"] -= frame.frameContentLength
@@ -814,11 +819,14 @@ class NATConnection():
         try:
           settimer(0,self.frameHandler, (fromMac, socketlike, self))
         except:
+          # Release the lock prior to closing the socket, otherwise this will block
+          self.clientDataLock.release()
           # Close the socket
           socketlike.close()
+        else:
+          # We need to release it anyways
+          self.clientDataLock.release()
         
-      self.clientDataLock.release()
-       
        
 # A socket like object with an understanding that it is part of a NAT Connection
 # Has the same functions as the socket like object in repy
