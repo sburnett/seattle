@@ -144,7 +144,7 @@ if __name__ == "__main__":
 #  var_vals=[["id_class_code",sys.argv[1]],["id_email",sys.argv[2]],["dir","images"]]
   var_vals=[["class_code",sys.argv[1]],["email",sys.argv[2]]]
   
-  file_to_upload=[["file",sys.argv[3],open(sys.argv[3]).read()]]
+  file_to_upload=[["assignment",sys.argv[3],open(sys.argv[3]).read()]]
 
   #get status, reason and body of the response
   (status,reason,body)=post_to_webserver(host, url, var_vals, file_to_upload)
