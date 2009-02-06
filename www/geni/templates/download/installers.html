@@ -1,76 +1,78 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
-"http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml">
+{% extends "download/download_base.html" %}
 
-  
-<!--
-Installer download Page for Research Project
--->
+{% block title %}
+Get Donations - GENI
+{% endblock title %}
 
+{% block script %}
+{{ block.super }}
+<script type="text/javascript" src="{{ MEDIA_URL }}scripts/jqbrowser.js" charset="utf-8"></script>
+<script type="text/javascript" src="{{ MEDIA_URL }}scripts/download.js" charset="utf-8"></script>
+{% endblock script %}
 
-	<head>
-		<title>Download Installers</title>
-		<link rel="stylesheet" type="text/css" href="{{ MEDIA_URL }}installersstyle.css" />
-		<script src="scripts/prototype.js" type="text/javascript"></script>
-	</head>
+{% block nav_getdonations %}
+<td class="active">Get Donations</td>
+{% endblock nav_getdonations %}
 
-	<body>
-		<div id="content"> 
-			<h1 id="header"> Download {{ username }}'s installers </h1>
-			
-			<p class="comment"> Below you will find the installer links for the GENI distributed system </p>
-			<p class="comment"> You can share this page with others so that they can donate resources in your name </p>
-			<p class="comment"> <b>(Click on the image to download your installer)</b></p>
-			<table id="installers">
-				<colgroup>
-					<col id="win" /><col id="mac" /><col id="linux" />
-				</colgroup>
-				<tr> 
-					<td> <a href="{% url installers username %}seattle_win.zip" target="_blank"> <img src="{{ MEDIA_URL }}win.jpg" alt="Windows" /> </a> </td>
-					<td> <a href="{% url installers username %}seattle_mac.tgz" target="_blank"> <img src="{{ MEDIA_URL }}osx.jpg" alt="Mac" /> </a> </td>
-					<td> <a href="{% url installers username %}seattle_linux.tgz" target="_blank"> <img src="{{ MEDIA_URL }}linux.jpg" alt="Linux" /> </a> </td>
-				</tr>
-				<tr id="os">
-					<td> Windows </td>
-					<td> Mac </td>
-					<td> Linux </td>
-				</tr>
-				<tr id="instruction"> 
+{% block content %}
+	<div id="main">
+		<div id="middle">
+			<table id="downloads">
+				<tr id="mac">
+					<td><a href="{% url installers username %}seattle_mac.zip"><img src="{{ MEDIA_URL }}images/mac.png" alt="mac" /></a></td>
 					<td>
-						<p>Instructions:</p>
+						<a href="{% url installers username %}seattle_mac.zip">Download installer for Mac</a>
+						<p>
+							<strong>Instructions:</strong>
+							<br />(Note: You must have Python 2.5 installed)
+						</p>
 						<ol>
-							<li>Download the Seattle zip file to your computer</li>
-					   		<li>Extract the zip file to the directory in which you would like to install Seattle.</li>
-							<li>Double click (or run from the command line) install.bat.</li>
+							<li>Download the Seattle tarball to your computer</li>
+							<li>Extract the tarball to the directory in which you would like to install Seattle.</li>
+							<li>Navigate to that directory and run <code>./install.sh</code> (or python install.py).</li>
 						</ol>
-						<br />
+						<br/>
+						To check that Seattle is running, try running:
+						<br/>
+						<code> ps Aww | grep nmmain.py | grep -v grep</code>
+					</td>
+				</tr>
+				<tr id="win">
+					<td><a href="{% url installers username %}seattle_win.zip"><img src="{{ MEDIA_URL }}images/windows.png" alt="windows" /></a></td>
+					<td>
+						<a href="{% url installers username %}seattle_win.zip">Download installer for Windows</a>
+						<p><strong>Instructions:</strong></p>
+						<ol>
+						<li>Download the Seattle zip file to your computer</li>
+						<li>Extract the zip file to the directory in which you would like to install Seattle.</li>
+						<li>Double click (or run from the command line) install.bat.</li>
+						</ol>
+						<br/>
 						To check that Seattle is running, look in Task Manager for the process pythonw.exe.
-					</td> 
+					</td>
+				</tr>
+				<tr id="linux">
+					<td><a href="{% url installers username %}seattle_linux.zip"><img src="{{ MEDIA_URL }}images/linux.png" alt="linux" /></a></td>
 					<td>
-						<p>Instructions:</p>
-						(Note: You must have Python 2.5 installed)
-						<br /><br />
+						<a href="{% url installers username %}seattle_linux.zip">Download installer for Linux</a>
+						<p>
+							<strong>Instructions:</strong>
+							<br />(Note: You must have Python 2.5 installed)
+						</p>
 						<ol>
 							<li>Download the Seattle tarball to your computer</li>
-						   	<li>Extract the tarball to the directory in which you would like to install Seattle.</li>
-							<li>Navigate to that directory and run<br><pre>./install.sh</pre> (or python install.py).</li>
+							<li>Extract the tarball to the directory in which you would like to install Seattle.</li>
+							<li>Navigate to that directory and run <code>./install.sh</code> (or python install.py).</li>
 						</ol>
-						<br />
-						To check that Seattle is running, try running:<br><pre> ps Aww | grep nmmain.py | grep -v grep</pre>
-					</td> 
-					<td>
-						<p>Instructions:</p>
-						(Note: You must have Python 2.5 installed)
-						<br /><br />
-						<ol>
-							<li>Download the Seattle tarball to your computer</li>
-						   	<li>Extract the tarball to the directory in which you would like to install Seattle.</li>
-							<li>Navigate to that directory and run <pre>./install.sh</pre> (or python install.py).</li>
-						</ol>
-						<br />
-						To check that Seattle is running, try running:<br><pre> ps -f | grep nmmain.py | grep -v grep</pre>
-					</td> 
+						<br/>
+						To check that Seattle is running, try running:
+						<br/>
+						<code> ps -f | grep nmmain.py | grep -v grep</code>
+						
+					</td>
 				</tr>
 			</table>
-	</body>
-</html>
+		</div>
+	</div>
+
+{% endblock content %}
