@@ -109,7 +109,7 @@ def login_redirect(request):
 
 
 
-def login(request):
+def login(request, simplelogin=False):
     """
    <Purpose>
       Logs the user in by verifying their username/password. Checks if
@@ -130,7 +130,11 @@ def login(request):
    <Returns>
       HTTP response object that represents 
     """
-    ltemplate = 'accounts/login.html'
+    if simplelogin:
+        ltemplate = 'accounts/simplelogin.html'
+    else:
+        ltemplate = 'accounts/login.html'
+        
     err = ""
     if request.method == 'POST':
         form = AuthenticationForm(request.POST)
@@ -215,7 +219,7 @@ def simplelogin(request):
         An HTTP response object that represents the simple login page on
         succes. A redirect to a login page on error.
     """
-    return direct_to_template(request,'accounts/simplelogin.html', {})
+    return login(request, simplelogin=True)
     
                               
 
