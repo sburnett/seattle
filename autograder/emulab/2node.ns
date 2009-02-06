@@ -1,0 +1,33 @@
+set ns [new Simulator]
+source tb_compat.tcl
+
+# Nodes
+set server [$ns node]
+set client [$ns node]
+
+
+#declare node os
+tb-set-node-os $server FEDORA8-STD
+tb-set-node-os $client FEDORA8-STD
+
+# Links
+set link0 [$ns duplex-link $server $client 100000.0kb 0.0ms DropTail]
+
+#specify the ip address
+tb-set-ip $server 10.1.1.2  
+tb-set-ip $client 10.1.1.4
+
+
+#static routing  (i dont know if we actually need this line?)
+$ns rtproto Static
+
+#specify tar files
+tb-set-node-tarfiles $server /usr/kimbrl /proj/Seattle/tarfiles/hello.tar
+tb-set-node-tarfiles $client /usr/kimbrl /proj/Seattle/tarfiles/hello.tar
+
+tb-set-node-startcmd $server "/usr/kimbrl/runner.sh &> /proj/Seattle/autograder/results/server.txt"
+tb-set-node-startcmd $client "/usr/kimbrl/runner.sh &> /proj/Seattle/autograder/results/client.txt"
+
+#run the simulator
+$ns run
+

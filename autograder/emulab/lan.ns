@@ -1,0 +1,40 @@
+set ns [new Simulator]
+source tb_compat.tcl
+
+
+# the number of nodes
+set maxnodes 8
+
+#intialize the lan list
+set lanstr ""
+
+
+
+# set nodes 1 to 8
+for {set i 1} {$i <= $maxnodes} {incr i} {
+  set node($i) [$ns node]
+  append lanstr "$node($i) "
+  tb-set-node-os $node($i) FEDORA8-STD
+  
+  #specify tarfiles
+  tb-set-node-tarfiles $node($i) /usr/kimbrl /proj/Seattle/tarfiles/hello.tar
+  
+  #specify the startcmd
+  tb-set-node-startcmd $node($i) /usr/kimbrl/runner.sh
+}
+
+
+# Put all the nodes in a lan
+set lan [$ns make-lan "$lanstr" 100Mb 0ms]
+
+#set the ips
+for {set i 1} {$i <= $maxnodes} {incr i} {
+  tb-set-ip-lan $node($i) $lan 10.1.1.$i
+}
+
+
+# static routing
+$ns rtproto Static
+
+#run it
+$ns run
