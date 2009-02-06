@@ -14,20 +14,20 @@
 			<table>
 				<tr>
 					{% block nav_profile %}
-                                          <td><a href="{% url user_info %}">Profile</a></td>
+                    <td><a href="{% url user_info %}">Profile</a></td>
 					{% endblock nav_profile %}
 
-                                        {% block nav_mygeni %}
+                    {% block nav_mygeni %}
 					<td><a href="{% url donations %}">My GENI</a></td>
-                                        {% endblock nav_mygeni %}
+                    {% endblock nav_mygeni %}
 
-                                        {% block nav_myvessels %}
+                    {% block nav_myvessels %}
 					<td><a href="{% url used_resources %}">My Vessels</a></td>
-                                        {% endblock nav_myvessels %}
+                    {% endblock nav_myvessels %}
 
-                                        {% block nav_getdonations %}
+                    {% block nav_getdonations %}
 					<td>Get Donations</td>
-                                        {% endblock nav_getdonations %}
+                    {% endblock nav_getdonations %}
 				</tr>
 			</table>
 		</div>
