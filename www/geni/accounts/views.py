@@ -196,3 +196,27 @@ def help(request):
                               
 
 
+def simplelogin(request):
+    """
+    <Purpose>
+        Used to show a very simple login page (used for inclusion in Seattle Wiki)
+
+    <Arguments>
+        request:
+            An HTTP request object
+
+    <Exceptions>
+        None.
+
+    <Side Effects>
+        None.
+
+    <Returns>
+        An HTTP response object that represents the simple login page on
+        succes. A redirect to a login page on error.
+    """
+    return direct_to_template(request,'accounts/simplelogin.html', {})
+    
+                              
+
+

@@ -43,11 +43,7 @@ admin.autodiscover()
 
 urlpatterns = patterns('',
                        (r'^%s$'%(settings.URL_PREFIX), 'geni.accounts.views.login_redirect'), #'geni.accounts.views.login'), 
-                       (r'^%saccounts/register$'%(settings.URL_PREFIX), 'geni.accounts.views.register',{},'register'),
-                       (r'^%saccounts/login$'%(settings.URL_PREFIX), 'geni.accounts.views.login',{},'login'), 
-                       (r'^%saccounts/logout$'%(settings.URL_PREFIX), 'django.contrib.auth.views.logout_then_login',{},'logout'),
-                       (r'^%saccounts/help$'%(settings.URL_PREFIX), 'geni.accounts.views.help',{},'help'), 
-                       
+                       (r'^%saccounts/'%(settings.URL_PREFIX), include('geni.accounts.urls')),
                        (r'^%scontrol/'%(settings.URL_PREFIX), include('geni.control.urls')),
                        (r'^%sdownload/'%(settings.URL_PREFIX), include('geni.download.urls')),
                        

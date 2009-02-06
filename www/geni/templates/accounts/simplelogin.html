@@ -1,0 +1,27 @@
+	<div id="main">
+		<div id="middle">
+		  <form method="post" action="{% url login %}">
+		  {% if err %}
+		  <p><font color="red">{{ err }}</font></p><br>
+		  {% endif %}
+
+		  <table class="login">
+		    <tr>
+		      <td class="key">   {{ form.username.label_tag }}</td>
+		      <td class="value"> {{ form.username }} </td>
+		    </tr>
+		    <tr>
+		      <td class="key">   {{ form.password.label_tag }}</td>
+		      <td class="value"> {{ form.password }} </td>
+		    </tr>
+		    <tr>
+		      <td class="key"></td>
+		      <td class="value"><input type="submit" value="Login" /></td>
+		      <input type="hidden" name="next" value="{{ next }}" />
+		    </tr>
+		  </table>    
+		  </form>
+		  
+		</div>
+	</div>
+
