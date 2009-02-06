@@ -787,7 +787,7 @@ def getdonations(request):
 def ajax_getshares(request):
     ret = []
     if request.method == u'POST':
-        for i in range(2,14):
+        for i in range(2,8):
             ret.append({'username' : "user" + str(i),
                         'percent' : i+i})
             
@@ -801,12 +801,11 @@ def ajax_getshares(request):
 def ajax_getcredits(request):
     ret = []
     if request.method == u'POST':
-        for i in range(2,10):
+        for i in range(2,8):
             ret.append({'username' : "user" + str(i+1),
                         'percent' : i+i / 2})
             
     print "returning ret: ", str(ret)
-    ret = {'result' : ret}
     json = simplejson.dumps(ret)
     print "json object is ", str(json)
     return HttpResponse(json, mimetype='application/json')
