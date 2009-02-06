@@ -41,15 +41,15 @@ admin.autodiscover()
 urlpatterns = patterns('geni.control.views',
                        # top level urls and functions:
                        # show the user info page for this user listing the public/private keys, and user information
-                       (r'^user_info$', 'user_info', {}, 'profile'), # was user_info
+                       (r'^profile$', 'user_info', {}, 'profile'), # was user_info
                        # show the current donation for this user
-                       (r'^donations$', 'donations', {}, 'mygeni'), # was donations
+                       (r'^mygeni$', 'donations', {}, 'mygeni'), # was donations
                        # show the used resources page (with all the currently acquired vessels)
-                       (r'^used_resources$', 'used_resources', {}, 'myvessels'), # was used_resources
+                       (r'^myvessels$', 'used_resources', {}, 'myvessels'), # was used_resources
                        # show the help page
                        (r'^help$', 'help', {}, 'help'),
                        # getdonations page (to download installers)
-                       (r'^get_donations$', 'getdonations', {}, 'getdonations'),
+                       (r'^getdonations$', 'getdonations', {}, 'getdonations'),
                        
                        # used_resources functions:
                        # get new resources (from form)

@@ -125,7 +125,7 @@ def login(request):
 
    <Side Effects>
       Depending on the login success, might redirect the user to the
-      login page or redirect them to the user_info page (see control/)
+      login page or redirect them to the profile page (see control/)
 
    <Returns>
       HTTP response object that represents 
@@ -153,7 +153,7 @@ def login(request):
 
                 # Login successful!
                 # Redirect to a success page.
-                return HttpResponseRedirect(reverse("user_info"))
+                return HttpResponseRedirect(reverse("profile"))
             else:
                 # Return a 'disabled account' error message
                 err = "This account has been disabled."

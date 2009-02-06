@@ -23,9 +23,9 @@ Get Donations - GENI
 			</div>
 			<table id="downloads">
 				<tr id="mac">
-					<td><img src="{{ MEDIA_URL }}images/mac.png" alt="mac" /></td>
+					<td><a href="{% url installers user.username %}seattle_mac.zip"><img src="{{ MEDIA_URL }}images/mac.png" alt="mac" /></a></td>
 					<td>
-						<a href="#">Download installer for Mac</a>
+						<a href="{% url installers user.username %}seattle_mac.zip">Download installer for Mac</a>
 						<p>
 							<strong>Instructions:</strong>
 							<br />(Note: You must have Python 2.5 installed)
@@ -42,9 +42,9 @@ Get Donations - GENI
 					</td>
 				</tr>
 				<tr id="win">
-					<td><img src="{{ MEDIA_URL }}images/windows.png" alt="windows" /></td>
+					<td><a href="{% url installers user.username %}seattle_win.zip"><img src="{{ MEDIA_URL }}images/windows.png" alt="windows" /></a></td>
 					<td>
-						<a href="#">Download installer for Windows</a>
+						<a href="{% url installers user.username %}seattle_win.zip">Download installer for Windows</a>
 						<p><strong>Instructions:</strong></p>
 						<ol>
 						<li>Download the Seattle zip file to your computer</li>
@@ -56,9 +56,9 @@ Get Donations - GENI
 					</td>
 				</tr>
 				<tr id="linux">
-					<td><img src="{{ MEDIA_URL }}images/linux.png" alt="linux" /></td>
+					<td><a href="{% url installers user.username %}seattle_linux.zip"><img src="{{ MEDIA_URL }}images/linux.png" alt="linux" /></a></td>
 					<td>
-						<a href="#">Download installer for Linux</a>
+						<a href="{% url installers user.username %}seattle_linux.zip">Download installer for Linux</a>
 						<p>
 							<strong>Instructions:</strong>
 							<br />(Note: You must have Python 2.5 installed)
