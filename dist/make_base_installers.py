@@ -10,7 +10,8 @@
 
 <Purpose>
   Builds the base installers for one or more of the supported
-  operating systems, depending on options given.
+  operating systems, depending on options given. Runs on Linux
+  systems only.
 """
 
 import os
