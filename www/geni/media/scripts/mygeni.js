@@ -32,10 +32,10 @@ $(document).ready(function() {
 	create_label(usagenames, "Others", 14, true);
 	create_label(usagenames, "Free", 35, true);
 	
-	$("#getresourcesbutton").click(get_resources_dialog);	
+//	$("#getresourcesbutton").click(get_resources_dialog);
 	$("#getresourcesdialog button").click(close_dialog);
 	
-	$("#shareresources").click(share_resources_dialog);
+//	$("#shareresources").click(share_resources_dialog);
 	$("#shareresourcesdialog button").click(close_dialog);
 });
 
@@ -69,12 +69,14 @@ function create_block(bar, username, width, isClosable) {
 			get.attr('id','getresourcesbutton');
 			get.attr('href','#');
 			get.text('get');
+			get.click(get_resources_dialog);
 			block.append(get);
 			
 			var share = $(document.createElement('a'));
 			share.attr('id','shareresources');
 			share.attr('href','#');
 			share.text('share');
+			share.click(share_resources_dialog);
 			block.append(share);
 			
 		} else if (username != "Me" && username != "Others" ) {

@@ -12,11 +12,10 @@ My Vessels - GENI
 	<div id="main">
 		<div id="middle">
 			<div id="getresources">
-			        {% ifnotequal get_form None %}
+			    {% ifnotequal get_form None %}
 				<form method="POST" action="{% url get_resources %}">
 				  <span id="caption">Get more resources</span>
-
-				    <font color="red">  {{ get_form.num.errors }}</font>
+                    <font color="red">  {{ get_form.num.errors }}</font>
 				    <font color="red">  {{ get_form.env.errors }}</font>
 				      <span>Number of vessels</span>
 				      {{ get_form.num }}
