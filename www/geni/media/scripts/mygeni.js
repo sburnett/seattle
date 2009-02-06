@@ -247,7 +247,7 @@ function color_generator(username) {
 
 
 function load() {
-	$.post("http://128.208.3.86:8081/geni_dev_sean/control/_doajax",
+	$.post("http://128.208.3.86:8081/geni_dev_sean/control/do_ajax",
 		{ type: "credits" },
 		function (json) { update_blocks(json); }, 
 		"json");
