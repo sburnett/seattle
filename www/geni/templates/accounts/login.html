@@ -12,9 +12,7 @@ Login - GENI
 {% block content %}
 	<div id="main">
 		<div id="middle">
-
 		  <form method="post" action="{% url login %}">
-		  <h3>Login</h3><br><br>
 		  {% if err %}
 		  <p><font color="red">{{ err }}</font></p><br>
 		  {% endif %}

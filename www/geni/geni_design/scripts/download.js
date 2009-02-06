@@ -5,7 +5,7 @@ $(document).ready(function() {
 function detectOs() {
 	var os = $.browser.OS();
 	switch (os) {
-		case "Win":
+		case "Windows":
 			$("#downloads").prepend($("#win"));
 			break;
 		case "Mac":
