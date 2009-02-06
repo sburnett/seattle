@@ -46,6 +46,7 @@ urlpatterns = patterns('',
                        (r'^%saccounts/register$'%(settings.URL_PREFIX), 'geni.accounts.views.register',{},'register'),
                        (r'^%saccounts/login$'%(settings.URL_PREFIX), 'geni.accounts.views.login',{},'login'), 
                        (r'^%saccounts/logout$'%(settings.URL_PREFIX), 'django.contrib.auth.views.logout_then_login',{},'logout'),
+                       (r'^%saccounts/help$'%(settings.URL_PREFIX), 'geni.accounts.views.help',{},'help'), 
                        
                        (r'^%scontrol/'%(settings.URL_PREFIX), include('geni.control.urls')),
                        (r'^%sdownload/'%(settings.URL_PREFIX), include('geni.download.urls')),
