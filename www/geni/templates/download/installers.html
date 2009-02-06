@@ -14,6 +14,12 @@ Get Donations - GENI
 <td class="active">Donate Resources</td>
 {% endblock nav_getdonations %}
 
+{% block script %}
+{{ block.super }}
+<script type="text/javascript" src="{{ MEDIA_URL}}scripts/jquery.js" charset="utf-8"></script>
+{% endblock script %}
+
+
 {% block content %}
 	<div id="main">
 		<div id="middle">

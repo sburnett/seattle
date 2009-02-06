@@ -49,5 +49,5 @@ urlpatterns = patterns('geni.download.views',
                        (r'^(?P<username>\w{3,32})/seattle_win.zip$', 'build_win_installer', {}, 'win'),
 
                        # help page
-                       (r'^help$', 'help', {}, 'help'),
+                       (r'^(?P<username>\w{3,32})/help$', 'help', {}, 'help'),
 )
