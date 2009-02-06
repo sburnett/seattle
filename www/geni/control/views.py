@@ -805,6 +805,7 @@ def do_ajax(request):
 
     print "returning ret: ", str(ret)
     json = simplejson.dumps(ret)
+    print "json object is ", str(json)
     return HttpResponse(json, mimetype='application/json')
 
 

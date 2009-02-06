@@ -282,5 +282,26 @@ def build_installer(username, dist_char):
 
 
 
+def help(request):
+    """
+    <Purpose>
+        Used to show the help page
+
+    <Arguments>
+        request:
+            An HTTP request object
+
+    <Exceptions>
+        None.
+
+    <Side Effects>
+        None.
+
+    <Returns>
+        An HTTP response object that represents the help page on
+        succes. A redirect to a login page on error.
+    """
+    return direct_to_template(request,'download/help.html', {})
+
 
 
