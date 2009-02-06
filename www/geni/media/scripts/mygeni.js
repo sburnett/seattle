@@ -1,5 +1,6 @@
 $(document).ready(function() {
-    // load();
+    load();
+	/*
 	var credits = $("#credits");
 	var creditnames = $("#creditnames");
 	create_block(credits, "Me", 35, false);
@@ -30,6 +31,7 @@ $(document).ready(function() {
 	create_label(usagenames, "Kevin", 14, true);
 	create_label(usagenames, "Others", 14, true);
 	create_label(usagenames, "Free", 35, true);
+	*/
 	
 //	$("#getresourcesbutton").click(get_resources_dialog);
 	$("#getresourcesdialog button").click(close_dialog);
@@ -37,7 +39,6 @@ $(document).ready(function() {
 //	$("#shareresources").click(share_resources_dialog);
 	$("#shareresourcesdialog button").click(close_dialog);
 	
-	load();
 
 });
 
@@ -247,12 +248,28 @@ function color_generator(username) {
 
 
 function load() {
-	$.post("http://128.208.3.86:8081/geni_dev_sean/control/do_ajax",
-		{ type: "credits" },
-		function (data) { update_blocks(data); }, 
+	$.post("http://128.208.3.86:8081/geni_dev_sean/control/ajax_getcredits",
+		function (data) { update_blocks("credits", data); }, 
+		"json");
+	$.post("http://128.208.3.86:8081/geni_dev_sean/control/ajax_getshares",
+		function (data) { update_blocks("shares", data); }, 
 		"json");
 }
 
-function update_blocks(data) {
-    alert(data[0].username);                                                                  
+function update_blocks(type, data) {
+	if (type == "credits") {
+		var credits = $("#credits");
+		var creditnames = $("#creditnames");
+		for (var i = 0; i < data.length; i++) {
+			create_block(credits, data[i].username, data[i].percent, false);
+			create_label(creditnames, data[i].username, data[i].percent, false);
+		}
+	} else if (type == "shares") {
+		var usage = $("#usage");
+		var usagenames = $("#usagenames");
+		for (var i = 0; i < data.length; i++) {
+			create_block(usage, data[i].username, data[i].percent, true);
+			create_label(usagenames, data[i].username, data[i].percent, true);
+		}
+	}
 }
