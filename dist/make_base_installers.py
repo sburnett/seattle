@@ -230,7 +230,7 @@ def package_winmob(dist_dir, install_dir, inst_name, output_dir):
     orig_dir = os.getcwd()
     os.chdir(install_dir + "/..")
     p = subprocess.Popen("zip -r " + temp_zipfile + " " 
-                         + INSTALL_DIR, shell=True)
+                         + INSTALL_DIR + " >/dev/null", shell=True)
     p.wait()
     shutil.move(temp_zipfile, orig_dir)
     os.chdir(orig_dir)

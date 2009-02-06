@@ -58,7 +58,7 @@ def append_to_zip(zip_file, folder_to_append, zip_file_dir):
     os.chdir(temp_dir)
     zip_file_name = zip_file.split("/")[-1]
     p = subprocess.Popen("zip -r " + zip_file_name + " " + 
-                         zip_file_dir, shell=True)
+                         zip_file_dir + " >/dev/null", shell=True)
     p.wait()
     os.chdir(orig_dir)
     shutil.copy2(temp_dir + "/" + zip_file_name, zip_file)
