@@ -10,3 +10,5 @@ run_tests.sh   - This file will run the unit tests
 scripts/       - Contains helper shell scripts
 src/           - Contains any python src files
 tests/         - Contains the unit tests
+ * Tests should be named test_TESTNAME.py or if a specified order is preferred, you can name test_0_TESTNAME.py or test_1_TESTNAME.py
+ * since the tests will be reported alphabetically, you can use 0-9 as priority levels.
