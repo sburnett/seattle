@@ -1,0 +1,241 @@
+"""
+<Program Name>
+  install_autograder.py
+
+<Author>
+  Alper Sarikaya
+  alpers@cs.washington.edu
+
+<Purpose>
+  Manages an emulab instance, running an application, getting the logs from the nodes,
+  and cleans up.
+<Todo>
+  Functionality:
+      - clean up (destroy/uninstall Beraber remotely)
+          - is this needed?
+
+  Testing
+  
+"""
+
+import sys 
+import persist
+
+import nmAPI
+
+from repyportability import *
+
+include nmclient.repy
+
+include rsa.repy
+
+nextid = 1
+keys = {}
+vesselinfo = {}
+
+
+# alpers - do I really need this?
+nextidlock = getlock()
+def atomically_get_nextid():
+  global nextid
+
+  # mutex around getting an id
+  nextidlock.acquire()
+
+  myid = nextid
+  nextid = nextid + 1
+
+  nextidlock.release()
+
+  return myid
+
+
+
+# alpers - adds a vessel and its information to the overall vessel dict (from seash.mix)
+def add_vessel(longname, keyname, vesselhandle):
+    vesselinfo[longname] = {}
+    vesselinfo[longname]['handle'] = vesselhandle
+    vesselinfo[longname]['keyname'] = keyname
+    vesselinfo[longname]['IP'] = longname.split(':')[0]
+    vesselinfo[longname]['port'] = int(longname.split(':')[1])
+    vesselinfo[longname]['vesselname'] = longname.split(':')[2]
+    
+
+    myid = atomically_get_nextid()
+    
+    # alpers - as far as I know, I have no need for targets right now (possibly later?)
+    """# set up a reference to myself...
+    targets[longname] = [longname]
+
+    # add my id...
+    targets['%'+str(myid)] = [longname]
+    vesselinfo[longname]['ID'] = '%'+str(myid)
+    
+    # add me to %all...
+    targets['%all'].append(longname)"""
+
+    return myid
+
+
+
+# alpers - adds all vessels available at ip:port (from seash.mix)
+def add_target_by_hostname(host, port, vesselname = None):
+    # get information about the node's vessels
+    thishandle = nmclient_createhandle(host, port, privatekey = key['private'], publickey = key['public'], \
+                                       vesselid = vesselname)
+    ownervessels, uservessels = nmclient_listaccessiblevessels(thishandle,keys['public'])
+    
+    newidlist = []
+    # determine if we control the specified vessel...
+    if vesselname:
+        if vesselname in ownervessels or vesselname in uservessels:
+            longname = host+":"+str(port)+":"+vesselname
+            # no need to set the vesselname, we did so above...
+            id = add_vessel(longname,currentkeyname,thishandle)
+            newidlist.append('%'+str(id)+"("+longname+")")
+        else:
+            raise Exception("Error, cannot access vessel '"+vesselname+"'")
+        
+        # we should add anything we can access
+    else:
+        for vesselname in ownervessels:
+            longname = host+":"+str(port)+":"+vesselname
+            if longname not in vesselinfo:
+                # set the vesselname
+                # NOTE: we leak handles (no cleanup of thishandle).   
+                # I think we don't care...
+                newhandle = nmclient_duplicatehandle(thishandle)
+                handleinfo = nmclient_get_handle_info(newhandle)
+                handleinfo['vesselname'] = vesselname
+                nmclient_set_handle_info(newhandle, handleinfo)
+                
+                id = add_vessel(longname,currentkeyname,newhandle)
+                newidlist.append('%'+str(id)+"("+longname+")")
+                
+        # alpers - I'm assuming we don't care about user vessels since we're just dealing with
+        # vessels that we own on emulab.
+        """for vesselname in uservessels:
+            longname = host+":"+str(port)+":"+vesselname
+            if longname not in vesselinfo:
+                # set the vesselname
+                # NOTE: we leak handles (no cleanup of thishandle).   
+                # I think we don't care...
+                newhandle = nmclient_duplicatehandle(thishandle)
+                handleinfo = nmclient_get_handle_info(newhandle)
+                handleinfo['vesselname'] = vesselname
+                nmclient_set_handle_info(newhandle, handleinfo)
+                
+                id = add_vessel(longname,currentkeyname,newhandle)
+                newidlist.append('%'+str(id)+"("+longname+")")"""
+
+        # tell the user what we did...
+    if len(newidlist) == 0:
+        print "Could not add any targets."
+    else:
+        print "Added targets: "+", ".join(newidlist)
+    
+    return newidlist
+
+
+# alpers - attempts to tell each vessel to run a program
+def run_target(longname, filename,filedata, argstring):
+  vesselname = vesselinfo[longname]['vesselname']
+  try:
+    nmclient_signedsay(vesselinfo[longname]['handle'], "AddFileToVessel", vesselname, filename, filedata)
+    nmclient_signedsay(vesselinfo[longname]['handle'], "StartVessel", vesselname, argstring)
+  except NMClientException, e:
+    return (False, str(e))
+  else:
+    return (True,)
+
+
+# alpers - attempts to retreive logs from each vessel
+def showlog_target(longname):
+  vesselname = vesselinfo[longname]['vesselname']
+  try:
+    logdata = nmclient_signedsay(vesselinfo[longname]['handle'],"ReadVesselLog",vesselname)
+  except NMClientException, e:
+    return (False, str(e))
+  else:
+    return (True, logdata)
+
+
+# alpers - main method for acquiring information for all vessels and running an application
+def connect_to_emulab_beraber_instance(ip, port, program_name):
+    vessel_id_list = add_node_by_hostname(ip, port)
+    
+    fileobj = open(filename, "r")
+    filedata = fileobj.read()
+    fileobj.close()
+    
+    retdict = {}
+    for vessel in vesselinfo:
+        retdict[vessel] = run_target(vessel, program_name, filedata, argstring)
+        if retdict[vessel][0]:
+            print "Successfully connected and run program on ", vessel
+        else:
+            print "Failed to connect/run program on ", vessel
+            print "Reason: ", retdict[vessel][1]
+
+
+# alpers - main method for retreiving the logs from each vessel
+def get_log_from_all_emulab_beraber_instances():
+    retdict = {}
+    logs = {}
+    for vessel in vesselinfo:
+        retdict[vessel] = showlog_vessel(vessel)
+        if retdict[vessel][0]:
+            print "Successfully connected to and acquired log from ", vessel
+            logs[vessel] = retdict[vessel][1]
+        else:
+            print "Failed to connect to/acquire log from ", vessel
+            print "Reason: ", retdict[vessel][1]
+
+    return logs
+
+
+# alpers - prints the usage of the application
+def print_usage():
+    print \
+"""python install_autograder.py <keyname> <ip> <port> <program>
+    <keyname> - The name of the key files where the owner keys are stored,
+                e.g. keyname.privatekey, keyname.publickey would submit 
+                privatekey
+    <ip>      - The host on which Beraber is running (can be full-qual name)
+    <port>    - The port on the host on which the node manager is running
+    <program> - repy code for the autograder vessels to run
+"""
+
+
+# alpers - main starter thread -- !! is there a way to see when an applcation has finished
+#                                    running in a vessel?  (just sleeps for 30 sec now)
+def main():
+    if len(sys.argv != 5):
+        print_usage()
+        return
+
+    keyname = sys.argv[1]
+    ip = sys.argv[2]
+    try:
+        port = int(sys.argv[3])
+    except TypeError:
+        print_usage()
+        return
+    program_name = sys.argv[4]
+
+    key['public'] = rsa_file_to_publickey(keyname + ".publickey")
+    key['private'] = rsa_file_to_privatekey(keyname + ".privatekey")
+
+    print "Connecting to ", ip, ":", port, "; looking for vessels.."
+    add_target_by_hostname(ip, port)
+
+    connect_to_emulab_beraber_instance(ip, port, program_name)
+
+    sleep(30)
+
+    logs = get_logs_from_all_beraber_instances()
+    persist.commit_object(logs, "logs.log")
+
+
+if __name__ == '__main__':
+    main()
