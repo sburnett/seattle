@@ -41,13 +41,15 @@ admin.autodiscover()
 urlpatterns = patterns('geni.control.views',
                        # top level urls and functions:
                        # show the user info page for this user listing the public/private keys, and user information
-                       (r'^user_info$', 'user_info', {}, 'user_info'),
+                       (r'^user_info$', 'user_info', {}, 'profile'), # was user_info
                        # show the current donation for this user
-                       (r'^donations$', 'donations', {}, 'donations'),
+                       (r'^donations$', 'donations', {}, 'mygeni'), # was donations
                        # show the used resources page (with all the currently acquired vessels)
-                       (r'^used_resources$', 'used_resources', {}, 'used_resources'),
+                       (r'^used_resources$', 'used_resources', {}, 'myvessels'), # was used_resources
                        # show the help page
                        (r'^help$', 'help', {}, 'help'),
+                       # getdonations page (to download installers)
+                       (r'^get_donations$', 'getdonations', {}, 'getdonations'),
                        
                        # used_resources functions:
                        # get new resources (from form)
@@ -73,6 +75,5 @@ urlpatterns = patterns('geni.control.views',
                        # delete an existing share with another user (from form)
                        (r'^del_share$', 'del_share', {}, 'del_share'),
 
-                       # getdonations functions:
-                       (r'^get_donations$', 'getdonations', {}, 'getdonations'),
+                       
 )
