@@ -912,7 +912,7 @@ class NATSocket():
     # Read up to bytes
     data = self.natcon.clientDataBuffer[self.clientMac]["data"][:bytes] 
   
-    # Strip bytes from the string
+    # Remove what we read from the buffer
     self.natcon.clientDataBuffer[self.clientMac]["data"] = self.natcon.clientDataBuffer[self.clientMac]["data"][bytes:] 
   
     # Check if there is more incoming buffer available, if not, send a CONN_BUF_SIZE
@@ -961,6 +961,9 @@ class NATSocket():
       self.natcon.clientDataBuffer[self.clientMac]["outgoingLock"].acquire()
       self.natcon.clientDataBuffer[self.clientMac]["outgoingLock"].release()
     
+      # Get our own lock
+      self.natcon.clientDataBuffer[self.clientMac]["lock"].acquire()
+      
       # How much outgoing traffic is available?
       outgoingAvailable = self.natcon.clientDataBuffer[self.clientMac]["outgoingAvailable"]
       
@@ -973,6 +976,9 @@ class NATSocket():
           # Reduce the size of outgoing avail
           self.natcon.clientDataBuffer[self.clientMac]["outgoingAvailable"] -= len(data)
         
+        # Release the lock
+        self.natcon.clientDataBuffer[self.clientMac]["lock"].release()
+          
         # We need to explicitly leave the loop
         break
         
@@ -991,4 +997,6 @@ class NATSocket():
       
         # Trim data to only what isn't sent syet
         data = data[outgoingAvailable:]
-          
+    
+        # Release the lock
+        self.natcon.clientDataBuffer[self.clientMac]["lock"].release()
