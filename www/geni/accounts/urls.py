@@ -42,6 +42,6 @@ urlpatterns = patterns('',
                        (r'^register$', 'geni.accounts.views.register',{},'register'),
                        (r'^login$', 'geni.accounts.views.login',{},'login'), 
                        (r'^logout$', 'django.contrib.auth.views.logout_then_login',{},'logout'),
-                       (r'^help$', 'geni.accounts.views.help',{},'help'),
+                       (r'^help$', 'geni.accounts.views.help',{},'accounts_help'),
                        (r'^simplelogin$', 'geni.accounts.views.simplelogin',{},'simplelogin'), 
 )

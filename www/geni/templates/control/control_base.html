@@ -7,7 +7,7 @@
 {% block navigation %}
 	<div id="navigator">
 		<div id="tabs">
-			<span id="meta">{{ user.username }}: <a href="{% url help %}">Help</a> <a href="{% url logout %}">Logout</a></span>
+			<span id="meta">{{ user.username }}: <a href="{% url logout %}"><font color="red">Logout</font></a></span>
 			<table>
 				<tr>
 					{% block nav_profile %}
@@ -25,6 +25,10 @@
                     {% block nav_getdonations %}
 					<td><a href="{% url getdonations %}">Get Donations</a></td>
                     {% endblock nav_getdonations %}
+
+		    {% block nav_help %}
+					<td><a href="{% url help %}">Help</a></td>
+		    {% endblock nav_help %}
 				</tr>
 			</table>
 		</div>
