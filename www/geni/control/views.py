@@ -805,11 +805,12 @@ def ajax_getcredits(request):
     if request.method == u'POST':
         POST = request.POST
 
-        for i in range(2,20):
+        for i in range(2,10):
             ret.append({'username' : "user" + str(i+1),
                         'percent' : i+i / 2})
             
     print "returning ret: ", str(ret)
+    ret = {'result' : ret}
     json = simplejson.dumps(ret)
     print "json object is ", str(json)
     return HttpResponse(json, mimetype='application/json')
