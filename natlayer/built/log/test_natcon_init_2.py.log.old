@@ -1,0 +1,8 @@
+Seattle Traceback (most recent call last):
+  "test_natcon_init_2.py", line 1042, in <module>
+  "test_natcon_init_2.py", line 437, in __init__
+Exception (with class 'socket.error'): (61, 'Connection refused')
+Seattle Traceback (most recent call last):
+  "test_natcon_init_2.py", line 1042, in <module>
+  "test_natcon_init_2.py", line 437, in __init__
+Exception (with class 'socket.error'): (61, 'Connection refused')

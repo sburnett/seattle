@@ -1,0 +1,4 @@
+Seattle Traceback (most recent call last):
+  "../forwarder.py", line 483, in _incomingFrame
+  "../forwarder.py", line 289, in initFromSocket
+Exception (with type 'exceptions.EnvironmentError'): Unexpected Header Size!
