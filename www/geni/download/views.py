@@ -282,7 +282,7 @@ def build_installer(username, dist_char):
 
 
 
-def help(request):
+def help(request, username):
     """
     <Purpose>
         Used to show the help page
@@ -301,7 +301,7 @@ def help(request):
         An HTTP response object that represents the help page on
         succes. A redirect to a login page on error.
     """
-    return direct_to_template(request,'download/help.html', {})
+    return direct_to_template(request,'download/help.html', {'username' : username})
 
 
 
