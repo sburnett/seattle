@@ -9,10 +9,8 @@
   Carter Butaud
 
 <Purpose>
-  Provides various methods useful for building and customizing
-  the installers, including methods to build an entire installer,
-  to build all the installers, and to add files to existing
-  installers.
+  Provides methods to update already created installers with new
+  files.
 """
 
 import os
