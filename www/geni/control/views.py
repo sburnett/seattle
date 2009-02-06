@@ -787,8 +787,6 @@ def getdonations(request):
 def ajax_getshares(request):
     ret = []
     if request.method == u'POST':
-        POST = request.POST
-
         for i in range(2,14):
             ret.append({'username' : "user" + str(i),
                         'percent' : i+i})
@@ -801,26 +799,17 @@ def ajax_getshares(request):
 
 @login_required()
 def ajax_getcredits(request):
-    # ret = []
-#     if request.method == u'POST':
-#         POST = request.POST
-
-#         for i in range(2,10):
-#             ret.append({'username' : "user" + str(i+1),
-#                         'percent' : i+i / 2})
+    ret = []
+    if request.method == u'POST':
+        for i in range(2,10):
+            ret.append({'username' : "user" + str(i+1),
+                        'percent' : i+i / 2})
             
-#     print "returning ret: ", str(ret)
-#     ret = {'result' : ret}
-#     json = simplejson.dumps(ret)
-#     print "json object is ", str(json)
-#     return HttpResponse(json, mimetype='application/json')
-
-    credits = {'username' : 'sean_credits',
-               'percent' : 14}
-    ret = [credits, credits]
+    print "returning ret: ", str(ret)
+    ret = {'result' : ret}
     json = simplejson.dumps(ret)
+    print "json object is ", str(json)
     return HttpResponse(json, mimetype='application/json')
-
 
 
 @login_required()
@@ -829,7 +818,7 @@ def ajax_editshare(request):
     if request.method == u'POST':
         POST = request.POST
         if POST.has_key(u'username') and POST.has_key(u'percent'):
-            percent = int(POST.has_key(u'percent'))
+            percent = int(POST[u'percent'])
             print "received percent " , str(percent)
             if random.randrange(2) == 1:
                 ret = {"success" : False, "error" : "error in " + "blah" * 20}
@@ -848,7 +837,7 @@ def ajax_createshare(request):
     if request.method == u'POST':
         POST = request.POST
         if POST.has_key(u'username') and POST.has_key(u'percent'):
-            percent = int(POST.has_key(u'percent'))
+            percent = int(POST[u'percent'])
             if percent != 0:
                 if random.randrange(2) == 1:
                     ret = {"success" : False, "error" : "could not create share " + "blah" * 20}
@@ -862,6 +851,29 @@ def ajax_createshare(request):
     print "json object is ", str(json)
     return HttpResponse(json, mimetype='application/json')
 
+@login_required()
+def ajax_getvessels(request):
+    ret = []
+    if request.method == u'POST':
+        POST = request.POST
+        if POST.has_key(u'numvessels') and POST.has_key(u'env'):
+            numvessels = int(POST[u'numvessels'])
+            if numvessels != 0:
+                env = POST[u'env']
+                if env in ["LAN", "WAN", "Random"]:
+                    if random.randrange(2) == 1:
+                        ret = {"success" : False, "error" : "", 'mypercent' : 20, "vessels" : [{"vesselid" : "vid1", "status" : "ok!", "expiresin" : "24 hours!"}]}
+                    else:
+                        ret = {"success" : False, "error" : "Failed to acquire vessels", 'mypercent' : 20, "vessels" : []}
+                else:
+                    ret = {"success" : False, "error" : "Environment type must be of type LAN, WAN, or Random", 'mypercent' : 20, "vessels" : []}
+            else:
+                ret = {"success" : False, "error" : "Number of vessels must be greater than 0", 'mypercent' : 20, "vessels" : []}
+            
+    print "returning ret: ", str(ret)
+    json = simplejson.dumps(ret)
+    print "json object is ", str(json)
+    return HttpResponse(json, mimetype='application/json')
 
     
 
