@@ -7,9 +7,13 @@ cd built
 
 # Start the forwarder
 cd scripts
-echo "Starting forwarder"
+echo "Starting forwarder..."
 ./start_forwarder.sh
 cd ..
+
+# Sleep for a second, give the forwarder a change to start
+echo "Waiting for forwarder to initialize..."
+sleep 5
 
 forwarderpid=`cat ./run/forwarder.pid`
 
@@ -46,7 +50,7 @@ do
 done
 
 echo "#####"
-echo "Done"
+echo "Done!"
 
 # Start the forwarder
 cd scripts

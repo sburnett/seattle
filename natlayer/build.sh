@@ -2,6 +2,9 @@
 #
 # Builds the tests
 
+# Make the built directory if necessary
+mkdir -p ./built
+
 # Remove everything in the build dir
 echo "Removing old built files..."
 rm -Rf ./built/*
