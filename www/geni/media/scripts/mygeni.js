@@ -1,4 +1,3 @@
-
 $(document).ready(function() {
     // load();
 	var credits = $("#credits");
@@ -37,6 +36,9 @@ $(document).ready(function() {
 	
 //	$("#shareresources").click(share_resources_dialog);
 	$("#shareresourcesdialog button").click(close_dialog);
+	
+	load();
+
 });
 
 /*
@@ -245,13 +247,14 @@ function color_generator(username) {
 
 
 function load() {
-	$.get("data.txt", 
-		function (data) {
-			update_blocks(data);
-		}
+	$.post("http://128.208.3.86:8081/geni_dev_sean/control/doajax",
+		{ type = "credits" },
+		function (json) { update_blocks(data) }, 
+		"json"
 	);
 }
 
-function update_blocks() {
-	
+function update_blocks(json) {
+	var data = eval('(' + json + ')');
+	alert(data[0].username);
 }
