@@ -783,30 +783,36 @@ def getdonations(request):
 ########################## Functions dealing with Ajax pages
 
 @login_required()
-def do_ajax(request):
+def ajax_getshares(request):
     ret = []
     if request.method == u'POST':
         POST = request.POST
-        print POST
-        if POST.has_key(u'type'):
-            print "has type: ", POST[u'type']
-            if POST[u'type'] == "credits":
-                credits = {'username' : 'sean_credits',
-                           'percent' : 14}
-                ret = [credits, credits]
-            elif POST[u'type'] == "usage":
-                usage = {'username' : 'sean_usage',
-                         'percent' : 24}
-                ret = [usage, usage]
-        else:
-            print "does not have type!"
-    else:
-        print "method NOT POST"
 
+        for i in range(2,14):
+            ret.append(credits = {'username' : "user" + str(i),
+                                  'percent' : i+i})
+            
     print "returning ret: ", str(ret)
     json = simplejson.dumps(ret)
     print "json object is ", str(json)
     return HttpResponse(json, mimetype='application/json')
+
+
+@login_required()
+def ajax_getcredits(request):
+    ret = []
+    if request.method == u'POST':
+        POST = request.POST
+
+        for i in range(2,20):
+            ret.append(credits = {'username' : "user" + str(i+1),
+                                  'percent' : i+i / 2})
+            
+    print "returning ret: ", str(ret)
+    json = simplejson.dumps(ret)
+    print "json object is ", str(json)
+    return HttpResponse(json, mimetype='application/json')
+
 
 
 ########################## Functions dealing with non-interactive pages (e.g. Help page or construction page)
