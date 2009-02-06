@@ -463,15 +463,16 @@ class NATConnection():
       stopcomm(self.listenHandle)
       self.listenHandle = None
       
-    # Get the buffer lock  
-    self.clientDataLock.acquire()
+    # Get the buffer lock, and close everything if it exists
+    if self.clientDataLock != None:
+      self.clientDataLock.acquire()
     
-    # Close each individual socket
-    for clt in self.clientDataBuffer:
-      self._closeCONN(clt)
+      # Close each individual socket
+      for clt in self.clientDataBuffer:
+        self._closeCONN(clt)
     
-    # Release the buffer lock
-    self.clientDataLock.release()
+      # Release the buffer lock
+      self.clientDataLock.release()
       
   # Handles incoming frames
   def _incomingFrame(self,remoteip,remoteport,inSocket,thisCommHandle,listenCommHandle):
