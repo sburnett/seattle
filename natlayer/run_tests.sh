@@ -17,6 +17,15 @@ sleep 5
 
 forwarderpid=`cat ./run/forwarder.pid`
 
+# Check if the forwarder is still running
+forwarderstat=`ps -p ${forwarderpid} | grep -c ""`
+if [ ${forwarderstat} -eq "1" ]
+then
+      echo "Fatal Error! Forwarder has not started!"
+      rm ./run/forwarder.pid
+      exit
+fi
+
 # Pre-process each file
 echo "Running tests..."
 echo "#####"
