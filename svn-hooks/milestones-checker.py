@@ -25,13 +25,18 @@ import subprocess
 from copy import deepcopy
 from datetime import datetime
 
-enable_email = False
+enable_email = True
 svn_repo_path = '/var/local/svn/'
 notify_list = ['seattle-devel@cs.washington.edu']
+#notify_list = ['bestchai@gmail.com']
+
+
 
 if enable_email:
   import send_gmail
 
+
+  
 def command_output(cmd):
   """
   <Purpose>
@@ -52,14 +57,34 @@ def command_output(cmd):
   """
   return subprocess.Popen(cmd.split(), stdout=subprocess.PIPE).communicate()[0]
 
+
+
+
+
 def parse_sprints(sprints_txt):
+  """
+  <Purpose>
+
+
+  <Arguments>
+
+
+  <Exceptions>
+
+
+  <Side Effects>
+
+
+  <Returns>
+
+  """
   sprints = []
   sprint_template = {'date' : '', 'force' : '', 'users' : []}
   format = ['date', 'force', 'users']
   sprint = None
-
+  field = None
   for line in sprints_txt.split('\n'):
-      if line is '' or line.startswith('#'):
+      if line is '' or '#' in line:
           continue
       
       if line.startswith(':sprint'):
@@ -69,7 +94,10 @@ def parse_sprints(sprints_txt):
           field_index = 0
           field = format[field_index]
           continue
-
+      
+      if field == None:
+        # syntax error
+        return None
       if field == 'users':
           sprint[field].append(line)
       else:
@@ -81,6 +109,9 @@ def parse_sprints(sprints_txt):
       sprints.append(sprint)
 
   return sprints
+
+
+
 
 def main():
   """
@@ -107,7 +138,7 @@ def main():
   milestones_txt = command_output("svn cat http://seattle.cs.washington.edu/svn/seattle/trunk/milestones.txt")
   
 # failure example:
-  milestones_txt = """
+#  milestones_txt = """
 #:sprint
 #01/01/2009
 #eye candy
@@ -121,9 +152,19 @@ def main():
     send_gmail.init_gmail(gmail_user=gmail_user, gmail_pwd=gmail_pwd)
 
   # check if any of the sprint personnel are past deadline
-  for sprint in parse_sprints(milestones_txt):
+  sprints = parse_sprints(milestones_txt)
+  if sprints is None:
+    # syntax error in parsing milestones_txt
+    print "syntax error in parsing milestones file"
+    if enable_email:
+      # send email to notify_list members
+      for email in notify_list:
+        send_gmail.send_gmail(email, "svn-hook milestokes-checker syntax error in milestones file", "", "")
+    return 1
+    
+  for sprint in sprints:
       sprint_date = datetime.strptime("%s 00:00:00"%(sprint['date']), "%m/%d/%Y %H:%M:%S")
-      #print sprint_date
+      # print sprint_date
       if sprint_date <= datetime.now():
           if sprint['date'] == datetime.now().strftime("%m/%d/%Y"):
             # sprint due today
@@ -160,6 +201,12 @@ Task            %s
               # send email to notify_list members
               for email in notify_list:
                 send_gmail.send_gmail(email, "[status] strike force: %s, sprint: %s"%(sprint['force'], sprint['date']), notify_str, "")
-              
+  return 0
+
+
+
+
+
+
 if __name__ == "__main__":
   sys.exit(main())
