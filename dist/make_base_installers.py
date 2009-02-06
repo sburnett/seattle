@@ -48,6 +48,34 @@ def get_inst_name(dist, version):
 
 
 
+def check_args(argstr):
+    """
+    Checks that each character in the argument string is in valid_flags;
+    returns a tuple containing False and the offending char if there are
+    invalid characters.
+    Also checks that there is at least one flag from each string in one_of,
+    returns a tuple containing False and "req:" + the unsatisfied requirement
+    string otherwise.
+    Returns a tuple containing True and an empty string if no problems.
+    """
+    valid_flags = "mwliat"
+    one_of = {"mwlia": False}
+    passed = True
+    offense = ""
+    for char in argstr:
+        if char not in valid_flags:
+            passed = False
+            if char not in offense:
+                offense += char
+        for reqstr in one_of:
+            if char in reqstr:
+                one_of[reqstr] = True
+    for reqstr in one_of:
+        if not one_of[reqstr]:
+            return (False, "req:" + reqstr)
+    return (passed, offense)
+
+
 def prepare_initial_files(trunk_location, include_tests, pubkey, privkey, output_dir):
     """
     <Purpose>
@@ -421,12 +449,24 @@ def build(options, trunk_location, pubkey, privkey, output_dir, version=""):
 
 
     
+def usage():
+    print "usage: python make_base_installer.py m|l|w|i|a|t path/to/trunk/ pubkey privkey output/dir/"
+
+
 
 def main():
     if len(sys.argv) < 6:
-        print "usage: python make_base_installer.py m|l|w|i|a|t path/to/trunk/ pubkey privkey output/dir/"
-    else:
-        build(sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5])
+        usage()
+        return
+    passed, offense = check_args(sys.argv[1])
+    if not passed:
+        if offense.startswith("req:"):
+            print "Requires at least one of these flags: " + offense[4:]
+            usage()
+            return
+        print "Invalid flag(s): " + offense
+        return
+    build(sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5])
 
 if __name__ == "__main__":
     main()
