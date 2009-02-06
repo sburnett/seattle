@@ -801,19 +801,26 @@ def ajax_getshares(request):
 
 @login_required()
 def ajax_getcredits(request):
-    ret = []
-    if request.method == u'POST':
-        POST = request.POST
+    # ret = []
+#     if request.method == u'POST':
+#         POST = request.POST
 
-        for i in range(2,10):
-            ret.append({'username' : "user" + str(i+1),
-                        'percent' : i+i / 2})
+#         for i in range(2,10):
+#             ret.append({'username' : "user" + str(i+1),
+#                         'percent' : i+i / 2})
             
-    print "returning ret: ", str(ret)
-    ret = {'result' : ret}
+#     print "returning ret: ", str(ret)
+#     ret = {'result' : ret}
+#     json = simplejson.dumps(ret)
+#     print "json object is ", str(json)
+#     return HttpResponse(json, mimetype='application/json')
+
+    credits = {'username' : 'sean_credits',
+               'percent' : 14}
+    ret = [credits, credits]
     json = simplejson.dumps(ret)
-    print "json object is ", str(json)
     return HttpResponse(json, mimetype='application/json')
+
 
 
 @login_required()
