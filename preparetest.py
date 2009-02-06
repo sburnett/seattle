@@ -136,17 +136,18 @@ def main():
   #now we copy the necessary files to the test folder
   copy_to_target("repy/*", target_dir)
   copy_to_target("nodemanager/*", target_dir)
-  copy_to_target("nodemanager/tests/*", target_dir)
   copy_to_target("portability/*", target_dir)
-  copy_to_target("portability/tests/*", target_dir)
   copy_to_target("seattlelib/*", target_dir)
   copy_to_target("seash/*", target_dir)
-  copy_to_target("seash/tests/*", target_dir)
   copy_to_target("softwareupdater/*", target_dir)
   
   if repytest:
-    # Only copy the repy tests if they were requested.
+    # Only copy the tests if they were requested.
     copy_to_target("repy/tests/*", target_dir)
+    copy_to_target("nodemanager/tests/*", target_dir)
+    copy_to_target("portability/tests/*", target_dir)
+    copy_to_target("seash/tests/*", target_dir)
+
 
   #set working directory to the test folder
   os.chdir(target_dir)
