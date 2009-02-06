@@ -83,7 +83,7 @@ brent get resource information on Windows XP / Vista
 indoctrination
 1104 jenn web-server assignment and test cases for http and multi-client handling
 1109 alper seattle installations on emulab and node remote control interface
-eric emulab xmlrpc interface to control experimentation
+1176 eric emulab xmlrpc interface to control experimentation
 1110 sal submission script, frontend work, and help with django backend
 
 :sprint
