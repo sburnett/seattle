@@ -35,8 +35,12 @@ do
   printf "Running ${f}\t\t"
   
   # Log the output
-  python ../../repy/repy.py --logfile log/${f}.log restrictions.default ${f}
-
+  run="python ../../repy/repy.py --logfile log/${f}.log restrictions.default ${f}"
+  ${run}  >/dev/null 2>&1 &
+  
+  # Wait for that to finish
+  wait 2>/dev/null
+   
   # Check if the log size is 0
   size=`cat ./log/${f}.log.old | grep -c ''`
   if [ ${size} -eq "0" ]

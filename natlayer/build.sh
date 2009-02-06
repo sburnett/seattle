@@ -59,7 +59,8 @@ do
   echo "Pre-processing: ${f}"
   cp ${f} ../built/${f}_pre # Copy original file
   cd ../built
-  python ../../seattlelib/repypp.py ${f}_pre ${f} 2>&1  >/dev/null # Process file
+  # Pre-process the file
+  python ../../seattlelib/repypp.py ${f}_pre ${f}
   rm ${f}_pre # Remove the original
   cd ../tests
 done
