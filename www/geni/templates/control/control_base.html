@@ -5,10 +5,9 @@
 {% endblock script %}
 
 {% block navigation %}
-	<div id="navigator">s
+	<div id="navigator">
 		<div id="tabs">
 			<span id="meta">{{ user.username }}: <a href="{% url help %}">Help</a> <a href="{% url logout %}">Logout</a></span>
-
 			<table>
 				<tr>
 					{% block nav_profile %}
@@ -24,7 +23,7 @@
                     {% endblock nav_myvessels %}
 
                     {% block nav_getdonations %}
-					<td><a href="{% url getdonations %}" >Get Donations></a></td>
+					<td><a href="{% url getdonations %}">Get Donations</a></td>
                     {% endblock nav_getdonations %}
 				</tr>
 			</table>
