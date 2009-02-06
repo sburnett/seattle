@@ -249,11 +249,10 @@ function color_generator(username) {
 function load() {
 	$.post("http://128.208.3.86:8081/geni_dev_sean/control/do_ajax",
 		{ type: "credits" },
-		function (json) { update_blocks(json); }, 
+		function (data) { update_blocks(data); }, 
 		"json");
 }
 
-function update_blocks(json) {
-	var data = eval('(' + json + ')');
-	alert(data[0].username);
+function update_blocks(data) {
+    alert(data[0].username);                                                                  
 }
