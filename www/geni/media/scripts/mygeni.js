@@ -256,20 +256,23 @@ function load() {
 		"json");
 }
 
+
 function update_blocks(type, data) {
 	if (type == "credits") {
 		var credits = $("#credits");
 		var creditnames = $("#creditnames");
-		for (var i = 0; i < data.length; i++) {
-			create_block(credits, data[i].username, data[i].percent, false);
-			create_label(creditnames, data[i].username, data[i].percent, false);
+		json = eval('(' + data + ')');
+		for (var i = 0; i < json.length; i++) {
+		        create_block(credits, json[i].username, json[i].percent, false);
+			create_label(creditnames, json[i].username, json[i].percent, false);
 		}
 	} else if (type == "shares") {
 		var usage = $("#usage");
 		var usagenames = $("#usagenames");
-		for (var i = 0; i < data.length; i++) {
-			create_block(usage, data[i].username, data[i].percent, true);
-			create_label(usagenames, data[i].username, data[i].percent, true);
+		json = eval('(' + data + ')');
+		for (var i = 0; i < json.length; i++) {
+			create_block(usage, json[i].username, json[i].percent, true);
+			create_label(usagenames, json[i].username, json[i].percent, true);
 		}
 	}
 }

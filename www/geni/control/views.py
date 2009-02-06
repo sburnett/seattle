@@ -36,7 +36,7 @@ import random
 from django.utils import simplejson
 from django.http import Http404
 from models import User, Donation, Vessel, VesselMap, Share
-from resource_operations import acquire_resources, release_resources
+#from resource_operations import acquire_resources, release_resources
 from db_operations import pop_key
 from django.http import HttpResponseRedirect
 from django.http import HttpResponse
