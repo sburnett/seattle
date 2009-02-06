@@ -72,4 +72,7 @@ urlpatterns = patterns('geni.control.views',
                        (r'^new_share$', 'new_share', {}, 'new_share'),
                        # delete an existing share with another user (from form)
                        (r'^del_share$', 'del_share', {}, 'del_share'),
+
+                       # getdonations functions:
+                       (r'^get_donations$', 'getdonations', {}, 'getdonations'),
 )

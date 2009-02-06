@@ -753,6 +753,29 @@ def gen_new_key(request):
     return user_info(request,info=info)
 
 
+########################## Functions dealing with the getdonations page
+
+@login_required()
+def getdonations(request):
+    """
+    <Purpose>
+        Shows a page where a user can download installers for their donations
+
+    <Arguments>
+        request:
+            An HTTP request object
+
+    <Exceptions>
+        None.
+
+    <Side Effects>
+        None.
+
+    <Returns>
+        An HTTP response object that represents the getdonations page on
+        succes. A redirect to a login page on error.
+    """
+    return direct_to_template(request,'control/getdonations.html', {})
 
 
 ########################## Functions dealing with non-interactive pages (e.g. Help page or construction page)
