@@ -63,7 +63,6 @@ req time.repy
 req timeutil.py
 req tracebackrepy.py
 req seattlestopper.py
-req testrunonce.py
 req createnodekeys.py
 req runonce.py
 req writemetainfo.py
