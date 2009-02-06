@@ -277,13 +277,36 @@ def wait_for_active(proj,exp,timeout=600):
   check_response(response)
 
 
+def wait_for_swapped(proj,exp,timeout=600):
+  """
+  <Purpose>
+    Blocks until the exp goes to swapped or the timeout is reached
+
+  <Arguments>
+    proj: a String that is the name of the emulab project.  Should be "Seattle"
+    exp:  a String that is the unique name of the expirament
+    timeout: how many seconds to wait, 600 by default
+
+  <Returns>
+    nothing
+
+  <Exceptions>
+    If the emulab server reports that the operation was not a success
+    for any reason an exception is thrown
+
+  """
+  response = do_method("experiment.statewait",
+    {"proj":proj,"exp":exp,"state":"swapped","timeout":timeout})
+  check_response(response)
+
+
 
 
 
 
 #methods below are only intended to be called internally
 
-# throw an exception if emulab does not succed
+# throw an exception if emulab does not succeed
 def check_response(response):
  if response['code'] != 0:  #NOT A SUCCESS
     raise Exception(("Code "+str(response['code'])+" "+str(response['output'])))
