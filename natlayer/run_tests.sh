@@ -32,7 +32,7 @@ echo "#####"
 all_tests=`ls test_*.py`
 for f in ${all_tests}
 do
-  printf "Running ${f}\t\t"
+  printf "Running %-60s" ${f}
   
   # Log the output
   run="python ../../repy/repy.py --logfile log/${f}.log restrictions.default ${f}"
@@ -45,9 +45,9 @@ do
   size=`cat ./log/${f}.log.old | grep -c ''`
   if [ ${size} -eq "0" ]
   then
-    printf "PASSED!\n"
+    printf "[ PASSED ]\n"
   else
-    printf "FAILED!\n"
+    printf "[ FAILED ]\n"
   fi
   
   # Sleep for a second
