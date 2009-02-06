@@ -799,11 +799,13 @@ def ajax_getshares(request):
 
 @login_required()
 def ajax_getcredits(request):
+
+    # NOTE: total percentage must always be 100% here
     ret = []
     if request.method == u'POST':
-        for i in range(2,8):
+        for i in range(10):
             ret.append({'username' : "user" + str(i+1),
-                        'percent' : i+i / 2})
+                        'percent' : 10})
             
     print "returning ret: ", str(ret)
     json = simplejson.dumps(ret)
