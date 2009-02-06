@@ -350,6 +350,10 @@ def build(options, trunk_location, pubkey, privkey, output_dir, version=""):
         raise IOError("Trunk not found at " + trunk_location)
     if not os.path.exists(output_dir):
         raise IOError("Output directory does not exist.")
+		if not os.path.exists(pubkey):
+				raise IOError("Public key not found.")
+		if not os.path.exists(privkey):
+				raise IOError("Private key not found.")
     orig_dir = os.getcwd()
     
     # First, create a temp directory
