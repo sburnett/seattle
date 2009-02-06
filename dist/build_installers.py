@@ -51,6 +51,12 @@ def append_to_zip(zip_file, folder_to_append, zip_file_dir):
     os.mkdir(temp_dir)
     append_path = temp_dir + "/" + zip_file_dir
     shutil.copytree(folder_to_append, append_path)
+    
+    # Since zip doesn't ignore directories starting with ".", 
+    # delete the .svn directory if it exists
+    if os.path.exists(append_path + "/.svn"):
+        shutil.rmtree(append_path + "/.svn")
+    
     shutil.copy2(zip_file, temp_dir)
 
     # Navigate to the temp folder and back to work around zip's
