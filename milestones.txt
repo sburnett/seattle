@@ -84,7 +84,7 @@ indoctrination
 jenn web-server assignment and test cases for http and multi-client handling
 1109 alper seattle installations on emulab and node remote control interface
 eric emulab xmlrpc interface to control experimentation
-sal submission script, frontend work, and help with django backend
+1110 sal submission script, frontend work, and help with django backend
 
 :sprint
 02/12/2009
