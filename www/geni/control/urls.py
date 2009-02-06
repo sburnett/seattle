@@ -78,5 +78,6 @@ urlpatterns = patterns('geni.control.views',
                        # AJAX
                        (r'^ajax_getcredits$', 'ajax_getcredits', {}, 'ajax_getcredits'),
                        (r'^ajax_getshares$', 'ajax_getshares', {}, 'ajax_getshares'),
-                       
+                       (r'^ajax_editshare$', 'ajax_editshare', {}, 'ajax_editshare'),
+                       (r'^ajax_createshare$', 'ajax_createshare', {}, 'ajax_createshare'),
 )

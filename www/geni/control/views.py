@@ -31,6 +31,7 @@
 import sys
 import forms
 import datetime
+import random
 
 from django.utils import simplejson
 from django.http import Http404
@@ -789,8 +790,8 @@ def ajax_getshares(request):
         POST = request.POST
 
         for i in range(2,14):
-            ret.append(credits = {'username' : "user" + str(i),
-                                  'percent' : i+i})
+            ret.append({'username' : "user" + str(i),
+                        'percent' : i+i})
             
     print "returning ret: ", str(ret)
     json = simplejson.dumps(ret)
@@ -805,14 +806,56 @@ def ajax_getcredits(request):
         POST = request.POST
 
         for i in range(2,20):
-            ret.append(credits = {'username' : "user" + str(i+1),
-                                  'percent' : i+i / 2})
+            ret.append({'username' : "user" + str(i+1),
+                        'percent' : i+i / 2})
             
     print "returning ret: ", str(ret)
     json = simplejson.dumps(ret)
     print "json object is ", str(json)
     return HttpResponse(json, mimetype='application/json')
 
+
+@login_required()
+def ajax_editshare(request):
+    ret = []
+    if request.method == u'POST':
+        POST = request.POST
+        if POST.has_key(u'username') and POST.has_key(u'percent'):
+            percent = int(POST.has_key(u'percent'))
+            print "received percent " , str(percent)
+            if random.randrange(2) == 1:
+                ret = {"success" : False, "error" : "error in " + "blah" * 20}
+            else:
+                ret = {"success" : True, "error" : ""}
+            
+    print "returning ret: ", str(ret)
+    json = simplejson.dumps(ret)
+    print "json object is ", str(json)
+    return HttpResponse(json, mimetype='application/json')
+
+
+@login_required()
+def ajax_createshare(request):
+    ret = []
+    if request.method == u'POST':
+        POST = request.POST
+        if POST.has_key(u'username') and POST.has_key(u'percent'):
+            percent = int(POST.has_key(u'percent'))
+            if percent != 0:
+                if random.randrange(2) == 1:
+                    ret = {"success" : False, "error" : "could not create share " + "blah" * 20}
+                else:
+                    ret = {"success" : True, "error" : ""}
+            else:
+                ret = {"success" : False, "error" : "Percent cannot be 0"}
+            
+    print "returning ret: ", str(ret)
+    json = simplejson.dumps(ret)
+    print "json object is ", str(json)
+    return HttpResponse(json, mimetype='application/json')
+
+
+    
 
 
 ########################## Functions dealing with non-interactive pages (e.g. Help page or construction page)
