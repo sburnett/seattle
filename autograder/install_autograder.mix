@@ -164,7 +164,7 @@ def showlog_target(longname):
 def connect_to_emulab_beraber_instance(ip, port, program_name):
     vessel_id_list = add_node_by_hostname(ip, port)
     
-    fileobj = open(filename, "r")
+    fileobj = open(program_name, "r")
     filedata = fileobj.read()
     fileobj.close()
     
