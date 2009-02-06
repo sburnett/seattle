@@ -67,16 +67,20 @@ class NATFrame():
     <Side Effects>
       The frame will be altered.
     """
+    # Strip colons
+    clientMac = clientMac.replace(":","")
+    serverMac = serverMac.replace(":","")
+    
     # Check for input sanity
-    if len(clientMac) < 12 or len(serverMac) < 12:
-      raise ValueError, "Input MAC addresses must be at least 12 characters!"
+    if len(clientMac) != 12 or len(serverMac) != 12:
+      raise ValueError, "Input MAC addresses must be 12 characters (not including colons)!"
     
     # Strip out any colons
     # Set the client mac in the frame
-    self.frameMACAddress = clientMac.replace(":","")
+    self.frameMACAddress = clientMac
     
     # set serverMac as the content, set the content length
-    self.frameContent = serverMac.replace(":","")
+    self.frameContent = serverMac
     self.frameContentLength = len(self.frameContent)
     
     # Set the correct frame message type
@@ -100,13 +104,18 @@ class NATFrame():
     <Side Effects>
       The frame will be altered.
     """
+    # Strip colons
+    serverMac = serverMac.replace(":","")
+    
     # Check for input sanity
-    if len(serverMac) < 12:
-      raise ValueError, "Input MAC addresses must be at least 12 characters!"
+    if len(serverMac) != 12:
+      raise ValueError, "Input MAC addresses must be at least 12 characters (not including colons)!"
+    if buf <= 0 and buf != -1:
+      raise ValueError, "Invalid buffer size! Must be a positive value, or -1!"
       
     # Strip out any colons
     # Set the client mac in the frame
-    self.frameMACAddress = serverMac.replace(":","")
+    self.frameMACAddress = serverMac
 
     # Set the content and length
     self.frameContent = str(buf)
@@ -157,12 +166,15 @@ class NATFrame():
     <Side Effects>
       The frame will be altered.
     """
+    # Strip colons
+    destinationMAC = destinationMAC.replace(":","")
+    
     # Check for input sanity
-    if len(destinationMAC) < 12:
-      raise ValueError, "Input MAC addresses must be at least 12 characters!"
+    if len(destinationMAC) != 12:
+      raise ValueError, "Input MAC addresses must be at least 12 characters (not including colons)!"
       
     # Strip any colons in the mac address
-    self.frameMACAddress = destinationMAC.replace(":","")
+    self.frameMACAddress = destinationMAC
 
     # Set the frame content
     self.frameContent = str(content)
@@ -188,12 +200,15 @@ class NATFrame():
     <Side Effects>
       The frame will be altered.
     """
+    # Strip colons
+    targetMAC = targetMAC.replace(":","")
+    
     # Check for input sanity
-    if len(targetMAC) < 12:
-      raise ValueError, "Input MAC addresses must be at least 12 characters!"
+    if len(targetMAC) != 12:
+      raise ValueError, "Input MAC addresses must be at least 12 characters (not including colons)!"
       
     # Strip any colons in the mac address
-    self.frameMACAddress = targetMAC.replace(":","")
+    self.frameMACAddress = targetMAC
 
     # Set the frame content
     self.frameContent = ""
@@ -222,12 +237,17 @@ class NATFrame():
     <Side Effects>
       The frame will be altered.
     """
+    # Strip colons
+    targetMAC = targetMAC.replace(":","")
+    
     # Check for input sanity
-    if len(targetMAC) < 12:
-      raise ValueError, "Input MAC addresses must be at least 12 characters!"
-      
+    if len(targetMAC) != 12:
+      raise ValueError, "Input MAC addresses must be at least 12 characters (not including colons)!"
+    if bufferSize <= 0:
+      raise ValueError, "Invalid buffer size! Must be a positive value!"
+          
     # Strip any colons in the mac address
-    self.frameMACAddress = targetMAC.replace(":","")
+    self.frameMACAddress = targetMAC
 
     # Set the frame content, convert the bufferSize into a string
     self.frameContent = str(bufferSize)
@@ -404,6 +424,10 @@ class NATConnection():
     # Save our mac address
     self.ourMAC = mac.replace(":","")
 
+    # Input checking
+    if len(self.ourMAC) != 12:
+      raise ValueError, "Input MAC addresses must be at least 12 characters (not including colons)!"
+    
     # Setup the socket
     if self.ourMAC == FORWARDER_MAC:
       listenHandle = waitforconn(forwarderIP, forwarderPort, self._incomingFrame)
@@ -888,14 +912,18 @@ class NATSocket():
     
     <Arguments>
       bytes:
-        Read up to "bytes" input
+        Read up to "bytes" input. Positive integer.
     
     <Exceptions>
-      If the socket is closed, an EnvironmentError will be raised.
+      If the socket is closed, an EnvironmentError will be raised. If bytes is a non-positive integer, a ValueError will be raised.
         
     <Returns>
       A string with length up to bytes
     """
+    # Check input sanity
+    if bytes <= 0:
+      raise ValueError, "Must read a positive integer number of bytes!"
+      
     # Check if the socket is closed, raise an exception
     if self.natcon.clientDataBuffer[self.clientMac]["closed"]:
       self.close() # Clean-up
@@ -948,8 +976,13 @@ class NATSocket():
     
     <Exceptions>
       If the socket is closed, an EnvironmentError will be raised.
-        
+      If the data input is empty, a ValueError will be raised.
+      
     """
+    # Input sanity
+    if len(data) == 0:
+      raise ValueError, "Cannot send a null data-set!"
+    
     # Check if the socket is closed, raise an exception
     if self.natcon.clientDataBuffer[self.clientMac]["closed"]:
       self.close() # Clean-up
