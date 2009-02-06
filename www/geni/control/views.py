@@ -32,6 +32,7 @@ import sys
 import forms
 import datetime
 
+from django.utils import simplejson
 from django.http import Http404
 from models import User, Donation, Vessel, VesselMap, Share
 from resource_operations import acquire_resources, release_resources
@@ -778,6 +779,33 @@ def getdonations(request):
         succes. A redirect to a login page on error.
     """
     return direct_to_template(request,'control/getdonations.html', {})
+
+########################## Functions dealing with Ajax pages
+
+@login_required()
+def do_ajax(request):
+    ret = []
+    if request.method == u'POST':
+        POST = request.POST
+        print POST
+        if POST.has_key(u'type'):
+            print "has type: ", POST[u'type']
+            if POST[u'type'] == "credits":
+                credits = {'username' : 'sean_credits',
+                           'percent' : 14}
+                ret = [credits, credits]
+            elif POST[u'type'] == "usage":
+                usage = {'username' : 'sean_usage',
+                         'percent' : 24}
+                ret = [usage, usage]
+        else:
+            print "does not have type!"
+    else:
+        print "method NOT POST"
+
+    print "returning ret: ", str(ret)
+    json = simplejson.dumps(ret)
+    return HttpResponse(json, mimetype='application/json')
 
 
 ########################## Functions dealing with non-interactive pages (e.g. Help page or construction page)

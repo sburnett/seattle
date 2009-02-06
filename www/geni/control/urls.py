@@ -75,5 +75,7 @@ urlpatterns = patterns('geni.control.views',
                        # delete an existing share with another user (from form)
                        (r'^del_share$', 'del_share', {}, 'del_share'),
 
+                       # AJAX
+                       (r'^do_ajax$', 'do_ajax', {}, 'do_ajax'),
                        
 )
