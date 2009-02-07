@@ -5,8 +5,29 @@
 # Go into the built dir
 cd built
 
+# Clean old logs
+LOGCOUNT=`ls log/ | grep -c ""`
+if [ ${LOGCOUNT} -gt "0" ]
+then
+  echo "Archiving old logs..."
+  DATE=`date +%s`
+  NAME=logs.${DATE}.tar
+  tar -cf ${NAME} log/*
+  echo "Created Archive: ${NAME}"
+  echo "Clearing old logs..."
+  rm -f ./log/*
+fi
+
 # Start the forwarder
 cd scripts
+
+# Stop the old forwarder if it is running
+if [ -f forwarder.pid ]
+then
+  echo "Stopping old forwarder..."
+  ./stop_forwarder.sh
+fi
+
 echo "Starting forwarder..."
 ./start_forwarder.sh
 cd ..
@@ -67,5 +88,5 @@ echo "Done!"
 
 # Start the forwarder
 cd scripts
-echo "Stopping forwarder"
+echo "Stopping forwarder!"
 ./stop_forwarder.sh
