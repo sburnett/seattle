@@ -397,11 +397,15 @@ class NATConnection():
   # "incomingAvailable", bytes receivable
   # "outgoingAvailable", bytes sendable
   # "outgoingLock" is locked if the outgoingAvailable is 0
-  clientDataBuffer = {}
+  clientDataBuffer = None
   clientDataLock = None
   
   # Signals that the _socketReader should terminate if true
   stopSocketReader = False
+  
+  # If socketReader recieves a frame after a stopcom, it will be stored here
+  # Recv checks if this is set to None, or returns this instead of reading
+  socketReaderUnhandledFrame = None
   
   def __init__(self, mac, forwarderIP, forwarderPort):
     """
@@ -500,7 +504,8 @@ class NATConnection():
     <Side effects>
       The virtual sockets will no longer get data buffered. Incoming frames will not be parsed.
       
-    """    
+    """
+    # Instruct the socket reader to stop      
     self.stopSocketReader = True
     
   # Handles incoming frames
@@ -642,6 +647,13 @@ class NATConnection():
     # Check if we are initialized
     if not self.connectionInit:
       raise AttributeError, "NAT Connection is not yet initialized!"
+    
+    # Check if there is an unhandled frame left over
+    # If so, return that instead of reading the socket
+    if self.socketReaderUnhandledFrame != None:
+      frame = self.socketReaderUnhandledFrame
+      self.socketReaderUnhandledFrame = None
+      return frame
             
     # Init frame
     frame = NATFrame()
@@ -772,6 +784,9 @@ class NATConnection():
     # Setup the user function to call if there is a new client
     self.frameHandler = function
     
+    # Create dictionary
+    self.clientDataBuffer = {}
+    
     # Create lock
     self.clientDataLock = getlock()
     
@@ -830,6 +845,14 @@ class NATConnection():
       except:
         # This is probably because the socket is now closed, so lets loop around and see
         continue
+      
+      # It is possible we recieved a stopcomm while doing recv, so lets check again and handle this
+      if self.stopSocketReader:
+        # Save the frame
+        self.socketReaderUnhandledFrame = frame
+
+        # Leave the loop and exit
+        break 
       
       fromMac = frame.frameMACAddress
       
@@ -934,8 +957,12 @@ class NATSocket():
     """
     # If the NATConnection is still initialized, then lets send a close message
     if self.natcon.connectionInit:
+      # Create termination frame
+      termFrame = NATFrame()
+      termFrame.initAsConnTermMsg(self.clientMac)
+      
       # Tell the forwarder to terminate the client connection
-      self.natcon.sendFrame(NATFrame().initAsConnTermMsg(self.clientMac))
+      self.natcon.sendFrame(termFrame)
     
     # Clean-up
     self.natcon.clientDataLock.acquire() # Get the main lock, since we are modifying the dict
