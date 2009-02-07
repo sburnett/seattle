@@ -1,5 +1,5 @@
-from remote_emulab import *
-
+#from remote_emulab import *
+import remote_emulab
 
 # This is a very rough sample of what a client
 # to the remote_emulab.py library will look like
@@ -23,23 +23,26 @@ from remote_emulab import *
 proj = "Seattle"
 
 # specify the exp name, this is unique for any class assignment
-exp = "helloworld3"
+exp = "helloworldtest"
 
 #specify the name of an ns file being used
-myns = "hello.ns"
+mynsfn = "hello.ns"
 
 
 # EXECUTE A BASIC SENERIO
 
 # read the ns file into a string
-file = open(myns)
-filestr = file.read()
+mynsfobj = open(mynsfn)
+mynsfilestr = mynsfobj.read()
+mynsfobj.close()
 
 # check the ns file for errors
-(passed,message) = checkNS(filestr)
+(passed,message) = remote_emulab.checkNS(mynsfilestr)
 
 
-# did the parseing fail?
+
+
+# did the parsing fail?
 if (not passed):
   print message
   print "checkNS failed, please fix the ns file and try again"
@@ -47,23 +50,23 @@ if (not passed):
 else: 
   # start a new exp in non-batchmode
   print "starting a new exp..."
-  startexp(proj,exp,filestr)
+  remote_emulab.startexp(proj,exp,mynsfilestr)
 
   # wait for the exp to go active
   # by default times out in 10 minutes
   print "exp started, waiting for active..."
-  wait_for_active(proj,exp)
+  remote_emulab.wait_for_active(proj,exp)
 
   print "now active... getting mapping"
-  print "mapping:  "+str(get_mapping(proj,exp))
+  print "mapping:  "+str(remote_emulab.get_mapping(proj,exp))
   print " got mapping, getting links"
-  print "links:  "+str(get_links(proj,exp))
+  print "links:  "+str(remote_emulab.get_links(proj,exp))
 
   # exit this code, go and do your expirament
   # when the exp is done we'll swap it out
 
   print "finished exp, swapping out"
-  swapOUT(proj,exp)
+  remote_emulab.swapOUT(proj,exp)
   print "swaped out"
 
 

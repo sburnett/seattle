@@ -30,15 +30,9 @@
 
 
 import sys
-
-# where is the python library on boss.emulab.net
-sys.path.append("/usr/testbed/lib")
-
 import getopt
 import os
-
-from sshxmlrpc import *
-from emulabclient import *
+import sshxmlrpc
 
 
 xmlrpc_server = "boss.emulab.net"
@@ -52,7 +46,7 @@ login_id = "kimbrl"
 URI = "ssh://" + login_id + "@" + xmlrpc_server + "/xmlrpc";
 
 # Get a handle on the server,
-emulab_server = SSHServerProxy(URI, path=None,
+emulab_server = sshxmlrpc.SSHServerProxy(URI, path=None,
                         user_agent="sshxmlrpc_client-v0.1")
 
 
@@ -360,7 +354,7 @@ def do_method(methodname,params,server=emulab_server):
         pass
     
     # did an error occur while connecting
-    except BadResponse, e:
+    except sshxmlrpc.BadResponse, e:
         print ("error: bad reponse from host, " + e.args[0]
                + ", and handler: " + e.args[1])
         print "error: " + e.args[2]
@@ -368,7 +362,7 @@ def do_method(methodname,params,server=emulab_server):
     
     # did an error occur internally to the emulab
     # xmlrpc library
-    except xmlrpclib.Fault, e:
+    except sshxmlrpc.xmlrpclib.Fault, e:
         print e.faultString
         return -1
 
