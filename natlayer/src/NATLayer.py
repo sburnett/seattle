@@ -401,7 +401,7 @@ class NATConnection():
   clientDataLock = None
   
   # Signals that the _socketReader should terminate if true
-  stopcomm = False
+  stopSocketReader = False
   
   def __init__(self, mac, forwarderIP, forwarderPort):
     """
@@ -475,7 +475,7 @@ class NATConnection():
       
     # Get the buffer lock, and close everything if it exists
     if self.clientDataLock != None:
-      self.stopcomm = True # Tell the socket reader to quit
+      self.stopSocketReader = True # Tell the socket reader to quit
       
       self.clientDataLock.acquire()
     
@@ -492,16 +492,16 @@ class NATConnection():
       self.socket = None
       
   # Stops additional listener threads
-  def stopcomm():
+  def stopcomm(self):
     """
     <Purpose>
       Stops the listener thread from waitforconn.
       
     <Side effects>
-      The virtual sockets will no longer get data buffered.
+      The virtual sockets will no longer get data buffered. Incoming frames will not be parsed.
       
     """    
-    self.stopcomm = True
+    self.stopSocketReader = True
     
   # Handles incoming frames
   def _incomingFrame(self,remoteip,remoteport,inSocket,thisCommHandle,listenCommHandle):
@@ -775,8 +775,8 @@ class NATConnection():
     # Create lock
     self.clientDataLock = getlock()
     
-    # Set stopcomm to false
-    self.stopcomm = False
+    # Set stopSocketReader to false
+    self.stopSocketReader = False
     
     # Launch event to handle this
     settimer(0, self._socketReader, ())
@@ -821,7 +821,7 @@ class NATConnection():
     # and handles all administrative frames
     while True:
       # Should we quit?
-      if self.stopcomm or not self.connectionInit:
+      if self.stopSocketReader or not self.connectionInit:
         break
       
       # Read in a frame
