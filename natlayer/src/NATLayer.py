@@ -400,6 +400,9 @@ class NATConnection():
   clientDataBuffer = {}
   clientDataLock = None
   
+  # Signals that the _socketReader should terminate if true
+  stopcomm = False
+  
   def __init__(self, mac, forwarderIP, forwarderPort):
     """
     <Purpose>
@@ -445,18 +448,25 @@ class NATConnection():
     <Purpose>
       Closes the NATConnection object. Also closes all sockets associated with this connection.
       
-     
     """
     # Prevent more reading or writing
-    self.readLock.acquire()
-    self.writeLock.acquire()
+    try:
+      self.readLock.release()
+    except:
+      # See below
+      pass
+    finally:
+      self.readLock.acquire()
+    
+    try:
+      self.writeLock.release()
+    except:
+      # Exception is thrown if the lock is already unlocked
+      pass
+    finally:
+      self.writeLock.acquire()
     
     self.connectionInit = False
-    
-    # Close the real socket
-    if self.socket != None:
-      self.socket.close()
-      self.socket = None
     
     # Stop the internal listner
     if self.listenHandle != None:
@@ -465,6 +475,8 @@ class NATConnection():
       
     # Get the buffer lock, and close everything if it exists
     if self.clientDataLock != None:
+      self.stopcomm = True # Tell the socket reader to quit
+      
       self.clientDataLock.acquire()
     
       # Close each individual socket
@@ -474,6 +486,23 @@ class NATConnection():
       # Release the buffer lock
       self.clientDataLock.release()
       
+    # Close the real socket
+    if self.socket != None:
+      self.socket.close()
+      self.socket = None
+      
+  # Stops additional listener threads
+  def stopcomm():
+    """
+    <Purpose>
+      Stops the listener thread from waitforconn.
+      
+    <Side effects>
+      The virtual sockets will no longer get data buffered.
+      
+    """    
+    self.stopcomm = True
+    
   # Handles incoming frames
   def _incomingFrame(self,remoteip,remoteport,inSocket,thisCommHandle,listenCommHandle):
     # Initialize Frame
@@ -746,12 +775,15 @@ class NATConnection():
     # Create lock
     self.clientDataLock = getlock()
     
+    # Set stopcomm to false
+    self.stopcomm = False
+    
     # Launch event to handle this
     settimer(0, self._socketReader, ())
   
   
   # Handles a client closing a connection
-  def _closeCONN(fromMac):
+  def _closeCONN(self,fromMac):
     # We just need to set the closed flag, since the socket will detect that and close itself
     
     # Lock the client
@@ -765,7 +797,7 @@ class NATConnection():
 
   # Handles a forwarder CONN_BUF_SIZE message
   # Increases the amount we can send out
-  def _conn_buf_size(fromMac, num):
+  def _conn_buf_size(self,fromMac, num):
     # Return if we are not buffering
     if (self.defaultBufSize == -1):
       return
@@ -788,8 +820,17 @@ class NATConnection():
     # so it pushes data into the buffers, initializes new threads for each new client
     # and handles all administrative frames
     while True:
+      # Should we quit?
+      if self.stopcomm or not self.connectionInit:
+        break
+      
       # Read in a frame
-      frame = self.recv()
+      try:
+        frame = self.recv()
+      except:
+        # This is probably because the socket is now closed, so lets loop around and see
+        continue
+      
       fromMac = frame.frameMACAddress
       
       # Handle CONN_TERM
