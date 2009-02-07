@@ -30,7 +30,10 @@
 
 
 import sys
+
+# where is the python library on boss.emulab.net
 sys.path.append("/usr/testbed/lib")
+
 import getopt
 import os
 
@@ -45,6 +48,7 @@ PACKAGE_VERSION = 0.1
 # NEEDS TO BE CHANGED TO AUTOGRADER USER
 login_id = "kimbrl"
 
+# where do we connect to for xmlrpc commands
 URI = "ssh://" + login_id + "@" + xmlrpc_server + "/xmlrpc";
 
 # Get a handle on the server,
@@ -64,12 +68,16 @@ def startexp(proj,exp,nsfilestr,batch=False):
     nsfilestr:  a String representation of the expiraments ns file
     batch: wether or not this is a batch mode expirement, defaults to false   
  
-  <Returns>
-    Nothing
-
+  
   <Exceptions>
     If the emulab server reports that the operation was not a success
     for any reason an exception is thrown
+
+  <Side Effects>
+    None
+
+  <Returns>
+    Nothing
 
   """
   response=do_method("experiment.startexp",
@@ -79,25 +87,28 @@ def startexp(proj,exp,nsfilestr,batch=False):
 
 
 def endexp(proj,exp):
- """
- <Purpose>
-   Ends an expirament.  This removes the expirament from emulab completly and
-   should not be called until all autograding for the project is complete
+  """
+  <Purpose>
+    Ends an expirament.  This removes the expirament from emulab completly and
+    should not be called until all autograding for the project is complete
 
- <Arguments>
-   proj: a String that is the name of the emulab project.  Should be "Seattle"
-   exp:  a String that is the unique name of the expirament
- 
- <Returns>
-   Nothing
-
- <Exceptions>
+  <Arguments>
+    proj: a String that is the name of the emulab project.  Should be "Seattle"
+    exp:  a String that is the unique name of the expirament
+  
+  <Exceptions>
     If the emulab server reports that the operation was not a success
     for any reason an exception is thrown
-  
- """
- response=do_method("experiment.endexp",{"proj":proj,"exp":exp})
- check_response(response)
+
+  <Side Effects>
+    None
+
+  <Returns>
+    Nothing
+ 
+  """
+  response=do_method("experiment.endexp",{"proj":proj,"exp":exp})
+  check_response(response)
 
 
 def modexp(proj,exp,nsfilestr):
@@ -111,13 +122,15 @@ def modexp(proj,exp,nsfilestr):
     exp:  a String that is the unique name of the expirament
     nsfilestr:  a String representation of the expiraments ns file
 
-  <Returns>
-    Nothing
-
   <Exceptions>
     If the emulab server reports that the operation was not a success
     for any reason an exception is thrown
 
+  <Side Effects>
+    None
+
+  <Returns>
+    Nothing
 
   """
   response=do_method("experiment.modify",
@@ -135,15 +148,18 @@ def checkNS(nsfilestr):
   <Arguments>
     nsfilestr:  a String representation of the expiraments ns file
 
+  <Exceptions>
+    If the emulab server reports that the operation was not a success
+    for any reason an exception is thrown
+  
+  <Side Effects>
+    None
+  
   <Returns>
     A tupe of the form (Bool,String).  The Bool is True if the nsfile
     had no errors.  The string is the error message that was returned
     from emulab.  The string only needs to be checked if the Bool is 
     False.
-
-  <Exceptions>
-    If the emulab server reports that the operation was not a success
-    for any reason an exception is thrown
 
   """
   response = do_method("experiment.nscheck",{"nsfilestr":nsfilestr})
@@ -166,13 +182,15 @@ def swapIN(proj,exp):
     proj: a String that is the name of the emulab project.  Should be "Seattle"
     exp:  a String that is the unique name of the expirament
 
-  <Returns>
-    Nothing
-
   <Exceptions>
     If the emulab server reports that the operation was not a success
     for any reason an exception is thrown
 
+  <Side Effects>
+    None
+
+  <Returns>
+    Nothing
 
   """
   response = do_method("experiment.swapexp",
@@ -190,12 +208,15 @@ def swapOUT(proj,exp):
     proj: a String that is the name of the emulab project.  Should be "Seattle"
     exp:  a String that is the unique name of the expirament
 
-  <Returns>
-    Nothing
-
   <Exceptions>
     If the emulab server reports that the operation was not a success
     for any reason an exception is thrown
+
+  <Side Effects>
+    None
+
+  <Returns>
+    Nothing
 
   """
   response = do_method("experiment.swapexp",{"proj":proj,
@@ -212,13 +233,16 @@ def get_mapping(proj,exp):
   <Arguments>
     proj: a String that is the name of the emulab project.  Should be "Seattle"
     exp:  a String that is the unique name of the expirament
-
-  <Returns>
-    a dictionary the key:value -> nodeName:dict of info about that node
-
+  
   <Exceptions>
     If the emulab server reports that the operation was not a success
     for any reason an exception is thrown
+
+  <Side Effects>
+    None
+
+  <Returns>
+    a dictionary the key:value -> nodeName:dict of info about that node
 
   """
   response = do_method("experiment.info",
@@ -237,12 +261,15 @@ def get_links(proj,exp):
     proj: a String that is the name of the emulab project.  Should be "Seattle"
     exp:  a String that is the unique name of the expirament
 
-  <Returns>
-    a dictionary containing information about network links
-
   <Exceptions>
     If the emulab server reports that the operation was not a success
     for any reason an exception is thrown
+
+  <Side Effects>
+    None
+
+  <Returns>
+    a dictionary containing information about network links
 
   """
   response = do_method("experiment.info",
@@ -264,12 +291,15 @@ def wait_for_active(proj,exp,timeout=600):
     exp:  a String that is the unique name of the expirament
     timeout: how many seconds to wait, 600 by default
 
-  <Returns>
-    nothing
-
   <Exceptions>
     If the emulab server reports that the operation was not a success
     for any reason an exception is thrown
+
+  <Side Effects>
+    None
+
+  <Returns>
+    nothing
 
   """
   response = do_method("experiment.waitforactive",
@@ -287,12 +317,15 @@ def wait_for_swapped(proj,exp,timeout=600):
     exp:  a String that is the unique name of the expirament
     timeout: how many seconds to wait, 600 by default
 
-  <Returns>
-    nothing
-
   <Exceptions>
     If the emulab server reports that the operation was not a success
     for any reason an exception is thrown
+
+  <Side Effects>
+    None
+
+  <Returns>
+    nothing
 
   """
   response = do_method("experiment.statewait",
@@ -315,21 +348,26 @@ def check_response(response):
 # execute a single command
 def do_method(methodname,params,server=emulab_server):
 
+    # format the method call from xmlrpc 
     meth = getattr(server, methodname)
 
+    # format the arguments for xmlrpc
     meth_args = [ PACKAGE_VERSION, params ]
 
-    #
     # Make the call. 
-    #
     try:
         response = apply(meth, meth_args)
         pass
+    
+    # did an error occur while connecting
     except BadResponse, e:
         print ("error: bad reponse from host, " + e.args[0]
                + ", and handler: " + e.args[1])
         print "error: " + e.args[2]
         return -1
+    
+    # did an error occur internally to the emulab
+    # xmlrpc library
     except xmlrpclib.Fault, e:
         print e.faultString
         return -1
