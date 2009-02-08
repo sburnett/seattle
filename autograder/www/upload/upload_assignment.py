@@ -28,7 +28,7 @@ import mimetypes
 import mimetools
 import os
 import sys
-
+import stat
 
 host="seattle.cs.washington.edu:8080"
 url="/autograder/upload/"
@@ -111,6 +111,20 @@ def encode_post_msg(fields, files):
 
   return content_type, body
 
+#check proovided file
+def checkFile(file):
+  stats = os.stat(file)
+  stmode = stats[stat.ST_MODE]
+  if not (stmode & stat.S_IREAD):
+    print "File permissions problem"
+    return False
+  if os.path.getsize(file)> 1048576:
+    print "File size cannot exceed 1Mb"
+    return False
+  if file.split('.')[-1] not in allowedExts:
+    print "File extension is not of an allowed type. Allowed types:"
+    print allowedExts
+    return False
 
 #check provided arguments
 def checkArgs(args):
@@ -122,14 +136,6 @@ def checkArgs(args):
   if os.path.isdir(args[3]) == True: 
     print "Must provide a file"
     return False
-  if os.path.getsize(args[3])> 1048576:
-    print "File size cannot exceed 1Mb"
-    return False5A5A
-  if args[3].split('.')[-1] not in allowedExts:
-    print "File extension is not of an allowed type. Allowed types:"
-    print allowedExts
-    return False
-
 
 #upload provided file and see results
 if __name__ == "__main__":
@@ -137,6 +143,8 @@ if __name__ == "__main__":
 
   if checkArgs(sys.argv)==False:
     print "Invalid arguments - usage: python upload_assignment [email] [classcode] [filename]"
+    exit(0)
+  if checkFile(sys.argv[3])==False:
     exit(0)
 
   #variables and corresponding values
