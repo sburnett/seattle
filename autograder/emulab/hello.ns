@@ -12,7 +12,7 @@ tb-set-node-os $nodeA FEDORA8-STD
 
 tb-set-node-tarfiles $nodeA /usr/kimbrl /proj/Seattle/tarfiles/hello.tar
 
-tb-set-node-startcmd $nodeA "/usr/kimbrl/runner.sh &> /proj/Seattle/autograder/results/out.txt"
+tb-set-node-startcmd $nodeA "/usr/kimbrl/runner.sh &> /proj/Seattle/autograder/results/out_`hostname`.txt"
 
 #start the simulator
 $ns run

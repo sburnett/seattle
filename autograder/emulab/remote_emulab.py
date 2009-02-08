@@ -245,7 +245,6 @@ def get_mapping(proj,exp):
   return response['value']
 
 
-
 def get_links(proj,exp):
   """
   <Purpose>
@@ -273,6 +272,36 @@ def get_links(proj,exp):
 
 
 
+ 
+def simplify_links(proj,exp,links): 
+  """
+  <Purpose>
+    simplifies links dictionary returned by get_links
+
+  <Arguments>
+    links - a dictionary of link information returned from get_links
+    proj - the name of the emulab project
+    exp - the name of the emulab expirament
+
+  <Exceptions>
+    If the emulab server reports that the operation was not a success
+    for any reason an exception is thrown
+
+  <Side Effects>
+    None
+
+  <Returns>
+    a list of tuples with (nodename,nodeip)
+
+  """
+  simple_links =[]  
+
+  for key in links:
+    (node_name,x,y) = key.rpartition(':')
+    node_name = node_name+"."+exp+"."+proj+".emulab.net"
+    simple_links.append((node_name,links[key]['ipaddr']))
+
+  return simple_links
 
 
 def wait_for_active(proj,exp,timeout=600):

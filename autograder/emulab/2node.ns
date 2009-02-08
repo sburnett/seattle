@@ -1,6 +1,11 @@
 set ns [new Simulator]
 source tb_compat.tcl
 
+set dir "/usr/kimbrl"
+#set command "./runner.sh >& /proj/Seattle/autograder/results/`hostname`.out"
+set command "python install.py -i 10.0.0.$i >& /proj/Seattle/autograder/results/`hostname`.out"
+
+
 # Nodes
 set server [$ns node]
 set client [$ns node]
@@ -22,11 +27,25 @@ tb-set-ip $client 10.1.1.4
 $ns rtproto Static
 
 #specify tar files
-tb-set-node-tarfiles $server /usr/kimbrl /proj/Seattle/tarfiles/hello.tar
-tb-set-node-tarfiles $client /usr/kimbrl /proj/Seattle/tarfiles/hello.tar
+tb-set-node-tarfiles $server $dir /proj/Seattle/tarfiles/hello.tar
+tb-set-node-tarfiles $client $dir /proj/Seattle/tarfiles/hello.tar
 
-tb-set-node-startcmd $server "/usr/kimbrl/runner.sh &> /proj/Seattle/autograder/results/server.txt"
-tb-set-node-startcmd $client "/usr/kimbrl/runner.sh &> /proj/Seattle/autograder/results/client.txt"
+
+# set prog agents
+set prog1 [$server program-agent -dir dir]
+set prog2 [$client program-agent -dir dir]
+set group [$ns event-group]
+
+# set event group
+$group add $prog1
+$group add $prog2
+
+#run the program
+set install [$ns event-sequence {
+    $group run -command command
+}]
+
+$ns at 0.0 "$install start"
 
 #run the simulator
 $ns run

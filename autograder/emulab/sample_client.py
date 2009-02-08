@@ -23,10 +23,10 @@ import remote_emulab
 proj = "Seattle"
 
 # specify the exp name, this is unique for any class assignment
-exp = "helloworldtest"
+exp = "lantest"
 
 #specify the name of an ns file being used
-mynsfn = "hello.ns"
+mynsfn = "lan.ns"
 
 
 # EXECUTE A BASIC SENERIO
@@ -58,7 +58,11 @@ else:
   remote_emulab.wait_for_active(proj,exp)
 
   print "now active... getting mapping"
-  print "mapping:  "+str(remote_emulab.get_mapping(proj,exp))
+  mapping = remote_emulab.get_mapping(proj,exp))
+  print "mapping:  "+str(mapping)
+  simple_mapping = get_ips(mapping)
+  [("10.0.0.1", node-1.Seattle.....), ()]
+
   print " got mapping, getting links"
   print "links:  "+str(remote_emulab.get_links(proj,exp))
 
@@ -66,7 +70,7 @@ else:
   # when the exp is done we'll swap it out
 
   print "finished exp, swapping out"
-  remote_emulab.swapOUT(proj,exp)
+  #remote_emulab.swapOUT(proj,exp)
   print "swaped out"
 
 

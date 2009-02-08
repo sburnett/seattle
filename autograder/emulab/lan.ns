@@ -3,24 +3,34 @@ source tb_compat.tcl
 
 
 # the number of nodes
-set maxnodes 8
+set maxnodes %i
+set dir "/usr/kimbrl"
+
 
 #intialize the lan list
 set lanstr ""
 
+#create an event group
+set group [$ns event-group]
 
 
-# set nodes 1 to 8
+# set nodes 1 to maxnodes
 for {set i 1} {$i <= $maxnodes} {incr i} {
+  
+  #set up the node
   set node($i) [$ns node]
   append lanstr "$node($i) "
   tb-set-node-os $node($i) FEDORA8-STD
   
+  # set the program agent
+  set command "./runner.sh 10.1.1.$i >& /proj/Seattle/autograder/results/`hostname`.out"
+  set prog($i) [$node($i) program-agent -dir $dir -command $command]
+  $group add $prog($i)  
+
   #specify tarfiles
-  tb-set-node-tarfiles $node($i) /usr/kimbrl /proj/Seattle/tarfiles/hello.tar
+  tb-set-node-tarfiles $node($i) $dir /proj/Seattle/tarfiles/seattle_autograder.tar
+
   
-  #specify the startcmd
-  tb-set-node-startcmd $node($i) /usr/kimbrl/runner.sh
 }
 
 
@@ -32,9 +42,18 @@ for {set i 1} {$i <= $maxnodes} {incr i} {
   tb-set-ip-lan $node($i) $lan 10.1.1.$i
 }
 
-
 # static routing
 $ns rtproto Static
+
+
+#specify event sequence
+set install [$ns event-sequence {
+    $group run
+}]
+
+
+#start events
+$ns at 0.0 "$install start"
 
 #run it
 $ns run
