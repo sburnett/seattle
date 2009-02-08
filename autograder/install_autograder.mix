@@ -25,6 +25,7 @@ nextid = 1
 key = {}
 vesselinfo = {}
 
+DEFAULT_NODEMANAGER_PORT = 1224
 
 # alpers - adds a vessel and its information to the overall vessel dict
 #          (from seash.mix)
@@ -84,15 +85,39 @@ def add_node_by_hostname(host, port):
 # alpers - attempts to tell each vessel to run a program
 def run_target(longname, filename, filedata, argstring):
   vesselname = vesselinfo[longname]['vesselname']
+  # debug
+  # print "vesselname", vesselname, ", longname: ", longname
+  # print "filename: ", filename, ", argstring: ", argstring
+  # print
+  # print "handle: " + str(vesselinfo[longname]['handle'])
+  # print "filedata: " + filedata
   try:
-    nmclient_signedsay(vesselinfo[longname]['handle'], "AddFileToVessel", 
-                       vesselname, filename, filedata)
-    nmclient_signedsay(vesselinfo[longname]['handle'], "StartVessel", 
-                       vesselname, argstring)
+      nmclient_signedsay(vesselinfo[longname]['handle'], "AddFileToVessel", 
+                         vesselname, filename, filedata)
   except NMClientException, e:
-    return (False, str(e))
+      return (False, str(e))
+
+  print "Successfully added ", filename, " to vessel"
+
+  try:
+      nmclient_signedsay(vesselinfo[longname]['handle'], "StartVessel", 
+                         vesselname, argstring)
+  except NMClientException, e:
+      return (False, str(e))
   else:
-    return (True,)
+      print "Successfully started vessel with repy file"
+      return (True,)
+
+
+# alpers - attempts to stop a vessel from running a program
+def stop_target(longname):
+    vesselname = vesselinfo[longname]['vesselname']
+    try:
+        nmclient_signedsay(vesselinfo[longname]['handle'], "StopVessel", vesselname)
+    except NMClientException, e:
+        return (False, str(e))
+    else:
+        return (True,)
 
 
 # alpers - attempts to retreive logs from each vessel
@@ -109,7 +134,7 @@ def showlog_vessel(longname):
 
 # alpers - main method for acquiring information for all vessels and running an
 # application
-def connect_to_emulab_beraber_instance(ip, port, program_name, argstring = None):
+def connect_to_emulab_beraber_instance(ip, port, program_name, argstring):
     vessel_id_list = add_node_by_hostname(ip, port)
     
     fileobj = open(program_name, "r")
@@ -140,6 +165,92 @@ def get_logs_from_all_emulab_beraber_instances():
             print "Reason: ", retdict[vessel][1]
 
     return logs
+
+
+# alpers - main method for stopping a vessel
+def stop_all_emulab_beraber_instances():
+    retdict = {}
+    for vessel in vesselinfo:
+        retdict[vessel] = stop_target(vessel)
+        if retdict[vessel][0]:
+            print "Successfully stopped execution on ", vessel
+        else:
+            print "Failed to stop execution on ", vessel
+            print "Reason: ", retdict[vessel][1]
+
+
+# alpers - query a vessel's state
+def query_vessel_state():
+    status_list = {}
+    
+    for longname in vesselinfo:
+        retdict = nmclient_getvesseldict(vesselinfo[longname]['handle'])
+        status_list[longname] = retdict['vessels'][vesselinfo[longname]['vesselname']]['status']
+    
+    return status_list
+
+
+# alpers - query vessel state to see if vessels are finished executing
+def all_emulab_vessels_done():
+    status = query_vessel_state()
+    for vessel, status in status.iteritems():
+        if status == 'Started':
+            return False
+
+    return True
+
+
+
+log_lock = threading.Lock()
+logs = {}
+def append_log(host, log):
+    log_lock.acquire()
+    logs[host] = log
+    log_lock.release()
+
+def get_logs():
+    return logs
+
+# alpers - this is the function that should be called from the outside..
+def run_emulab_repy(ip, keyname, timeout, repy_file, repy_argstring=""):
+    threading.Timer(0, __run_emulab_repy, [ip, keyname, timeout, repy_file, repy_argstring])
+    
+
+# private?
+def __run_emulab_repy(ip, keyname, timeout, repy_file, repy_argstring=""):
+    key['public'] = rsa_file_to_publickey(keyname + ".publickey")
+    key['private'] = rsa_file_to_privatekey(keyname + ".privatekey")
+
+    if not repy_argstring == repy_file:
+        repy_argstring = repy_file + " " + repy_argstring
+
+    time_updatetime(34933)
+
+    print "Connecting to ", ip, ":", DEFAULT_NODEMANAGER_PORT, "; looking for vessels.."
+    connect_to_emulab_beraber_instance(ip, DEFAULT_NODEMANAGER_PORT, repy_file, 
+                                       repy_argstring)
+
+    num_checks = 10
+    for i in range(num_checks):
+        if i + 1 == 10:
+            sleep_time = timeout/num_checks + timeout%num_checks
+        else:
+            sleep_time = timeout/num_checks
+
+        sleep(sleep_time)
+        print "sleeping for ", str(sleep_time)
+        
+        if all_emulab_vessels_done():
+            print "noticed that all execution is done before timeout hit"
+            break
+
+    logs = get_logs_from_all_emulab_beraber_instances()
+    print "Saving log to ", ip, ".log..."
+    persist.commit_object(logs, ip+".log")
+
+    append_log(ip, logs)
+    
+    print "Finished execution!"
 
 
 # alpers - prints the usage of the application
@@ -173,16 +284,15 @@ def main():
         return
     program_name = sys.argv[4]
 
-    repy_args = None
+    repy_args = program_name + " "
     if len(sys.argv) > 5:
-        repy_args = sys.argv[5:]
+        repy_args += " ".join(sys.argv[5:])
 
     key['public'] = rsa_file_to_publickey(keyname + ".publickey")
     key['private'] = rsa_file_to_privatekey(keyname + ".privatekey")
 
     print "Connecting to ", ip, ":", port, "; looking for vessels.."
-    connect_to_emulab_beraber_instance(ip, port, program_name,
-                                       argstring = repy_args)
+    connect_to_emulab_beraber_instance(ip, port, program_name, repy_args)
 
     sleep(10)
 
