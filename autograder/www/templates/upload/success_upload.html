@@ -1,0 +1,17 @@
+{% include "common/header.html" %}
+{% block content %}
+<body>
+{% include "common/banner.html" %}
+
+<h2>Upload your assignment</h2>
+
+    {% ifnotequal info "" %}
+    <p><font color="blue">
+	{{ info }}
+    </font></p><br>
+    {% endifnotequal %}
+   
+    <a href="{% url upload %}">Go Back</a>
+</body>
+{% endblock %}
+{% include "common/footer.html" %}
