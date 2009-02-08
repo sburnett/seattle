@@ -36,12 +36,18 @@ do
   cp ${f} ../built/${f} # Copy original file
 done
 
-# Then process
+# Go into built
 cd ../built
+
+# Link to repy and repypp
+ln -s ../../repy/repy.py repy.py
+ln -s ../../seattlelib/repypp.py repypp.py
+
+# Then process
 for f in ${all_files}
 do
   echo "Pre-processing: ${f}"
-  python ../../seattlelib/repypp.py ${f} ${f}.out # Process file
+  python repypp.py ${f} ${f}.out # Process file
   rm ${f}  # Remove non-preprocessed
   mv ${f}.out ${f} # Replace it with the processed file
 done
@@ -60,7 +66,7 @@ do
   cp ${f} ../built/${f}_pre # Copy original file
   cd ../built
   # Pre-process the file
-  python ../../seattlelib/repypp.py ${f}_pre ${f}
+  python repypp.py ${f}_pre ${f}
   rm ${f}_pre # Remove the original
   cd ../tests
 done

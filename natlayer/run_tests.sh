@@ -18,19 +18,15 @@ then
   rm -f ./log/*
 fi
 
-# Start the forwarder
-cd scripts
-
 # Stop the old forwarder if it is running
-if [ -f forwarder.pid ]
+if [ -f run/forwarder.pid ]
 then
   echo "Stopping old forwarder..."
-  ./stop_forwarder.sh
+  ./scripts/stop_forwarder.sh
 fi
 
 echo "Starting forwarder..."
-./start_forwarder.sh
-cd ..
+./scripts/start_forwarder.sh
 
 # Sleep for a second, give the forwarder a change to start
 echo "Waiting for forwarder to initialize..."
@@ -56,7 +52,7 @@ do
   printf "Running %-60s" ${f}
   
   # Log the output
-  run="python ../../repy/repy.py --logfile log/${f}.log restrictions.default ${f}"
+  run="python repy.py --logfile log/${f}.log restrictions.default ${f}"
   ${run}  >/dev/null 2>&1 &
   
   # Wait for that to finish
@@ -87,6 +83,5 @@ echo "#####"
 echo "Done!"
 
 # Start the forwarder
-cd scripts
 echo "Stopping forwarder!"
-./stop_forwarder.sh
+./scripts/stop_forwarder.sh
