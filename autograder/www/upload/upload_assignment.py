@@ -30,11 +30,9 @@ import os
 import sys
 
 
-#host="192.168.0.11"
 host="seattle.cs.washington.edu:8080"
-#url="http://192.168.0.11/cgi-bin/upload/up.cgi"
-#url="http://seattle.cs.washington.edu:8080/autograder/upload/views.py"
 url="/autograder/upload/"
+allowedExts=("tar","zip","tgz")
 
 def post_to_webserver(host, url, fields, files):
   """
@@ -65,7 +63,7 @@ def post_to_webserver(host, url, fields, files):
   try:
     http_conn.request('POST', url, body, headers)
   except:
-    print "Error occurred while posting: %s : %s" % sys.exc_info()[:2]
+    print "Error occurred while posting: %s" % sys.exc_info()[1:2][0][1]
     sys.exit(0)
   #wait for response
   res = http_conn.getresponse()
@@ -126,9 +124,10 @@ def checkArgs(args):
     return False
   if os.path.getsize(args[3])> 1048576:
     print "File size cannot exceed 1Mb"
-    return False
-  if args[3].split('.')[-1] not in ("zip","tar"):
-    print "Should provide zip or tar file"
+    return False5A5A
+  if args[3].split('.')[-1] not in allowedExts:
+    print "File extension is not of an allowed type. Allowed types:"
+    print allowedExts
     return False
 
 
@@ -137,24 +136,19 @@ if __name__ == "__main__":
 
 
   if checkArgs(sys.argv)==False:
-    print "Invalid arguments - usage: python upload_assignment [classcode] [email] [filename]"
+    print "Invalid arguments - usage: python upload_assignment [email] [classcode] [filename]"
     exit(0)
 
   #variables and corresponding values
-#  var_vals=[["id_class_code",sys.argv[1]],["id_email",sys.argv[2]],["dir","images"]]
-  var_vals=[["class_code",sys.argv[1]],["email",sys.argv[2]]]
+  var_vals=[["email",sys.argv[1]],["class_code",sys.argv[2]],["nohtml","True"]]
   
   file_to_upload=[["assignment",sys.argv[3],open(sys.argv[3]).read()]]
 
   #get status, reason and body of the response
   (status,reason,body)=post_to_webserver(host, url, var_vals, file_to_upload)
-
-  print status
-  print reason
+  if (status != 200):
+    print status, reason
   print body
-  if "Assignment uploaded successfully." in body:
-    print "ASSIGNMENT UPLOADED"
-  else: 
-    print "Problem Occurred, see output for details"
+
 
   

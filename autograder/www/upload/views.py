@@ -37,6 +37,13 @@ import glob
 # import local forms used by the upload application
 import forms
 
+def check_file(file):
+  if ((not file.name.endswith('.zip')) and (not file.name.endswith('.tar'))): #SAL
+    return "Files should be of .tar or .zip format" #SAL
+  if file.size > .5*(10**6):
+    return "Assignment file is too large, file size limit is .5 MB"
+  return ""
+
 def upload(request):
     """
     <Purpose>
@@ -65,28 +72,39 @@ def upload(request):
         # check validity of the form
         if form.is_valid():
             txt_assignment = ""
+            extension = "" #SAL
             if 'assignment' in request.FILES:
                 file = request.FILES['assignment']
-                if file.size > .5*(10**6):
-                    return HttpResponse("Assignment file is too large, file size limit is .5 MB")
-                txt_assignment = file.read()
-            
-            # extract the user's classcode and email from the submitted form
-            classcode = str(form.cleaned_data['class_code'])
-            email = str(form.cleaned_data['email'])
-            file_path = settings.ASSIGNMENT_UPLOAD_PATH + classcode + "_" + email
+                info = check_file(file)
+                if len(info) == 0:                 
+             
+                  txt_assignment = file.read()
 
-            # open the file to hold the user's assignment
-            fhandle = open(file_path, 'w')
+                  extension = file.name.split('.')[-1] #SAL            
+                  # extract the user's classcode and email from the submitted form
+                  classcode = str(form.cleaned_data['class_code'])
+                  email = str(form.cleaned_data['email'])
 
-            # save the user's assignment
-            fhandle.write(txt_assignment)
-            fhandle.close()
-            info = 'Assignment uploaded successfully.'
+                  file_path = settings.ASSIGNMENT_UPLOAD_PATH + classcode + "_" + email + "_." + extension
+
+                  # open the file to hold the user's assignment
+                  fhandle = open(file_path, 'w')
+
+                  # save the user's assignment
+                  fhandle.write(txt_assignment)
+                  fhandle.close()
+                  info = 'Assignment uploaded successfully.'
+                  if 'nohtml' not in request.POST:
+                    return direct_to_template(request, 'upload/success_upload.html',
+                              {'info' : info, 'form' : forms.UploadAssignmentForm()})
+
         else:
-            # the form is invalid
+            info = 'Form is invalid'#SAL
             pass
             
+    if 'nohtml' in request.POST:
+       return HttpResponse(info)
+     
     return direct_to_template(request, 'upload/upload.html',
                               {'info' : info, 'form' : forms.UploadAssignmentForm()})
 
@@ -116,7 +134,9 @@ def see_uploads(request):
     upload_entries = []
     for file in uploaded_files:
         file = file.split(settings.ASSIGNMENT_UPLOAD_PATH)[1]
-        classcode, email = file.split("_")
+        
+        classcode, email = file.split('.')[0].split("_")#SAL (can't see ext while browsing)
+       
         upload_entries.append((classcode, email, file))
         
     return direct_to_template(request, 'upload/uploads.html', {'upload_entries' : upload_entries})
