@@ -74,7 +74,7 @@ bot master
 01/29/2009
 measure twice cut once
 1022 anthony get resource information on Linux
-brent get resource information on Windows XP / Vista
+853 brent get resource information on Windows XP / Vista
 1014 carter get resource information on BSD / Mac
 853 armon get resource information on Windows Mobile
 
