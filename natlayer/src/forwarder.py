@@ -71,11 +71,14 @@ def checkClientSocket(clt,cltinfo):
         frame = NATFrame()
         frame.initAsDataFrame(clt,data)
         server[cltinfo["server"]].send(frame.toString())
+      else:
+        # Connection is closed, shutdown socket and thread
+        raise Exception, "Client Disconnected!"
 
   except Exception, exp:
     # Exit cleanly, close the socket
     # TODO: send CONN_TERM to connected server
-    print "Exception Checking Client Socket! ", exp
+    print "Exception Checking Client Socket! ", type(exp), exp
     mycontext['cl-lock'].acquire()
     try:
       client[clt]["socket"].close()
@@ -106,14 +109,19 @@ def checkServerSocket(srv,sock):
   
       # Handle the case where the server is forwarded non-null data
       if frame.frameMesgType == DATA_FORWARD and frame.frameContentLength != 0:
-        clt = frame.frameMACAddress
-        clientSock = client[clt]["socket"]
-        clientSock.send(frame.frameContent)
+        try:
+          clt = frame.frameMACAddress
+          clientSock = client[clt]["socket"]
+          clientSock.send(frame.frameContent)
+        except KeyError:
+          # The client is no longer connected...
+          # TODO send server CONN_CLOSE
+          pass
 
   except Exception, exp:
     # Exit cleanly, and close the socket
     # TODO: close the connection to all clients connected to this server
-    print "Exception Checking Server Socket! ", exp
+    print "Exception Checking Server Socket! ", type(exp), exp
     mycontext['srv-lock'].acquire()
     try:
       server[srv]["socket"].close()
