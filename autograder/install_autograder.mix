@@ -25,10 +25,11 @@ nextid = 1
 key = {}
 vesselinfo = {}
 
+# the default Seattle instance to connect to
 DEFAULT_NODEMANAGER_PORT = 1224
 
 # alpers - adds a vessel and its information to the overall vessel dict
-#          (from seash.mix)
+#          (from seash.mix); this is strictly internal.
 def add_vessel(longname, vesselhandle):
     global nextid
 
@@ -40,15 +41,32 @@ def add_vessel(longname, vesselhandle):
     vesselinfo[longname]['vesselname'] = longname.split(':')[2]
     
 
-    myid = nextid
-    nextid += 1
-    
-    return myid
 
+def add_node_by_hostname(host, port=DEFAULT_NODEMANAGER_PORT):
+    """
+    <Purpose>
+      Attempts to find a running Beraber instance at the host specified, connect
+      to it, and add meta-information about the instance and its available vessels
+      to the internal dictionary (vesselinfo).
 
+    <Arguments>
+      host:
+          The host where the Beraber instance is running (ip or full-qual name)
+      port:
+          The port where the Beraber instance is running (default 1224)
 
-# alpers - adds all vessels available at ip:port (adapted from seash.mix)
-def add_node_by_hostname(host, port):
+    <Exceptions>
+      Will (doesn't atm) throw an exception if the module has not been initalized, the
+      host was not found, or no Beraber instance was found running on the specified
+      host:port.
+
+    <Side Effects>
+      Updates internal dict vesselinfo
+
+    <Returns>
+      None.
+    """
+
     # get information about the node's vessels
     thishandle = nmclient_createhandle(host, port, privatekey = key['private'], 
                                        publickey = key['public'])
@@ -69,7 +87,7 @@ def add_node_by_hostname(host, port):
         handleinfo['vesselname'] = vesselname
         nmclient_set_handle_info(newhandle, handleinfo)
         
-        id = add_vessel(longname, newhandle)
+        add_vessel(longname, newhandle)
         new_vessel_list.append('%'+str(id)+"("+longname+")")
         
         
@@ -79,38 +97,81 @@ def add_node_by_hostname(host, port):
     else:
         print "Added targets: "+", ".join(new_vessel_list)
     
-    return new_vessel_list
-
 
 # alpers - attempts to tell each vessel to run a program
 def run_target(longname, filename, filedata, argstring):
-  vesselname = vesselinfo[longname]['vesselname']
-  # debug
-  # print "vesselname", vesselname, ", longname: ", longname
-  # print "filename: ", filename, ", argstring: ", argstring
-  # print
-  # print "handle: " + str(vesselinfo[longname]['handle'])
-  # print "filedata: " + filedata
-  try:
-      nmclient_signedsay(vesselinfo[longname]['handle'], "AddFileToVessel", 
-                         vesselname, filename, filedata)
-  except NMClientException, e:
-      return (False, str(e))
+    """
+    <Purpose>
+      Attempts to add and run a file on a specific vessel given the vessel's longname
+      and the file data.  This should be the main way to execute repy code on emulab
+      servers.
 
-  print "Successfully added ", filename, " to vessel"
+    <Arguments>
+      longname:
+          The vessel's longname, i.e. ip:port:vessel_name
 
-  try:
-      nmclient_signedsay(vesselinfo[longname]['handle'], "StartVessel", 
-                         vesselname, argstring)
-  except NMClientException, e:
-      return (False, str(e))
-  else:
-      print "Successfully started vessel with repy file"
-      return (True,)
+      filename:
+          The name of the repy file
+
+      filedata:
+          A string containing the contents of the file
+
+      argstring:
+          An argument string passed to the repy program at runtime - note that the 
+          argstring is NEVER empty - the first argument should always be the filename.
+
+    <Exceptions>
+      At the moment will throw an exception if the longname is invalid.  In the future,
+      will throw an exception if the module has not been initialized.
+
+    <Side Effects>
+      None.
+
+    <Returns>
+      A tuple with the format (success?, info).  On success, the tuple (True,) will be 
+      returned; on failure the tuple (False, str(exception)) will be returned.
+    """
+
+    vesselname = vesselinfo[longname]['vesselname']
+    try:
+        nmclient_signedsay(vesselinfo[longname]['handle'], "AddFileToVessel", 
+                           vesselname, filename, filedata)
+    except NMClientException, e:
+        return (False, str(e))
+    
+    print "Successfully added ", filename, " to vessel"
+    
+    try:
+        nmclient_signedsay(vesselinfo[longname]['handle'], "StartVessel", 
+                           vesselname, argstring)
+    except NMClientException, e:
+        return (False, str(e))
+    else:
+        print "Successfully started vessel with repy file"
+        return (True,)
+    
 
 
-# alpers - attempts to stop a vessel from running a program
 def stop_target(longname):
+    """
+    <Purpose>
+      Stop a vessel from executing repy code.
+
+    <Arguments>
+      longname:
+          The vessel's longname, i.e. ip:port:vessel_name
+
+    <Exceptions>
+      At the moment will throw an exception if the longname is invalid.  In the future,
+      will throw an exception if the module has not been initalized.
+
+    <Side Effects>
+      None.
+
+    <Returns>
+      A tuple consisting of (success?, info)
+    """
+
     vesselname = vesselinfo[longname]['vesselname']
     try:
         nmclient_signedsay(vesselinfo[longname]['handle'], "StopVessel", vesselname)
@@ -120,22 +181,68 @@ def stop_target(longname):
         return (True,)
 
 
-# alpers - attempts to retreive logs from each vessel
+
 def showlog_vessel(longname):
-  vesselname = vesselinfo[longname]['vesselname']
-  try:
-    logdata = nmclient_signedsay(vesselinfo[longname]['handle'],"ReadVesselLog",
-                                 vesselname)
-  except NMClientException, e:
-    return (False, str(e))
-  else:
-    return (True, logdata)
+    """
+    <Purpose>
+      Get a vessel's log outlining output from the executed repy file.
+
+    <Arguments>
+      longname:
+          The vessel's longname, i.e. ip:port:vessel_name
+
+    <Exceptions>
+      At the moment will throw an exception if the longname is invalid.  In the future,
+      will throw an exception if the module has not been initalized.
+
+    <Side Effects>
+      None.
+
+    <Returns>
+      A tuple consisting of (success?, info).  A successful log-get will write the log
+      to the info variable, otherwise the exception will be printed.
+    """
+
+    vesselname = vesselinfo[longname]['vesselname']
+    try:
+        logdata = nmclient_signedsay(vesselinfo[longname]['handle'],"ReadVesselLog",
+                                     vesselname)
+    except NMClientException, e:
+        return (False, str(e))
+    else:
+        return (True, logdata)
 
 
 # alpers - main method for acquiring information for all vessels and running an
 # application
-def connect_to_emulab_beraber_instance(ip, port, program_name, argstring):
-    vessel_id_list = add_node_by_hostname(ip, port)
+# !!! hopefully this method will be adapted into the initialize method
+def connect_to_emulab_beraber_instance(ip, port, program_name, argstring=program_name):
+    """
+    <Purpose>
+      Big wrapper method that connects to a Beraber instance given ip:port and attempts
+      to upload and run the given repy code.
+
+    <Arguments>
+      ip:
+          The hostname where a Beraber instance is running (ip or full-qual name).
+      port:
+          The port at which a Beraber instance is running.
+      program_name:
+          The name of the repy file that will be executed.
+      argstring:
+          A string of arguments to pass to the repy code upon execution.
+
+    <Exceptions>
+      See exceptions for add_node_by_hostname and run_target.
+
+    <Side Effects>
+      Edits vesselinfo to keep track of state.
+
+    <Returns>
+      Nothing yet.
+    """
+    
+    add_node_by_hostname(ip, port=port)
     
     fileobj = open(program_name, "r")
     filedata = fileobj.read()
@@ -179,8 +286,26 @@ def stop_all_emulab_beraber_instances():
             print "Reason: ", retdict[vessel][1]
 
 
-# alpers - query a vessel's state
+
 def query_vessel_state():
+    """
+    <Purpose>
+      Attempts to acquire vessel state for each vessel in vesselinfo.
+
+    <Arguments>
+      None.
+
+    <Exceptions>
+      Should be none unless vesselinfo was instantiated incorrectly and has invalid 
+      data.
+
+    <Side Effects>
+      None.
+
+    <Returns>
+      A dictionary of vessel longnames to status strings.
+    """
+    
     status_list = {}
     
     for longname in vesselinfo:
@@ -192,6 +317,25 @@ def query_vessel_state():
 
 # alpers - query vessel state to see if vessels are finished executing
 def all_emulab_vessels_done():
+    """
+    <Purpose>
+      Runs query_vessel_state() to determine whether all vessels have finished executing
+      repy code.
+
+    <Arguments>
+      None.
+
+    <Exceptions>
+      Should be none unless vesselinfo was instantiated incorrectly and has invalid 
+      data.
+
+    <Side Effects>
+      None.
+
+    <Returns>
+      A boolean describing whether all vessels have finished executing repy code.
+    """
+
     status = query_vessel_state()
     for vessel, status in status.iteritems():
         if status == 'Started':
@@ -212,11 +356,13 @@ def get_logs():
     return logs
 
 # alpers - this is the function that should be called from the outside..
+# !! this method will be deprecated.
 def run_emulab_repy(ip, keyname, timeout, repy_file, repy_argstring=""):
     threading.Timer(0, __run_emulab_repy, [ip, keyname, timeout, repy_file, repy_argstring])
     
 
 # private?
+# !! this method will be deprecated.
 def __run_emulab_repy(ip, keyname, timeout, repy_file, repy_argstring=""):
     key['public'] = rsa_file_to_publickey(keyname + ".publickey")
     key['private'] = rsa_file_to_privatekey(keyname + ".privatekey")
@@ -232,17 +378,21 @@ def __run_emulab_repy(ip, keyname, timeout, repy_file, repy_argstring=""):
 
     num_checks = 10
     for i in range(num_checks):
-        if i + 1 == 10:
+        if i + 1 == num_checks:
             sleep_time = timeout/num_checks + timeout%num_checks
         else:
             sleep_time = timeout/num_checks
 
         sleep(sleep_time)
-        print "sleeping for ", str(sleep_time)
+        print "slept for ", str(sleep_time), " seconds"
         
         if all_emulab_vessels_done():
             print "noticed that all execution is done before timeout hit"
             break
+
+    if not all_emulab_vessels_done():
+        print "! Force stopping all vessels (timeout hit)" 
+        stop_all_emulab_beraber_instances()
 
     logs = get_logs_from_all_emulab_beraber_instances()
     print "Saving log to ", ip, ".log..."
@@ -267,9 +417,8 @@ def print_usage():
 """
 
 
-# alpers - main starter thread -- !! is there a way to see when an applcation has
-#                                    finished running in a vessel?  (just sleeps 
-#                                    for 30 sec now)
+# alpers - main starter thread 
+# !! this method will be depreciated.
 def main():
     if len(sys.argv) < 5:
         print_usage()
