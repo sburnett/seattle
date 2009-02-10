@@ -1,23 +1,25 @@
 """ 
-Author: Brent Couvrette
+<Author>
+  Brent Couvrette
 
-Start Date: October 16, 2008
+<Start Date>
+  October 16, 2008
 
-Description:
-Currently creates all necesary test folders locally.  Currently
-it is upto the runner of these tests to then copy these files 
-to whatever update site location they wish, then run the actual
-test runner.
+<Description>
+  Currently creates all necesary test folders locally.  Currently
+  it is upto the runner of these tests to then copy these files 
+  to whatever update site location they wish, then run the actual
+  test runner.
 
 How to successfully run all the tests:
-Get all necesary files into a single folder contained within an empty folder 
-(this makes things simpler)
+Get all necesary files into a single folder contained within an empty folder
+(Do a preparetest.py plus copy the contents of softwareupdater/test)
 Run:
-python test_updater.py <http://update.baseurl/location>
+python test_updater.py <http://update.baseurl/location/>
 cd ..
 scp -r * </place/where/baseurl/is/located>
 cd back into the directory with all the files
-python test_runupdate.py <http://update.baseurl/location>
+python test_runupdate.py <http://update.baseurl/location/>
 Then the tests will hopefully run!
 If not, email Brent Couvrette with questions at couvb@cs.washington.edu
 """
@@ -29,7 +31,11 @@ import writemetainfo
 import tempfile
 import shutil
 import sys
+import nminit
 
+# Writes a metainfo file for the current directory, then copies it to the
+# given directory.  keyname specifies the name of the key to use, not
+# including the .privatekey or .publickey (Requires that both exist).
 def write_meta_and_copy(destdir, keyname):
 
   # create the metainfo file for the files in the current directory
@@ -42,7 +48,7 @@ def write_meta_and_copy(destdir, keyname):
   for seaFile in glob.glob('*'):
     if not os.path.isdir(seaFile):
       shutil.copy(seaFile, '../'+destdir+'/')
-			
+
 # taken from rsa.repy.  Is there a good way to import repy modules
 # directly yet?
 def rsa_string_to_publickey(mystr):
@@ -51,7 +57,7 @@ def rsa_string_to_publickey(mystr):
   
   return {'e':long(mystr.split()[0]), 'n':long(mystr.split()[1])}
   
-			
+
 def main():
   # Update folders need a metainfo file and all of the files needed
   # for the Seattle platform.  The metainfo file must contain all of 
@@ -66,16 +72,26 @@ def main():
     
   baseurl = sys.argv[1]
 
-  # Make sure a metainfo file already exists.
+  # Make sure a metainfo file already exists.  If it does not, writemetainfo
+  # will complain.
   file('metainfo', 'w').close()
 
-  # Change softwareupdater wait time to be only 30 seconds
-  # instead of 5-55 minutes.
+#######################################################################
+## Creating noup directory, which is the one that should not trigger ##
+## any updates.                                                      ##
+#######################################################################
+
+  # Change softwareupdater wait time to be only 30 seconds instead of 5-55
+  # minutes.  This change applies to every folder created.
   upfile = file('softwareupdater.py', 'r')
   updata = upfile.read()
   upfile.close()
-  sleepindex = updata.find('for junk in range(random.randint(10, 110)):')
+  sleepindex = updata.find('for junk in range(random.randint')
   eolindex = updata.find('\n', sleepindex)
+  if sleepindex == -1:
+    # If we didn't find the sleep loop line, raise an exception
+    raise Exception("Couldn't find the sleep loop line")
+
   updata = updata[:sleepindex]+'for junk in range(random.randint(1, 1)):'+updata[eolindex:]
   # Also change it to update from the given base url instead of the standard one
   siteindex = updata.find('softwareurl = "http://')
@@ -83,7 +99,7 @@ def main():
   updata = updata[:siteindex] + 'softwareurl = "' + baseurl + '/updater/"' + \
       updata[eolindex:]
 
-  # Write this change back to softwareupdater
+  # Write these changes back to softwareupdater
   upfile = file('softwareupdater.py', 'w')
   upfile.write(updata)
   upfile.close()
@@ -92,7 +108,15 @@ def main():
   # This is the directory which should have no updates, but be otherwise
   # correct.
   write_meta_and_copy('noup', 'updater')
-	
+
+#######################################################################
+## Creating wronghash directory, which is the one that should fail to##
+## update by throwing an RsyncError.  This is caused by using the    ##
+## metainfo file from updatenmmain, which will cause the hash for    ##
+## nmmain in the metainfo file not match the one in the update       ##
+## directory.                                                        ##
+#######################################################################
+
   print 'Copying files to wronghash directory'
   # Copy these files into the wronghash directory.
   os.mkdir('../wronghash')
@@ -100,9 +124,13 @@ def main():
     if not os.path.isdir(seaFile):
       shutil.copy(seaFile, '../wronghash/')
 
+#######################################################################
+## Creating updatenmmain directory, which is the one that should     ##
+## cause nmmain.py to be updated.                                    ##
+#######################################################################
 
   print 'Changing nmmain...'
-	
+
   # Make changes to nmmain.py (change version to be 0.2a)
   # Read in the current nmmain.py
   nmmainfile = file('nmmain.py', 'r')
@@ -117,14 +145,24 @@ def main():
   nmmainfile = file('nmmain.py', 'w')
   nmmainfile.write(nmmaindata)
   nmmainfile.close()
-	
+
   print 'Writing updated nmmain.py metainfo...'
   # This is the directory which should be fully correct, and just update nmmain.py
   write_meta_and_copy('updatenmmain', 'updater')
-	
+
+#######################################################################
+## Finishing the setup of th wronghash folder by copying the metainfo##
+## from updatenmmain.                                                ##
+#######################################################################
+
   # copy the new metainfo to the wrong hash directory
-  # thusly causing it to have the wrong has for nmmain.py
+  # thusly causing it to have the wrong hash for nmmain.py
   shutil.copy('../updatenmmain/metainfo', '../wronghash/metainfo')
+
+#######################################################################
+## Creating corruptmeta directory, which is the one that should not  ##
+## trigger any updates due to a corrupt metainfo file.               ##
+#######################################################################
 
   # Replace the metainfo with a faulty one!
   corruptmeta = """softwareupdater.py e0fe4093dbefcfd5b6cc7ebbee84693f07dcaf56 47253
@@ -137,7 +175,7 @@ writemetainfo.py e6c00469d77bd645a43b9ae7b734af66ed231d6a 40524
   corruptmetafile = file('metainfo', 'w')
   corruptmetafile.write(corruptmeta)
   corruptmetafile.close()
-	
+
   print 'Copying files to corruptmeta folder...'
 
   # Copy these files into the corruptmeta directory.
@@ -145,13 +183,25 @@ writemetainfo.py e6c00469d77bd645a43b9ae7b734af66ed231d6a 40524
   for seaFile in glob.glob('*'):
     if not os.path.isdir(seaFile):
       shutil.copy(seaFile, '../corruptmeta/')
-	
+
+#######################################################################
+## Creating badkeysig directory, which is the one that should not    ##
+## trigger any updates, because the metainfo was signed by the wrong ##
+## key.                                                              ##
+#######################################################################
+
   print 'Writing badly signed metainfo'
   # This directory should be fully correct, except the metainfo file is 
   # signed by the wrong key!  If the key were to be accepted, there would
   # be an update to nmmain.py.
   write_meta_and_copy('badkeysig', 'badkey')
-	
+
+#######################################################################
+## Creating updater directory, which is the one that should trigger  ##
+## an update that will cause the softwareupdater to restart with a   ##
+## new key and new update location.                                  ##
+#######################################################################
+
   print 'Changing softwareupdater'
   # Make changes to softwareupdater.py 
   # (Change its public key and the location it updates to)
@@ -181,11 +231,18 @@ writemetainfo.py e6c00469d77bd645a43b9ae7b734af66ed231d6a 40524
   # This is the directory that will update the software updater,
   # thus causing the software updater to restart.
   write_meta_and_copy('updater', 'updater')
+
+#######################################################################
+## Creating updater_new directory, which is the one that should      ##
+## trigger an update to nmmain.py.  This update is ment to happen    ##
+## directly after the one from the updater directory is taken, and   ##
+## will only work if the key change worked successfully.             ##                                         ##
+#######################################################################
   
   # Write another update to nmmain to confirm that updates after the key change
   # still work as well.
   print 'Changing nmmain...'
-	
+
   # Make changes to nmmain.py (change version to be 0.2a)
   # Read in the current nmmain.py
   nmmainfile = file('nmmain.py', 'r')
@@ -208,7 +265,7 @@ writemetainfo.py e6c00469d77bd645a43b9ae7b734af66ed231d6a 40524
 
   # copy the original softwareupdater back
   shutil.copy('../noup/softwareupdater.py', 'softwareupdater.py')	
-		
+
 
   # The current directory must be put back into it's original state,
   # so that the noup test will indeed include no changes.
@@ -216,8 +273,12 @@ writemetainfo.py e6c00469d77bd645a43b9ae7b734af66ed231d6a 40524
   shutil.copy('../noup/nmmain.py', 'nmmain.py')
   shutil.copy('../noup/metainfo', 'metainfo')
 
+  # We will now run nminit.py so that there is a nodeman.cfg and v2, so that
+  # the softwareupdater doesn't fail when trying to use the service log
+  nminit.initialize_state()
+
   print 'Upload the noup, updatenmmain, badkeysig, corruptmeta, updater, and wronghash directories to your upload site now, then run test_runupdate.py'
-	
+
 		
 if __name__ == '__main__':
   main()
