@@ -824,11 +824,79 @@ class NATConnection():
     self.clientDataBuffer[fromMac]["outgoingAvailable"] = num
     
     # Release the outgoing lock, this unblocks socket.send
-    self.clientDataBuffer[fromMac]["outgoingLock"].release()
+    try:
+      self.clientDataBuffer[fromMac]["outgoingLock"].release()
+    except:
+      # That means the lock was already released, which means we have an unexpected 
+      # CONN_BUF_SIZE message...
+      pass
     
     # Unlock
     self.clientDataBuffer[fromMac]["lock"].release()
-          
+  
+  # Handles a new client connecting
+  def _new_client(self, fromMac, frame):
+    # Get the main dictionary lock
+    self.clientDataLock.acquire()
+    
+    # Create the entry for it, add the data to it
+    self.clientDataBuffer[fromMac] = {
+    "lock":getlock(), # This is a general lock, so that only one thread is accessing this dict
+    "data":"", # This is the real buffer
+    "closed":False, # This signals that the virtual socket should be closed on the next recv/send operation (it will clean up, and then throw an exception)
+    "nodatalock":getlock(), # This lock is used to block socket.recv when there is no data in the buffer, it greatly improves efficiency
+    "incomingAvailable":self.defaultBufSize, # Amount the forwarder can still send us
+    "outgoingAvailable":self.defaultBufSize, # Amount we can send the forwarder
+    "outgoingLock":getlock()} # This allows us to block socket.send while we wait for a CONN_BUF_SIZE message from the forwarder.
+    
+    # If the frame is a data frame, add the data
+    if frame.frameMesgType == DATA_FORWARD:
+      self._incoming_client_data(fromMac, frame)
+    
+    # Create a new socket
+    # Disables buffering if self.defaultBufSize is -1
+    socketlike = NATSocket(self, fromMac, (self.defaultBufSize != -1))
+    
+    # Make sure the user code is safe, launch an event for it
+    try:
+      settimer(0,self.frameHandler, (fromMac, socketlike, self))
+    except:      
+      # Close the socket
+      socketlike.close()
+    finally:
+      # Release the main dictionary lock
+      self.clientDataLock.release()
+  
+  # Handles incoming data for an existing client
+  def _incoming_client_data(self, fromMac, frame):
+    # Use the socket lock so that this is thread safe
+    self.clientDataBuffer[fromMac]["lock"].acquire()
+    
+    # Append the new data
+    self.clientDataBuffer[fromMac]["data"] += frame.frameContent
+    
+    # Reduce amount of incoming data available
+    self.clientDataBuffer[fromMac]["incomingAvailable"] -= frame.frameContentLength
+    
+    # Release the lock now that there is data
+    try:
+      self.clientDataBuffer[fromMac]["nodatalock"].release() 
+    except:
+      # This just means that there was still data in the buffer
+      pass
+    
+    self.clientDataBuffer[fromMac]["lock"].release()
+  
+  # Simple function to determine if a client is connected
+  def _isConnected(self,fromMac):
+    # Get the main dictionary lock
+    self.clientDataLock.acquire()
+    status = fromMac in self.clientDataBuffer
+    
+    # Release the main dictionary lock
+    self.clientDataLock.release()     
+    return status
+     
   # This is launched as an even for waitforconn
   def _socketReader(self):
     # This thread is responsible for reading all incoming frames,
@@ -842,6 +910,7 @@ class NATConnection():
       # Read in a frame
       try:
         frame = self.recv()
+        fromMac = frame.frameMACAddress
       except:
         # This is probably because the socket is now closed, so lets loop around and see
         continue
@@ -850,83 +919,36 @@ class NATConnection():
       if self.stopSocketReader:
         # Save the frame
         self.socketReaderUnhandledFrame = frame
-
-        # Leave the loop and exit
         break 
       
-      fromMac = frame.frameMACAddress
+      # Handle INIT_CLIENT
+      if frame.frameMesgType == INIT_CLIENT:
+        self._new_client(fromMac, frame)
+        continue
       
       # Handle CONN_TERM
       if frame.frameMesgType == CONN_TERM:
         self._closeCONN(fromMac)
-        return
+        continue
       
       # Handle CONN_BUF_SIZE
       if frame.frameMesgType == CONN_BUF_SIZE:
         self._conn_buf_size(fromMac, int(frame.frameContent))
-        return
+        continue
           
       # We only want to handle data forwarding requests, so panic
       if frame.frameMesgType != DATA_FORWARD:
         raise Exception, "Unhandled Frame type: ", frame.frameMesgType
-        return
-      
-      # Get the main dictionary lock
-      self.clientDataLock.acquire()
-      
+
       # Does this client socket exists? If so, append to their buffer
-      if fromMac in self.clientDataBuffer:
-        # Use the socket lock so that this is thread safe
-        self.clientDataBuffer[fromMac]["lock"].acquire()
-        
-        # Append the new data
-        self.clientDataBuffer[fromMac]["data"] += frame.frameContent
-        
-        # Release the lock now that there is data
-        self.clientDataBuffer[fromMac]["nodatalock"].release() 
-        
-        # Reduce amount of incoming data available
-        self.clientDataBuffer[fromMac]["incomingAvailable"] -= frame.frameContentLength
-        
-        self.clientDataBuffer[fromMac]["lock"].release()
-        
-        # Need to release the lock now
-        self.clientDataLock.release()
+      if self._isConnected(fromMac):
+        self._incoming_client_data(fromMac, frame)
         
       # This is a new client, we need to call the user callback function
       else:
-        # Create a new socket
-        # Disables buffering if self.defaultBufSize is -1
-        socketlike = NATSocket(self, fromMac, (self.defaultBufSize != -1))
-        
-        # Create the entry for it, add the data to it
-        self.clientDataBuffer[fromMac] = {
-        "lock":getlock(), # This is a general lock, so that only one thread is accessing this dict
-        "data":frame.frameContent, # This is the real buffer
-        "closed":False, # This signals that the virtual socket should be closed on the next recv/send operation (it will clean up, and then throw an exception)
-        "nodatalock":getlock(), # This lock is used to block socket.recv when there is no data in the buffer, it greatly improves efficiency
-        "incomingAvailable":self.defaultBufSize, # Amount the forwarder can still send us
-        "outgoingAvailable":self.defaultBufSize, # Amount we can send the forwarder
-        "outgoingLock":getlock()} # This allows us to block socket.send while we wait for a CONN_BUF_SIZE message from the forwarder.
-        
-        # Reduce amount of incoming data available
-        self.clientDataBuffer[fromMac]["incomingAvailable"] -= frame.frameContentLength
-        
-        # Make sure the user code is safe, launch an event for it
-        try:
-          settimer(0,self.frameHandler, (fromMac, socketlike, self))
-        except:
-          # Release the lock prior to closing the socket, otherwise this will block
-          # since socket.close requires this lock to clean-up everything
-          self.clientDataLock.release()
-          
-          # Close the socket
-          socketlike.close()
-        else:
-          # We need to release it if there is no exception
-          self.clientDataLock.release()
-      
-       
+        self._new_client(fromMac, frame)
+
+
 # A socket like object with an understanding that it is part of a NAT Connection
 # Has the same functions as the socket like object in repy
 class NATSocket():
