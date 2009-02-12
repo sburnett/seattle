@@ -1,6 +1,8 @@
 #!/bin/bash
 #
 # Runs the tests
+# Takes 1 optional parameter: class
+# If class parameter is given, then only test_CLASS_*.py will be run
 
 # Go into the built dir
 cd built
@@ -46,7 +48,15 @@ fi
 # Pre-process each file
 echo "Running tests..."
 echo "#####"
-all_tests=`ls test_*.py`
+
+# Run only selected test "class" if there is a parameter
+if [ $# -gt "0" ]
+then
+  all_tests=`ls test_$1_*.py`
+else
+  all_tests=`ls test_*.py`
+fi
+
 for f in ${all_tests}
 do
   printf "Running %-60s" ${f}

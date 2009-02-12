@@ -407,7 +407,7 @@ class NATConnection():
   # Recv checks if this is set to None, or returns this instead of reading
   socketReaderUnhandledFrame = None
   
-  def __init__(self, mac, forwarderIP, forwarderPort):
+  def __init__(self, mac, forwarderIP, forwarderPort, timeout=10):
     """
     <Purpose>
       Initializes the NATConnection object.
@@ -424,7 +424,10 @@ class NATConnection():
       
       forwarderPort:
         The port on the forwarder to connect to
-   
+      
+      timeout:
+        How long before we timeout connecting to the forwarder.
+        
     <Exceptions>
         As from socket.connect, etc.
     """
@@ -440,7 +443,7 @@ class NATConnection():
       listenHandle = waitforconn(forwarderIP, forwarderPort, self._incomingFrame)
       self.connectionInit = True
     else:
-      self.socket = openconn(forwarderIP, forwarderPort)
+      self.socket = openconn(forwarderIP, forwarderPort, timeout=timeout)
       
     # Setup socket locks
     self.readLock = getlock()
@@ -768,7 +771,7 @@ class NATConnection():
 
     <Arguments>
       function:
-        The function to call. It should take five arguments: (remotemac, socketlikeobj, thisnatcon).
+        The function to call. It should take three arguments: (remotemac, socketlikeobj, thisnatcon).
         If your function has an uncaught exception, the socket-like object it is using will be closed.
 
     <Side Effects>
@@ -1128,3 +1131,130 @@ class NATSocket():
     
         # Release the lock
         self.natcon.clientDataBuffer[self.clientMac]["lock"].release()
+
+
+
+#########################################################################
+###  Wrappers around the NAT Objects
+###  These should integrate announce methods
+
+# Wrapper function around the NATLayer for clients        
+def nat_openconn(destmac, destport, localmac, localport=None, timeout = 5, forwarderIP=None,forwarderPort=None):
+  """
+  <Purpose>
+    Opens a connection to a server behind a NAT.
+  
+  <Arguments>
+    destmac:
+      The MAC address of the destination server
+    
+    destport:
+      N/A, for compatibility reasons
+    
+    localmac:
+      The MAC address used to identify this client
+    
+    localport:
+      N/A, for compatibility reasons
+    
+    timeout:
+      How long before timing out the forwarder connection
+    
+    forwarderIP:
+      Force a forwarder to connect to. This will be automatically resolved if None.
+      forwarderPort must be specified if this is None.
+      
+    forwarderPort:
+      Force a forwarder port to connect to. This will be automatically resolved if None.
+      forwarderIP must be specified if this is None.
+      
+  <Returns>
+     A socket-like object that can be used for communication. 
+     Use send, recv, and close just like you would an actual socket object in python.
+  """ 
+  # TODO: Dennis you need to tie in here to get a real forwarder IP and port
+  if forwarderIP == None or forwarderPort == None:
+    forwarderIP = "127.0.0.1"
+    forwarderPort = 12345
+  
+  # Create NATConnection to forwarder
+  natcon = NATConnection(localmac, forwarderIP, forwarderPort,timeout)
+  # Connect to desired server, get socket
+  socket = natcon.initClientConnection(destmac)
+  return socket
+
+# Wrapper function around the NATLayer for servers  
+def nat_waitforconn(localmac, localport, function, forwarderIP=None, forwarderPort=None):
+  """
+  <Purpose>
+    Allows a server to accept connections from behind a NAT.
+    
+  <Arguments>
+    localmac:
+        The unique MAC used to identify this server
+        
+    localport:
+        N/A, used for compatibility
+        
+    function:
+        User function to call when a client connects.
+        The function to call. It should take five arguments: 
+          (remotemac, remoteport, socketlikeobj, thiscommhandle, listencommhandle)
+          If your function has an uncaught exception, 
+          the socket-like object it is using will be closed.
+        
+        * remoteport will be None, since it is N/A
+        * thiscommhandle will be None, since it is N/A
+
+    forwarderIP:
+      Force a forwarder to connect to. This will be automatically resolved if None.
+      forwarderPort must be specified if this is None.
+      
+    forwarderPort:
+      Force a forwarder port to connect to. This will be automatically resolved if None.
+      forwarderIP must be specified if this is None.           
+  
+  <Side Effects>
+    An event will be used to monitor new connections
+    
+  <Returns>
+    A NATConnection object, this can be used with nat_stopcomm to stop listening.      
+  """
+  # TODO: Dennis you need to tie in here to get a real forwarder IP and port
+  if forwarderIP == None or forwarderPort == None:
+    forwarderIP = "127.0.0.1"
+    forwarderPort = 12345 
+  
+  # Create NATConnection to forwarder
+  natcon = NATConnection(localmac, forwarderIP, forwarderPort)
+  natcon.initServerConnection()
+  
+  # Compatibility wrapper
+  # NATCon calls with (remotemac, socketlikeobj, thisnatcon)
+  # We call user function with remotemac, None, socketlikeobj, None, thisnatcon
+  #waitCompatibility = lambda remotemac, socketlikeobj, thisnatcon: function(remotemac, None, socketlikeobj, None, thisnatcon) 
+  def waitCompatibility(remotemac, socketlikeobj, thisnatcon):
+    function(remotemac, None, socketlikeobj, None, thisnatcon)   
+  
+  # Setup waitforconn, use compatibility wrapper
+  natcon.waitforconn(waitCompatibility)
+  
+  # Return the natcon, for stopcomm
+  return natcon
+
+# Stops the socketReader for the given natcon  
+def nat_stopcomm(natcon):
+  """
+  <Purpose>
+    Stops listening on a NATConnection, opened by nat_waitforconn
+    
+  <Arguments>
+    natcon:
+        NATConnection object, also returned by nat_waitforconn.
+  
+  <Remarks>
+    If any clients are connected to the server (e.g. sockets remain open), calling this will prevent them
+    from receiving new data.
+  """
+  natcon.stopcomm()
+  
