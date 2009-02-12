@@ -779,7 +779,14 @@ def getdonations(request):
         An HTTP response object that represents the getdonations page on
         succes. A redirect to a login page on error.
     """
-    return direct_to_template(request,'control/getdonations.html', {})
+    # validate user        
+    ret,success = __validate_guser__(request)
+    if not success:
+        print "user invalid"
+        return ret
+    geni_user = ret
+
+    return direct_to_template(request,'control/getdonations.html', {'username' : geni_user.www_user.username})
 
 ########################## Functions dealing with Ajax pages
 
