@@ -836,6 +836,10 @@ class NATConnection():
   
   # Handles a new client connecting
   def _new_client(self, fromMac, frame):
+    # If there is no user function to handle this, then just return
+    if self.frameHandler == None:
+      return
+    
     # Get the main dictionary lock
     self.clientDataLock.acquire()
     
