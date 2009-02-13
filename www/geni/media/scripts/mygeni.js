@@ -113,7 +113,10 @@ function edit_block(username, width) {
 	if (username != "Free") {
 		$.post("http://128.208.3.86:8081/geni_dev_sean/control/ajax_editshare",
 				{ username: username, percent: width },
-				function (data) { alert(data) },
+				function (data) {
+					json = eval('(' + data + ')');
+					alert(json); 
+				},
 				"json");
 
 		var block = $("#usage" + username);
