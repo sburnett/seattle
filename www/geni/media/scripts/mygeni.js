@@ -239,6 +239,9 @@ function share_resources_dialog() {
 }
 
 function close_dialog() {
+    if ($(this).parent().children(".warning") != null) {
+	$(this).parent().children(".warning").remove();
+    }
 	$(this).parent().hide();
 	$("#dialogframe").hide();
 	$("#overlay").hide();
@@ -248,12 +251,15 @@ function close_dialog() {
 function share_resources() {
 	var username = $("#shareresourcesdialog #username").val();
 	var percent = parseInt($("#shareresourcesdialog #percent").val());
-	
+	if ($("#shareresourcesdialog .warning") != null) {
+	    $("#shareresourcesdialog .warning").remove();
+	}
+
 	if (percent > 0) {
 		$.post("http://128.208.3.86:8081/geni_dev_sean/control/ajax_createshare",
 				{ username: username, percent: percent },
 				function (data) {
-					var json = eval(data);
+					var json = eval('(' + data + ')');
 					if (json.success) {
 						$("#shareresourcesdialog").hide();
 						$("#dialogframe").hide();
@@ -271,7 +277,7 @@ function share_resources() {
 
 
 function create_warning(error, position) {
-	var warning = $(document.createElement("span"));
+	var warning = $(document.createElement("p"));
 	warning.text(error);
 	warning.addClass("warning");
 	warning.insertAfter(position);
