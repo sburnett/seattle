@@ -108,11 +108,6 @@ def write_to_client(client_address,server_address):
         drop_client(client_address,server_address)
         break;      
 
-      #send new buff size to server
-      size_avail = this_client['to_client_buff_MAX'] - get_buff_size(buffer)
-      frame = NATFrame()
-      frame.initAsConnBufSizeMsg(client_address,size_avail)
-      this_server['to_server_buff'].append(frame.toString())
     
     sleep(SAMPLE_TIME)
 
@@ -155,17 +150,27 @@ def read_from_server(server_address):
     except KeyError:
       print "Client: "+client_address+" requested by server: "+server_address+" is not connected"
       client_connected = False
-       #TODO, tell the server this client is not connected
+       
 
     # is the client connected to this server?
     if client_connected:    
-
+      
       # is this a data frame
       if frame.frameMesgType == DATA_FORWARD and frame.frameContentLength != 0:
-      
+        
+        buffer = this_client['to_client_buff']
+
+        # if the servers outgoingAvail is now empty send it the buffer size     
+        this_client['to_client_buff_current'] =- frame.frameContentLength
+        if this_client['to_client_buff_current'] < 1:
+          
+          size_avail = this_client['to_client_buff_MAX'] - get_buff_size(buffer)
+          buff_frame = NATFrame()
+          buff_frame.initAsConnBufSizeMsg(client_address,size_avail)
+          this_server['to_server_buff'].append(buff_frame.toString())
+
         # send the message to the to_client_buff, if the client exisits
         if client_address in client:    
-          buffer = this_client['to_client_buff']
           buffer.append(frame.frameContent)
 
 
@@ -312,9 +317,10 @@ def newconn(socket, frame):
   elif frame.frameMesgType == INIT_CLIENT:
     serverMac = frame.frameContent
     found_server = (serverMac in server)
-    
+
     # is the server available
     if found_server:
+      this_server = server[serverMac]
       client_address = frame.frameMACAddress
       
       print "Connected Client: "+client_address+" to server: "+serverMac
@@ -326,16 +332,18 @@ def newconn(socket, frame):
       if client_address in client:
         client[client_address][serverMac] = {"socket":socket,
         "to_client_buff":buff,
-        'to_client_buff_MAX':server[serverMac]['default_server_buff_size'],
-        'server_buff_size':server[serverMac]['default_server_buff_size'],
+        'to_client_buff_MAX':this_server['default_server_buff_size'],
+        'to_client_buff_current':this_server['default_server_buff_size'],
+        'server_buff_size':this_server['default_server_buff_size'],
         'buff_size_lock':getlock()}
       
       # is this an initial connection
       else: 
         client[frame.frameMACAddress]= {serverMac:{"socket":socket,
         "to_client_buff":buff,
-        'to_client_buff_MAX':server[serverMac]['default_server_buff_size'],
-        'server_buff_size':server[serverMac]['default_server_buff_size'],
+        'to_client_buff_MAX':this_server['default_server_buff_size'],
+        'to_client_buff_current':this_server['default_server_buff_size'],
+        'server_buff_size':this_server['default_server_buff_size'],
         'buff_size_lock':getlock()}}
       
       # send a response
@@ -351,7 +359,7 @@ def newconn(socket, frame):
         print "Dropped Client: "+client_address
       
       # Tell the server it has this client
-      server[serverMac]['to_server_buff'].append(frame.toString())
+      this_server['socket'].send(frame.toString())
 
       # start threads to read and write from this client socket
       settimer(0,read_from_client,[client_address,serverMac])
@@ -373,7 +381,7 @@ def newconn(socket, frame):
 
 
 
-# Does everything    
+# Start the forwarder 
 if callfunc == "initialize":
   
   # Initialize the NAT channel
