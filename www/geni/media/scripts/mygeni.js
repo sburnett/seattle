@@ -282,9 +282,13 @@ function update_blocks(type, data) {
 		var usage = $("#usage");
 		var usagenames = $("#usagenames");
 		json = eval('(' + data + ')');
+		var total_percent = 0;
 		for (var i = 0; i < json.length; i++) {
 			create_block(usage, json[i].username, json[i].percent, true);
 			create_label(usagenames, json[i].username, json[i].percent, true);
+			total_percent += json[i].percent;
 		}
+		create_block(usage, "Free", 100 - total_percent, true);
+		create_label(usagenames, "Free", 100 - total_percent, true);
 	}
 }
