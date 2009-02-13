@@ -1,199 +1,384 @@
 include NATLayer.py
 
-# Must be pre-processed by repypp
-# Takes 2 arguments, IP to listen on and Port
+# This forwarder uses the NATLayer protocol to multiplex connections between
+# servers and clients.  The majority of work is done by 4 types of threads.
+#   read_from client: reads from a client socket and writes to a buffer
+#   write to client: reads from a buffer and writes to a client
+#   read_from server: reads from a server, writes to a buffer
+#   write to server: reads from a buffer, writes to a server
+#
+# Writen be Eric Kimbrel Feb 2009
 
-# How much should we sample for the client sockets?
-DATA_CHUNK = 1024
 
-# How often should we sample the client sockets? (Time in seconds)
-# Really, this is just how often new events are launched for each socket
-SAMPLE_TIME = .25
 
-events = {} # Tracks live events, servers
-eventsClt = {} # For clients
-client = {} # Tracks connected clients
-server = {} # Tracks connected servers
+# print out everything the forwarder sends / recieves
+TRACE = False
 
-RESTART_INTERVAL = 1 # How many seconds between checking main loop status
 
-# Checks all the sockets for data, and forwards everything
-# Im considering making this method into two seperate threads
-# one for checking server sockets, and another for the client
-# sockets.  
-def run():
-  try:
-    # We are running now...
-    mycontext['MAIN_LOOP_RUNNING'] = True
-    while True:
+# How often should we sample sockets? (Time in seconds)
+SAMPLE_TIME = .05
+
+
+
+# Track connected clients
+# {client_address:{server_address:{}}}
+client = {} 
+
+# Track connected servers
+# {server_address:{}}
+server = {} # connected server key: value -> serverMacaddress:{}
+
+
+# Read from a client
+def read_from_client(client_address,server_address):
+  while (True):
     
-      # Start an event for each server socket
-      mycontext['srv-lock'].acquire()
-      for srv in server:
-        if not srv in events:
-          #print "Sampling Server ", srv
-          events[srv] = settimer(0,checkServerSocket,[srv,server[srv]])
-      mycontext['srv-lock'].release()
-
-      # Start an event for each client socket
-      mycontext['cl-lock'].acquire()
-      for clt in client:
-        if not clt in eventsClt:
-          #print "Sampling Client ", clt
-          eventsClt[clt] = settimer(0,checkClientSocket,[clt,client[clt]])
-      mycontext['cl-lock'].release()
-    
-      sleep(SAMPLE_TIME)
-  except:
-    # Set the flag, so we restart
-    print "Exception in Main Loop!"
-
-  finally:
-    # Set the flag that we are stopped, so the main thread restarts us
-    mycontext['MAIN_LOOP_RUNNING'] = False
-
-# Checks a client socket for data
-  # Armon, i changed the arguments so this method does not have to read
-  # the client data structure and -> does not wait for a lock to start
-def checkClientSocket(clt,cltinfo):
-  #cltinfo = client[clt]
-  
-  # Run as long as possible, and clean-up on error
-  try:
-    while True:
-          
-      data = cltinfo["socket"].recv(DATA_CHUNK)
-  
-      # Is there any data?
-      if len(data) != 0:
-        # Setup a frame, and send it to the server
-        # TODO: make this thread-safe
-        frame = NATFrame()
-        frame.initAsDataFrame(clt,data)
-        server[cltinfo["server"]].send(frame.toString())
-      else:
-        # Connection is closed, shutdown socket and thread
-        raise Exception, "Client Disconnected!"
-
-  except Exception, exp:
-    # Exit cleanly, close the socket
-    # TODO: send CONN_TERM to connected server
-    print "Exception Checking Client Socket! ", type(exp), exp
-    mycontext['cl-lock'].acquire()
+    # if this client or server is not connected break
     try:
-      client[clt]["socket"].close()
-    except:
-      pass
-    del client[clt]
-    mycontext['cl-lock'].release()
-      
-  finally:
-    # Clean-up
-    mycontext['cl-lock'].acquire()
-    if clt in eventsClt:
-      del eventsClt[clt]
-    mycontext['cl-lock'].release()
-    
+      this_client = client[client_address][server_address]
+      this_server = server[server_address]
+    except KeyError:
+      print "stopping read thread for client: "+client_address+" to server: "+server_address
+      break
+ 
+    # read from the client the amount specified in server_buff_size
+    buffer_avialable = this_client['server_buff_size']
+    data=''
 
-# Checks a server socket for data
-# TODO: handle other server requests, like CONN_TERM and CONN_BUF_SIZE
-  # Armon, i changed the arguments so this method does not have to read
-  # the server data structure and -> does not wait for a lock to start
-def checkServerSocket(srv,sock):
-  # Run as long as possible, and clean-up on error
-  try:
-    while True:
-      # Get data from the server socket as a frame
+    try:
+      data = this_client['socket'].recv(buffer_avialable)
+    except Exception, e:
+      if "socket" not in str(type(e)) and "Socket" not in str(e):
+        raise
+      print "SocketError occured reading from client: "+client_address
+      drop_client(client_address,server_address)
+      print "Dropped client: "+client_address
+      break #stops this thread
+
+
+    # if data is non null send it to the to_server_buffer
+    if (len(data) != 0):
       frame = NATFrame()
-      frame.initFromSocket(sock)
-  
-      # Handle the case where the server is forwarded non-null data
-      if frame.frameMesgType == DATA_FORWARD and frame.frameContentLength != 0:
-        try:
-          clt = frame.frameMACAddress
-          clientSock = client[clt]["socket"]
-          clientSock.send(frame.frameContent)
-        except KeyError:
-          # The client is no longer connected...
-          # TODO send server CONN_CLOSE
-          pass
+      frame.initAsDataFrame(client_address,data)
+       
+      if TRACE:
+        print "recived "+data+" from client"
 
-  except Exception, exp:
-    # Exit cleanly, and close the socket
-    # TODO: close the connection to all clients connected to this server
-    print "Exception Checking Server Socket! ", type(exp), exp
-    mycontext['srv-lock'].acquire()
-    try:
-      server[srv]["socket"].close()
-    except:
-      pass
-    del server[srv]
-    mycontext['srv-lock'].release()
+      # send the frame as a string to the outgoing buffer
+      this_server['to_server_buff'].append(frame.toString())  
+
+    #decrement server_buf_size by len(data) (make atomic)
+    this_client['buff_size_lock'].acquire()
+    this_client['server_buff_size'] -= len(data)
+    this_client['buff_size_lock'].release()
+
+    sleep(SAMPLE_TIME)
+
+
+
+def write_to_client(client_address,server_address):
+  while (True):
   
-  finally:
-    # Clean-up
-    mycontext['srv-lock'].acquire()
-    if srv in events:
-      del events[srv]
-    mycontext['srv-lock'].release()
+    # if this client or server is not connected break
+    try:
+      this_client = client[client_address][server_address]
+      this_server = server[server_address]
+    except KeyError:
+      print"stopping write thread to: "+client_address+" from server: "+server_address
+      break
+    
+
+    buffer = this_client['to_client_buff']
+
+    # get the data off the to client buffer
+    if len(buffer) > 0:
+      data = buffer.pop()
+
+      if TRACE:
+        print "writing to client: "+data
+
+      # write to the client
+      try:
+        this_client['socket'].send(data)
+      except Exception, e:
+        if "socket" not in str(type(e)) and "Socket" not in str(e):
+          raise
+        print "Client socket error occured writing to client: ",
+        client_address," server: ",server_address
+        drop_client(client_address,server_address)
+        break;      
+
+      #send new buff size to server
+      size_avail = this_client['to_client_buff_MAX'] - get_buff_size(buffer)
+      frame = NATFrame()
+      frame.initAsConnBufSizeMsg(client_address,size_avail)
+      this_server['to_server_buff'].append(frame.toString())
+    
+    sleep(SAMPLE_TIME)
+
+
+
+def read_from_server(server_address):
+  while (True):
+    
+    # if this server is not connected break
+    try:
+      this_server = server[server_address]
+    except KeyError:
+      print "stopping read thread server: "+server_address
+      break
+
+    # get the message
+    frame = NATFrame()
+    
+    # read from the socket
+    try:
+      frame.initFromSocket(this_server['socket'])
+    except Exception, e:
+      if ("socket" not in str(type(e))) and "Socket" not in str(e) and  ("Header" not in str(e)):
+        raise
+      if "socket" in str(e):
+        print "Socket Error reading from server: "+server_address
+      elif "Header" in str(e):
+        print "Header Size Error reading from server: "+server_address
+      drop_server(server_address)
+      break
+
+    if TRACE:
+      print "server sent: "+frame.toString()
+
+
+    client_address = frame.frameMACAddress 
+    client_connected = True
+    try:
+      this_client = client[client_address][server_address]
+    except KeyError:
+      print "Client: "+client_address+" requested by server: "+server_address+" is not connected"
+      client_connected = False
+       #TODO, tell the server this client is not connected
+
+    # is the client connected to this server?
+    if client_connected:    
+
+      # is this a data frame
+      if frame.frameMesgType == DATA_FORWARD and frame.frameContentLength != 0:
+      
+        # send the message to the to_client_buff, if the client exisits
+        if client_address in client:    
+          buffer = this_client['to_client_buff']
+          buffer.append(frame.frameContent)
+
+
+      # is this a CONN_TERM frame
+      elif frame.frameMesgType == CONN_TERM:
+        print "Server terminated connection between:\n\tServer: "+server_address+"\n\tClient: "+client_address
+        drop_client(client_address,server_address)
+
+      # is this a CONN_BUFF_SIZE message
+      elif frame.frameMesgType == CONN_BUF_SIZE:
+        this_client['buff_size_lock'].acquire()
+        this_client['server_buff_size'] = int(frame.frameContent)       
+        this_client['buff_size_lock'].release()
+
+
+    sleep(SAMPLE_TIME)
+
+
+
+# Write to a server
+def write_to_server(server_address):
+  while (True):
+    
+    # if this server is not connected break
+    try:
+      this_server = server[server_address]
+    except KeyError:
+      print "stopping write thread to server: "+server_address
+      break
+
+    # get the next message off the buffer
+    if len(this_server['to_server_buff']) >0:
+      outgoing_frame_str = this_server['to_server_buff'].pop()
+    
+      
+
+      try:
+        this_server['socket'].send(outgoing_frame_str)
+      except Exception,e:
+        if "socket" not in str(type(e)) and "Socket" not in str(e):
+          raise
+        print "Socket Error while writeing to server: "+server_address
+        drop_server(server_address)
+        print "dropped server: "+server_address
+        break    
+     
+      if TRACE:
+        print "sent "+outgoing_frame_str+" to server"    
+
+
+    sleep(SAMPLE_TIME)
+
+
+# copy a list of strings and return the size of the copy
+def get_buff_size(str_list):
+  list_copy = [x for x in str_list]
+  total_length=0
+  for str in list_copy:
+    total_length= total_length + len(str)
+  return total_length
+
+
+#terminate a server connection
+def drop_server(server_address):
+  # drop all clients connected to the server
+  
+  # get a list of clients connected to this server
+  # without iterating through the client dictionary
+  clients_connected_to_server=[]
+  client_address_list = client.keys()
+  for client_address in client_address_list:
+    if server_address in client[client_address].keys():
+      clients_connected_to_server.append(client_address)
+  
+  for client_address in clients_connected_to_server:
+    drop_client(client_address,server_address)
+  
+
+  # drop the server
+  try:
+    server[server_address]['socket'].close()
+    del server[server_address]
+  except KeyError:
+    return
+
+
+#terminate a client connection
+def drop_client(client_address,server_address):
+
+  try:
+    client[client_address][server_address]['socket'].close()
+
+    # remove connections from the client data structure
+    del client[client_address][server_address]
+
+    # tell the server this connection is gone
+    frame = NATFrame()
+    frame.initAsConnTermMsg(client_address)
+    if server_address in server:
+      server[server_address]['to_server_buff'].append(frame.toString())
+
+    # if the client is connected to no one, remove it entirely
+    if len(client[client_address]) < 1:
+      del client[client_address]
+   
+  except KeyError:
+    return
+
 
 
 # Handles a new connection to the forwarder
-# Should this launch an event? Maybe.
-def handleit(socket, frame):
-  # Setup server, and acknowledge it
+def newconn(socket, frame):
+  
+  # INIT SERVER
+  # TODO handle the -1 connbuff size option
   if frame.frameMesgType == INIT_SERVER:
-    mycontext['srv-lock'].acquire()
-    server[frame.frameMACAddress] = socket
+    
+    print "Connected to new server: "+frame.frameMACAddress  
+
+    # declare a new buffer to store data from clients to the server
+    buff =  []
+    
+    # setup the main server data structure
+    server[frame.frameMACAddress] = {"socket":socket,
+    "default_server_buff_size":int(frame.frameContent),"to_server_buff":buff}
+
+    # send a response to the server
     resp = NATFrame()
     resp.initAsForwarderResponse(STATUS_CONFIRMED)
-    socket.send(resp.toString())
-    mycontext['srv-lock'].release()
+    try:
+      socket.send(resp.toString())
+    except Exception, e:
+      if "socket" not in str(type(e)) and "Socket" not in str(e):
+        raise
+      drop_server(frame.frameMACAddress)
+      print "SocketError occured sending Status_Confirm Response to server: "+frame.frameMACAddress
+    
 
-  # Setup client, and acknowledge
-  # TODO: keep track of number of client -> server connections  and implement
-  # STATUS_BSY_SERVER
-  if frame.frameMesgType == INIT_CLIENT:
+    # launch threads to handle this server
+    settimer(0,read_from_server,[frame.frameMACAddress])
+    settimer(0,write_to_server,[frame.frameMACAddress])
+
+  # INIT CLIENT
+  elif frame.frameMesgType == INIT_CLIENT:
     serverMac = frame.frameContent
-    mycontext['srv-lock'].acquire()
     found_server = (serverMac in server)
-    mycontext['srv-lock'].release()
+    
+    # is the server available
     if found_server:
-      mycontext['cl-lock'].acquire()
-      client[frame.frameMACAddress] = {"socket":socket,"server":frame.frameContent}
+      client_address = frame.frameMACAddress
+      
+      print "Connected Client: "+client_address+" to server: "+serverMac
+
+      # buffer for messages from server to client
+      buff = []      
+
+      # is the client already connected
+      if client_address in client:
+        client[client_address][serverMac] = {"socket":socket,
+        "to_client_buff":buff,
+        'to_client_buff_MAX':server[serverMac]['default_server_buff_size'],
+        'server_buff_size':server[serverMac]['default_server_buff_size'],
+        'buff_size_lock':getlock()}
+      
+      # is this an initial connection
+      else: 
+        client[frame.frameMACAddress]= {serverMac:{"socket":socket,
+        "to_client_buff":buff,
+        'to_client_buff_MAX':server[serverMac]['default_server_buff_size'],
+        'server_buff_size':server[serverMac]['default_server_buff_size'],
+        'buff_size_lock':getlock()}}
+      
+      # send a response
       resp = NATFrame()
       resp.initAsForwarderResponse(STATUS_CONFIRMED)
-      socket.send(resp.toString())
-      mycontext['cl-lock'].release()
+      try:
+        socket.send(resp.toString())
+      except Exception, e:
+        if "socket" not in str(type(e)) and "Socket" not in str(e):
+          raise
+        print "SocketError occured sending Status Confirmed to client: "+client_address
+        drop_client(frame.frameMACAddress,serverMac)
+        print "Dropped Client: "+client_address
+      
+      # Tell the server it has this client
+      server[serverMac]['to_server_buff'].append(frame.toString())
 
-    else: # Server is not available on forwarder, error.
+      # start threads to read and write from this client socket
+      settimer(0,read_from_client,[client_address,serverMac])
+      settimer(0,write_to_client,[client_address,serverMac])
+
+    # The server is not available
+    else:
       resp = NATFrame()
       resp.initAsForwarderResponse(STATUS_NO_SERVER)
-      socket.send(resp.toString())
-      socket.close()
+      try:
+        socket.send(resp.toString())
+      except Exception,e:
+        if "socket" not in str(type(e)) and "Socket" not in str(e):
+          raise
+        print "SocketError occured sending STATUS_NO_SERVER to client: "+frame.frameMACAddress
+        drop_client(frame.frameMACAddress,serverMac)
+        print frame.frameMACAddress+" has been dropped"
+
+
 
 
 # Does everything    
 if callfunc == "initialize":
- 
-  #setup locks for client and server data structures  
-  mycontext['srv-lock'] =getlock()
-  mycontext['cl-lock'] =getlock()
   
   # Initialize the NAT channel
-  natcon = NATConnection(FORWARDER_MAC, callargs[0], int(callargs[1]))
-  #natcon = NATConnection(FORWARDER_MAC,"127.0.0.1" , 12345)
+  # natcon = NATConnection(FORWARDER_MAC, callargs[0], int(callargs[1]))
+  natcon = NATConnection(FORWARDER_MAC,"127.0.0.1" , 12345)
 
-  # Setup our process to handle everything
-  natcon.frameHandler = handleit
-  
-  # Its not running yet...
-  mycontext['MAIN_LOOP_RUNNING'] = False
-  
-  while True:
-    # Start / Restart the main loop
-    if not mycontext['MAIN_LOOP_RUNNING']:
-      print "Starting Main Loop..."
-      # Check all the sockets once in a while
-      settimer(0,run,[])
-    sleep(RESTART_INTERVAL)
+  # Setup our process to handle new connections
+  natcon.frameHandler = newconn
