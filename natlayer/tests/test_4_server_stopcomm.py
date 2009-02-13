@@ -113,9 +113,6 @@ if callfunc == "initialize":
   clientnat2 = NATConnection(clientMac2, "127.0.0.1", 12345)
   clientsock2 = clientnat2.initClientConnection(serverMac)
   
-  clientnat3 = NATConnection(clientMac3, "127.0.0.1", 12345)
-  clientsock3 = clientnat3.initClientConnection(serverMac)
-  
   # Setup timer to kill us if we exceed our time limit
   handle = settimer(TIME_LIMIT, long_execution, ())
   
@@ -128,6 +125,10 @@ if callfunc == "initialize":
   
   # Now we issue a stopcomm, so client 3 should never connect with a virtual socket
   natcon.stopcomm()
+  
+  # Initialize client 3 after stopcomm
+  clientnat3 = NATConnection(clientMac3, "127.0.0.1", 12345)
+  clientsock3 = clientnat3.initClientConnection(serverMac)
   
   # Launch a thread to check that the socket is still operational after stopcomm
   # this just checks that one of client 3's frames got through

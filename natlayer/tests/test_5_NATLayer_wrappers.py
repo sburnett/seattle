@@ -111,7 +111,6 @@ if callfunc == "initialize":
   # Setup client sockets, force use of local forwarder for the tests
   clientsock1 = nat_openconn(serverMac, None, clientMac1, forwarderIP="127.0.0.1",forwarderPort=12345)
   clientsock2 = nat_openconn(serverMac, None, clientMac2, forwarderIP="127.0.0.1",forwarderPort=12345)
-  clientsock3 = nat_openconn(serverMac, None, clientMac3, forwarderIP="127.0.0.1",forwarderPort=12345)
   
   # Setup timer to kill us if we exceed our time limit
   handle = settimer(TIME_LIMIT, long_execution, ())
@@ -122,6 +121,9 @@ if callfunc == "initialize":
   
   # Now we issue a stopcomm, so client 3 should never connect with a virtual socket
   nat_stopcomm(natcon)
+  
+  # Now setup client 3's socket
+  clientsock3 = nat_openconn(serverMac, None, clientMac3, forwarderIP="127.0.0.1",forwarderPort=12345)
   
   # Launch a thread to check that the socket is still operational after stopcomm
   # this just checks that one of client 3's frames got through

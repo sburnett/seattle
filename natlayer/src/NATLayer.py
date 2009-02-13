@@ -362,7 +362,8 @@ class NATFrame():
 # This helps abstract the details of a NAT connection    
 class NATConnection():
   # Keeps track of the last error during init client/server
-  # In the case of recvTuple, this becomes an array of non-handled frames (e.g. non- DATA_FORWARD)
+  # After a successful init (client or server) it becomes a list
+  # recvTuple appends all non-handled frames (e.g. non- DATA_FORWARD)
   error = None 
   ourMAC = "" # What is our MAC?
   connectionInit = False # Is everything setup?
@@ -567,6 +568,7 @@ class NATConnection():
     # Return the socket if everything is ready
     if frResp.frameContent == STATUS_CONFIRMED:
       self.connectionInit = True
+      self.error = []
       return self.socket
       
     # Otherwise, set the error message, and return none
@@ -623,6 +625,7 @@ class NATConnection():
     # Return the socket if everything is ready
     if frResp.frameContent == STATUS_CONFIRMED:
       self.connectionInit = True
+      self.error = []
       return True
       
     # Otherwise, set the error message, and return none
@@ -656,6 +659,8 @@ class NATConnection():
     if self.socketReaderUnhandledFrame != None:
       frame = self.socketReaderUnhandledFrame
       self.socketReaderUnhandledFrame = None
+      # DEBUG
+      #print "NATConnection.recv.UnhandledFrame: ", frame
       return frame
             
     # Init frame
@@ -670,6 +675,9 @@ class NATConnection():
     finally:
       # Release the lock
       self.readLock.release()
+    
+    # DEBUG
+    #print "NATConnection.recv: ", frame
     
     # Return the frame
     return frame
@@ -693,15 +701,13 @@ class NATConnection():
     # Check if we are initialized
     if not self.connectionInit:
       raise AttributeError, "NAT Connection is not yet initialized!"
-
-    # Set the error field to an array, append all non-data forward frames
-    self.error = [] 
     
     # Only return a data frame
     while True:
       # Read in a frame
       frame = self.recv()
       
+      # Append the frame to the error array
       if frame.frameMesgType != DATA_FORWARD:
         self.error.append(frame)
       else:
@@ -802,16 +808,17 @@ class NATConnection():
   
   # Handles a client closing a connection
   def _closeCONN(self,fromMac):
-    # We just need to set the closed flag, since the socket will detect that and close itself
+    # Check if this client is even connected
+    if self._isConnected(fromMac):    
+      # We just need to set the closed flag, since the socket will detect that and close itself
+      # Lock the client
+      self.clientDataBuffer[fromMac]["lock"].acquire()
     
-    # Lock the client
-    self.clientDataBuffer[fromMac]["lock"].acquire()
+      # Set it to be closed
+      self.clientDataBuffer[fromMac]["closed"] = True
     
-    # Set it to be closed
-    self.clientDataBuffer[fromMac]["closed"] = True
-    
-    # Unlock
-    self.clientDataBuffer[fromMac]["lock"].release()
+      # Unlock
+      self.clientDataBuffer[fromMac]["lock"].release()
 
   # Handles a forwarder CONN_BUF_SIZE message
   # Increases the amount we can send out
@@ -819,28 +826,34 @@ class NATConnection():
     # Return if we are not buffering
     if (self.defaultBufSize == -1):
       return
-      
-    # Lock the client
-    self.clientDataBuffer[fromMac]["lock"].acquire()
     
-    # Set it to the new amount
-    self.clientDataBuffer[fromMac]["outgoingAvailable"] = num
+    # Only do this if the client is connected...
+    if self._isConnected(fromMac):  
+      # Lock the client
+      self.clientDataBuffer[fromMac]["lock"].acquire()
     
-    # Release the outgoing lock, this unblocks socket.send
-    try:
-      self.clientDataBuffer[fromMac]["outgoingLock"].release()
-    except:
-      # That means the lock was already released, which means we have an unexpected 
-      # CONN_BUF_SIZE message...
-      pass
+      # Set it to the new amount
+      self.clientDataBuffer[fromMac]["outgoingAvailable"] = num
     
-    # Unlock
-    self.clientDataBuffer[fromMac]["lock"].release()
+      # Release the outgoing lock, this unblocks socket.send
+      try:
+        self.clientDataBuffer[fromMac]["outgoingLock"].release()
+      except:
+        # That means the lock was already released, which means we have an unexpected 
+        # CONN_BUF_SIZE message...
+        pass
+    
+      # Unlock
+      self.clientDataBuffer[fromMac]["lock"].release()
   
   # Handles a new client connecting
   def _new_client(self, fromMac, frame):
     # If there is no user function to handle this, then just return
     if self.frameHandler == None:
+      return
+      
+    # If the client is already connected, then just return
+    if self._isConnected(fromMac):
       return
     
     # Get the main dictionary lock
@@ -855,6 +868,9 @@ class NATConnection():
     "incomingAvailable":self.defaultBufSize, # Amount the forwarder can still send us
     "outgoingAvailable":self.defaultBufSize, # Amount we can send the forwarder
     "outgoingLock":getlock()} # This allows us to block socket.send while we wait for a CONN_BUF_SIZE message from the forwarder.
+    
+    # By default there is no data, so set the lock
+    self.clientDataBuffer[fromMac]["nodatalock"].acquire()
     
     # If the frame is a data frame, add the data
     if frame.frameMesgType == DATA_FORWARD:
@@ -919,6 +935,8 @@ class NATConnection():
         frame = self.recv()
         fromMac = frame.frameMACAddress
         frameType = frame.frameMesgType
+        #DEBUG
+        #print "NATConnection._socketReader: ", frame
       except:
         # This is probably because the socket is now closed, so lets loop around and see
         continue
