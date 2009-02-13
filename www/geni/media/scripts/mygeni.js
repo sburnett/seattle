@@ -247,7 +247,7 @@ function close_dialog() {
 
 function share_resources() {
 	var username = $("#shareresourcesdialog #username").val();
-	var percent = $("#shareresourcesdialog #percent").val();
+	var percent = parseInt($("#shareresourcesdialog #percent").val());
 	
 	if (percent > 0) {
 		$.post("http://128.208.3.86:8081/geni_dev_sean/control/ajax_createshare",
