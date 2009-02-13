@@ -107,9 +107,15 @@ function create_block(bar, username, width, isClosable) {
 	Change the block's width both in terms of its label and
 	actual width. Resize free block to	fit the width of the bar.
 	Remove the block from the usage bar if width is 0
+	Called by save_percent or close on the block
 */
 function edit_block(username, width) {
 	if (username != "Free") {
+		$.post("http://128.208.3.86:8081/geni_dev_sean/control/ajax_editshare",
+				{ username: username, percent: width },
+				function (data) { alert(data) },
+				"json");
+
 		var block = $("#usage" + username);
 		var label = $("#labelusage" + username);
 		var old_percent = parseInt($("#usage" + username + " span").text());
@@ -148,7 +154,9 @@ function create_label(names, username, width, isClosable) {
 	names.append(label);
 }
 
-
+/*
+	Display the change percent dialog box
+*/
 function change_percent() {
 	var dialog = $(document.createElement("div"));
 	dialog.attr("id", "changepercentdialog");
@@ -179,6 +187,10 @@ function change_percent() {
 	$("#changepercentdialog").fadeIn("fast");
 }
 
+/*
+	Save the percent of the the block when click "save" on the
+	change_percent dialog box
+*/
 function save_percent() {
 	var input = $("#changepercentdialog input");
 	var percent = input.val();
