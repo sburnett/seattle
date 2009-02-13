@@ -1150,6 +1150,10 @@ class NATSocket():
     
         # Release the lock
         self.natcon.clientDataBuffer[self.clientMac]["lock"].release()
+        
+        # If there is no data left to send, then break
+        if len(data) == 0:
+          break
 
 
 
