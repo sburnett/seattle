@@ -74,7 +74,7 @@ function create_block(bar, username, width, isClosable) {
 			close.attr('href','#');
 			close.text('x');
 			close.click(function() {
-				$.post("http://128.208.3.86:8081/geni_dev_sean/control/ajax_editshare",
+				$.post("../control/ajax_editshare",
 						{ username: username, percent: width },
 						function (data) {
 							var json = eval('(' + data + ')');
@@ -186,7 +186,7 @@ function save_percent() {
 	var input = $("#changepercentdialog input");
 	var percent = input.val();
 	var username = input.attr("name").substring(5);
-	$.post("http://128.208.3.86:8081/geni_dev_sean/control/ajax_editshare",
+	$.post("../control/ajax_editshare",
 			{ username: username, percent: percent },
 			function (data) {
 				var json = eval(data);
@@ -257,7 +257,7 @@ function share_resources() {
 	}
 
 	if (percent > 0) {
-		$.post("http://128.208.3.86:8081/geni_dev_sean/control/ajax_createshare",
+		$.post("../control/ajax_createshare",
 				{ username: username, percent: percent },
 				function (data) {
 					var json = eval('(' + data + ')');
@@ -283,7 +283,7 @@ function get_resources() {
 	if ($("#getresourcesdialog .warning")) {
 	    $("#getresourcesdialog .warning").remove();
 	}
-	$.post("http://128.208.3.86:8081/geni_dev_sean/control/ajax_getvessels",
+	$.post("../control/ajax_getvessels",
 			{ numvessels: numvessels, env: env },
 			function (data) {
 				var json = eval('(' + data + ')');
@@ -335,10 +335,10 @@ function color_generator(username) {
 
 
 function load() {
-	$.post("http://128.208.3.86:8081/geni_dev_sean/control/ajax_getcredits",
+	$.post("../control/ajax_getcredits",
 		function (data) { update_blocks("credits", data); }, 
 		"json");
-	$.post("http://128.208.3.86:8081/geni_dev_sean/control/ajax_getshares",
+	$.post("../control/ajax_getshares",
 		function (data) { update_blocks("shares", data); }, 
 		"json");
 }
