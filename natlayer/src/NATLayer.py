@@ -918,6 +918,7 @@ class NATConnection():
       try:
         frame = self.recv()
         fromMac = frame.frameMACAddress
+        frameType = frame.frameMesgType
       except:
         # This is probably because the socket is now closed, so lets loop around and see
         continue
@@ -929,32 +930,30 @@ class NATConnection():
         break 
       
       # Handle INIT_CLIENT
-      if frame.frameMesgType == INIT_CLIENT:
+      if frameType == INIT_CLIENT:
         self._new_client(fromMac, frame)
-        continue
-      
+            
       # Handle CONN_TERM
-      if frame.frameMesgType == CONN_TERM:
+      elif frameType == CONN_TERM:
         self._closeCONN(fromMac)
-        continue
       
       # Handle CONN_BUF_SIZE
-      if frame.frameMesgType == CONN_BUF_SIZE:
+      elif frameType == CONN_BUF_SIZE:
         self._conn_buf_size(fromMac, int(frame.frameContent))
-        continue
           
-      # We only want to handle data forwarding requests, so panic
-      if frame.frameMesgType != DATA_FORWARD:
-        raise Exception, "Unhandled Frame type: ", frame.frameMesgType
-
-      # Does this client socket exists? If so, append to their buffer
-      if self._isConnected(fromMac):
-        self._incoming_client_data(fromMac, frame)
+      # Handle DATA_FORWARD
+      elif frameType == DATA_FORWARD:
+        # Does this client socket exists? If so, append to their buffer
+        if self._isConnected(fromMac):
+          self._incoming_client_data(fromMac, frame)
         
-      # This is a new client, we need to call the user callback function
+        # This is a new client, we need to call the user callback function
+        else:
+          self._new_client(fromMac, frame)
+      
+      # We don't know what this is, so panic    
       else:
-        self._new_client(fromMac, frame)
-
+        raise Exception, "Unhandled Frame type: ", frameType
 
 # A socket like object with an understanding that it is part of a NAT Connection
 # Has the same functions as the socket like object in repy
@@ -1136,7 +1135,7 @@ class NATSocket():
 
 #########################################################################
 ###  Wrappers around the NAT Objects
-###  These should integrate announce methods
+###  These should integrate lookup methods
 
 # Wrapper function around the NATLayer for clients        
 def nat_openconn(destmac, destport, localmac, localport=None, timeout = 5, forwarderIP=None,forwarderPort=None):
@@ -1232,7 +1231,6 @@ def nat_waitforconn(localmac, localport, function, forwarderIP=None, forwarderPo
   # Compatibility wrapper
   # NATCon calls with (remotemac, socketlikeobj, thisnatcon)
   # We call user function with remotemac, None, socketlikeobj, None, thisnatcon
-  #waitCompatibility = lambda remotemac, socketlikeobj, thisnatcon: function(remotemac, None, socketlikeobj, None, thisnatcon) 
   def waitCompatibility(remotemac, socketlikeobj, thisnatcon):
     function(remotemac, None, socketlikeobj, None, thisnatcon)   
   
