@@ -108,7 +108,18 @@ def write_to_client(client_address,server_address):
         drop_client(client_address,server_address)
         break;      
 
-    
+      # track the servers outgoing avaiable   
+      this_client['to_client_buff_current'] =- len(data)
+      # is the server waiting for a CONN_BUF SIZE message
+      if this_client['to_client_buff_current'] < 1:
+        size_avail = this_client['to_client_buff_MAX'] - get_buff_size(buffer)
+        if size_avail < 0:
+          size_avail = 0
+        buff_frame = NATFrame()
+        buff_frame.initAsConnBufSizeMsg(client_address,size_avail)
+        this_server['to_server_buff'].append(buff_frame.toString())
+
+
     sleep(SAMPLE_TIME)
 
 
@@ -123,7 +134,6 @@ def read_from_server(server_address):
       print "stopping read thread server: "+server_address
       break
 
-    # get the message
     frame = NATFrame()
     
     # read from the socket
@@ -159,19 +169,7 @@ def read_from_server(server_address):
       if frame.frameMesgType == DATA_FORWARD and frame.frameContentLength != 0:
         
         buffer = this_client['to_client_buff']
-
-        # if the servers outgoingAvail is now empty send it the buffer size     
-        this_client['to_client_buff_current'] =- frame.frameContentLength
-        if this_client['to_client_buff_current'] < 1:
-          
-          size_avail = this_client['to_client_buff_MAX'] - get_buff_size(buffer)
-          buff_frame = NATFrame()
-          buff_frame.initAsConnBufSizeMsg(client_address,size_avail)
-          this_server['to_server_buff'].append(buff_frame.toString())
-
-        # send the message to the to_client_buff, if the client exisits
-        if client_address in client:    
-          buffer.append(frame.frameContent)
+        buffer.append(frame.frameContent)
 
 
       # is this a CONN_TERM frame
@@ -205,7 +203,6 @@ def write_to_server(server_address):
     if len(this_server['to_server_buff']) >0:
       outgoing_frame_str = this_server['to_server_buff'].pop()
     
-      
 
       try:
         this_server['socket'].send(outgoing_frame_str)
@@ -308,7 +305,6 @@ def newconn(socket, frame):
       drop_server(frame.frameMACAddress)
       print "SocketError occured sending Status_Confirm Response to server: "+frame.frameMACAddress
     
-
     # launch threads to handle this server
     settimer(0,read_from_server,[frame.frameMACAddress])
     settimer(0,write_to_server,[frame.frameMACAddress])
@@ -357,10 +353,11 @@ def newconn(socket, frame):
         print "SocketError occured sending Status Confirmed to client: "+client_address
         drop_client(frame.frameMACAddress,serverMac)
         print "Dropped Client: "+client_address
-      
+        return
+    
       # Tell the server it has this client
-      this_server['socket'].send(frame.toString())
-
+      this_server['to_server_buff'].append(frame.toString())
+      
       # start threads to read and write from this client socket
       settimer(0,read_from_client,[client_address,serverMac])
       settimer(0,write_to_client,[client_address,serverMac])
