@@ -22,12 +22,12 @@ def new_client(remotemac, natsocket, thisnatcon):
 
   for i in range(10):
     mesg = natsocket.recv(1024)
-    print mesg
     if len(mesg) !=10:
       print "Error, server recieved message: "+mesg
-      print "message length should be less than 10"
+      print "message length should be 10"
     else:
       count +=1
+  
   
   canceltimer(timer)
   
