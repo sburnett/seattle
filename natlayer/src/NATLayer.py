@@ -1049,7 +1049,11 @@ class NATSocket():
     # Block until there is data
     # This lock is released whenever new data arrives, or if there is data remaining to be read
     self.natcon.clientDataBuffer[self.clientMac]["nodatalock"].acquire()
-    self.natcon.clientDataBuffer[self.clientMac]["nodatalock"].release()
+    try:
+      self.natcon.clientDataBuffer[self.clientMac]["nodatalock"].release()
+    except:
+      # Some weird timing issues can cause an exception, but it is harmless
+      pass
     
     # Get our own lock
     self.natcon.clientDataBuffer[self.clientMac]["lock"].acquire()
@@ -1109,8 +1113,12 @@ class NATSocket():
     while True:
       # Make sure we have available outgoing bandwidth
       self.natcon.clientDataBuffer[self.clientMac]["outgoingLock"].acquire()
-      self.natcon.clientDataBuffer[self.clientMac]["outgoingLock"].release()
-    
+      try:
+        self.natcon.clientDataBuffer[self.clientMac]["outgoingLock"].release()
+      except:
+        # Some weird timing issues can cause an exception, but it is harmless
+        pass
+        
       # Get our own lock
       self.natcon.clientDataBuffer[self.clientMac]["lock"].acquire()
       
