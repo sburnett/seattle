@@ -113,11 +113,10 @@ def write_to_client(client_address,server_address):
       # is the server waiting for a CONN_BUF SIZE message
       if this_client['to_client_buff_current'] < 1:
         size_avail = this_client['to_client_buff_MAX'] - get_buff_size(buffer)
-        if size_avail < 0:
-          size_avail = 0
-        buff_frame = NATFrame()
-        buff_frame.initAsConnBufSizeMsg(client_address,size_avail)
-        this_server['to_server_buff'].append(buff_frame.toString())
+        if size_avail > 0:
+          buff_frame = NATFrame()
+          buff_frame.initAsConnBufSizeMsg(client_address,size_avail)
+          this_server['to_server_buff'].append(buff_frame.toString())
 
 
     sleep(SAMPLE_TIME)
