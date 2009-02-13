@@ -110,13 +110,14 @@ function create_block(bar, username, width, isClosable) {
 	Called by save_percent or close on the block
 */
 function edit_block(username, width) {
-	if (username != "Free") {
-		$.post("http://128.208.3.86:8081/geni_dev_sean/control/ajax_editshare",
-				{ username: username, percent: width },
-				function (data) {
-					json = eval('(' + data + ')');
-					alert(json); 
-				},
+    if (username != "Free") {
+	$.post("http://128.208.3.86:8081/geni_dev_sean/control/ajax_editshare",
+	       { username: username, percent: width },
+	       function (data) {
+		   var json = eval(data);
+		   alert(json.success);
+		   alert(json.error);
+	       },
 				"json");
 
 		var block = $("#usage" + username);
