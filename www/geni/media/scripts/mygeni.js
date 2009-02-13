@@ -33,11 +33,7 @@ $(document).ready(function() {
 	create_label(usagenames, "Free", 35, true);
 	*/
 	
-//	$("#getresourcesbutton").click(get_resources_dialog);
-	$("#getresourcesdialog button").click(close_dialog);
-	
-//	$("#shareresources").click(share_resources_dialog);
-	$("#shareresourcesdialog button").click(close_dialog);
+
 	
 
 });
@@ -67,7 +63,7 @@ function create_block(bar, username, width, isClosable) {
 			block.append(get);
 			
 			var share = $(document.createElement('a'));
-			share.attr('id','shareresources');
+			share.attr('id','shareresourcesbutton');
 			share.attr('href','#');
 			share.text('share');
 			share.click(share_resources_dialog);
@@ -79,7 +75,7 @@ function create_block(bar, username, width, isClosable) {
 			close.text('x');
 			close.click(function() {
 				$.post("http://128.208.3.86:8081/geni_dev_sean/control/ajax_editshare",
-				       { username: username, percent: width },
+						{ username: username, percent: width },
 						function (data) {
 							var json = eval('(' + data + ')');
 							if (json.success) {
@@ -190,7 +186,6 @@ function save_percent() {
 	var input = $("#changepercentdialog input");
 	var percent = input.val();
 	var username = input.attr("name").substring(5);
-	alert(username);
 	$.post("http://128.208.3.86:8081/geni_dev_sean/control/ajax_editshare",
 			{ username: username, percent: percent },
 			function (data) {
@@ -201,11 +196,14 @@ function save_percent() {
 					$("#overlay").hide();
 					edit_block(username, percent);
 				} else {
+					create_warning(json.error, $("#changepercentdialog h3"));
+					/*
 					var warning = $(document.createElement("span"));
 					warning.text(json.error);
 					warning.addClass("warning");
 					$("#changepercentdialog").css("height", "160px");
 					warning.insertBefore($("#changepercentdialog").children("input"));
+					*/
 				}
 	   		},
 			"json");
@@ -224,11 +222,11 @@ function show_table(isClosable) {
 }
 
 
-
 function get_resources_dialog() {
 	$("#dialogframe").fadeIn("fast");
 	$("#overlay").fadeIn("fast");
 	$("#getresourcesdialog").fadeIn("fast");
+	$(".cancel").click(close_dialog);
 }
 
 
@@ -236,14 +234,48 @@ function share_resources_dialog() {
 	$("#dialogframe").fadeIn("fast");
 	$("#overlay").fadeIn("fast");
 	$("#shareresourcesdialog").fadeIn("fast");
+	$(".cancel").click(close_dialog);
+	$("#shareresources").click(share_resources);
 }
 
 function close_dialog() {
-	$(this).parent().parent().hide();
+	$(this).parent().hide();
 	$("#dialogframe").hide();
 	$("#overlay").hide();
 }
 
+
+function share_resources() {
+	var username = $("#shareresourcesdialog #username").val();
+	var percent = $("#shareresourcesdialog #percent").val();
+	
+	if (percent > 0) {
+		$.post("http://128.208.3.86:8081/geni_dev_sean/control/ajax_createshare",
+				{ username: username, percent: percent },
+				function (data) {
+					var json = eval(data);
+					if (json.success) {
+						$("#shareresourcesdialog").hide();
+						$("#dialogframe").hide();
+						$("#overlay").hide();
+						create_block($("#usage"), username, percent, true);
+						create_label($("#usagenames"), username, percent, true);
+					} else {
+						create_warning(json.error, $("#shareresourcesdialog h3"));
+					}
+				});
+	} else {
+		create_warning("Percent must greater than 0", $("#shareresourcesdialog h3"));
+	}
+}
+
+
+function create_warning(error, position) {
+	var warning = $(document.createElement("span"));
+	warning.text(error);
+	warning.addClass("warning");
+	warning.insertAfter(position);
+}
 
 /*
 	Generate a color in hex notation for a username, which assigns different
@@ -283,15 +315,15 @@ function update_blocks(type, data) {
 	if (type == "credits") {
 		var credits = $("#credits");
 		var creditnames = $("#creditnames");
-		json = eval('(' + data + ')');
+		var json = eval('(' + data + ')');
 		for (var i = 0; i < json.length; i++) {
-				create_block(credits, json[i].username, json[i].percent, false);
+			create_block(credits, json[i].username, json[i].percent, false);
 			create_label(creditnames, json[i].username, json[i].percent, false);
 		}
 	} else if (type == "shares") {
 		var usage = $("#usage");
 		var usagenames = $("#usagenames");
-		json = eval('(' + data + ')');
+		var json = eval('(' + data + ')');
 		var total_percent = 0;
 		for (var i = 0; i < json.length; i++) {
 			create_block(usage, json[i].username, json[i].percent, true);

@@ -97,44 +97,40 @@ My GENI - GENI
 			<div id="dialogframe">
 				<div id="getresourcesdialog">
 					<h3>Get more resources</h3>
-					<form action="" method="get" accept-charset="utf-8">
-						<span>Number of vessels</span>
-						<select name="numvessels">
-							<option>1</option>
-							<option>2</option>
-							<option>3</option>
-							<option>4</option>
-							<option>5</option>
-							<option>6</option>
-							<option>7</option>
-							<option>8</option>
-							<option>9</option>
-							<option>10</option>
-						</select>
-						<br />
-						<span>Environment</span>
-						<select name="environment">
-							<option>LAN</option>
-							<option>WAN</option>
-							<option>Random</option>
-						</select>
-						<br />
-						<button>Cancel</button>
-						<input type="submit" value="Get" />
-					</form>
+					<span>Number of vessels</span>
+					<select name="numvessels">
+						<option>1</option>
+						<option>2</option>
+						<option>3</option>
+						<option>4</option>
+						<option>5</option>
+						<option>6</option>
+						<option>7</option>
+						<option>8</option>
+						<option>9</option>
+						<option>10</option>
+					</select>
+					<br />
+					<span>Environment</span>
+					<select name="environment">
+						<option>LAN</option>
+						<option>WAN</option>
+						<option>Random</option>
+					</select>
+					<br />
+					<button class="cancel">Cancel</button>
+					<button id="getresources">Get</button>
 				</div>
 				<div id="shareresourcesdialog">
 					<h3>Share resources</h3>
-					<form action="" method="get" accept-charset="utf-8">	
-						<span>Username</span>
-						<input type="text" />
-						<br />
-						<span>Percent</span>
-						<input type="text" />
-						<br />
-						<button>Cancel</button>
-						<input type="submit" value="Share" />
-					</form>
+					<span>Username</span>
+					<input id="username" type="text" />
+					<br />
+					<span>Percent</span>
+					<input id="percent" type="text" />
+					<br />
+					<button class="cancel">Cancel</button>
+					<button id="shareresources">Share</button>
 				</div>
 			</div>
 
