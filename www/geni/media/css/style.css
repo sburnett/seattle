@@ -375,6 +375,11 @@ table.users tr.even {
     display: none;
 }
 
+#dialogframe .warning {
+	color: red;
+	font-weight: bold;
+}
+
 
 /******************************
 * STYLESHEET FOR myvessels.html

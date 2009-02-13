@@ -1,5 +1,5 @@
 $(document).ready(function() {
-    load();
+	load();
 	/*
 	var credits = $("#credits");
 	var creditnames = $("#creditnames");
@@ -53,13 +53,13 @@ function add_user(username, width, isClosable) {
 */
 
 /*
-    Create a block with given width and background color,
-    and append it to the given bar element.
+	Create a block with given width and background color,
+	and append it to the given bar element.
 */
 function create_block(bar, username, width, isClosable) {
-    var block = $(document.createElement('td'));
+	var block = $(document.createElement('td'));
 	block.css({
-        'width': width + '%',
+		'width': width + '%',
 		'background-color': '#' + color_generator(username)
 	});
 	var percent = $(document.createElement('span'));
@@ -110,16 +110,7 @@ function create_block(bar, username, width, isClosable) {
 	Called by save_percent or close on the block
 */
 function edit_block(username, width) {
-    if (username != "Free") {
-	$.post("http://128.208.3.86:8081/geni_dev_sean/control/ajax_editshare",
-	       { username: username, percent: width },
-	       function (data) {
-		   var json = eval(data);
-		   alert(json.success);
-		   alert(json.error);
-	       },
-				"json");
-
+	if (username != "Free") {
 		var block = $("#usage" + username);
 		var label = $("#labelusage" + username);
 		var old_percent = parseInt($("#usage" + username + " span").text());
@@ -199,10 +190,25 @@ function save_percent() {
 	var input = $("#changepercentdialog input");
 	var percent = input.val();
 	var username = input.attr("name").substring(5);
-	$(this).parent().remove();
-	$("#dialogframe").hide();
-	$("#overlay").hide();
-	edit_block(username, percent);
+	$.post("http://128.208.3.86:8081/geni_dev_sean/control/ajax_editshare",
+			{ username: username, percent: width },
+			function (data) {
+				var json = eval(data);
+				if (json.success) {
+					$(this).parent().remove();
+					$("#dialogframe").hide();
+					$("#overlay").hide();
+					edit_block(username, percent);
+				} else {
+					$(this).prev().prev().remove();
+					$(this).prev().prev().remove();
+					var warning = $(document.createElement("span"));
+					warning.text(json.error);
+					warning.addClass("warning");
+					warning.insertBefore($(this).prev().prev());
+				}
+	   		},
+			"json");
 }
 
 
@@ -247,8 +253,8 @@ function close_dialog() {
 function color_generator(username) {
 	var seeds = ['cc','ff'];
 	var color = seeds[username.charCodeAt(0) % 2] +
-	 			seeds[username.charCodeAt(1) % 2] +
-	 			seeds[username.charCodeAt(username.length - 1) % 2];
+				seeds[username.charCodeAt(1) % 2] +
+				seeds[username.charCodeAt(username.length - 1) % 2];
 	if (color == "ffffff") {
 		color = "ffffcc";
 	} else if (color == "cccccc") {
@@ -279,7 +285,7 @@ function update_blocks(type, data) {
 		var creditnames = $("#creditnames");
 		json = eval('(' + data + ')');
 		for (var i = 0; i < json.length; i++) {
-		        create_block(credits, json[i].username, json[i].percent, false);
+				create_block(credits, json[i].username, json[i].percent, false);
 			create_label(creditnames, json[i].username, json[i].percent, false);
 		}
 	} else if (type == "shares") {
