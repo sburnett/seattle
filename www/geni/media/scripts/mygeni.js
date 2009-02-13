@@ -190,22 +190,21 @@ function save_percent() {
 	var input = $("#changepercentdialog input");
 	var percent = input.val();
 	var username = input.attr("name").substring(5);
+	alert(username);
 	$.post("http://128.208.3.86:8081/geni_dev_sean/control/ajax_editshare",
-			{ username: username, percent: width },
+			{ username: username, percent: percent },
 			function (data) {
 				var json = eval(data);
 				if (json.success) {
-					$(this).parent().remove();
+					$("#changepercentdialog").remove();
 					$("#dialogframe").hide();
 					$("#overlay").hide();
 					edit_block(username, percent);
 				} else {
-					$(this).prev().prev().remove();
-					$(this).prev().prev().remove();
 					var warning = $(document.createElement("span"));
 					warning.text(json.error);
 					warning.addClass("warning");
-					warning.insertBefore($(this).prev().prev());
+					warning.insertBefore($("#changepercentdialog").children("input"));
 				}
 	   		},
 			"json");
