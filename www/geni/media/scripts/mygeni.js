@@ -227,7 +227,7 @@ function get_resources_dialog() {
 	$("#overlay").fadeIn("fast");
 	$("#getresourcesdialog").fadeIn("fast");
 	$(".cancel").click(close_dialog);
-	$("#getresources").click(get_resources);
+	$("#getresourcesaction").click(get_resources);
 }
 
 
@@ -280,7 +280,6 @@ function share_resources() {
 function get_resources() {
 	var numvessels = parseInt($("#numvessels").val());
 	var env = $("#environment").val();
-	alert(numvessels + " " + env);
 	if ($("#shareresourcesdialog .warning")) {
 	    $("#shareresourcesdialog .warning").remove();
 	}
