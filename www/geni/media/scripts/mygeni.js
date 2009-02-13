@@ -85,7 +85,7 @@ function create_block(bar, username, width, isClosable) {
 							if (json.success) {
 								edit_block(username, 0);
 							} else {
-								alert(json.error)
+								alert(json.error);
 							}
 						});
 			});
