@@ -489,7 +489,7 @@ class NATConnection():
     
       # Close each individual socket
       for clt in self.clientDataBuffer:
-        self._closeCONN(clt)
+        self._closeCONN(clt,True)
     
       # Release the buffer lock
       self.clientDataLock.release()
@@ -807,9 +807,11 @@ class NATConnection():
   
   
   # Handles a client closing a connection
-  def _closeCONN(self,fromMac):
+  # force is used to avoid checking if client is connected,
+  # this is used on NATConnection.close to avoid deadlocking
+  def _closeCONN(self,fromMac,force=False):
     # Check if this client is even connected
-    if self._isConnected(fromMac):    
+    if force or self._isConnected(fromMac):    
       # We just need to set the closed flag, since the socket will detect that and close itself
       # Lock the client
       self.clientDataBuffer[fromMac]["lock"].acquire()
