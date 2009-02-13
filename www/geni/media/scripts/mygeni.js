@@ -280,8 +280,8 @@ function share_resources() {
 function get_resources() {
 	var numvessels = parseInt($("#numvessels").val());
 	var env = $("#environment").val();
-	if ($("#shareresourcesdialog .warning")) {
-	    $("#shareresourcesdialog .warning").remove();
+	if ($("#getresourcesdialog .warning")) {
+	    $("#getresourcesdialog .warning").remove();
 	}
 	$.post("http://128.208.3.86:8081/geni_dev_sean/control/ajax_getvessels",
 			{ numvessels: numvessels, env: env },
