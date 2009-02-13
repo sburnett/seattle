@@ -288,6 +288,7 @@ function get_resources() {
 			function (data) {
 				var json = eval('(' + data + ')');
 				alert(json.mypercent);
+				alert(json.success);
 				if (json.success) {
 					$("#getresourcesdialog").hide();
 					$("#dialogframe").hide();
