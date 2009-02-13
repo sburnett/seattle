@@ -227,6 +227,7 @@ function get_resources_dialog() {
 	$("#overlay").fadeIn("fast");
 	$("#getresourcesdialog").fadeIn("fast");
 	$(".cancel").click(close_dialog);
+	$("#getresources").click(get_resources);
 }
 
 
@@ -239,8 +240,8 @@ function share_resources_dialog() {
 }
 
 function close_dialog() {
-    if ($(this).parent().children(".warning") != null) {
-	$(this).parent().children(".warning").remove();
+    if ($(this).parent().children(".warning")) {
+		$(this).parent().children(".warning").remove();
     }
 	$(this).parent().hide();
 	$("#dialogframe").hide();
@@ -251,7 +252,7 @@ function close_dialog() {
 function share_resources() {
 	var username = $("#shareresourcesdialog #username").val();
 	var percent = parseInt($("#shareresourcesdialog #percent").val());
-	if ($("#shareresourcesdialog .warning") != null) {
+	if ($("#shareresourcesdialog .warning")) {
 	    $("#shareresourcesdialog .warning").remove();
 	}
 
@@ -274,6 +275,31 @@ function share_resources() {
 		create_warning("Percent must greater than 0", $("#shareresourcesdialog h3"));
 	}
 }
+
+
+function get_resources() {
+	var numvessels = parseInt($("#numvessels").val());
+	var env = $("#environment").val();
+	alert(numvessels + " " + env);
+	if ($("#shareresourcesdialog .warning")) {
+	    $("#shareresourcesdialog .warning").remove();
+	}
+	$.post("http://128.208.3.86:8081/geni_dev_sean/control/ajax_getvessels",
+			{ numvessels: numvessels, env: env },
+			function (data) {
+				var json = eval('(' + data + ')');
+				if (json.success) {
+					$("#getresourcesdialog").hide();
+					$("#dialogframe").hide();
+					$("#overlay").hide();
+					create_block($("#usage"), "Me", parseInt(json.mypercent), true);
+					create_label($("#usagenames"), "Me", parseInt(json.mypercent), true);
+				} else {
+					create_warning(json.error, $("#getresourcesdialog h3"));
+				}
+			});
+}
+
 
 
 function create_warning(error, position) {
