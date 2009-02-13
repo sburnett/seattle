@@ -88,14 +88,17 @@ indoctrination
 
 :sprint
 02/12/2009
-2 + 2 = ?
-anthony RSA replacement
-
-:02/12/200
+Sleight of Hand
+dennis lookup
+armon protocol
 1276 eric forwarder to multiplex TCP connections
 
-
 :sprint
-01/31/2009
-micro machines
-1013 carter make sure the installer is portable to Windows Mobile
+02/19/2009
+Measure Twice, Cut Once
+anthony bandwidth
+carter bandwidth and testing / integration into the installer
+brent disk rate limiting
+armon CPU / uptime measuring
+
+
