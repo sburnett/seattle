@@ -6,7 +6,7 @@ from django.conf.urls.defaults import *
 
 urlpatterns = patterns('web_installers.customized_installer.views',
                        # Example:
-                       (r'^$', 'main' ,{}, 'main'),
+                       (r'^$', 'customized_installer' ,{}, 'customized_installer'),
                        (r'^build_installer$', 'build_installer' ,{}, 'build_installer'),
                        
                        # Uncomment the admin/doc line below and add 'django.contrib.admindocs' 

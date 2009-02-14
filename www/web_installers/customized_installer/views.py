@@ -1,8 +1,34 @@
+"""
+<Program Name>
+  customized_installer/views.py
+
+<Started>
+  February, 2008
+
+<Author>
+  ivan@cs.washington.edu
+  Ivan Beschastnikh
+
+<Purpose>
+  Defines view functions that handle HTTP requests
+
+  This file contains view functions for the web installers application which
+  are called whenever a url is matched in geni.urls. These
+  functions always take an HTTP request object, and return an HTTP
+  response object, which is sometimes generated automatically by
+  referencing a template via direct_to_template() and other
+  django shorthands.
+
+  For more information on views in django see:
+  See http://docs.djangoproject.com/en/dev/topics/http/views/
+"""
+
 import string
 import os
 
-
-# Create your views here.
+from django.views.generic.simple import direct_to_template, redirect_to
+from django.http import HttpResponse
+from django.contrib.auth.models import User as DjangoUser
 
 #session_start();
 prefix = "/var/www/customized_installer"
@@ -11,24 +37,23 @@ vesselinfopy = "/home/ivan/trunk/test/writecustominstallerinfo.py"
 #sid = session_id()
 dl_prefix = prefix + "/download/" + sid
 
-def main(request):
-    pass
+def customized_installer(request):
+    return direct_to_template(request,'customized_installer/index.html', {'username' : username})
 
 def build_installer(request):
-    
-    if not isset($_POST):
+    if not isset(_POST):
         # redirect to err page
         pass
         
-    if ($_POST['action'] == 'adduser'):
-        $username = standarize($_POST['username'])
-        if (is_uploaded_file($_FILES["publickey"]["tmp_name"])):
-            $key = file_get_contents($_FILES["publickey"]["tmp_name"])
-            $_SESSION[$username] = $key
+    if (_POST['action'] == 'adduser'):
+        username = standarize(_POST['username'])
+        if (is_uploaded_file(_FILES["publickey"]["tmp_name"])):
+            key = file_get_contents(_FILES["publickey"]["tmp_name"])
+            _SESSION[username] = key
         else:
-            unset($_SESSION[$username])
-    elif ($_POST['action'] == 'createinstaller'):
-        $vessels = json_decode(stripslashes($_POST['content']), true)
+            unset(_SESSION[username])
+    elif (_POST['action'] == 'createinstaller'):
+        vessels = json_decode(stripslashes(_POST['content']), true)
         os.system("rm $dl_prefix/*")
         os.system("mkdir $dl_prefix")
         os.system("mkdir $dl_prefix/vesselsinfo")
@@ -58,8 +83,8 @@ def build_installer(request):
 def genkey(user):
     global prefix
     global dl_prefix
-    if (array_key_exists($user, $_SESSION)):
-        file_put_contents(getPublicKeyPath($user), $_SESSION[$user])
+    if (array_key_exists(user, _SESSION)):
+        file_put_contents(getPublicKeyPath(user), _SESSION[user])
     else:
         os.system("python $prefix/generatekeys.py $user 128 $dl_prefix/")
 

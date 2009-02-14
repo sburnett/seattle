@@ -1,0 +1,21 @@
+{% extends "common/web_installers_base.html" %}
+
+{% block navigation %}
+	<div id="navigator">
+		<div id="tabs">
+			<table>
+				<tr>
+
+				  {% block nav_custominstaller %}
+				  <td><a href="{% url customized_installer %}">Customized Installer Maker</a></td>
+				  {% endblock nav_custominstaller %}
+
+				  {% block nav_help %}
+				  <td><a href="{% url help username %}">Help</a></td>
+				  {% endblock nav_help %}
+				  
+				</tr>
+			</table>
+		</div>
+	</div>
+{% endblock navigation %}
