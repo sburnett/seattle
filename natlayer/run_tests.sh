@@ -4,6 +4,42 @@
 # Takes 1 optional parameter: class
 # If class parameter is given, then only test_CLASS_*.py will be run
 
+# If we get a SIGINT, do we terminate the test(1) or exit(0)
+SIGINTACT="1"
+
+# Should we block stderr?
+BLOCKERR="1"
+
+function stop_forwarder() {
+	# stop the forwarder
+	echo "Stopping forwarder!"
+	./scripts/stop_forwarder.sh >/dev/null 2>&1
+}
+
+# If the script is interrupted (Control-C) handle this cleanly
+function interrupt() {
+	# Terminate the current test
+	printf "[ SIGINT ]\n"
+	if [ $SIGINTACT -eq "1" ]
+	then
+		kill $CURPID 2>&1 >/dev/null
+	else
+		echo "#####"
+		echo "Caught User Interrupt!"
+		stop_forwarder
+		exit	
+	fi
+}
+
+# We don't want output from sub-shells
+if [ $BLOCKERR -eq "1" ]
+then
+  exec 2>/dev/null
+fi
+
+# The PID of the current test
+CURPID=0
+
 # Go into the built dir
 cd built
 
@@ -29,6 +65,9 @@ fi
 
 echo "Starting forwarder..."
 ./scripts/start_forwarder.sh
+
+# Setup interrupt handler
+trap "interrupt" SIGINT
 
 # Sleep for a second, give the forwarder a change to start
 echo "Waiting for forwarder to initialize..."
@@ -63,20 +102,31 @@ do
   
   # Log the output
   run="python repy.py --logfile log/${f}.log restrictions.default ${f}"
-  ${run}  >/dev/null 2>&1 &
+  ${run} & >/dev/null 2>&1
   
-  # Wait for that to finish
-  wait 2>/dev/null
-   
-  # Check if the log size is 0
-  size=`cat ./log/${f}.log.old | grep -c ''`
-  if [ ${size} -eq "0" ]
+  # Save the current PID
+  CURPID=$!
+
+  # Wait for that to finish 
+  wait >/dev/null 2>&1
+
+  # Get exit code
+  EXITCODE=$?
+  
+  # Only print if the process has a clean exit code
+  # This is so SIGINT will print [ SIGINT ]
+  if [ $EXITCODE = 0 ]
   then
-    printf "[ PASSED ]\n"
-  else
-    printf "[ FAILED ]\n"
+    # Check if the log size is 0
+    size=`cat ./log/${f}.log.old | grep -c ''`
+    if [ ${size} -eq "0" ]
+    then
+      printf "  [ PASSED ]\n"
+    else
+      printf "  [ FAILED ]\n"
+    fi
   fi
-  
+
   # Sleep for a second
   sleep 1
   
@@ -85,6 +135,7 @@ do
   if [ ${forwarderstat} -eq "1" ]
   then
       echo "Fatal Error! Forwarder Dead!"
+      rm ./run/forwarder.pid
       exit
   fi
 done
@@ -92,6 +143,5 @@ done
 echo "#####"
 echo "Done!"
 
-# Start the forwarder
-echo "Stopping forwarder!"
-./scripts/stop_forwarder.sh
+# Stop the forwarder
+stop_forwarder
