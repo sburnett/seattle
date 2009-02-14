@@ -35,9 +35,6 @@ import random
 
 from django.utils import simplejson
 from django.http import Http404
-from models import User, Donation, Vessel, VesselMap, Share
-#from resource_operations import acquire_resources, release_resources
-from db_operations import pop_key
 from django.http import HttpResponseRedirect
 from django.http import HttpResponse
 from django.core.urlresolvers import reverse
@@ -45,7 +42,13 @@ from django.shortcuts import render_to_response, get_object_or_404
 from django.views.generic.simple import direct_to_template
 from django.contrib.auth.decorators import login_required
 
+from models import User, Donation, Vessel, VesselMap, Share
+#from resource_operations import acquire_resources, release_resources
+import share_operations
+from db_operations import pop_key
+
 ############################################# Private helper functions
+
 
 def __validate_guser__(request):
     """
@@ -184,15 +187,15 @@ def donations(request,share_form=None):
     has_donations = (len(mydonations) != 0)
     has_shares = (len(myshares) != 0)
     
-    return direct_to_template(request,'control/mygeni.html',
-                              {'geni_user' : geni_user,
-                               'has_donations' : has_donations,
-                               'donations' : mydonations, 
-                               'donations_to_me' : donations_to_me,
-                               'has_donations_from_others' : has_donations_from_others,
-                               'shares' : myshares,
-                               'has_shares' : has_shares,
-                               'share_form' : share_form})
+    return direct_to_template(request,'control/mygeni.html', {})
+                              # {'geni_user' : geni_user,
+#                                'has_donations' : has_donations,
+#                                'donations' : mydonations, 
+#                                'donations_to_me' : donations_to_me,
+#                                'has_donations_from_others' : has_donations_from_others,
+#                                'shares' : myshares,
+#                                'has_shares' : has_shares,
+#                                'share_form' : share_form})
 
 
 
@@ -790,27 +793,97 @@ def getdonations(request):
 
 ########################## Functions dealing with Ajax pages
 
+#### Ajax helper functions
+
+def __jsonify(data):
+    json = simplejson.dumps(data)
+    return HttpResponse(json, mimetype='application/json')
+
+def __validate_ajax(request):
+    ret, success = __validate_guser__(request)
+    if not success:
+        return __jsonify({"success" : False, "error" : "could not validate your identity"}), False
+    geni_user = ret
+
+    # validate that the request is a POST method
+    if not request.method == u'POST':
+        return __jsonify({"success" : False, "error" : "request must be a POST method"}), False
+    
+    return geni_user, True
+
+
+#### Ajax entrance functions
+
 @login_required()
 def ajax_getshares(request):
-    ret = []
-    if request.method == u'POST':
-        for i in range(2,8):
-            ret.append({'username' : "user" + str(i),
-                        'percent' : i+i})
-            
-    print "returning ret: ", str(ret)
-    json = simplejson.dumps(ret)
-    print "json object is ", str(json)
-    return HttpResponse(json, mimetype='application/json')
+    ret, success = __validate_guser__(request)
+    if not success:
+        return __jsonify({"success" : False, "error" : "could not validate your identity"})
+    geni_user = ret
+
+    ret = share_operations.get_user_shares(geni_user)
+    # last share record must be 'Me', if its not 0%    
+    ret.append({'username' : "Me",
+                'percent' : 8})
+    
+    return __jsonify(ret)
+
+@login_required()
+def ajax_editshare(request):
+    ret, success = __validate_ajax(request)
+    if not success:
+        return ret
+    geni_user = ret
+
+    form = forms.EditShareForm(request.POST)
+    form.set_user(geni_user)
+    if not form.is_valid():
+        return __jsonify({"success" : False, "error" : form.get_errors_as_str()})
+        
+    percent = form.cleaned_data['percent']
+    username = form.cleaned_data['username']
+
+    success, str_err = share_operations.edit_user_share(geni_user,  form.shared_with_guser, percent)
+    return __jsonify({"success" : success, "error" : str_err})
+
+
+@login_required()
+def ajax_createshare(request):
+    ret, success = __validate_ajax(request)
+    if not success:
+        return ret
+    geni_user = ret
+
+    form = forms.AddShareForm(request.POST)
+    form.set_user(geni_user)
+    if not form.is_valid():
+        return __jsonify({"success" : False, "error" : form.get_errors_as_str()})
+        
+    percent = form.cleaned_data['percent']
+    username = form.cleaned_data['username']
+
+    success, str_err = share_operations.create_user_share(geni_user, form.shared_with_guser, percent)
+    return __jsonify({"success" : success, "error" : str_err})
+
+
 
 
 @login_required()
 def ajax_getcredits(request):
+    # First username must be 'Me'
+
+    ret, success = __validate_guser__(request)
+    if not success:
+        return __jsonify({"success" : False, "error" : "could not validate your identity"})
+    geni_user = ret
+
 
     # NOTE: total percentage must always be 100% here
     ret = []
     if request.method == u'POST':
-        for i in range(10):
+        ret.append({'username' : "Me",
+                    'percent' : 10})
+        for i in range(9):
             ret.append({'username' : "user" + str(i+1),
                         'percent' : 10})
             
@@ -820,63 +893,28 @@ def ajax_getcredits(request):
     return HttpResponse(json, mimetype='application/json')
 
 
-@login_required()
-def ajax_editshare(request):
-    ret = []
-    if request.method == u'POST':
-        POST = request.POST
-        if POST.has_key(u'username') and POST.has_key(u'percent'):
-            percent = int(POST[u'percent'])
-            print "received percent " , str(percent)
-            if random.randrange(2) == 1:
-                ret = {"success" : False, "error" : "error in " + "blah" * 20}
-            else:
-                ret = {"success" : True, "error" : ""}
-            
-    print "returning ret: ", str(ret)
-    json = simplejson.dumps(ret)
-    print "json object is ", str(json)
-    return HttpResponse(json, mimetype='application/json')
-
-
-@login_required()
-def ajax_createshare(request):
-    ret = []
-    if request.method == u'POST':
-        POST = request.POST
-        if POST.has_key(u'username') and POST.has_key(u'percent'):
-            percent = int(POST[u'percent'])
-            if percent != 0:
-                if random.randrange(2) == 1:
-                    ret = {"success" : False, "error" : "could not create share " + "blah" * 20}
-                else:
-                    ret = {"success" : True, "error" : ""}
-            else:
-                ret = {"success" : False, "error" : "Percent cannot be 0"}
-            
-    print "returning ret: ", str(ret)
-    json = simplejson.dumps(ret)
-    print "json object is ", str(json)
-    return HttpResponse(json, mimetype='application/json')
 
 @login_required()
 def ajax_getvessels(request):
-    ret = []
-    if request.method == u'POST':
-        POST = request.POST
-        if POST.has_key(u'numvessels') and POST.has_key(u'env'):
-            numvessels = int(POST[u'numvessels'])
-            if numvessels != 0:
-                env = POST[u'env']
-                if env in ["LAN", "WAN", "Random"]:
-                    if random.randrange(2) == 1:
-                        ret = {"success" : False, "error" : "", 'mypercent' : 20, "vessels" : [{"vesselid" : "vid1", "status" : "ok!", "expiresin" : "24 hours!"}]}
-                    else:
-                        ret = {"success" : False, "error" : "Failed to acquire vessels", 'mypercent' : 20, "vessels" : []}
+    ret, success = __validate_ajax(request)
+    if not success:
+        return ret
+    geni_user = ret
+
+    POST = request.POST
+    if POST.has_key(u'numvessels') and POST.has_key(u'env'):
+        numvessels = int(POST[u'numvessels'])
+        if numvessels != 0:
+            env = POST[u'env']
+            if env in ["LAN", "WAN", "Random"]:
+                if random.randrange(2) == 1:
+                    ret = {"success" : True, "error" : "", 'mypercent' : 20, "vessels" : [{"vesselid" : "vid1", "status" : "ok!", "expiresin" : "24 hours!"}]}
                 else:
-                    ret = {"success" : False, "error" : "Environment type must be of type LAN, WAN, or Random", 'mypercent' : 20, "vessels" : []}
+                    ret = {"success" : False, "error" : "Failed to acquire vessels", 'mypercent' : 20, "vessels" : []}
             else:
-                ret = {"success" : False, "error" : "Number of vessels must be greater than 0", 'mypercent' : 20, "vessels" : []}
+                ret = {"success" : False, "error" : "Environment type must be of type LAN, WAN, or Random", 'mypercent' : 20, "vessels" : []}
+        else:
+            ret = {"success" : False, "error" : "Number of vessels must be greater than 0", 'mypercent' : 20, "vessels" : []}
             
     print "returning ret: ", str(ret)
     json = simplejson.dumps(ret)

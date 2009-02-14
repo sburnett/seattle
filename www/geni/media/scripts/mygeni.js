@@ -305,7 +305,7 @@ function get_resources() {
 
 function create_warning(error, position) {
 	var warning = $(document.createElement("p"));
-	warning.text(error);
+	warning.html(error);
 	warning.addClass("warning");
 	warning.insertAfter(position);
 }
