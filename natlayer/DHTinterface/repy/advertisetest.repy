@@ -1,7 +1,6 @@
 include server_advertise.repy
 include forwarder_advertise.repy
 
-
 #tests the fadvertise and sadvertise functions with 'macad' and current ip address
 
 if callfunc == 'initialize':

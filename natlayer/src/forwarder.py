@@ -81,7 +81,7 @@ def read_from_client(client_address,server_address):
       this_client['server_buff_size'] -= len(data)
       this_client['buff_size_lock'].release()
 
-    sleep(SAMPLE_TIME)
+    sleep(SAMPLdoE_TIME)
 
 
 
@@ -376,3 +376,5 @@ if callfunc == "initialize":
 
   # Setup our process to handle new connections
   natcon.frameHandler = newconn
+
+  settimer(0, forwarder_advertise, [])

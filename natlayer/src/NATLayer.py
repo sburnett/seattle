@@ -10,6 +10,10 @@ Abstracts the forwarding specification into a series of classes and functions.
 
 """
 
+include forwarder_advertise.repy
+include server_advertise.repy
+
+
 # Define Module Constants
 FORWARDER_MAC = "FFFFFFFFFFFF"
 FRAME_DIVIDER = ";" # What character is used to divide a frame header
@@ -1204,9 +1208,13 @@ def nat_openconn(destmac, destport, localmac, localport=None, timeout = 5, forwa
      Use send, recv, and close just like you would an actual socket object in python.
   """ 
   # TODO: Dennis you need to tie in here to get a real forwarder IP and port
-  if forwarderIP == None or forwarderPort == None:
-    forwarderIP = "127.0.0.1"
-    forwarderPort = 12345
+
+  server_lookup('mymacad')
+  forwarderIP = mycontext['currforwarder']
+  forwarderPort = 12345
+
+  #if forwarderIP == None or forwarderPort == None:
+  #  forwarderIP = mycontext['currforwarder']
   
   # Create NATConnection to forwarder
   natcon = NATConnection(localmac, forwarderIP, forwarderPort,timeout)
@@ -1252,9 +1260,14 @@ def nat_waitforconn(localmac, localport, function, forwarderIP=None, forwarderPo
     A NATConnection object, this can be used with nat_stopcomm to stop listening.      
   """
   # TODO: Dennis you need to tie in here to get a real forwarder IP and port
-  if forwarderIP == None or forwarderPort == None:
-    forwarderIP = "127.0.0.1"
-    forwarderPort = 12345 
+
+  forwarder_lookup() 
+  settimer(0, sadvertise, ['mymacad'],)
+  forwarderip = mycontext['currforwarder']
+  forwarderPort = 12345 
+  
+  #if forwarderIP == None or forwarderPort == None:
+  #  forwarderIP = "127.0.0.1"
   
   # Create NATConnection to forwarder
   natcon = NATConnection(localmac, forwarderIP, forwarderPort)
