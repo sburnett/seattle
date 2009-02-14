@@ -89,7 +89,7 @@ indoctrination
 :sprint
 02/12/2009
 Sleight of Hand
-dennis lookup
+1293 ?dennis lookup
 1292 armon protocol
 1276 eric forwarder to multiplex TCP connections
 
