@@ -55,9 +55,9 @@ def sendNumbers(socket,natcon):
 def stop_test(out=None):
   if out is not None:
     print out
-  server_natcon.close()
   good_client_natcon.close()
   bad_client_natcon.close()
+  server_natcon.close()
   exitall()
 
 if callfunc == "initialize":
