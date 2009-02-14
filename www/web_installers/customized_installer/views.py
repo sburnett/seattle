@@ -35,10 +35,13 @@ prefix = "/var/www/customized_installer"
 carter_script = "/home/ivan/trunk/dist/customize_installers.py"
 vesselinfopy = "/home/ivan/trunk/test/writecustominstallerinfo.py"
 #sid = session_id()
-dl_prefix = prefix + "/download/" + sid
+# dl_prefix = prefix + "/download/" + sid
 
 def customized_installer(request):
-    return direct_to_template(request,'customized_installer/index.html', {'username' : username})
+    return direct_to_template(request,'customized_installer/index.html', {})
+
+def help(request):
+    return direct_to_template(request,'customized_installer/help.html', {})
 
 def build_installer(request):
     if not isset(_POST):
@@ -57,7 +60,7 @@ def build_installer(request):
         os.system("rm $dl_prefix/*")
         os.system("mkdir $dl_prefix")
         os.system("mkdir $dl_prefix/vesselsinfo")
-        //file_put_contents("h0","")
+        #file_put_contents("h0","")
         for vessel in vessels:
             genkey(vessel['owner'])
             vessel['owner'] = getPublicKeyPath(standarize(vessel['owner']))
@@ -66,7 +69,7 @@ def build_installer(request):
                 user = getPublicKeyPath(standarize(user))
 
         file_put_contents("h1","")
-        file_put_contents("$dl_prefix/vesselsinfo.txt", outputVesselsInfo($vessels))
+        file_put_contents("$dl_prefix/vesselsinfo.txt", outputVesselsInfo(vessels))
         file_put_contents("h2","")
         os.system("python $vesselinfopy $dl_prefix/vesselsinfo.txt $dl_prefix/vesselsinfo/")
         

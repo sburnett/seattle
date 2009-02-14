@@ -35,17 +35,19 @@
 """
 
 from django.conf.urls.defaults import *
+from django.conf import settings
 
 # Uncomment the next two lines to enable the admin:
 from django.contrib import admin
 admin.autodiscover()
 
-settings.URL_PREFIX = ""
+#settings.URL_PREFIX = ""
 
 urlpatterns = patterns('',
                        # Example:
                        (r'^%scustomized_installer/'%(settings.URL_PREFIX), include('web_installers.customized_installer.urls')),
                        (r'^%sdownload/'%(settings.URL_PREFIX), include('web_installers.download.urls')),
+                       (r'^%smedia/(?P<path>.*)$'%(settings.URL_PREFIX), 'django.views.static.serve', {'document_root': settings.MEDIA_ROOT}),
 
                        # Uncomment the admin/doc line below and add 'django.contrib.admindocs' 
                        # to INSTALLED_APPS to enable admin documentation:
