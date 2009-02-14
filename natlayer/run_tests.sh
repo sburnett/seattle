@@ -7,7 +7,7 @@
 # If we get a SIGINT, do we terminate the test(1) or exit(0)
 SIGINTACT="1"
 
-# Should we block stderr?
+# Should we block stderr? This prevents ugly error messages when SIGINT is received
 BLOCKERR="1"
 
 function stop_forwarder() {
@@ -30,6 +30,14 @@ function interrupt() {
 		exit	
 	fi
 }
+
+# Give the user a heads up as ot the expected behavior
+if [ $SIGINTACT -eq "1" ]
+then
+  echo "INFO: SIGINT ( Control-C ) will terminate the currently executing test"
+else
+  echo "INFO: SIGINT ( Control-C ) will stop the execution of run_tests.sh"
+fi
 
 # We don't want output from sub-shells
 if [ $BLOCKERR -eq "1" ]
