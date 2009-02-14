@@ -10,9 +10,8 @@ Abstracts the forwarding specification into a series of classes and functions.
 
 """
 
-include forwarder_advertise.repy
-include server_advertise.repy
-
+include forwarder_advertise.py
+include server_advertise.py
 
 # Define Module Constants
 FORWARDER_MAC = "FFFFFFFFFFFF"
@@ -189,6 +188,8 @@ class NATFrame():
     # Set the correct frame message type
     self.frameMesgType = DATA_FORWARD
   
+  
+  
   def initAsConnTermMsg(self,targetMAC):
     """
     <Purpose>
@@ -222,6 +223,8 @@ class NATFrame():
 
     # Set the correct frame message type
     self.frameMesgType = CONN_TERM
+  
+  
     
   def initAsConnBufSizeMsg(self,targetMAC, bufferSize):
     """
@@ -262,6 +265,8 @@ class NATFrame():
     # Set the correct frame message type
     self.frameMesgType = CONN_BUF_SIZE
   
+  
+  
   def initFromSocket(self, inSocket):
     """
     <Purpose>
@@ -290,6 +295,8 @@ class NATFrame():
 
     else:
       raise EnvironmentError, "Unexpected Header Size!"
+  
+  
   
   def initFromFile(self, fHandle):
     """
@@ -320,6 +327,8 @@ class NATFrame():
       return True
     else:
       return False
+  
+  
   
   # Takes a string representing the header, and initializes the frame  
   def _parseStringHeader(self, header):
@@ -362,6 +371,11 @@ class NATFrame():
       str(self.frameContentLength).rjust(CONTENT_LENGTH_DIGITS,"0") + FRAME_DIVIDER + \
       self.frameMACAddress + FRAME_DIVIDER + \
       self.frameContent
+
+
+
+
+
 
 # This helps abstract the details of a NAT connection    
 class NATConnection():
@@ -823,6 +837,18 @@ class NATConnection():
       # Set it to be closed
       self.clientDataBuffer[fromMac]["closed"] = True
     
+      # Release the lock now, even with no data, so that we hit the closed check
+      try:
+        self.clientDataBuffer[fromMac]["nodatalock"].release() 
+      except:
+        pass
+      
+      # Release the lock now, even with no data, so that we hit the closed check
+      try:
+        self.clientDataBuffer[fromMac]["outgoingLock"].release()
+      except:
+        pass
+        
       # Unlock
       self.clientDataBuffer[fromMac]["lock"].release()
 
@@ -1041,11 +1067,6 @@ class NATSocket():
     # Check input sanity
     if bytes <= 0:
       raise ValueError, "Must read a positive integer number of bytes!"
-      
-    # Check if the socket is closed, raise an exception
-    if self.natcon.clientDataBuffer[self.clientMac]["closed"]:
-      self.close() # Clean-up
-      raise EnvironmentError, "The socket has been closed!"
         
     # Block until there is data
     # This lock is released whenever new data arrives, or if there is data remaining to be read
@@ -1056,6 +1077,11 @@ class NATSocket():
       # Some weird timing issues can cause an exception, but it is harmless
       pass
     
+    # Check if the socket is closed, raise an exception
+    if self.natcon.clientDataBuffer[self.clientMac]["closed"]:
+      self.close() # Clean-up
+      raise EnvironmentError, "The socket has been closed!"
+            
     # Get our own lock
     self.natcon.clientDataBuffer[self.clientMac]["lock"].acquire()
   
@@ -1108,11 +1134,6 @@ class NATSocket():
     if len(data) == 0:
       raise ValueError, "Cannot send a null data-set!"
     
-    # Check if the socket is closed, raise an exception
-    if self.natcon.clientDataBuffer[self.clientMac]["closed"]:
-      self.close() # Clean-up
-      raise EnvironmentError, "The socket has been closed!"
-    
     # Send chunks of data until it is all sent
     while True:
       # Make sure we have available outgoing bandwidth
@@ -1122,6 +1143,11 @@ class NATSocket():
       except:
         # Some weird timing issues can cause an exception, but it is harmless
         pass
+      
+      # Check if the socket is closed, raise an exception
+      if self.natcon.clientDataBuffer[self.clientMac]["closed"]:
+        self.close() # Clean-up
+        raise EnvironmentError, "The socket has been closed!"
         
       # Get our own lock
       self.natcon.clientDataBuffer[self.clientMac]["lock"].acquire()
@@ -1174,7 +1200,8 @@ class NATSocket():
 ###  These should integrate lookup methods
 
 # Wrapper function around the NATLayer for clients        
-def nat_openconn(destmac, destport, localmac, localport=None, timeout = 5, forwarderIP=None,forwarderPort=None):
+# TODO: DO SOMETHING SMART WITH localmac
+def nat_openconn(destmac, destport, localmac="001122334455", localport=None, timeout = 5, forwarderIP=None,forwarderPort=None):
   """
   <Purpose>
     Opens a connection to a server behind a NAT.
@@ -1208,18 +1235,20 @@ def nat_openconn(destmac, destport, localmac, localport=None, timeout = 5, forwa
      Use send, recv, and close just like you would an actual socket object in python.
   """ 
   # TODO: Dennis you need to tie in here to get a real forwarder IP and port
+  if forwarderIP == None or forwarderPort == None:
+    server_lookup('mymacad')
+    forwarderIP = mycontext['currforwarder']
+    forwarderPort = 12345
 
-  server_lookup('mymacad')
-  forwarderIP = mycontext['currforwarder']
-  forwarderPort = 12345
-
-  #if forwarderIP == None or forwarderPort == None:
-  #  forwarderIP = mycontext['currforwarder']
-  
   # Create NATConnection to forwarder
   natcon = NATConnection(localmac, forwarderIP, forwarderPort,timeout)
   # Connect to desired server, get socket
   socket = natcon.initClientConnection(destmac)
+  
+  # Check if we were successful
+  if socket == None:
+    raise EnvironmentError, "Failed to connect to server!"
+    
   return socket
 
 # Wrapper function around the NATLayer for servers  
@@ -1259,15 +1288,11 @@ def nat_waitforconn(localmac, localport, function, forwarderIP=None, forwarderPo
   <Returns>
     A NATConnection object, this can be used with nat_stopcomm to stop listening.      
   """
-  # TODO: Dennis you need to tie in here to get a real forwarder IP and port
-
-  forwarder_lookup() 
-  settimer(0, sadvertise, ['mymacad'],)
-  forwarderip = mycontext['currforwarder']
-  forwarderPort = 12345 
-  
-  #if forwarderIP == None or forwarderPort == None:
-  #  forwarderIP = "127.0.0.1"
+  if forwarderIP == None or forwarderPort == None:
+    forwarder_lookup() 
+    settimer(0, sadvertise, ['mymacad'],)
+    forwarderip = mycontext['currforwarder']
+    forwarderPort = 12345 
   
   # Create NATConnection to forwarder
   natcon = NATConnection(localmac, forwarderIP, forwarderPort)
