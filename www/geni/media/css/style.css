@@ -316,7 +316,7 @@ table.users tr.even {
     margin: 180px auto;
     padding: 20px;
     width: 300px;
-    height: 140px;
+    /* height: 140px; */
     background-color: #fff;
     border: 1px solid #999;
     text-align: center;
@@ -368,7 +368,7 @@ table.users tr.even {
     margin: 180px auto;
     padding: 20px;
     width: 250px;
-    height: 110px;
+    /* height: 110px; */
     background-color: #fff;
     border: 1px solid #999;
     text-align: center;
