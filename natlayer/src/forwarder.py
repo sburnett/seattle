@@ -1,24 +1,27 @@
 include NATLayer.py
 
-# This forwarder uses the NATLayer protocol to multiplex connections between
-# servers and clients.  The majority of work is done by 4 types of threads.
-#   read_from client: reads from a client socket and writes to a buffer
-#   write to client: reads from a buffer and writes to a client
-#   read_from server: reads from a server, writes to a buffer
-#   write to server: reads from a buffer, writes to a server
-#
-# Writen be Eric Kimbrel Feb 2009
+"""
+Author: Eric Kimbrel
+
+Date: Feb 2009
+
+Description: 
+  This forwarder uses the NATLayer protocol to multiplex connections between
+  servers and clients.  The majority of work is done by 4 types of threads.
+    read_from client: reads from a client socket and writes to a buffer
+    write to client: reads from a buffer and writes to a client
+    read_from server: reads from a server, writes to a buffer
+    write to server: reads from a buffer, writes to a server
+
+"""
 
 
 
 # print out everything the forwarder sends / recieves
 TRACE = False
 
-
 # How often should we sample sockets? (Time in seconds)
 SAMPLE_TIME = .05
-
-
 
 # Track connected clients
 # {client_address:{server_address:{}}}
@@ -29,17 +32,23 @@ client = {}
 server = {} # connected server key: value -> serverMacaddress:{}
 
 
+
+
 # Read from a client
 def read_from_client(client_address,server_address):
-  while (True):
+  # exit this loop if..
+  # the server becomes disconnected
+  # the client becomes disconnected
+  # a socket error occurs
+  while True:
     
     # if this client or server is not connected break
     try:
       this_client = client[client_address][server_address]
       this_server = server[server_address]
     except KeyError:
-      print "stopping read thread for client: "+client_address+" to server: "+server_address
-      break
+      print "stopping read thread for: "+client_address+" to: "+server_address
+      return
  
     # read from the client the amount specified in server_buff_size
     buffer_avialable = this_client['server_buff_size']
@@ -53,8 +62,7 @@ def read_from_client(client_address,server_address):
       print "SocketError occured reading from client: "+client_address
       drop_client(client_address,server_address)
       print "Dropped client: "+client_address
-      break #stops this thread
-
+      return
 
     # if data is non null send it to the to_server_buffer
     if (len(data) != 0):
@@ -67,32 +75,37 @@ def read_from_client(client_address,server_address):
       # send the frame as a string to the outgoing buffer
       this_server['to_server_buff'].append(frame.toString())  
 
-    #decrement server_buf_size by len(data) (make atomic)
-    this_client['buff_size_lock'].acquire()
-    this_client['server_buff_size'] -= len(data)
-    this_client['buff_size_lock'].release()
+      # decrement server_buf_size by len(data) (make atomic)
+      # it is important to use len(data) and not len(frame)
+      this_client['buff_size_lock'].acquire()
+      this_client['server_buff_size'] -= len(data)
+      this_client['buff_size_lock'].release()
 
     sleep(SAMPLE_TIME)
 
 
 
 def write_to_client(client_address,server_address):
-  while (True):
+  # exit this loop if..
+  # the server becomes disconnected
+  # the client becomes disconnected
+  # a socket error occurs
+  while True:
   
     # if this client or server is not connected break
     try:
       this_client = client[client_address][server_address]
       this_server = server[server_address]
     except KeyError:
-      print"stopping write thread to: "+client_address+" from server: "+server_address
-      break
+      print"stopping write to: "+client_address+" from: "+server_address
+      return
     
 
     buffer = this_client['to_client_buff']
 
     # get the data off the to client buffer
-    if len(buffer) > 0:
-      data = buffer.pop()
+    while len(buffer) > 0:
+      data = buffer.pop(0)
 
       if TRACE:
         print "writing to client: "+data
@@ -103,13 +116,14 @@ def write_to_client(client_address,server_address):
       except Exception, e:
         if "socket" not in str(type(e)) and "Socket" not in str(e):
           raise
-        print "Client socket error occured writing to client: ",
-        client_address," server: ",server_address
+        print "Client socket error writing to: ",
+        client_address," from: ",server_address
         drop_client(client_address,server_address)
-        break;      
+        return     
 
       # track the servers outgoing avaiable   
       this_client['to_client_buff_current'] =- len(data)
+      
       # is the server waiting for a CONN_BUF SIZE message
       if this_client['to_client_buff_current'] < 1:
         size_avail = this_client['to_client_buff_MAX'] - get_buff_size(buffer)
@@ -117,13 +131,17 @@ def write_to_client(client_address,server_address):
           buff_frame = NATFrame()
           buff_frame.initAsConnBufSizeMsg(client_address,size_avail)
           this_server['to_server_buff'].append(buff_frame.toString())
+          this_client['to_client_buff_current'] = size_avail
 
 
     sleep(SAMPLE_TIME)
-
+    
 
 
 def read_from_server(server_address):
+  # exit this loop if..
+  # the server becomes disconnected
+  # a socket error occurs
   while (True):
     
     # if this server is not connected break
@@ -131,7 +149,7 @@ def read_from_server(server_address):
       this_server = server[server_address]
     except KeyError:
       print "stopping read thread server: "+server_address
-      break
+      return
 
     frame = NATFrame()
     
@@ -141,37 +159,31 @@ def read_from_server(server_address):
     except Exception, e:
       if ("socket" not in str(type(e))) and "Socket" not in str(e) and  ("Header" not in str(e)):
         raise
-      if "socket" in str(e):
+      if "socket" in str(e) or "Socket" in str(e):
         print "Socket Error reading from server: "+server_address
       elif "Header" in str(e):
         print "Header Size Error reading from server: "+server_address
       drop_server(server_address)
-      break
+      return
 
     if TRACE:
       print "server sent: "+frame.toString()
 
 
     client_address = frame.frameMACAddress 
-    client_connected = True
     try:
       this_client = client[client_address][server_address]
     except KeyError:
       print "Client: "+client_address+" requested by server: "+server_address+" is not connected"
-      client_connected = False
-       
 
-    # is the client connected to this server?
-    if client_connected:    
-      
-      # is this a data frame
+    # if the client specified is connected
+    else:         
+
+      # DATA_FORWARD
       if frame.frameMesgType == DATA_FORWARD and frame.frameContentLength != 0:
-        
-        buffer = this_client['to_client_buff']
-        buffer.append(frame.frameContent)
+        this_client['to_client_buff'].append(frame.frameContent)
 
-
-      # is this a CONN_TERM frame
+      # CONN_TERM
       elif frame.frameMesgType == CONN_TERM:
         print "Server terminated connection between:\n\tServer: "+server_address+"\n\tClient: "+client_address
         drop_client(client_address,server_address)
@@ -196,13 +208,13 @@ def write_to_server(server_address):
       this_server = server[server_address]
     except KeyError:
       print "stopping write thread to server: "+server_address
-      break
+      return
+
 
     # get the next message off the buffer
-    if len(this_server['to_server_buff']) >0:
-      outgoing_frame_str = this_server['to_server_buff'].pop()
+    while len(this_server['to_server_buff']) >0:
+      outgoing_frame_str = this_server['to_server_buff'].pop(0)
     
-
       try:
         this_server['socket'].send(outgoing_frame_str)
       except Exception,e:
@@ -211,20 +223,19 @@ def write_to_server(server_address):
         print "Socket Error while writeing to server: "+server_address
         drop_server(server_address)
         print "dropped server: "+server_address
-        break    
+        return    
      
       if TRACE:
         print "sent "+outgoing_frame_str+" to server"    
 
-
     sleep(SAMPLE_TIME)
 
 
-# copy a list of strings and return the size of the copy
+# return the cummlitive len of all strings
+# in the list
 def get_buff_size(str_list):
-  list_copy = [x for x in str_list]
   total_length=0
-  for str in list_copy:
+  for str in str_list[:]:
     total_length= total_length + len(str)
   return total_length
 
@@ -271,7 +282,9 @@ def drop_client(client_address,server_address):
     # if the client is connected to no one, remove it entirely
     if len(client[client_address]) < 1:
       del client[client_address]
-   
+  
+  # any KeyError is an indication that the entity 
+  # is allready removed and no further action is requred 
   except KeyError:
     return
 
@@ -285,28 +298,20 @@ def newconn(socket, frame):
   if frame.frameMesgType == INIT_SERVER:
     
     print "Connected to new server: "+frame.frameMACAddress  
-
-    # declare a new buffer to store data from clients to the server
-    buff =  []
     
     # setup the main server data structure
     server[frame.frameMACAddress] = {"socket":socket,
-    "default_server_buff_size":int(frame.frameContent),"to_server_buff":buff}
+    "default_server_buff_size":int(frame.frameContent),"to_server_buff":[]}
 
     # send a response to the server
     resp = NATFrame()
-    resp.initAsForwarderResponse(STATUS_CONFIRMED)
-    try:
-      socket.send(resp.toString())
-    except Exception, e:
-      if "socket" not in str(type(e)) and "Socket" not in str(e):
-        raise
-      drop_server(frame.frameMACAddress)
-      print "SocketError occured sending Status_Confirm Response to server: "+frame.frameMACAddress
+    resp.initAsForwarderResponse(STATUS_CONFIRMED)    
+    server[frame.frameMACAddress]['to_server_buff'].append(resp.toString())
     
     # launch threads to handle this server
     settimer(0,read_from_server,[frame.frameMACAddress])
     settimer(0,write_to_server,[frame.frameMACAddress])
+
 
   # INIT CLIENT
   elif frame.frameMesgType == INIT_CLIENT:
@@ -320,39 +325,25 @@ def newconn(socket, frame):
       
       print "Connected Client: "+client_address+" to server: "+serverMac
 
-      # buffer for messages from server to client
-      buff = []      
-
-      # is the client already connected
-      if client_address in client:
-        client[client_address][serverMac] = {"socket":socket,
-        "to_client_buff":buff,
-        'to_client_buff_MAX':this_server['default_server_buff_size'],
-        'to_client_buff_current':this_server['default_server_buff_size'],
-        'server_buff_size':this_server['default_server_buff_size'],
-        'buff_size_lock':getlock()}
-      
       # is this an initial connection
-      else: 
-        client[frame.frameMACAddress]= {serverMac:{"socket":socket,
-        "to_client_buff":buff,
-        'to_client_buff_MAX':this_server['default_server_buff_size'],
-        'to_client_buff_current':this_server['default_server_buff_size'],
-        'server_buff_size':this_server['default_server_buff_size'],
-        'buff_size_lock':getlock()}}
+      if client_address not in client:
+        client[client_address] ={}
       
-      # send a response
+      # add this connection to the client dictionary
+      client[client_address][serverMac] = {"socket":socket,
+      "to_client_buff":[],
+      'to_client_buff_MAX':this_server['default_server_buff_size'],
+      'to_client_buff_current':this_server['default_server_buff_size'],
+      'server_buff_size':this_server['default_server_buff_size'],
+      'buff_size_lock':getlock()}
+   
+      # response to client
       resp = NATFrame()
       resp.initAsForwarderResponse(STATUS_CONFIRMED)
-      try:
-        socket.send(resp.toString())
-      except Exception, e:
-        if "socket" not in str(type(e)) and "Socket" not in str(e):
-          raise
-        print "SocketError occured sending Status Confirmed to client: "+client_address
-        drop_client(frame.frameMACAddress,serverMac)
-        print "Dropped Client: "+client_address
-        return
+      resp_str = resp.toString()
+      client[client_address][serverMac]['to_client_buff'].append(resp_str)
+      # len of this control message does not count against the buffer size
+      client[client_address][serverMac]['to_client_buff_current'] += len(resp_str)
     
       # Tell the server it has this client
       this_server['to_server_buff'].append(frame.toString())
@@ -371,8 +362,7 @@ def newconn(socket, frame):
         if "socket" not in str(type(e)) and "Socket" not in str(e):
           raise
         print "SocketError occured sending STATUS_NO_SERVER to client: "+frame.frameMACAddress
-        drop_client(frame.frameMACAddress,serverMac)
-        print frame.frameMACAddress+" has been dropped"
+   
 
 
 
