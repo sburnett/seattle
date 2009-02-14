@@ -369,11 +369,12 @@ def newconn(socket, frame):
 
 # Start the forwarder 
 if callfunc == "initialize":
+  print "hello"
   
   # Initialize the NAT channel
-  # natcon = NATConnection(FORWARDER_MAC, callargs[0], int(callargs[1]))
-  natcon = NATConnection(FORWARDER_MAC,"127.0.0.1" , 12345)
-
+  natcon = NATConnection(FORWARDER_MAC, callargs[0], int(callargs[1]))
+  #natcon = NATConnection(FORWARDER_MAC,"127.0.0.1" , 12345)
+  
   # Setup our process to handle new connections
   natcon.frameHandler = newconn
 
