@@ -900,9 +900,6 @@ class NATConnection():
     # Append the new data
     self.clientDataBuffer[fromMac]["data"] += frame.frameContent
     
-    # Reduce amount of incoming data available
-    self.clientDataBuffer[fromMac]["incomingAvailable"] -= frame.frameContentLength
-    
     # Release the lock now that there is data
     try:
       self.clientDataBuffer[fromMac]["nodatalock"].release() 
@@ -1061,6 +1058,9 @@ class NATSocket():
     # Read up to bytes
     data = self.natcon.clientDataBuffer[self.clientMac]["data"][:bytes] 
   
+    # Reduce amount of incoming data available
+    self.natcon.clientDataBuffer[self.clientMac]["incomingAvailable"] -= len(data)
+    
     # Remove what we read from the buffer
     self.natcon.clientDataBuffer[self.clientMac]["data"] = self.natcon.clientDataBuffer[self.clientMac]["data"][bytes:] 
   

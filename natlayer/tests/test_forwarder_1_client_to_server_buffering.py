@@ -40,8 +40,8 @@ def new_client(remotemac, natsocket, thisnatcon):
 def stop_test(out=None):
   if out is not None:
     print out
-  server_natcon.close()
   client_natcon.close()
+  server_natcon.close()
 
 
 if callfunc == "initialize":
