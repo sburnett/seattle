@@ -40,7 +40,7 @@ def talksAlot(socket,natcon):
 
 def sendNumbers(socket,natcon):
   num = 0
-  for i in range(100):
+  for i in range(50):
     socket.send(str(num))
     new_num = int(socket.recv(1024))
     if new_num != num+1:
@@ -81,8 +81,8 @@ if callfunc == "initialize":
   settimer(0,sendNumbers,[good_clientSock,good_client_natcon])
 
 
-  #test times out in 20 seconds
-  timer = settimer(20,stop_test,['test timed out'])
+  #test times out in 30 seconds
+  timer = settimer(30,stop_test,['test timed out'])
 
 
   
