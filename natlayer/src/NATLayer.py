@@ -1237,7 +1237,7 @@ def nat_openconn(destmac, destport, localmac="001122334455", localport=None, tim
   # TODO: Dennis you need to tie in here to get a real forwarder IP and port
   if forwarderIP == None or forwarderPort == None:
     server_lookup(localmac)
-    forwarderIP = mycontext['currforwarder']
+    forwarderIP = mycontext['currforwarder'][0]
     forwarderPort = 12345
 
   # Create NATConnection to forwarder
@@ -1290,8 +1290,8 @@ def nat_waitforconn(localmac, localport, function, forwarderIP=None, forwarderPo
   """
   if forwarderIP == None or forwarderPort == None:
     forwarder_lookup() 
-    settimer(0, sadvertise, [localmac],)
-    forwarderip = mycontext['currforwarder']
+    settimer(0, server_advertise, [localmac],)
+    forwarderIP = mycontext['currforwarder']
     forwarderPort = 12345 
   
   # Create NATConnection to forwarder
