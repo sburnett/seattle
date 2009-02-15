@@ -14,6 +14,8 @@
 
 import os
 import platform
+import sys
+sys.path.append(os.getcwd())
 import windows_api
 import nonportable
 
@@ -65,6 +67,11 @@ def get_startup_folder(version):
         elif version == "WindowsCE":
             # Look in probable Mobile places
             startup_path = "\\Windows\\Startup"
+            if os.path.exists(startup_path):
+                return startup_path
+            startup_path = "\\Windows\\StartUp"
+            if os.path.exists(startup_path):
+                return startup_path
         return ""
 
 
@@ -80,7 +87,7 @@ def main():
     else:
         if not (nonportable.ostype == "WindowsCE"):
             # If it's not Windows Mobile, display error and fail
-            output("Unsupported Windows Version: " + platform.system + " " + platform.release)
+            output("Unsupported Windows Version: " + platform.system() + " " + platform.release())
         else:
             # Correct version of Windows, go ahead with the install
             output("Done.")
