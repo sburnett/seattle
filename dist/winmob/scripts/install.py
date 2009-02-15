@@ -103,16 +103,25 @@ def main():
                     output("Seattle is already installed on this computer.")
                 else:
                     # Assume seattle is not installed, and move ahead
+                    
+                    # First, create the sitecustomize file
+                    ouput("Configuring python...")
+                    script_lines = []
+                    script_lines.append("import sys\n")
+                    script_lines.append("sys.path.append(\"" + prog_path + "\")\n")
+                    sitecust_f = open(PYTHON_PATH + "\\sitecustomize.py")
+                    sitecust_f.writelines(script_lines)
+                    sitecust_f.close()
+                    output("Done.")
+
                     # Generate a script to run from the startup folder
                     output("Generating startup script...")
                     script_lines = []
-                    script_lines.append("import sys\n")
+                    script_lines.append("import windows_api\n")
                     script_lines.append("\n")
                     script_lines.append("SEATTLE_DIR = r\"" + prog_path + "\"\n")
                     script_lines.append("\n")
                     script_lines.append("def main():\n")
-                    script_lines.append("  sys.path.append(SEATTLE_DIR)\n")
-                    script_lines.append("  import windows_api\n")
                     script_lines.append("  windows_api.launchPythonScript(INSTALL_DIR + \"\\start_seattle.py\")\n")
                     script_lines.append("\n")
                     script_lines.append("if __name__ == \"__main__\":\n")
@@ -142,6 +151,8 @@ def main():
                     uninstaller_f.close()
                     output("Done.")
 
+
+
                     post_startup_steps(prog_path, added_to_startup)
                     
             else:
@@ -165,8 +176,6 @@ def post_startup_steps(prog_path, added_to_startup):
     lines = []
     for line in const_f:
         to_append = line
-        if line.startswith("PATH_PYTHON_INSTALL"):
-            to_append = 'PATH_PYTHON_INSTALL = "' + prog_path + '"\n'
         if line.startswith("PATH_SEATTLE_INSTALL"):
             to_append = 'PATH_SEATTLE_INSTALL = "' + prog_path + '"\n'
         lines.append(to_append)
