@@ -22,6 +22,7 @@ import nonportable
 
 STARTER_SCRIPT_NAME = "start_seattle.py"
 
+PYTHON_PATH = "\\Program Files\\Python25\\"
 
 def output(text):
     print text
