@@ -184,12 +184,12 @@ table.profile tr.even {
 
 #middle #download {
     float: right;
-    width: 100px;
+/*    width: 100px; */
     border: 2px solid #666;
     background-color: #fff;
-    padding: 10px;
+    padding: 10px; 
     margin-top: 20px;
-    margin-right: 60px;
+    margin-right: 0px;
     text-align: center;
     font-weight: bold;
 }

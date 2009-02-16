@@ -103,6 +103,9 @@ def gen_get_form(geni_user,req_post=None):
 
         # the various environmen types the user may select from
         env = forms.ChoiceField(choices=((1,'LAN'),(2,'WAN'),(3,'Random')))
+
+        def get_errors_as_str(self):
+            return str(self.errors)
         
     if req_post is None:
         return GetVesselsForm()

@@ -175,17 +175,17 @@ def donations(request,share_form=None):
         return ret
     geni_user = ret
 
-    if share_form == None:
+#    if share_form == None:
         # build a new add share form if none is supplied to us
-        share_form = forms.AddShareForm()
+#        share_form = forms.AddShareForm()
             
-    mydonations = Donation.objects.filter(user = geni_user)
-    myshares = Share.objects.filter(from_user = geni_user)
+#    mydonations = Donation.objects.filter(user = geni_user)
+#    myshares = Share.objects.filter(from_user = geni_user)
     
-    donations_to_me = []
-    has_donations_from_others = (len(donations_to_me) != 0)
-    has_donations = (len(mydonations) != 0)
-    has_shares = (len(myshares) != 0)
+#    donations_to_me = []
+#    has_donations_from_others = (len(donations_to_me) != 0)
+#    has_donations = (len(mydonations) != 0)
+#   has_shares = (len(myshares) != 0)
     
     return direct_to_template(request,'control/mygeni.html', {})
                               # {'geni_user' : geni_user,
@@ -523,13 +523,9 @@ def get_resources(request):
     
     action_summary = ""
     if get_form.is_valid():
-        print "get_form is valid"
         # if the acquisition form is valid
         action_explanation = "" #get_form.cleaned_data['env']
         # acquire the requested resource
-        print get_form.cleaned_data
-        print get_form.cleaned_data['num']
-        #print get_form.cleaned_data['env']
         env_type = get_form.cleaned_data['env']
         print "ENV_TYPE : " +  str(env_type)
         success,ret = acquire_resources(geni_user, int(get_form.cleaned_data['num']), env_type)
@@ -785,7 +781,6 @@ def getdonations(request):
     # validate user        
     ret,success = __validate_guser__(request)
     if not success:
-        print "user invalid"
         return ret
     geni_user = ret
 
@@ -798,6 +793,7 @@ def getdonations(request):
 def __jsonify(data):
     json = simplejson.dumps(data)
     return HttpResponse(json, mimetype='application/json')
+
 
 def __validate_ajax(request):
     ret, success = __validate_guser__(request)
@@ -828,6 +824,7 @@ def ajax_getshares(request):
     
     return __jsonify(ret)
 
+
 @login_required()
 def ajax_editshare(request):
     ret, success = __validate_ajax(request)
@@ -847,6 +844,7 @@ def ajax_editshare(request):
     return __jsonify({"success" : success, "error" : str_err})
 
 
+
 @login_required()
 def ajax_createshare(request):
     ret, success = __validate_ajax(request)
@@ -854,15 +852,15 @@ def ajax_createshare(request):
         return ret
     geni_user = ret
 
-    form = forms.AddShareForm(request.POST)
-    form.set_user(geni_user)
-    if not form.is_valid():
-        return __jsonify({"success" : False, "error" : form.get_errors_as_str()})
+    add_form = forms.AddShareForm(request.POST)
+    add_form.set_user(geni_user)
+    if not add_form.is_valid():
+        return __jsonify({"success" : False, "error" : add_form.get_errors_as_str()})
         
-    percent = form.cleaned_data['percent']
-    username = form.cleaned_data['username']
+    percent = add_form.cleaned_data['percent']
+    username = add_form.cleaned_data['username']
 
-    success, str_err = share_operations.create_user_share(geni_user, form.shared_with_guser, percent)
+    success, str_err = share_operations.create_user_share(geni_user, add_form.shared_with_guser, percent)
     return __jsonify({"success" : success, "error" : str_err})
 
 
@@ -886,11 +884,8 @@ def ajax_getcredits(request):
         for i in range(9):
             ret.append({'username' : "user" + str(i+1),
                         'percent' : 10})
-            
-    print "returning ret: ", str(ret)
-    json = simplejson.dumps(ret)
-    print "json object is ", str(json)
-    return HttpResponse(json, mimetype='application/json')
+
+    return __jsonify(ret)
 
 
 
@@ -901,25 +896,34 @@ def ajax_getvessels(request):
         return ret
     geni_user = ret
 
-    POST = request.POST
-    if POST.has_key(u'numvessels') and POST.has_key(u'env'):
-        numvessels = int(POST[u'numvessels'])
-        if numvessels != 0:
-            env = POST[u'env']
-            if env in ["LAN", "WAN", "Random"]:
-                if random.randrange(2) == 1:
-                    ret = {"success" : True, "error" : "", 'mypercent' : 20, "vessels" : [{"vesselid" : "vid1", "status" : "ok!", "expiresin" : "24 hours!"}]}
-                else:
-                    ret = {"success" : False, "error" : "Failed to acquire vessels", 'mypercent' : 20, "vessels" : []}
-            else:
-                ret = {"success" : False, "error" : "Environment type must be of type LAN, WAN, or Random", 'mypercent' : 20, "vessels" : []}
-        else:
-            ret = {"success" : False, "error" : "Number of vessels must be greater than 0", 'mypercent' : 20, "vessels" : []}
-            
-    print "returning ret: ", str(ret)
-    json = simplejson.dumps(ret)
-    print "json object is ", str(json)
-    return HttpResponse(json, mimetype='application/json')
+
+    get_form = forms.gen_get_form(geni_user,request.POST)
+    if get_form is None:
+        print "get_form is None"
+        return __jsonify({"success" : False, "error" : "User cannot acquire any more vessels"})
+
+    if not get_form.is_valid():
+        return __jsonify({"success" : False, "error" : get_form.get_errors_as_str()})        
+        
+    action_explanation = ""
+    # acquire the requested resource
+    env_type = get_form.cleaned_data['env']
+    print "ENV_TYPE : " +  str(env_type)
+    success,ret = acquire_resources(geni_user, int(get_form.cleaned_data['num']), env_type)
+    
+    # deserealize the returned value of the acquisition
+    if not success:
+        num_acquired,action_explanation,action_summary = ret
+        return __jsonify({"success" : False, "error" : action_summary})
+
+    action_explanation,action_summary = ret
+    print "acquire_resources returned: "
+    print action_summary
+    print action_explanation
+
+    # ret = {"success" : True, "error" : "", 'mypercent' : 20, "vessels" : [{"vesselid" : "vid1", "status" : "ok!", "expiresin" : "24 hours!"}]}
+    # {"success" : False, "error" : "Failed to acquire vessels", 'mypercent' : 20, "vessels" : []}
+    return __jsonify({"success" : True, "error" : action_summary})
 
     
 
