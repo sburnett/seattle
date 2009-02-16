@@ -200,6 +200,10 @@ def process_API_call(fullrequest):
     # If there are 3 args, we want to split at most 3 times (the first item is 
     # the callname)
     callargs = requestdata.split('|',numberofargs)
+    
+    #store the request as old metadata
+    nmAPI.vesseldict[vesselname]['oldmetadata'] = fullrequest
+    
     # return any output for the user...
     return APIfunction(*callargs[1:])
 
@@ -249,7 +253,8 @@ def ensure_is_correctly_signed(fullrequest, allowedkeys, oldmetadata):
   if not oldmetadata:
     return
 
-  (shouldtrust, reasons) = signeddata_shouldtrust(oldmetadata, requestsignature)
+  #BUG FIX: incorrect parameter was being passed to this function, only signature was passes instead of full request
+  (shouldtrust, reasons) = signeddata_shouldtrust(oldmetadata, fullrequest)
 
   if not shouldtrust:
     # let's tell them what is wrong.
