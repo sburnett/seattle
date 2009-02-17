@@ -10,25 +10,19 @@ socket-like connections.
 
 """
 
-include forwarder_advertise.py
-include server_advertise.py
+# This is to help send dictionaries as strings
+#include deserialize.py
 
 # Define Module Constants
-FORWARDER_MAC = "FFFFFFFFFFFF"
+FRAME_HEADER_DIGITS = 2 # How many digits can be used to indicate header length
 FRAME_DIVIDER = ";" # What character is used to divide a frame header
-CONTENT_LENGTH_DIGITS = 10 # Force content length string to this size, pad with 0's
-
-# What is the fixed size of the header?
-# This is the content length string, 3 dividers, a 12 digit MAC, and a 1 digit message type
-HEADER_SIZE = CONTENT_LENGTH_DIGITS + 3*len(FRAME_DIVIDER) + 13
 
 # These are the valid Message Types
 DATA_FORWARD = 0
 CONN_TERM = 1
 CONN_BUF_SIZE = 2
-INIT_SERVER = 3
-INIT_CLIENT = 4
-INIT_STATUS = 5
+INIT_CLIENT = 3
+INIT_STATUS = 4
 
 # Special Case
 FRAME_NOT_INIT = -1
@@ -38,13 +32,16 @@ STATUS_NO_SERVER = "NO_SERVER"
 STATUS_BSY_SERVER = "BSY_SERVER"
 STATUS_CONFIRMED = "CONFIRMED"
 
+
+
 # Core unit of the Specification, this is used for multiplexing a single connection,
 # and for initializing connection to the forwarder
 class MultiplexerFrame():
-  frameMesgType = FRAME_NOT_INIT
-  frameContentLength = 0
-  frameMACAddress = ""
-  frameContent = ""
+  headerSize = 0
+  mesgType = FRAME_NOT_INIT
+  contentLength = 0
+  referenceID = 0
+  content = ""
 
   # So that we display properly  
   def __repr__(self):
@@ -53,217 +50,133 @@ class MultiplexerFrame():
     except AttributeError:
       return "<MultiplexerFrame instance, FRAME_NOT_INIT>"
     
-  def initAsClient(self,clientMac, serverMac):
+  def initClientFrame(self,requestedID, ip, port):
     """
     <Purpose>
-      Prepares the frame to be used for a client initiation.
+      Makes the frame a INIT_CLIENT frame
 
     <Arguments>
-      clientMAC:
-             The MAC address of the client (this machine). This should be a string representation.
-      serverMAC:
-            The MAC address of the remote client (the server). This should be a string representation.
-
-    <Exceptions>
-            Raises an ValueError exception if the MAC(s) are not of proper length.
-            
-    <Side Effects>
-      The frame will be altered.
-    """
-    # Strip colons
-    clientMac = clientMac.replace(":","")
-    serverMac = serverMac.replace(":","")
-    
-    # Check for input sanity
-    if len(clientMac) != 12 or len(serverMac) != 12:
-      raise ValueError, "Input MAC addresses must be 12 characters (not including colons)!"
-    
-    # Strip out any colons
-    # Set the client mac in the frame
-    self.frameMACAddress = clientMac
-    
-    # set serverMac as the content, set the content length
-    self.frameContent = serverMac
-    self.frameContentLength = len(self.frameContent)
-    
-    # Set the correct frame message type
-    self.frameMesgType = INIT_CLIENT
-  
-  
-  def initAsServer(self,serverMac,buf):
-    """
-    <Purpose>
-      Prepares the frame to be used for a server initiation.
-
-    <Arguments>
-      serverMAC:
-            The MAC address of the server (this machine). This should be a string representation.
-
-      buf:
-            The default incoming and outgoing buffer size will be set to this. When they reach 0, they will be expanded by this amount. -1 indicates buffering is disabled.
-    <Exceptions>
-            Raises an ValueError exception if the MAC(s) are not of proper length.
-            
-    <Side Effects>
-      The frame will be altered.
-    """
-    # Strip colons
-    serverMac = serverMac.replace(":","")
-    
-    # Check for input sanity
-    if len(serverMac) != 12:
-      raise ValueError, "Input MAC addresses must be at least 12 characters (not including colons)!"
-    if buf <= 0 and buf != -1:
-      raise ValueError, "Invalid buffer size! Must be a positive value, or -1!"
+      requestedID:
+        The requested Identifier for this new virtual socket
       
-    # Strip out any colons
-    # Set the client mac in the frame
-    self.frameMACAddress = serverMac
-
-    # Set the content and length
-    self.frameContent = str(buf)
-    self.frameContentLength = len(self.frameContent)
-
-    # Set the correct frame message type
-    self.frameMesgType = INIT_SERVER
+      ip:
+       Our IP address reported to the partner multiplexer
+       
+      port:
+        Our port reported to the partner multiplexer
+      
+      
+    """    
+    # Set the requestedID in the frame
+    self.referenceID = requestedID
     
-  def initAsForwarderResponse(self,response):
+    # Set the content as a dict
+    requestDict = {'ip':ip,'port':port}
+    self.content = str(requestDict)
+    self.contentLength = len(self.content)
+    
+    # Set the correct frame message type
+    self.mesgType = INIT_CLIENT
+
+    
+  def initResponseFrame(self,requestedID,response):
     """
     <Purpose>
-      Prepares the frame to be used for a forwarder response to initiation.
+      Makes the frame a INIT_STATUS frame
 
     <Arguments>
+      requestedID:
+          A reference to the requestedID of the INIT_CLIENT message
+      
       response:
-            The forwarder response message.
+          The response message.
           
-    <Side Effects>
-      The frame will be altered.
     """
-    # Set the forwarder mac in the frame
-    self.frameMACAddress = FORWARDER_MAC
+    # Set the requestedID in the frame
+    self.referenceID = requestedID
 
     # Set the frame content
-    self.frameContent = response
+    self.content = response
     
     # Set the content length
-    self.frameContentLength = len(self.frameContent)
+    self.contentLength = len(self.content)
 
     # Set the correct frame message type
-    self.frameMesgType = INIT_STATUS 
+    self.mesgType = INIT_STATUS 
 
-  def initAsDataFrame(self,destinationMAC, content):
+  def initDataFrame(self,referenceID, content):
     """
     <Purpose>
-      Prepares the frame to be used for a data transfer.
+      Makes the frame a DATA_FORWARD frame
 
     <Arguments>
-      destinationMAC:
-            The MAC address that this frame should be routed to. Alternatively, if this is being sent to a server, the MAC should reflect that of the sender.
+      referenceID:
+            The referenceID that this frame should be routed to.
       content:
-            The content that should be sent to the destination. Must be a string, or
-            can be converted to one by the str() command.
+            The content that should be sent to the destination.
 
-    <Exceptions>
-            Raises an ValueError exception if the MAC(s) are not of proper length.
-          
-    <Side Effects>
-      The frame will be altered.
     """
-    # Strip colons
-    destinationMAC = destinationMAC.replace(":","")
-    
-    # Check for input sanity
-    if len(destinationMAC) != 12:
-      raise ValueError, "Input MAC addresses must be at least 12 characters (not including colons)!"
-      
     # Strip any colons in the mac address
-    self.frameMACAddress = destinationMAC
+    self.referenceID = referenceID
 
     # Set the frame content
-    self.frameContent = str(content)
+    self.content = str(content)
 
     # Set the content length
-    self.frameContentLength = len(self.frameContent)
+    self.contentLength = len(self.content)
 
     # Set the correct frame message type
-    self.frameMesgType = DATA_FORWARD
+    self.mesgType = DATA_FORWARD
   
   
-  
-  def initAsConnTermMsg(self,targetMAC):
+  def initConnTermFrame(self,referenceID):
     """
     <Purpose>
-      Prepares the frame to be used to terminate a connection to a client.
+      Makes the frame a CONN_TERM frame
 
     <Arguments>
-      targetMAC:
-            The MAC address of the client that should be disconnected.
-
-    <Exceptions>
-            Raises an ValueError exception if the MAC(s) are not of proper length.
-                  
-    <Side Effects>
-      The frame will be altered.
+      referenceID:
+            The referenceID of the socket that should be disconnected.
+       
     """
-    # Strip colons
-    targetMAC = targetMAC.replace(":","")
-    
-    # Check for input sanity
-    if len(targetMAC) != 12:
-      raise ValueError, "Input MAC addresses must be at least 12 characters (not including colons)!"
-      
     # Strip any colons in the mac address
-    self.frameMACAddress = targetMAC
+    self.referenceID = referenceID
 
     # Set the frame content
-    self.frameContent = ""
+    self.content = ""
 
     # Set the content length
-    self.frameContentLength = 0
+    self.contentLength = 0
 
     # Set the correct frame message type
-    self.frameMesgType = CONN_TERM
+    self.mesgType = CONN_TERM
   
   
     
-  def initAsConnBufSizeMsg(self,targetMAC, bufferSize):
+  def initConnBufSizeFrame(self,referenceID, bufferSize):
     """
     <Purpose>
-      Prepares the frame to be used to adjust a clients TCP buffer size.
+      Makes the frame a CONN_BUF_SIZE frame
 
     <Arguments>
-      targetMAC:
-            The MAC address of the client that should be altered.
+      referenceID:
+            The referenceID of the scoket that should be altered.
             
       bufferSize:
             The new buffer size for the client.
     
-    <Exceptions>
-            Raises an ValueError exception if the MAC(s) are not of proper length.
-       
-    <Side Effects>
-      The frame will be altered.
     """
-    # Strip colons
-    targetMAC = targetMAC.replace(":","")
-    
-    # Check for input sanity
-    if len(targetMAC) != 12:
-      raise ValueError, "Input MAC addresses must be at least 12 characters (not including colons)!"
-    if bufferSize <= 0:
-      raise ValueError, "Invalid buffer size! Must be a positive value!"
-          
     # Strip any colons in the mac address
-    self.frameMACAddress = targetMAC
+    self.referenceID = referenceID
 
     # Set the frame content, convert the bufferSize into a string
-    self.frameContent = str(bufferSize)
+    self.content = str(bufferSize)
 
     # Set the content length
-    self.frameContentLength = len(self.frameContent)
+    self.contentLength = len(self.content)
 
     # Set the correct frame message type
-    self.frameMesgType = CONN_BUF_SIZE
+    self.mesgType = CONN_BUF_SIZE
   
   
   
@@ -275,82 +188,46 @@ class MultiplexerFrame():
     <Arguments>
       inSocket:
             The socket to read from.
-
-    <Side Effects>
-      The frame will be altered.
     
     <Exceptions>
       An EnvironmentError will be raised if an unexpected header is received. This could happen if the socket is closed.
     """    
-    # Read in the header
-    header = inSocket.recv(HEADER_SIZE)
+    # Read in the header frame size
+    headerSize = int(inSocket.recv(FRAME_HEADER_DIGITS))
+    header = inSocket.recv(headerSize)
     
-    if len(header) == HEADER_SIZE:
+    if len(header) == headerSize:
       # Setup header
       self._parseStringHeader(header)
 
-      if self.frameContentLength != 0:
+      if self.contentLength != 0:
         # Read in the data
-        self.frameContent = inSocket.recv(self.frameContentLength)
+        self.content = inSocket.recv(self.contentLength)
 
     else:
       raise EnvironmentError, "Unexpected Header Size!"
   
   
   
-  def initFromFile(self, fHandle):
-    """
-    <Purpose>
-      Constructs a frame object given a file handle which contains only frames.
-
-    <Arguments>
-      fHandle:
-            The file handle to read from.
-
-    <Side Effects>
-      The frame will be altered.
-      
-    <Returns>
-      True if successful and the frame has been updated. False if the frame has not been updated.
-    """
-    # Read in the header
-    header = fHandle.read(HEADER_SIZE)
-    
-    if len(header) == HEADER_SIZE:
-      # Setup header
-      self._parseStringHeader(header)
-    
-      if self.frameContentLength != 0:
-        # Read in the data
-        self.frameContent = fHandle.read(self.frameContentLength)
-      
-      return True
-    else:
-      return False
-  
-  
-  
   # Takes a string representing the header, and initializes the frame  
   def _parseStringHeader(self, header):
-    # Check to make sure the header is the right size
-    if len(header) != HEADER_SIZE:
-      raise ValueError, "Cannot parse header of wrong size!"
-    
     # Explode based on the divider
     headerFields = header.split(FRAME_DIVIDER,2)
-    (msgtype, contentlength, mac) = headerFields
+    (msgtype, contentlength, ref) = headerFields
     
     # Convert the types
     msgtype = int(msgtype)
     contentlength = int(contentlength)
     
     # Strip the last semicolon off
-    mac = mac.rstrip(FRAME_DIVIDER)
+    ref = ref.rstrip(FRAME_DIVIDER)
     
     # Setup the Frame
-    self.frameMesgType = msgtype
-    self.frameContentLength = contentlength
-    self.frameMACAddress = mac
+    self.mesgType = msgtype
+    self.contentLength = contentlength
+    self.referenceID = ref
+    
+    
     
   def toString(self):
     """
@@ -358,23 +235,26 @@ class MultiplexerFrame():
       Converts the frame to a string.
 
     <Exceptions>
-      Raises an AttributeError exception if the frame is not yet initialized,
-       e.g. its Message type is FRAME_NOT_INIT.
+      Raises an AttributeError exception if the frame is not yet initialized.
       
     <Returns>
       A string based representation of the string.
     """
-    if self.frameMesgType == FRAME_NOT_INIT:
-      raise AttributeError, "NAT Frame is not yet initialized!"
+    if self.mesgType == FRAME_NOT_INIT:
+      raise AttributeError, "Frame is not yet initialized!"
     
-    return str(self.frameMesgType) + FRAME_DIVIDER + \
-      str(self.frameContentLength).rjust(CONTENT_LENGTH_DIGITS,"0") + FRAME_DIVIDER + \
-      self.frameMACAddress + FRAME_DIVIDER + \
-      self.frameContent
-
-
-
-
+    # Create header
+    frameHeader = str(self.mesgType) + FRAME_DIVIDER + str(self.contentLength) + \
+                  FRAME_DIVIDER + str(self.referenceID) + FRAME_DIVIDER
+    
+    # Determine variable header size
+    headerSize = str(len(frameHeader)).rjust(FRAME_HEADER_DIGITS,"0")
+    
+    if len(headerSize) > FRAME_HEADER_DIGITS:
+      raise AttributeError, "Frame Header too large! Max:"+ FRAME_HEADER_DIGITS+ " Actual:"+ len(headerSize)
+    
+    return  headerSize + frameHeader + self.content
+    
 
 
 # This helps abstract the details of a NAT connection    
@@ -580,11 +460,11 @@ class Multiplexer():
     self.writeLock.release()
     
     # Check the response
-    if frResp.frameMesgType != INIT_STATUS:
+    if frResp.mesgType != INIT_STATUS:
       raise EnvironmentError, "Unexpected Response Frame!"
     
     # Return the socket if everything is ready
-    if frResp.frameContent == STATUS_CONFIRMED:
+    if frResp.content == STATUS_CONFIRMED:
       self.connectionInit = True
       self.error = []
       return self.socket
@@ -592,7 +472,7 @@ class Multiplexer():
     # Otherwise, set the error message, and return none
     # Also, close the socket.  
     else:
-      self.error = frResp.frameContent
+      self.error = frResp.content
       return None
     
   # Initializes connection to forwarder as a server
@@ -637,11 +517,11 @@ class Multiplexer():
     self.writeLock.release()
     
     # Check the response
-    if frResp.frameMesgType != INIT_STATUS:
+    if frResp.mesgType != INIT_STATUS:
       raise EnvironmentError, "Unexpected Response Frame!"
     
     # Return the socket if everything is ready
-    if frResp.frameContent == STATUS_CONFIRMED:
+    if frResp.content == STATUS_CONFIRMED:
       self.connectionInit = True
       self.error = []
       return True
@@ -649,7 +529,7 @@ class Multiplexer():
     # Otherwise, set the error message, and return none
     # Also, close the socket.  
     else:
-      self.error = frResp.frameContent
+      self.error = frResp.content
       return False
      
   def recv(self):
@@ -726,13 +606,13 @@ class Multiplexer():
       frame = self.recv()
       
       # Append the frame to the error array
-      if frame.frameMesgType != DATA_FORWARD:
+      if frame.mesgType != DATA_FORWARD:
         self.error.append(frame)
       else:
         break
 
     # Return the frame
-    return (frame.frameMACAddress, frame.frameContent)
+    return (frame.referenceID, frame.content)
   
   def sendFrame(self,frame):
     """
@@ -905,7 +785,7 @@ class Multiplexer():
     self.clientDataBuffer[fromMac]["nodatalock"].acquire()
     
     # If the frame is a data frame, add the data
-    if frame.frameMesgType == DATA_FORWARD:
+    if frame.mesgType == DATA_FORWARD:
       self._incoming_client_data(fromMac, frame)
     
     # Create a new socket
@@ -928,7 +808,7 @@ class Multiplexer():
     self.clientDataBuffer[fromMac]["lock"].acquire()
     
     # Append the new data
-    self.clientDataBuffer[fromMac]["data"] += frame.frameContent
+    self.clientDataBuffer[fromMac]["data"] += frame.content
     
     # Release the lock now that there is data
     try:
@@ -962,8 +842,8 @@ class Multiplexer():
       # Read in a frame
       try:
         frame = self.recv()
-        fromMac = frame.frameMACAddress
-        frameType = frame.frameMesgType
+        fromMac = frame.referenceID
+        frameType = frame.mesgType
         #DEBUG
         #print "NATConnection._socketReader: ", frame
       except:
@@ -986,7 +866,7 @@ class Multiplexer():
       
       # Handle CONN_BUF_SIZE
       elif frameType == CONN_BUF_SIZE:
-        self._conn_buf_size(fromMac, int(frame.frameContent))
+        self._conn_buf_size(fromMac, int(frame.content))
           
       # Handle DATA_FORWARD
       elif frameType == DATA_FORWARD:
