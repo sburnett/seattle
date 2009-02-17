@@ -11,7 +11,7 @@ socket-like connections.
 """
 
 # This is to help send dictionaries as strings
-#include deserialize.py
+include deserialize.py
 
 # Define Module Constants
 FRAME_HEADER_DIGITS = 2 # How many digits can be used to indicate header length
@@ -28,11 +28,8 @@ INIT_STATUS = 4
 FRAME_NOT_INIT = -1
 
 # Valid Forwarder responses to init
-STATUS_NO_SERVER = "NO_SERVER"
-STATUS_BSY_SERVER = "BSY_SERVER"
 STATUS_CONFIRMED = "CONFIRMED"
-
-
+STATUS_FAILED = "FAILED"
 
 # Core unit of the Specification, this is used for multiplexing a single connection,
 # and for initializing connection to the forwarder
@@ -71,7 +68,7 @@ class MultiplexerFrame():
     self.referenceID = requestedID
     
     # Set the content as a dict
-    requestDict = {'ip':ip,'port':port}
+    requestDict = {'remoteip':ip,'remoteport':port}
     self.content = str(requestDict)
     self.contentLength = len(self.content)
     
@@ -259,12 +256,8 @@ class MultiplexerFrame():
 
 # This helps abstract the details of a NAT connection    
 class Multiplexer():
-  # Keeps track of the last error during init client/server
-  # After a successful init (client or server) it becomes a list
-  # recvTuple appends all non-handled frames (e.g. non- DATA_FORWARD)
-  error = None 
-  ourMAC = "" # What is our MAC?
-  connectionInit = False # Is everything setup?
+  # Is everything setup?
+  connectionInit = False 
 
   # Default incoming and outgoing buffer size expansion value
   # Defaults to 128 kilobytes
@@ -274,86 +267,53 @@ class Multiplexer():
   # This is the main socket
   socket = None 
   
-  # This is a handle to the connection listener
-  # If this is not None, then we are a forwarder
-  listenHandle = None 
+  # Locks, this is to make sure only one thread is reading or writing at any time
+  readLock = getlock()
+  writeLock = getlock()
   
   # Callback function that is passed a socket object and frame when it is received
   # This needs to be set by the forwarder, this is also used by waitforconn
-  frameHandler = None
+  callbackFunction = None
   
-  # Locks, this is to make sure only one thread is reading or writing at any time
-  readLock = None
-  writeLock = None
+  # This dictionary keeps track of sockets we are waiting to open
+  pendingSockets = {}
   
-  # This is so that client data can be buffered for the sockets
-  # This is used for waitforconn, to handle recieving data out of requested order
-  # e.g. socket A does a recv but we recieve 5 frames for socket B first
-  # 
-  # Each client is represented by their string mac, which corresponds to another dictionary
-  # This dictionary has 6 indexes, "lock" which is a lock for: "data" which is just a string, "closed" is wheter the socket is closed
-  # "nodatalock" is locked when there is no data, this allows the NATConnection to unblock a thread that is waiting for data
-  # "incomingAvailable", bytes receivable
-  # "outgoingAvailable", bytes sendable
-  # "outgoingLock" is locked if the outgoingAvailable is 0
-  clientDataBuffer = None
-  clientDataLock = None
+  # If we want a new client, what number should we request?
+  referenceCounter = 0
+  
+  # A dictionary that associates reference ID's to their MultiplexerSocket objects
+  virtualSockets = {}
+  virtualSocketsLock = getlock()
   
   # Signals that the _socketReader should terminate if true
   stopSocketReader = False
+
   
-  # If socketReader recieves a frame after a stopcom, it will be stored here
-  # Recv checks if this is set to None, or returns this instead of reading
-  socketReaderUnhandledFrame = None
-  
-  def __init__(self, mac, forwarderIP, forwarderPort, timeout=10):
+  def __init__(self, socket):
     """
     <Purpose>
-      Initializes the NATConnection object.
+      Initializes the Multiplexer object.
      
     <Arguments>
-      mac:
-        MAC address of this machine. If this is detected as the FORWARDER_MAC
-        then the socket will be established to listen, and the given port will
-        be used.
-        
-      forwarderIP:
-        The IP address of the forwarder to connect to. If this is the forwarder,
-        then use getmyip().
-      
-      forwarderPort:
-        The port on the forwarder to connect to
-      
-      timeout:
-        How long before we timeout connecting to the forwarder.
-        
-    <Exceptions>
-        As from socket.connect, etc.
+      socket:
+        Socket like object that is used for multiplexing
     """
-    # Save our mac address
-    self.ourMAC = mac.replace(":","")
-
-    # Input checking
-    if len(self.ourMAC) != 12:
-      raise ValueError, "Input MAC addresses must be at least 12 characters (not including colons)!"
-    
     # Setup the socket
-    if self.ourMAC == FORWARDER_MAC:
-      listenHandle = waitforconn(forwarderIP, forwarderPort, self._incomingFrame)
+    self.socket = socket
+    
+    # If we are given a socket, assume it is setup
+    if socket != None:
       self.connectionInit = True
-    else:
-      self.socket = openconn(forwarderIP, forwarderPort, timeout=timeout)
-      
-    # Setup socket locks
-    self.readLock = getlock()
-    self.writeLock = getlock()
   
   # Closes the NATConnection, and cleans up
-  def close(self):
+  def close(self, closeSocket=True):
     """
     <Purpose>
-      Closes the NATConnection object. Also closes all sockets associated with this connection.
+      Closes the Multiplexer object. Also closes all virtual sockets associated with this connection.
       
+    <Arguments>
+      closeSocket:
+        If true, the master socket will be closed as well.
     """
     # Prevent more reading or writing
     try:
@@ -372,28 +332,18 @@ class Multiplexer():
     finally:
       self.writeLock.acquire()
     
+    # The Mux is no longer initialized
     self.connectionInit = False
     
-    # Stop the internal listner
-    if self.listenHandle != None:
-      stopcomm(self.listenHandle)
-      self.listenHandle = None
-      
     # Get the buffer lock, and close everything if it exists
-    if self.clientDataLock != None:
-      self.stopSocketReader = True # Tell the socket reader to quit
+    self.stopSocketReader = True # Tell the socket reader to quit
       
-      self.clientDataLock.acquire()
-    
-      # Close each individual socket
-      for clt in self.clientDataBuffer:
-        self._closeCONN(clt,True)
-    
-      # Release the buffer lock
-      self.clientDataLock.release()
+    # Close each individual socket
+    for refID, sock in self.virtualSockets:
+      self._closeCONN(sock, refID)
       
     # Close the real socket
-    if self.socket != None:
+    if closeSocket and self.socket != None:
       self.socket.close()
       self.socket = None
       
@@ -407,159 +357,14 @@ class Multiplexer():
       The virtual sockets will no longer get data buffered. Incoming frames will not be parsed.
       
     """
-    # Instruct the socket reader to stop      
-    self.stopSocketReader = True
+    # Set the callback to None, this way we know not to accept new clients  
+    self.callbackFunction = None
     
-  # Handles incoming frames
-  def _incomingFrame(self,remoteip,remoteport,inSocket,thisCommHandle,listenCommHandle):
-    # Initialize Frame
-    frame = MultiplexerFrame()
-    
-    # Create frame from the socket
-    frame.initFromSocket(inSocket)
-    
-    # Call the callback function
-    if self.frameHandler != None:
-      self.frameHandler(inSocket, frame)
-  
-  # Initializes connection to forwarder and a server,
-  # Returns a socket that can be used normally
-  def initClientConnection(self, serverMac):
-    """
-    <Purpose>
-      Initializes TCP socket to serve as a client connection to a server
-    
-    <Arguments>
-      serverMAC:
-        The MAC address of the server to connect to.
-    
-    <Exceptions>
-      Throws an EnvironmentError if an unexpected response is received.
-      
-    <Returns>
-      A socket object if the connection succedded, None on failure.
-      Check NATConnection.error to see the error.
-    """
-    # Make sure we have all the locks
-    self.readLock.acquire()
-    self.writeLock.acquire()
-    
-    # Create init frame
-    frInit = MultiplexerFrame()
-    frInit.initAsClient(self.ourMAC, serverMac)
-    
-    # Send the frame
-    self.socket.send(frInit.toString())
-    
-    # Get the response frame
-    frResp = MultiplexerFrame()
-    frResp.initFromSocket(self.socket)
-
-    # Release the locks
-    self.readLock.release()
-    self.writeLock.release()
-    
-    # Check the response
-    if frResp.mesgType != INIT_STATUS:
-      raise EnvironmentError, "Unexpected Response Frame!"
-    
-    # Return the socket if everything is ready
-    if frResp.content == STATUS_CONFIRMED:
-      self.connectionInit = True
-      self.error = []
-      return self.socket
-      
-    # Otherwise, set the error message, and return none
-    # Also, close the socket.  
-    else:
-      self.error = frResp.content
-      return None
-    
-  # Initializes connection to forwarder as a server
-  def initServerConnection(self,buf=128*1024):
-    """
-    <Purpose>
-      Initializes TCP socket to multiplex data between server and forwarder
-
-    <Arguments>
-      buf:
-        The default incoming and outgoing buffer expansion size.
-        The buffer will be expanded by this much when it reaches 0.
-        Defaults to 128 kilobytes. Set to -1 to disable.
-        
-    <Exceptions>
-      Throws an EnvironmentError if an unexpected response is received.
-      
-    <Returns>
-      True if the connection succedded, False on failure.
-      Check NATConnection.error to see the error.
-    """
-    # Setup the buffer
-    self.defaultBufSize = buf
-    
-    # Make sure we have all the locks
-    self.readLock.acquire()
-    self.writeLock.acquire()
-    
-    # Create init frame
-    frInit = MultiplexerFrame()
-    frInit.initAsServer(self.ourMAC,buf)
-    
-    # Send the frame
-    self.socket.send(frInit.toString())
-    
-    # Get the response frame
-    frResp = MultiplexerFrame()
-    frResp.initFromSocket(self.socket)
-
-    # Release the locks
-    self.readLock.release()
-    self.writeLock.release()
-    
-    # Check the response
-    if frResp.mesgType != INIT_STATUS:
-      raise EnvironmentError, "Unexpected Response Frame!"
-    
-    # Return the socket if everything is ready
-    if frResp.content == STATUS_CONFIRMED:
-      self.connectionInit = True
-      self.error = []
-      return True
-      
-    # Otherwise, set the error message, and return none
-    # Also, close the socket.  
-    else:
-      self.error = frResp.content
-      return False
-     
-  def recv(self):
-    """
-    <Purpose>
-      Receives a frame and returns it. If you want a socket-like interface, with 
-      more abstraction, see waitforconn.
-    
-    <Exceptions>
-      If the socket is closed, an EnvironmentError is raised.
-      If the connection is not initialized, an AttributeError is raised.
-    
-    <Remarks>
-      This function will return all types of incoming frames.
-      
-    <Returns>
-      A frame object. None on failure.
-    """
+  # Private: Recieves a single frame 
+  def _recvFrame(self):
     # Check if we are initialized
     if not self.connectionInit:
-      raise AttributeError, "NAT Connection is not yet initialized!"
-    
-    # Check if there is an unhandled frame left over
-    # If so, return that instead of reading the socket
-    if self.socketReaderUnhandledFrame != None:
-      frame = self.socketReaderUnhandledFrame
-      self.socketReaderUnhandledFrame = None
-      # DEBUG
-      #print "NATConnection.recv.UnhandledFrame: ", frame
-      return frame
+      raise AttributeError, "Multiplexer is not yet initialized!"
             
     # Init frame
     frame = MultiplexerFrame()
@@ -574,61 +379,14 @@ class Multiplexer():
       # Release the lock
       self.readLock.release()
     
-    # DEBUG
-    #print "NATConnection.recv: ", frame
-    
     # Return the frame
     return frame
-    
-  def recvTuple(self):
-    """
-    <Purpose>
-      Receives a frame and returns it as a tuple.
 
-    <Exceptions>
-      If the socket is closed, an EnvironmentError is raised.
-      If the connection is not initialized, an AttributeError is raised.
-
-    <Remarks>
-      This function will only return when it receives a valid DATA_FORWARD frame.
-      All other frame types will be added to the NATConnection.error array.
-      
-    <Returns>
-      A tuple, (fromMac, content)
-    """
+  # Private: Sends a single frame
+  def _sendFrame(self,frame):
     # Check if we are initialized
     if not self.connectionInit:
-      raise AttributeError, "NAT Connection is not yet initialized!"
-    
-    # Only return a data frame
-    while True:
-      # Read in a frame
-      frame = self.recv()
-      
-      # Append the frame to the error array
-      if frame.mesgType != DATA_FORWARD:
-        self.error.append(frame)
-      else:
-        break
-
-    # Return the frame
-    return (frame.referenceID, frame.content)
-  
-  def sendFrame(self,frame):
-    """
-    <Purpose>
-      Sends a frame over the socket.
-      
-    <Arguments>
-      frame:
-        The frame to send over the network
-    
-    <Exceptions>
-      If the connection is not initialized, an AttributeError is raised.  Socket error can be raised if the socket is closed during transmission.
-    """
-    # Check if we are initialized
-    if not self.connectionInit:
-      raise AttributeError, "NAT Connection is not yet initialized!"
+      raise AttributeError, "Multiplexer is not yet initialized!"
     
     try:
       # Get the send lock
@@ -639,14 +397,14 @@ class Multiplexer():
     finally:
       # release the send lock
       self.writeLock.release()
-    
-  def send(self,targetMac, data):
+   
+  def _send(self,referenceID, data):
     """
     <Purpose>
       Sends data as a frame over the socket.
       
     <Arguments>
-      targetMac:
+      referenceID:
         The target to send the data to.
        
       data:
@@ -657,45 +415,65 @@ class Multiplexer():
     """
     # Check if we are initialized
     if not self.connectionInit:
-      raise AttributeError, "NAT Connection is not yet initialized!"
+      raise AttributeError, "Multiplexer is not yet initialized!"
       
     # Build the frame
     frame = MultiplexerFrame()
     
     # Initialize it
-    frame.initAsDataFrame(targetMac, data)
+    frame.initAsDataFrame(referenceID, data)
     
     # Send it!
     self.sendFrame(frame)
 
-  def waitforconn(self, function):
+  # TODO: implement this
+  def openconn(self, desthost, destport, localip=None,localport=None,timeout=5):
     """
     <Purpose>
-    Waits for a connection to a port. Calls function with a socket-like object if it succeeds.
+      Opens a connection, returning a socket-like object
 
     <Arguments>
+      See repy's openconn
+
+    <Side Effects>
+      None
+
+    <Returns>
+      A socket like object.
+    """
+    pass
+    
+  def waitforconn(self, localip, localport, function):
+    """
+    <Purpose>
+      Waits for a connection to a port. Calls function with a socket-like object if it succeeds.
+
+    <Arguments>
+      localip:
+        The local IP to listen on
+
+      localport:
+        The local port to bind to
+    
       function:
-        The function to call. It should take three arguments: (remotemac, socketlikeobj, thisnatcon).
+        The function to call. It should take four arguments: (remoteip, remoteport, socketlikeobj, multiplexer)
         If your function has an uncaught exception, the socket-like object it is using will be closed.
 
     <Side Effects>
       Starts an event handler that listens for connections.
 
     <Returns>
-      Nothing
+      A multiplexer object
     """
     # Check if we are initialized
     if not self.connectionInit:
-      raise AttributeError, "NAT Connection is not yet initialized!"
+      raise AttributeError, "Multiplexer is not yet initialized!"
       
     # Setup the user function to call if there is a new client
-    self.frameHandler = function
+    self.callbackFunction = function
     
     # Create dictionary
-    self.clientDataBuffer = {}
-    
-    # Create lock
-    self.clientDataLock = getlock()
+    self.virtualSockets = {}
     
     # Set stopSocketReader to false
     self.stopSocketReader = False
@@ -705,129 +483,122 @@ class Multiplexer():
   
   
   # Handles a client closing a connection
-  # force is used to avoid checking if client is connected,
-  # this is used on NATConnection.close to avoid deadlocking
-  def _closeCONN(self,fromMac,force=False):
-    # Check if this client is even connected
-    if force or self._isConnected(fromMac):    
-      # We just need to set the closed flag, since the socket will detect that and close itself
-      # Lock the client
-      self.clientDataBuffer[fromMac]["lock"].acquire()
+  def _closeCONN(self,socket, refID):
+    # Acquire a lock for the socket
+    socket.socketLocks["main"].acquire()
     
-      # Set it to be closed
-      self.clientDataBuffer[fromMac]["closed"] = True
+    # Close the socket
+    socket.socketInfo["closed"] = True
     
-      # Release the lock now, even with no data, so that we hit the closed check
-      try:
-        self.clientDataBuffer[fromMac]["nodatalock"].release() 
-      except:
-        pass
-      
-      # Release the lock now, even with no data, so that we hit the closed check
-      try:
-        self.clientDataBuffer[fromMac]["outgoingLock"].release()
-      except:
-        pass
-        
-      # Unlock
-      self.clientDataBuffer[fromMac]["lock"].release()
+    # Release the socket
+    socket.socketLocks["main"].release()
 
   # Handles a forwarder CONN_BUF_SIZE message
   # Increases the amount we can send out
-  def _conn_buf_size(self,fromMac, num):
-    # Return if we are not buffering
-    if (self.defaultBufSize == -1):
-      return
+  def _conn_buf_size(self,socket, num):
+    # Acquire a lock for the socket
+    socket.socketLocks["main"].acquire()
     
-    # Only do this if the client is connected...
-    if self._isConnected(fromMac):  
-      # Lock the client
-      self.clientDataBuffer[fromMac]["lock"].acquire()
+    # Increase the buffer size
+    socket.bufferInfo["outgoing"] = num
     
-      # Set it to the new amount
-      self.clientDataBuffer[fromMac]["outgoingAvailable"] = num
+    # Release the outgoing lock, this unblocks socket.send
+    try:
+      socket.socketLocks["outgoing"].release()
+    except:
+      # That means the lock was already released
+      pass
     
-      # Release the outgoing lock, this unblocks socket.send
-      try:
-        self.clientDataBuffer[fromMac]["outgoingLock"].release()
-      except:
-        # That means the lock was already released, which means we have an unexpected 
-        # CONN_BUF_SIZE message...
-        pass
+    # Release the socket
+    socket.socketLocks["main"].release()
     
-      # Unlock
-      self.clientDataBuffer[fromMac]["lock"].release()
-  
   # Handles a new client connecting
-  def _new_client(self, fromMac, frame):
+  def _new_client(self, frame, refID):
     # If there is no user function to handle this, then just return
-    if self.frameHandler == None:
-      return
-      
-    # If the client is already connected, then just return
-    if self._isConnected(fromMac):
+    # # If the client is already connected, then just return
+    if self.callbackFunction == None or self._virtualSock(refID) != None:
+      # Respond to our parter, send a failure message
+      resp = MultiplexerFrame()
+      resp.initResponseFrame(id,STATUS_FAILED)
+      self._sendFrame(resp)
       return
     
     # Get the main dictionary lock
-    self.clientDataLock.acquire()
+    self.virtualSocketsLock.acquire()
+    
+    # Create the socket
+    id = frame.referenceID    # Get the ID from the frame
+    info = deserializeDict(frame.content)   # Get the socket info from the frame content
+    socket = MultiplexerSocket(id, self, self.defaultBufSize, info)
+    
+    # We need to increase our reference counter now, so as to prevent duplicates
+    referenceCounter = id + 1
+    
+    # Respond to our parter, send a success message
+    resp = MultiplexerFrame()
+    resp.initResponseFrame(id,STATUS_CONFIRMED)
+    self._sendFrame(resp)
     
     # Create the entry for it, add the data to it
-    self.clientDataBuffer[fromMac] = {
-    "lock":getlock(), # This is a general lock, so that only one thread is accessing this dict
-    "data":"", # This is the real buffer
-    "closed":False, # This signals that the virtual socket should be closed on the next recv/send operation (it will clean up, and then throw an exception)
-    "nodatalock":getlock(), # This lock is used to block socket.recv when there is no data in the buffer, it greatly improves efficiency
-    "incomingAvailable":self.defaultBufSize, # Amount the forwarder can still send us
-    "outgoingAvailable":self.defaultBufSize, # Amount we can send the forwarder
-    "outgoingLock":getlock()} # This allows us to block socket.send while we wait for a CONN_BUF_SIZE message from the forwarder.
+    self.virtualSockets[refID] = socket
     
     # By default there is no data, so set the lock
-    self.clientDataBuffer[fromMac]["nodatalock"].acquire()
+    socket.socketLocks["nodata"].acquire()
     
     # If the frame is a data frame, add the data
     if frame.mesgType == DATA_FORWARD:
-      self._incoming_client_data(fromMac, frame)
+      self._incoming_client_data(frame, socket)
     
-    # Create a new socket
-    # Disables buffering if self.defaultBufSize is -1
-    socketlike = MultiplexerSocket(self, fromMac, (self.defaultBufSize != -1))
+    # Release the main dictionary lock
+    self.virtualSocketsLock.release()
     
     # Make sure the user code is safe, launch an event for it
     try:
-      settimer(0,self.frameHandler, (fromMac, socketlike, self))
+      settimer(0, self.callbackFunction, (info["remoteip"], info["remoteport"], socket, self))
     except:      
       # Close the socket
-      socketlike.close()
-    finally:
-      # Release the main dictionary lock
-      self.clientDataLock.release()
+      socket.close()
+      
   
   # Handles incoming data for an existing client
-  def _incoming_client_data(self, fromMac, frame):
-    # Use the socket lock so that this is thread safe
-    self.clientDataBuffer[fromMac]["lock"].acquire()
+  def _incoming_client_data(self, frame, socket):
+    # Acquire a lock for the socket
+    socket.socketLocks["main"].acquire()
     
-    # Append the new data
-    self.clientDataBuffer[fromMac]["data"] += frame.content
+    # Increase the buffer size
+    socket.buffer += frame.content
     
-    # Release the lock now that there is data
+    # Release the outgoing lock, this unblocks socket.send
     try:
-      self.clientDataBuffer[fromMac]["nodatalock"].release() 
+      socket.socketLocks["nodata"].release()
     except:
-      # This just means that there was still data in the buffer
+      # That means the lock was already released
       pass
     
-    self.clientDataBuffer[fromMac]["lock"].release()
+    # Release the socket
+    socket.socketLocks["main"].release()
+    
   
-  # Simple function to determine if a client is connected
-  def _isConnected(self,fromMac):
+  # Handles INIT_STATUS messages for a pending client
+  # TODO: implement this
+  def _pending_client(self, frame, refID):
+    pass
+  
+  # Simple function to determine if a client is connected,
+  # and if so returns their virtual socket
+  def _virtualSock(self,refID):
     # Get the main dictionary lock
-    self.clientDataLock.acquire()
-    status = fromMac in self.clientDataBuffer
+    self.virtualSocketsLock.acquire()
+    
+    if refID in self.virtualSockets:
+      sock = self.virtualSockets[refID]
+    else:
+      sock = None
     
     # Release the main dictionary lock
-    self.clientDataLock.release()     
-    return status
+    self.virtualSocketsLock.release()
+       
+    return sock
      
   # This is launched as an even for waitforconn
   def _socketReader(self):
@@ -841,65 +612,80 @@ class Multiplexer():
       
       # Read in a frame
       try:
-        frame = self.recv()
-        fromMac = frame.referenceID
+        frame = self._recv()
+        refID = frame.referenceID
         frameType = frame.mesgType
-        #DEBUG
-        #print "NATConnection._socketReader: ", frame
       except:
         # This is probably because the socket is now closed, so lets loop around and see
         continue
       
       # It is possible we recieved a stopcomm while doing recv, so lets check again and handle this
       if self.stopSocketReader:
-        # Save the frame
-        self.socketReaderUnhandledFrame = frame
         break 
+      
+      # Get the virtual socket if it exists
+      socket = self._virtualSock(refID)
       
       # Handle INIT_CLIENT
       if frameType == INIT_CLIENT:
-        self._new_client(fromMac, frame)
-            
+        self._new_client(frame, refID)
+      
+      # Handle INIT_STATUS
+      elif frameType == INIT_STATUS:
+        self._pending_client(frame, refID)
+        
       # Handle CONN_TERM
-      elif frameType == CONN_TERM:
-        self._closeCONN(fromMac)
+      elif socket != None and frameType == CONN_TERM:
+        self._closeCONN(socket, refID)
       
       # Handle CONN_BUF_SIZE
-      elif frameType == CONN_BUF_SIZE:
-        self._conn_buf_size(fromMac, int(frame.content))
+      elif socket != None and frameType == CONN_BUF_SIZE:
+        self._conn_buf_size(socket, int(frame.content))
           
       # Handle DATA_FORWARD
       elif frameType == DATA_FORWARD:
         # Does this client socket exists? If so, append to their buffer
-        if self._isConnected(fromMac):
-          self._incoming_client_data(fromMac, frame)
-        
         # This is a new client, we need to call the user callback function
+        if socket == None:
+          self._new_client(frame, refID)
         else:
-          self._new_client(fromMac, frame)
+          self._incoming_client_data(frame,socket)
       
       # We don't know what this is, so panic    
       else:
         raise Exception, "Unhandled Frame type: ", frameType
 
-# A socket like object with an understanding that it is part of a NAT Connection
+# A socket like object with an understanding that it is part of a Multiplexer
 # Has the same functions as the socket like object in repy
 class MultiplexerSocket():
-  # Pointer to the master NAT Connection
-  natcon = None
+  # Reference ID
+  id = 0
   
-  # Connected client mac
-  clientMac = ""
+  # Pointer to the master Multiplexer
+  mux = None
   
-  # Flags whether buffering limits are enabled
-  # This determines whether or not the socket respects incomingAvailable and
-  # outgoingAvailable
-  BUFFERING = True
+  # Socket information
+  socketInfo = {"closed":False,"localip":"","localport":0,"remoteip":"","remoteport":0}
   
-  def __init__(self, natcon, clientMac,buf=True):
-    self.natcon = natcon
-    self.clientMac = clientMac
-    self.BUFFERING = buf
+  # Actual buffer of unread data
+  buffer = ""
+  
+  # Buffering Information
+  bufferInfo = {"incoming":0,"outgoing":0}
+  
+  # Various locks used in the socket
+  socketLocks = {"main":getlock(),"nodata":getlock(),"outgoing":getlock()}
+  
+  def __init__(self, id, mux, buf, info):
+    # Initialize
+    self.id = id
+    self.mux = mux
+    self.bufferInfo["incoming"] = buf
+    self.bufferInfo["outgoing"] = buf
+    
+    # Inject or override socket info given to use
+    for key, value in info:
+      self.socketInfo[key] = value
   
   def close(self):
     """
@@ -910,24 +696,26 @@ class MultiplexerSocket():
       The socket will no longer be usable. Socket behavior is undefined after calling this method,
       and most likely Runtime Errors will be encountered.
     """
-    # If the NATConnection is still initialized, then lets send a close message
-    if self.natcon.connectionInit:
+    # If the Multiplexer is still initialized, then lets send a close message
+    if self.mux.connectionInit:
       # Create termination frame
       termFrame = MultiplexerFrame()
-      termFrame.initAsConnTermMsg(self.clientMac)
+      termFrame.initConnTermFrame(self.id)
       
-      # Tell the forwarder to terminate the client connection
-      self.natcon.sendFrame(termFrame)
+      # Tell our partner to terminate the client connection
+      self.mux.sendFrame(termFrame)
+    
+    # Remove from the list of virtual sockets
+    self.mux.virtualSocketsLock.acquire()
+    del self.mux.virtualSockets[self.id]
+    self.mux.virtualSocketsLock.release()
     
     # Clean-up
-    self.natcon.clientDataLock.acquire() # Get the main lock, since we are modifying the dict
-    self.natcon.clientDataBuffer[self.clientMac]["lock"].acquire() # Probably not necessary, but oh well
-    self.natcon.clientDataBuffer[self.clientMac]["data"] = "" # Clear the buffer, again probably unnecessary
-    del self.natcon.clientDataBuffer[self.clientMac] # Remove the entry 
-    self.natcon.clientDataLock.release()
-
-    # Remove connection to natcon, to prevent trying to send or recv again
-    self.natcon = None
+    self.mux = None
+    self.socketInfo = None
+    self.buffer = None
+    self.bufferInfo = None
+    self.socketLocks = None
     
   def recv(self,bytes):
     """
@@ -950,49 +738,49 @@ class MultiplexerSocket():
         
     # Block until there is data
     # This lock is released whenever new data arrives, or if there is data remaining to be read
-    self.natcon.clientDataBuffer[self.clientMac]["nodatalock"].acquire()
+    self.socketLocks["nodata"].acquire()
     try:
-      self.natcon.clientDataBuffer[self.clientMac]["nodatalock"].release()
+      self.socketLocks["nodata"].release()
     except:
       # Some weird timing issues can cause an exception, but it is harmless
       pass
     
     # Check if the socket is closed, raise an exception
-    if self.natcon.clientDataBuffer[self.clientMac]["closed"]:
+    if self.socketInfo["closed"]:
       self.close() # Clean-up
       raise EnvironmentError, "The socket has been closed!"
             
     # Get our own lock
-    self.natcon.clientDataBuffer[self.clientMac]["lock"].acquire()
+    self.socketLocks["main"].acquire()
   
     # Read up to bytes
-    data = self.natcon.clientDataBuffer[self.clientMac]["data"][:bytes] 
-  
-    # Reduce amount of incoming data available
-    self.natcon.clientDataBuffer[self.clientMac]["incomingAvailable"] -= len(data)
+    data = self.buffer[:bytes] 
     
     # Remove what we read from the buffer
-    self.natcon.clientDataBuffer[self.clientMac]["data"] = self.natcon.clientDataBuffer[self.clientMac]["data"][bytes:] 
+    self.buffer = self.buffer[bytes:] 
+  
+    # Reduce amount of incoming data available
+    self.bufferInfo["incoming"] -= len(data)
   
     # Check if there is more incoming buffer available, if not, send a CONN_BUF_SIZE
     # This does not count against the outgoingAvailable quota
-    if self.BUFFERING and self.natcon.clientDataBuffer[self.clientMac]["incomingAvailable"] <= 0:
+    if self.bufferInfo["incoming"] <= 0:
       # Create CONN_BUF_SIZE frame
       buf_frame = MultiplexerFrame()
-      buf_frame.initAsConnBufSizeMsg(self.clientMac, self.natcon.defaultBufSize)
+      buf_frame.initConnBufSizeFrame(self.id, self.mux.defaultBufSize)
       
       # Send it to the Forwarder
-      self.natcon.sendFrame(buf_frame)
+      self.mux._sendFrame(buf_frame)
       
       # Increase our incoming buffer
-      self.natcon.clientDataBuffer[self.clientMac]["incomingAvailable"] = self.natcon.defaultBufSize
+      self.bufferInfo["incoming"] = self.mux.defaultBufSize
     
     # Set the no data lock if there is none
-    if len(self.natcon.clientDataBuffer[self.clientMac]["data"]) == 0:
-      self.natcon.clientDataBuffer[self.clientMac]["nodatalock"].acquire()
+    if len(self.buffer) == 0:
+      self.socketLocks["nodata"].acquire()
       
     # Release the lock
-    self.natcon.clientDataBuffer[self.clientMac]["lock"].release() 
+    self.socketLocks["main"].release() 
     
     return data
 
@@ -1017,35 +805,34 @@ class MultiplexerSocket():
     # Send chunks of data until it is all sent
     while True:
       # Make sure we have available outgoing bandwidth
-      self.natcon.clientDataBuffer[self.clientMac]["outgoingLock"].acquire()
+      self.socketLocks["outgoing"].acquire()
       try:
-        self.natcon.clientDataBuffer[self.clientMac]["outgoingLock"].release()
+        self.socketLocks["outgoing"].release()
       except:
         # Some weird timing issues can cause an exception, but it is harmless
         pass
       
       # Check if the socket is closed, raise an exception
-      if self.natcon.clientDataBuffer[self.clientMac]["closed"]:
+      if self.socketInfo["closed"]:
         self.close() # Clean-up
         raise EnvironmentError, "The socket has been closed!"
         
       # Get our own lock
-      self.natcon.clientDataBuffer[self.clientMac]["lock"].acquire()
+      self.socketLocks["main"].acquire()
       
       # How much outgoing traffic is available?
-      outgoingAvailable = self.natcon.clientDataBuffer[self.clientMac]["outgoingAvailable"]
+      outgoingAvailable = self.bufferInfo["outgoing"]
       
       # If we can, just send it all at once
-      if not self.BUFFERING or len(data) < outgoingAvailable:
+      if len(data) < outgoingAvailable:
         # Instruct the NATConnection object to send our data
-        self.natcon.send(self.clientMac, data)
+        self.mux._send(self.id, data)
         
-        if self.BUFFERING:
-          # Reduce the size of outgoing avail
-          self.natcon.clientDataBuffer[self.clientMac]["outgoingAvailable"] -= len(data)
+        # Reduce the size of outgoing avail
+        self.bufferInfo["outgoing"] -= len(data)
         
         # Release the lock
-        self.natcon.clientDataBuffer[self.clientMac]["lock"].release()
+        self.socketLocks["main"].release()
           
         # We need to explicitly leave the loop
         break
@@ -1054,20 +841,19 @@ class MultiplexerSocket():
       else:
         # Get a chunk of data, and send it
         chunk = data[:outgoingAvailable]
-        self.natcon.send(self.clientMac, chunk)
+        self.mux._send(self.id, chunk)
       
         # Reduce the size of outgoing avail
-        self.natcon.clientDataBuffer[self.clientMac]["outgoingAvailable"] = 0
+        self.bufferInfo["outgoing"] = 0
 
-        # Lock the outgoing lock, so that we block until the forwarder
-        # sends us a CONN_BUF_SIZE message
-        self.natcon.clientDataBuffer[self.clientMac]["outgoingLock"].acquire()
+        # Lock the outgoing lock, so that we block until we get a CONN_BUF_SIZE message
+        self.socketLocks["outgoing"].acquire()
       
         # Trim data to only what isn't sent syet
         data = data[outgoingAvailable:]
     
         # Release the lock
-        self.natcon.clientDataBuffer[self.clientMac]["lock"].release()
+        self.socketLocks["main"].release()
         
         # If there is no data left to send, then break
         if len(data) == 0:
