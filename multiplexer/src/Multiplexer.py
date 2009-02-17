@@ -2,11 +2,11 @@
 
 Author: Armon Dadgar
 
-Start Date: January 22nd, 2009
+Start Date: February 16th, 2009
 
 Description:
-Provides a method of transferring data to machines behind firewalls or Network Address Translation (NAT).
-Abstracts the forwarding specification into a series of classes and functions.
+Provides a means of multiplexing any stream-like connection into a multiple
+socket-like connections.
 
 """
 
@@ -51,7 +51,7 @@ class MultiplexerFrame():
     try:
       return self.toString()
     except AttributeError:
-      return "<NATFrame instance, FRAME_NOT_INIT>"
+      return "<MultiplexerFrame instance, FRAME_NOT_INIT>"
     
   def initAsClient(self,clientMac, serverMac):
     """
@@ -533,7 +533,7 @@ class Multiplexer():
   # Handles incoming frames
   def _incomingFrame(self,remoteip,remoteport,inSocket,thisCommHandle,listenCommHandle):
     # Initialize Frame
-    frame = NATFrame()
+    frame = MultiplexerFrame()
     
     # Create frame from the socket
     frame.initFromSocket(inSocket)
@@ -565,14 +565,14 @@ class Multiplexer():
     self.writeLock.acquire()
     
     # Create init frame
-    frInit = NATFrame()
+    frInit = MultiplexerFrame()
     frInit.initAsClient(self.ourMAC, serverMac)
     
     # Send the frame
     self.socket.send(frInit.toString())
     
     # Get the response frame
-    frResp = NATFrame()
+    frResp = MultiplexerFrame()
     frResp.initFromSocket(self.socket)
 
     # Release the locks
@@ -622,14 +622,14 @@ class Multiplexer():
     self.writeLock.acquire()
     
     # Create init frame
-    frInit = NATFrame()
+    frInit = MultiplexerFrame()
     frInit.initAsServer(self.ourMAC,buf)
     
     # Send the frame
     self.socket.send(frInit.toString())
     
     # Get the response frame
-    frResp = NATFrame()
+    frResp = MultiplexerFrame()
     frResp.initFromSocket(self.socket)
 
     # Release the locks
@@ -682,7 +682,7 @@ class Multiplexer():
       return frame
             
     # Init frame
-    frame = NATFrame()
+    frame = MultiplexerFrame()
     
     try:
       # Get the read lock
@@ -780,7 +780,7 @@ class Multiplexer():
       raise AttributeError, "NAT Connection is not yet initialized!"
       
     # Build the frame
-    frame = NATFrame()
+    frame = MultiplexerFrame()
     
     # Initialize it
     frame.initAsDataFrame(targetMac, data)
@@ -910,7 +910,7 @@ class Multiplexer():
     
     # Create a new socket
     # Disables buffering if self.defaultBufSize is -1
-    socketlike = NATSocket(self, fromMac, (self.defaultBufSize != -1))
+    socketlike = MultiplexerSocket(self, fromMac, (self.defaultBufSize != -1))
     
     # Make sure the user code is safe, launch an event for it
     try:
@@ -1033,7 +1033,7 @@ class MultiplexerSocket():
     # If the NATConnection is still initialized, then lets send a close message
     if self.natcon.connectionInit:
       # Create termination frame
-      termFrame = NATFrame()
+      termFrame = MultiplexerFrame()
       termFrame.initAsConnTermMsg(self.clientMac)
       
       # Tell the forwarder to terminate the client connection
@@ -1098,7 +1098,7 @@ class MultiplexerSocket():
     # This does not count against the outgoingAvailable quota
     if self.BUFFERING and self.natcon.clientDataBuffer[self.clientMac]["incomingAvailable"] <= 0:
       # Create CONN_BUF_SIZE frame
-      buf_frame = NATFrame()
+      buf_frame = MultiplexerFrame()
       buf_frame.initAsConnBufSizeMsg(self.clientMac, self.natcon.defaultBufSize)
       
       # Send it to the Forwarder
