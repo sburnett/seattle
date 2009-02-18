@@ -7,21 +7,29 @@
   alpers@cs.washington.edu
 
 <Purpose>
+  Creates an interface between Emulab Beraber instances and the autograder
+  scripting.
 
-<Todo>
+  Summary of functionality:
+      - connects to remote emulab nodes by hostname 
+            initialize(), add_node_by_hostname()
+      - runs a repy program on a group of nodes or a single node with a 
+        given timeout
+            run_on_targets(), run_target()
+      - acquires log output from vessels and stores them in state for user
 
 """
 
 import sys 
 import nmAPI
-import persist
 
 from repyportability import *
+
 include nmclient.repy
-
 include rsa.repy
+include parallelize.repy
 
-nextid = 1
+# global state
 key = {}
 vesselinfo = {}
 
@@ -31,11 +39,8 @@ DEFAULT_NODEMANAGER_PORT = 1224
 # alpers - adds a vessel and its information to the overall vessel dict
 #          (from seash.mix); this is strictly internal.
 def add_vessel(longname, vesselhandle):
-    global nextid
-
     vesselinfo[longname] = {}
     vesselinfo[longname]['handle'] = vesselhandle
-#    vesselinfo[longname]['keyname'] = keyname
     vesselinfo[longname]['IP'] = longname.split(':')[0]
     vesselinfo[longname]['port'] = int(longname.split(':')[1])
     vesselinfo[longname]['vesselname'] = longname.split(':')[2]
@@ -45,9 +50,9 @@ def add_vessel(longname, vesselhandle):
 def add_node_by_hostname(host, port=DEFAULT_NODEMANAGER_PORT):
     """
     <Purpose>
-      Attempts to find a running Beraber instance at the host specified, connect
-      to it, and add meta-information about the instance and its available vessels
-      to the internal dictionary (vesselinfo).
+      Attempts to find a running Beraber instance at the host specified, 
+      connect to it, and add meta-information about the instance and its 
+      available vessels to the internal dictionary (vesselinfo).
 
     <Arguments>
       host:
@@ -56,17 +61,19 @@ def add_node_by_hostname(host, port=DEFAULT_NODEMANAGER_PORT):
           The port where the Beraber instance is running (default 1224)
 
     <Exceptions>
-      Will (doesn't atm) throw an exception if the module has not been initalized, the
-      host was not found, or no Beraber instance was found running on the specified
+      Will throw an exception if the module has not been initalized, the host 
+      was not found, or no Beraber instance was found running on the specified
       host:port.
 
     <Side Effects>
       Updates internal dict vesselinfo
 
     <Returns>
-      None.
+      Returns a list of vessel longnames
     """
 
+    check_is_initialized(check_vesselinfo=False):
+        
     # get information about the node's vessels
     thishandle = nmclient_createhandle(host, port, privatekey = key['private'], 
                                        publickey = key['public'])
@@ -88,7 +95,7 @@ def add_node_by_hostname(host, port=DEFAULT_NODEMANAGER_PORT):
         nmclient_set_handle_info(newhandle, handleinfo)
         
         add_vessel(longname, newhandle)
-        new_vessel_list.append('%'+str(id)+"("+longname+")")
+        new_vessel_list.append(longname)
         
         
     # tell the user what we did...
@@ -96,15 +103,96 @@ def add_node_by_hostname(host, port=DEFAULT_NODEMANAGER_PORT):
         print "Could not add any targets."
     else:
         print "Added targets: "+", ".join(new_vessel_list)
+
+    return new_vessel_list
+
     
 
-# alpers - attempts to tell each vessel to run a program
-def run_target(longname, filename, filedata, argstring):
+# alpers - tells specified vessels to run a program
+def run_on_targets(vessel_list, filename, filedata, argstring, timeout=240):
     """
     <Purpose>
-      Attempts to add and run a file on a specific vessel given the vessel's longname
-      and the file data.  This should be the main way to execute repy code on emulab
-      servers.
+      Attempts to run a specific program on a group of Emulab nodes.  This
+      should be the main way to run repy code on a *group* of Emulab nodes.
+
+    <Arguments>
+      vessel_list:
+          A valid list of vessel longnames.
+
+      filename:
+          The name/location of the repy file to import.
+
+      filedata:
+          The contents of the file in string format (e.g. output of 
+          filename.read())
+
+      argstring:
+          An argument string passed to the repy program at runtime - note that 
+          the argstring is NEVER empty - the first argument should always be the
+          filename.
+         
+      timeout:
+          A specified timeout (in seconds) at which the vessel will be forcibly
+          stopped.  Defaults to 240 seconds (4 minutes).
+
+    <Exceptions>
+      Will throw an exception if any of the names in the vessel_list are
+      invalid (i.e. not in vesselinfo).  This check will also check if the 
+      module has been initialized or not.
+
+    <Side Effects>
+      Calls at maximum 20 threads to delegate run_target() to; has the
+      potential to overrun memory if called too much
+
+    <Returns>
+      A dictionary with the key as the vessel longname and the value as
+      a tuple of (success?, info).  
+      
+      If success is False, the program either threw an exception (highly
+      improbable, see run_target()) or was preempted by the timeout - the info
+      string will contain various debug info.  
+      
+      If success is True, the program was successfully started and terminated.
+
+    """
+
+    # check to see whether all vessel names are valid
+    for vessel in vessel_list:
+        if vessel not in vesselinfo:
+            raise Exception, "Unable to find vessel in current state " + \
+                "(vessel: " + vessel + ")"
+
+    phandle = parallelize_initfunction(vessel_list, run_target, 20,
+                                       [filename, filedata, argstring, timeout])
+
+    while not parallelize_isfunctionfinished(phandle):
+        sleep(0.1)
+
+    resultdict = parallelize_getresults(phandle)
+
+    # start a dictionary to keep track of results
+    log_results = {}
+
+    # for each exception, assert False and pass along the exception text
+    for (vessel, exception) in resultdict['exception']:
+        log_results[vessel] = (False, exception)
+
+    # for each successful run, communicate the results to the log.
+    # success may be False if timeout was triggered; caller will need to check
+    for (vessel, (success, msg)) in resultdict['returned']:
+        log_results[vessel] = (success, msg)
+
+    return log_results
+
+
+
+# alpers - attempts to tell vessel to run a program
+def run_target(longname, filename, filedata, argstring, timeout=240):
+    """
+    <Purpose>
+      Attempts to add and run a file on a specific vessel given the vessel's 
+      longname and the file data.  This should be the main way to execute repy 
+      code on emulab servers.
 
     <Arguments>
       longname:
@@ -114,23 +202,31 @@ def run_target(longname, filename, filedata, argstring):
           The name of the repy file
 
       filedata:
-          A string containing the contents of the file
+          A string containing the contents of the file (filename.read())
 
       argstring:
-          An argument string passed to the repy program at runtime - note that the 
-          argstring is NEVER empty - the first argument should always be the filename.
+          An argument string passed to the repy program at runtime - note that 
+          the argstring is NEVER empty - the first argument should always be the
+          filename.
+         
+      timeout:
+          A specified timeout (in seconds) at which the vessel will be forcibly
+          stopped.  Defaults to 240 seconds (4 minutes).
 
     <Exceptions>
-      At the moment will throw an exception if the longname is invalid.  In the future,
-      will throw an exception if the module has not been initialized.
+      At the moment will throw an exception if the longname is invalid.  It will
+      also throw an exception if the module has not been initialized.
 
     <Side Effects>
       None.
 
     <Returns>
-      A tuple with the format (success?, info).  On success, the tuple (True,) will be 
-      returned; on failure the tuple (False, str(exception)) will be returned.
+      A tuple with the format (success?, info).  On success, the tuple (True,) 
+      will be returned; on failure the tuple (False, str(exception)) will be 
+      returned.
     """
+
+    check_is_initialized()
 
     vesselname = vesselinfo[longname]['vesselname']
     try:
@@ -148,9 +244,36 @@ def run_target(longname, filename, filedata, argstring):
         return (False, str(e))
     else:
         print "Successfully started vessel with repy file"
-        return (True,)
-    
+        # return (True,)
 
+
+    # check for termination
+    num_checks = 10
+    sleep_time = 0
+    for i in range(num_checks):
+        if i + 1 == num_checks:
+            sleep_time = timeout/num_checks + timeout%num_checks
+        else:
+            sleep_time = timeout/num_checks
+
+        sleep(sleep_time)
+        print "slept for ", str(sleep_time), " seconds"
+        
+        if is_vessel_finished():
+            print "noticed that execution is done before timeout hit"
+            break
+
+    summary = ""
+    if not is_vessel_finished():
+        summary += "Timeout (" + str(timeout) + \
+            " seconds) triggered; stopping execution"
+        stop_target(longname)
+        return (False, summary)
+    else:
+        summary += "Finished execution in approx. " + str(sleep_time) + \
+            " seconds."
+        return (True, summary)
+    
 
 def stop_target(longname):
     """
@@ -162,8 +285,8 @@ def stop_target(longname):
           The vessel's longname, i.e. ip:port:vessel_name
 
     <Exceptions>
-      At the moment will throw an exception if the longname is invalid.  In the future,
-      will throw an exception if the module has not been initalized.
+      At the moment will throw an exception if the longname is invalid.  It will
+      also throw an exception if the module has not been initalized.
 
     <Side Effects>
       None.
@@ -172,9 +295,12 @@ def stop_target(longname):
       A tuple consisting of (success?, info)
     """
 
+    check_is_initialized()
+
     vesselname = vesselinfo[longname]['vesselname']
     try:
-        nmclient_signedsay(vesselinfo[longname]['handle'], "StopVessel", vesselname)
+        nmclient_signedsay(vesselinfo[longname]['handle'], "StopVessel",
+                           vesselname)
     except NMClientException, e:
         return (False, str(e))
     else:
@@ -192,16 +318,18 @@ def showlog_vessel(longname):
           The vessel's longname, i.e. ip:port:vessel_name
 
     <Exceptions>
-      At the moment will throw an exception if the longname is invalid.  In the future,
-      will throw an exception if the module has not been initalized.
+      At the moment will throw an exception if the longname is invalid.  It will
+      also throw an exception if the module has not been initalized.
 
     <Side Effects>
       None.
 
     <Returns>
-      A tuple consisting of (success?, info).  A successful log-get will write the log
-      to the info variable, otherwise the exception will be printed.
+      A tuple consisting of (success?, info).  A successful log-get will write 
+      the log to the info variable, otherwise the exception will be printed.
     """
+
+    check_if_initialized()
 
     vesselname = vesselinfo[longname]['vesselname']
     try:
@@ -210,84 +338,156 @@ def showlog_vessel(longname):
     except NMClientException, e:
         return (False, str(e))
     else:
+        append_log(longname, logdata)
         return (True, logdata)
 
 
-# alpers - main method for acquiring information for all vessels and running an
-# application
-# !!! hopefully this method will be adapted into the initialize method
-def connect_to_emulab_beraber_instance(ip, port, program_name, argstring=program_name):
+
+# alpers - initialize stuff!
+def initialize(host_list, keyname):
     """
     <Purpose>
-      Big wrapper method that connects to a Beraber instance given ip:port and attempts
-      to upload and run the given repy code.
+      Initializes the state of the module, attempts to connect to each instance
+      of Beraber on the given Emulab nodes.
 
     <Arguments>
-      ip:
-          The hostname where a Beraber instance is running (ip or full-qual name).
-      port:
-          The port at which a Beraber instance is running.
-      program_name:
-          The name of the repy file that will be executed.
-      argstring:
-          A string of arguments to pass to the repy code upon execution.
+      host_list: 
+          A list of valid Emulab hostnames with running Beraber instances.
+      keyname:
+          The name of the public and private keys of which to authenticate
+          to the Beraber instances.  This string is the prefix of the publickey
+          and privatekey files. (e.g. "autograder" for "autograder.publickey")
 
     <Exceptions>
-      See exceptions for add_node_by_hostname and run_target.
+      Should return no exceptions, except if keyname is incorrect (not found).
 
     <Side Effects>
-      Edits vesselinfo to keep track of state.
+      Initializes module state.
 
     <Returns>
-      Nothing yet.
+      A tuple consisting of (success?, info), where info is a list of vessel
+      longnames on success and a summary failure string on fail.  Success is
+      determined by number of vessels acquired; if that number is less than
+      the number of hosts given, this will fail.
+
+      ** this condition will not be upheld if hosts have multiple vessels.
+
     """
     
-    add_node_by_hostname(ip, port=port)
+    summary = ""
+
+    # check if any state has been initialized
+    if not key == {} or not vesselinfo == {}:
+        summary += "Initialized state still exists, tear_down() first."
+        return (False, summary)
     
-    fileobj = open(program_name, "r")
-    filedata = fileobj.read()
-    fileobj.close()
+    # attempt to read in authentication keys
+    key['public'] = rsa_file_to_publickey(keyname + ".publickey")
+    key['private'] = rsa_file_to_privatekey(keyname + ".privatekey")
+
+    # critical for nmclient to work, attempt to get the current time on port
+    time_updatetime(34933)
     
-    retdict = {}
-    for vessel in vesselinfo:
-        retdict[vessel] = run_target(vessel, program_name, filedata, argstring)
-        if retdict[vessel][0]:
-            print "Successfully connected and run program on ", vessel
+    # attempt to contact and store state, append vessel longnames to list
+    acquired_vessels = []
+    for host in host_list:
+        try:
+            new_vessels = add_node_by_hostname(host)
+        except NMClientException, e:
+            summary += " " + str(e)
         else:
-            print "Failed to connect/run program on ", vessel
-            print "Reason: ", retdict[vessel][1]
+            acquired_vessels.extend(new_vessels)
+            
+    # if we were given a certain number of hosts, we should at least have that
+    # many vessels (doesn't guarantee uniqueness)
+    if len(acquired_vessels) < len(host_list):
+        return (False, summary)
+    else:
+        return (True, acquired_vessels)
 
 
-# alpers - main method for retreiving the logs from each vessel
-def get_logs_from_all_emulab_beraber_instances():
-    retdict = {}
+
+# alpers - test whether module has been initialized
+def check_is_initialized(check_vesselinfo=True):
+    is_initialized = True
+    if not key == {}:
+        if check_vesselinfo:
+            if not vesselinfo == {}:
+                is_initialized = True
+        else:
+            is_initialized = True
+    else:
+        is_initialized = False
+
+    if not is_initialized:
+        raise Exception, "The module has not been initialized."
+
+
+
+# alpers - tear down..
+def tear_down():
+    """
+    <Purpose>
+      Clears all stored state about previous vessels.
+
+    <Arguments>
+      None.
+
+    <Exceptions>
+      None.
+
+    <Side Effects>
+      Clears all state (vesselinfo, stored keys, logs); no vessel 
+      functionality will work (they will all return exceptions)
+
+    <Returns>
+      None.
+
+    """
+
+    key = {}
+    vesselinfo = {}
+
+    log_lock.acquire()
     logs = {}
-    for vessel in vesselinfo:
-        retdict[vessel] = showlog_vessel(vessel)
-        if retdict[vessel][0]:
-            print "Successfully connected to and acquired log from ", vessel
-            logs[vessel] = retdict[vessel][1]
-        else:
-            print "Failed to connect to/acquire log from ", vessel
-            print "Reason: ", retdict[vessel][1]
-
-    return logs
-
-
-# alpers - main method for stopping a vessel
-def stop_all_emulab_beraber_instances():
-    retdict = {}
-    for vessel in vesselinfo:
-        retdict[vessel] = stop_target(vessel)
-        if retdict[vessel][0]:
-            print "Successfully stopped execution on ", vessel
-        else:
-            print "Failed to stop execution on ", vessel
-            print "Reason: ", retdict[vessel][1]
+    log_lock.release()
 
 
 
-def query_vessel_state():
+def is_vessel_finished(longname):
+    """
+    <Purpose>
+      Attempts to acquire a vessel's current state and determine whether it has
+      finished running repy code.
+
+    <Arugments>
+      The vessel longname of which to query.
+
+    <Exceptions>
+      Will throw an exception if the module has not been instantiated or the
+      longname is invalid.
+
+    <Side Effects>
+      None.
+    
+    <Returns>
+      True if the vessel has finished running repy code, False otherwise (this
+      includes not having run code at all!)
+
+    """
+    
+    retdict = nmclient_getvesseldict(vesselinfo[longname]['handle'])
+    status = retdict['vessels'][vesselinfo[longname]['vesselname']]['status']
+
+    if status == 'Started':
+        return False
+    else:
+        return True
+
+
+
+# ! nothing calls the next two anymore, but I feel like it could be useful..
+def query_all_vessels_state():
     """
     <Purpose>
       Attempts to acquire vessel state for each vessel in vesselinfo.
@@ -296,8 +496,8 @@ def query_vessel_state():
       None.
 
     <Exceptions>
-      Should be none unless vesselinfo was instantiated incorrectly and has invalid 
-      data.
+      Should be none unless vesselinfo was instantiated incorrectly and has
+      invalid data.
 
     <Side Effects>
       None.
@@ -315,25 +515,27 @@ def query_vessel_state():
     return status_list
 
 
+
 # alpers - query vessel state to see if vessels are finished executing
 def all_emulab_vessels_done():
     """
     <Purpose>
-      Runs query_vessel_state() to determine whether all vessels have finished executing
-      repy code.
+      Runs query_vessel_state() to determine whether all vessels have finished 
+      executing repy code.
 
     <Arguments>
       None.
 
     <Exceptions>
-      Should be none unless vesselinfo was instantiated incorrectly and has invalid 
-      data.
+      Should be none unless vesselinfo was instantiated incorrectly and has
+      invalid data.
 
     <Side Effects>
       None.
 
     <Returns>
-      A boolean describing whether all vessels have finished executing repy code.
+      A boolean describing whether all vessels have finished executing repy 
+      code.
     """
 
     status = query_vessel_state()
@@ -345,6 +547,8 @@ def all_emulab_vessels_done():
 
 
 
+# this code is outdated, should i still use this?
+# currently being used with showlog_vessel()
 log_lock = threading.Lock()
 logs = {}
 def append_log(host, log):
@@ -354,103 +558,3 @@ def append_log(host, log):
 
 def get_logs():
     return logs
-
-# alpers - this is the function that should be called from the outside..
-# !! this method will be deprecated.
-def run_emulab_repy(ip, keyname, timeout, repy_file, repy_argstring=""):
-    threading.Timer(0, __run_emulab_repy, [ip, keyname, timeout, repy_file, repy_argstring])
-    
-
-# private?
-# !! this method will be deprecated.
-def __run_emulab_repy(ip, keyname, timeout, repy_file, repy_argstring=""):
-    key['public'] = rsa_file_to_publickey(keyname + ".publickey")
-    key['private'] = rsa_file_to_privatekey(keyname + ".privatekey")
-
-    if not repy_argstring == repy_file:
-        repy_argstring = repy_file + " " + repy_argstring
-
-    time_updatetime(34933)
-
-    print "Connecting to ", ip, ":", DEFAULT_NODEMANAGER_PORT, "; looking for vessels.."
-    connect_to_emulab_beraber_instance(ip, DEFAULT_NODEMANAGER_PORT, repy_file, 
-                                       repy_argstring)
-
-    num_checks = 10
-    for i in range(num_checks):
-        if i + 1 == num_checks:
-            sleep_time = timeout/num_checks + timeout%num_checks
-        else:
-            sleep_time = timeout/num_checks
-
-        sleep(sleep_time)
-        print "slept for ", str(sleep_time), " seconds"
-        
-        if all_emulab_vessels_done():
-            print "noticed that all execution is done before timeout hit"
-            break
-
-    if not all_emulab_vessels_done():
-        print "! Force stopping all vessels (timeout hit)" 
-        stop_all_emulab_beraber_instances()
-
-    logs = get_logs_from_all_emulab_beraber_instances()
-    print "Saving log to ", ip, ".log..."
-    persist.commit_object(logs, ip+".log")
-
-    append_log(ip, logs)
-    
-    print "Finished execution!"
-
-
-# alpers - prints the usage of the application
-def print_usage():
-    print \
-"""python install_autograder.py <keyname> <ip> <port> <program> [<args> ...]
-    <keyname> - The name of the key files where the owner keys are stored,
-                e.g. keyname.privatekey, keyname.publickey would submit 
-                privatekey
-    <ip>      - The host on which Beraber is running (can be full-qual name)
-    <port>    - The port on the host on which the node manager is running
-    <program> - repy code for the autograder vessels to run
-    <args>    - Any arguments that the repy program may take
-"""
-
-
-# alpers - main starter thread 
-# !! this method will be depreciated.
-def main():
-    if len(sys.argv) < 5:
-        print_usage()
-        return
-
-    keyname = sys.argv[1]
-    ip = sys.argv[2]
-    try:
-        port = int(sys.argv[3])
-    except TypeError:
-        print_usage()
-        return
-    program_name = sys.argv[4]
-
-    repy_args = program_name + " "
-    if len(sys.argv) > 5:
-        repy_args += " ".join(sys.argv[5:])
-
-    key['public'] = rsa_file_to_publickey(keyname + ".publickey")
-    key['private'] = rsa_file_to_privatekey(keyname + ".privatekey")
-
-    print "Connecting to ", ip, ":", port, "; looking for vessels.."
-    connect_to_emulab_beraber_instance(ip, port, program_name, repy_args)
-
-    sleep(10)
-
-    logs = get_logs_from_all_emulab_beraber_instances()
-    print "Saving log to ", ip, ".log..."
-    persist.commit_object(logs, ip+".log")
-
-    print "Finished execution!"
-
-if __name__ == '__main__':
-    time_updatetime(34933)
-    main()
