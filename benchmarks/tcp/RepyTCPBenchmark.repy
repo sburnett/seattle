@@ -1,0 +1,47 @@
+"""
+<Program Name>
+  RepyTCPBenchmark.repy
+
+<Started>
+  February 15, 2009
+
+<Author>
+  Michael Moshofsky
+
+<Purpose>
+  Sends a specific amount of bytes with a specific chunk size and records the
+  time that it required to complete.
+  
+  Arguments required: LocalPort DestinationIP DestinationPort TotalBytes ChunkSize
+
+"""
+
+
+
+if callfunc == 'initialize':
+  myport = callargs[0]
+  destip = callargs[1]
+  destport = int(callargs[2])
+  totalBytes = int(callargs[3])
+  chunkSize = int(callargs[4])
+  totalChunks = totalBytes/chunkSize
+  chunk = ""
+  i = 0
+
+  while (i < totalChunks):
+    chunk += "a"
+    i += 1
+
+  i = 0
+  socket = openconn(destip, destport, getmyip(), myport)
+  startTime = getruntime()
+
+  while (i < totalChunks):
+    socket.send(chunk)
+    i += 1
+
+  endTime = getruntime()
+  stopcomm(socket)
+
+  print "Total runtime: " + (endTime - startTime) + " seconds.\n"
+  print "Rate: " + ((endTime - startTime)/ totalBytes) + " bytes/second.\n"
