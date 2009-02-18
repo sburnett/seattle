@@ -20,6 +20,10 @@ import tempfile
 import createnodekeys
 import subprocess
 
+import getopts
+import persist
+import traceback
+
 STARTER_SCRIPT_NAME = "start_seattle.sh"
 
 class InstallFailed(Exception):
@@ -55,6 +59,25 @@ def output(text, silent=0):
     if not silent == 1:
         print text
     
+
+# alpers: Print the usage of the install script
+def usage():
+    """
+    <Purpose>
+      Prints out the usage of the install script on user prompt or invalid arguments
+    <Arguments>
+      None
+    <Exceptions>
+      None
+    <Side Effects>
+      None
+    <Returns>
+      Nothing, prints description text to stdout
+    """
+
+    print "Usage: python install.py [install_dir] [-s] [-i <repy-donation-ip>]"
+
+
 # If being run by itself, catch the exception and print output when
 # the installation fails.
 def main():
@@ -70,25 +93,57 @@ def main():
     <Returns>
 
     """
+
+    opt_start = 1
+    installdir = "."
+    donationIP = ""
+    silent = 0
     try:
+        # if there are no arguments, install into the current directory
         if len(sys.argv) < 2:
-            install(".")
-        elif len(sys.argv) == 2:
-            if sys.argv[1] == "-s":
-                install(".", 1)
-            elif sys.argv[1] == "-h":
-                print "Usage: python install.py [-s]"
-            else:
-                install(sys.argv[1])
+            install(installdir)
+
+        # if there's only one argument, then parse it as an install directory
+        elif len(sys.argv) == 2 and not sys.argv[1][0] == "-":
+            install(sys.argv[1])
+
+        # otherwise, parse the arguments
         else:
-            if "-s" in sys.argv[2:]:
-                install(sys.argv[1], 1)
-            else:
-                install(sys.argv[1])
+            if not sys.argv[1][0] == "-":
+                installdir = sys.argv[1]
+                opt_start = 2
+
+            try:
+                opts, args = getopt.getopt(sys.argv[opt_start:], "shi:")
+            except getopt.GetoptError, err:
+                print str(err)
+                usage()
+                sys.exit(2)
+
+            for switch, value in opts:
+                if switch == "-h":
+                    usage()
+                    sys.exit()
+                elif switch == "-s":
+                    silent = 1
+                elif switch == "-i":
+                    donationIP = value
+                else:
+                    # should never get to this point; illegal arguments should have been
+                    # caught by getopt's try-catch block
+                    print "Internal error."
+                    usage()
+                    sys.exit(2)
+
+            install(installdir, silent=silent, donationIP=donationIP)
+
     except:
+        traceback.print_exc()
         output("Installation failed.")
 
-def install(install_dir, silent=0):
+
+
+def install(install_dir, silent=0, donationIP=""):
     """
     <Purpose>
       Installs seattle on the computer by changing values in program 
@@ -164,6 +219,15 @@ def install(install_dir, silent=0):
     createnodekeys.initialize_keys()
     os.chdir(orig_dir)
     output("Done.", silent)
+
+    # alpers: write the donation IP for repy to the nodemanager cfg
+    # ... cfg should have been created by initalize_keys()
+    if not donationIP == "":
+        output("Attempting to save repy donation IP")
+        configuration = persist.restore_object("nodeman.cfg")
+        configuration['donationIP'] = donationIP
+        persist.commit_object(configuration, "nodeman.cfg")
+        output("Donation IP saved.")
 
     # Then, setup the starter script with the name of the installation
     # directory
