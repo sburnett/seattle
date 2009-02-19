@@ -249,9 +249,7 @@ def ensure_is_correctly_signed(fullrequest, allowedkeys, oldmetadata):
   if allowedkeys and signingpublickey not in allowedkeys:
     raise nmAPI.BadRequest('Insufficient Permissions')
 
-  # No constraints!   We're done
-  if not oldmetadata:
-    return
+  # BUG FIX: signeddata_shouldtrust should be called regardless of whether there is or there is not old metadata, the check has been removed.
 
   #BUG FIX: incorrect parameter was being passed to this function, only signature was passes instead of full request
   (shouldtrust, reasons) = signeddata_shouldtrust(oldmetadata, fullrequest)
