@@ -159,6 +159,10 @@ def prepare_final_files(trunk_location, output_dir):
     # Copy the static files to the program directory
     shutil.copy2(trunk_location + "/dist/nodeman.cfg", output_dir)
     shutil.copy2(trunk_location + "/dist/resources.offcut", output_dir)
+
+    # Copy the universal installer to the program directory
+    shutil.copy2(trunk_location + "/dist/install.py", output_dir)
+
     # Run clean_folder a second time to make sure the final
     # directory is in good shape.
     clean_folder.clean_folder(trunk_location + "/dist/final_files.fi", output_dir)
