@@ -9,27 +9,95 @@ Help - GENI
 {% endblock nav_help %}
 
 {% block content %}
-	<div id="main">
-		<div id="middle">
-			<div id="toc">
-				<h4>Table of Content</h4>
-				<ul>
-					<li>a</li>
-					<li>b</li>
-					<li>c</li>
-					<li>d</li>
-					<li>e</li>
-				</ul>
-			</div>
-			<h2>Help</h2>
-			<h3>A</h3>
-			<p>awejfoweoawnvnvahwuefnfwvuwabv buheowejfowvnn hfwehvweh0h nwefjw-fjnvBNCIUBS NCNwhfbwevbiuVB bbUuiBieuf</p>
-			<h3>B</h3>
-			<p>kamvewnnv jfjw fonwfojownfownf owendoncw owen wwoenvn fwefncwNVNWMVWMVPOVMPMV mv wvmwpovmvewm pwM</P>
-			<h3>C</h3>
-			
-		</div>
-	</div>
+<div id="main">
+  <div id="middle">
+    <div id="toc">
+      <h4>Table of Contents</h4>
+      <ul>
+	<li><a href="#intro" title="Donation
+	       Introduction">Introduction to Beraber Donation</a>,
+	       thanks for Donating!</li>   
+	<li><a href="#install" title="Installing Beraber">Installing
+	    Beraber</a></li>
+	<li><a href="#pause" title="Pausing Beraber">Pausing
+	    Beraber</a></li> 
+	<li><a href="#uninstall" title="Uninstalling
+					Beraber">
+	    Uninstalling Beraber</a></li> 
+	<li><a href="#seash" title="Connecting directly via seash">
+	    Connecting Directly to Your Donation via Seash</a></li>
+      </ul>
+    </div>
+    <h2>Help</h2>
+
+    <h3><a name="intro">Introduction to Beraber Donation</a></h3>
+    <p>By running Seattle on your home computer, workstation, or
+    computer, you are helping everyone using the Beraber framewok!
+    Having more donations available to Beraber users implies greater
+    flexibilities in repy applications by increasing the heterogeneity
+    of available nodes.  This enables both more accurate
+    representations of internet (increased and varied latency times)
+    and allows undergraduates, graduate students, and professors alike
+    to test their hypotheses on a internetwork-like testbed without
+    charge.</p>
+
+    <p>The Beraber framework ensures fair play with each donation.  Our
+    promise to you is to never use more than 10% of your
+    computational resources (defined as RAM, CPU time, and network
+    bandwidth; hard drive space can be set at any amount).  The
+    goals of the Beraber project are three-fold: <strong>be secure,
+    simple, and reliable</strong>, in that order.  If you decide to
+    peruse through the code, you will see this simple philosophy
+    echoed through many docstrings!  If, by any way, you feel that
+    this goal is being violated in the implementation of Beraber,
+    please feel free to open a ticket on the main site (must login to
+    do so) or drop us an e-mail on
+    our <a href="mailto:seattle.devel@cs.washington.edu" 
+    title="seattle.devel@cs.washington.edu">developer's list</a> at
+    seattle.devel@cs.washington.edu.</p> 
+
+    <h3><a name="install">Installing Beraber</a></h3> 
+    <p>Running Beraber on your machine is easy.  Simply start the
+    install script (install.py or install.sh, depending on the type of
+    your system), and the application will do three things.  (1) start
+    the main communication program, nmmain.py (standing for node
+    manager main thread), (2) start up the software updater, and (3)
+    insert nmmain.py into your startup queue (crontab for linux/apple,
+    startup items for windows). </p>
+
+    <p>In the unlikely event that the installation procedure is forcibly
+    interrupted, it is necessary for you to make sure the state
+    created by the installer is cleaned up before reattempting a
+    reinstallation.  Two things need to be checked: (1) make sure
+    that the process is not running (check by using ps -f | grep
+    "nmmain.py" in linux, or find pythonw.exe in the Windows task
+    manager) and (2) that the crontab entry for Beraber is cleared
+    (for linux, crontab -r will delete all).</p>
+
+    <h3><a name="pause">Pausing Beraber</a></h3>
+    <p>To pause the execution of Beraber, run the python script
+    seattlestopper.py (or use the script stop_seattle.sh).  To
+    unpause, run the python script seattlestarter.py (or use the
+    script start_seattle.sh).  During the paused period, none of your
+    computer's resources will be used.</p>
+
+    <h3><a name="uninstall">Uninstalling Beraber</a></h3>
+    <p>If you decide to end your donation, Beraber can be uninstalled
+    simply by running the python script uninstall.py (or the script
+    uninstall.sh).  This process will remove Beraber from the startup
+    queue, deactivate the main thread, and remove the execution from
+    the user's crontab (if applicable).  We would also like to know of
+    your experiences of Beraber through donating and usage, please
+    drop a message to our
+    <a href="mailto:seattle.devel@cs.washington.edu" title="E-mail our
+    developer list">developer list</a>!  We're always striving to
+    make a better experience for all.</p>
+
+    <h3><a name="seash">Connecting Directly to Your Donation via Seash</a></h3>
+    <p>[talk about connecting directly to the donation using seash?]</p>
+
+  </div>
+</div>
 
 
 {% endblock content %}
