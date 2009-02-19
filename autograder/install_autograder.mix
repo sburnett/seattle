@@ -72,7 +72,7 @@ def add_node_by_hostname(host, port=DEFAULT_NODEMANAGER_PORT):
       Returns a list of vessel longnames
     """
 
-    check_is_initialized(check_vesselinfo=False):
+    check_is_initialized(check_vesselinfo=False)
         
     # get information about the node's vessels
     thishandle = nmclient_createhandle(host, port, privatekey = key['private'], 
@@ -162,8 +162,8 @@ def run_on_targets(vessel_list, filename, filedata, argstring, timeout=240):
             raise Exception, "Unable to find vessel in current state " + \
                 "(vessel: " + vessel + ")"
 
-    phandle = parallelize_initfunction(vessel_list, run_target, 20,
-                                       [filename, filedata, argstring, timeout])
+    phandle = parallelize_initfunction(vessel_list, run_target, 20, filename, 
+                                       filedata, argstring, timeout)
 
     while not parallelize_isfunctionfinished(phandle):
         sleep(0.1)
@@ -259,12 +259,12 @@ def run_target(longname, filename, filedata, argstring, timeout=240):
         sleep(sleep_time)
         print "slept for ", str(sleep_time), " seconds"
         
-        if is_vessel_finished():
+        if is_vessel_finished(longname):
             print "noticed that execution is done before timeout hit"
             break
 
     summary = ""
-    if not is_vessel_finished():
+    if not is_vessel_finished(longname):
         summary += "Timeout (" + str(timeout) + \
             " seconds) triggered; stopping execution"
         stop_target(longname)
@@ -329,7 +329,7 @@ def showlog_vessel(longname):
       the log to the info variable, otherwise the exception will be printed.
     """
 
-    check_if_initialized()
+    check_is_initialized()
 
     vesselname = vesselinfo[longname]['vesselname']
     try:
