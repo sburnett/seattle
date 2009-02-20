@@ -71,7 +71,7 @@ def safe_download(serverpath, filename, destdir, filesize):
     urllib.urlretrieve(serverpath+filename,destdir+filename)
     return True
   except Exception,e:
-    servicelogger.log(e)
+    servicelogger.log(str(e) + ' ' + serverpath+filename)
     return False
  
 #  # how much we have left to download
@@ -120,6 +120,7 @@ def do_rsync(serverpath, destdir, tempdir):
 
   # Incorrectly signed, we don't update...
   if not signeddata_issignedcorrectly(newmetafiledata, softwareupdatepublickey):
+    servicelogger.log("New metainfo not signed correctly.  Not updating")
     return []
 
   try:
@@ -215,7 +216,9 @@ def do_rsync(serverpath, destdir, tempdir):
 
       # oh crap!   The hash doesn't match what we thought
       if get_file_hash(tempdir+filename) != filehash:
-        servicelogger.log("Hash mismatch on file '"+filename+"'")
+        servicelogger.log("Hash mismatch on file '"+filename+"':" + filehash +
+            " vs " + get_file_hash(tempdir+filename))
+        shutil.copy(tempdir+filename, '/homes/iws/couvb/'+filename+'.oddness') 
         #print 'Hash download: '+str(filehash)
         #print 'Hash computed: '+str(get_file_hash(tempdir+filename))
         raise RsyncError, "Hash of file '"+filename+"' does not match information in metainfo file"

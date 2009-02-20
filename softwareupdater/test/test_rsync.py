@@ -15,7 +15,7 @@
   within test_runupdate.py.  See test_updater.py for more details.
 
 <Usage>
-  python rsync_updatefile.py <testtype> <softwareurl>
+  python test_rsync.py <testtype> <softwareurl>
 
   Test types:
   -u <filename1 filename2 ... >    Test will assert that all of the given
@@ -37,7 +37,7 @@ import os
 import traceback
 
 help = """Usage:
-python rsync_updatefile.py <testtype> <softwareurl>
+python test_rsync.py <testtype> <softwareurl>
 
 Test types:
 -u <filename1 filename2 ... >    Test will assert that all of the given 
@@ -49,39 +49,26 @@ Test types:
 
 """
 
-def main():
-  # Parse the args
-  if len(sys.argv) < 3:
-    print 'Invalid number of arguments'
-    print help
-    sys.exit(1)
-
-  testtype = sys.argv[1]
+def test_rsync(testtype, softwareurl, chgFile=[]):
+  """
+  <Purpose>
+    Does the actual rsync test of the given type, at the given softwareurl,
+    and with the given expected update list (empty by default).
+  <Arguments>
+    testtype - The type of test to be performed.  See usage in this module's
+               docstring for details.
+    softwareurl - The location to rsync with.
+    chgFile - A list of files to be updated.  Only used with the -u option,
+              it defaults to empty.
+  <Side Effects>
+    None
+  """
   
   # Start building the standard test output that will be printed.
   testout = 'Test type: ' + str(testtype)
 
-  if testtype != '-u' and testtype != '-x' and testtype != '-e':
-    print 'Invalid test type!'
-    print help
-
-  sys.argv = sys.argv[1:]
-
   chgTime = {}
-  chgFile = []
-
-  # Get all the file names if the test type is -u
-  if testtype == '-u':
-    # we are done when sys.argv[1] is the last value, meaning
-    # it is the software url.
-    testout = testout + ' Files Updated: '
-    while len(sys.argv) != 2:
-      # put the next file that should change into 
-      # the chgFile list
-      chgFile.append(sys.argv[1])
-      testout = testout + ' ' + sys.argv[1]
-      sys.argv = sys.argv[1:]
-
+  
   # To determine whether or not something changed, check the last
   # modification time befor and after the update.
   # Here we get the times before the update.
@@ -93,8 +80,6 @@ def main():
       # the chgTime list
       chgTime[upfile] = os.stat(upfile).st_mtime
 
-  # set the url that we will try to rsync with	
-  softwareurl = sys.argv[1]
 
   testout = testout + ' URL: ' + softwareurl  
 
@@ -169,9 +154,43 @@ def main():
     else:
       testout = testout + '    [ FAIL ]'
 
-  print testout      
-  print success
+  return testout + '\n' + success
 
-			
+
+
+def main():
+  # Parse the args
+  if len(sys.argv) < 3:
+    print 'Invalid number of arguments'
+    print help
+    sys.exit(1)
+
+  testtype = sys.argv[1]
+  
+  if testtype != '-u' and testtype != '-x' and testtype != '-e':
+    print 'Invalid test type!'
+    print help
+
+  sys.argv = sys.argv[1:]
+
+  chgFile = []
+
+  # Get all the file names if the test type is -u
+  if testtype == '-u':
+    # we are done when sys.argv[1] is the last value, meaning
+    # it is the software url.
+    while len(sys.argv) != 2:
+      # put the next file that should change into 
+      # the chgFile list
+      chgFile.append(sys.argv[1])
+      sys.argv = sys.argv[1:]
+
+  # set the url that we will try to rsync with	
+  softwareurl = sys.argv[1]
+
+  print test_rsync(testtype, softwareurl, chgFile)
+
+
+
 if __name__ == '__main__':
   main()

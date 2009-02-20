@@ -33,6 +33,8 @@ import glob
 import shutil
 import platform
 
+import test_rsync
+
 def runRsyncTest(testtype, updateurl, otherargs=[]):
   """
   <Purpose>
@@ -51,7 +53,7 @@ def runRsyncTest(testtype, updateurl, otherargs=[]):
   """
   # Run the test
   rsync = subprocess.Popen(['python', 'test_rsync.py', testtype]+otherargs+[updateurl], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-
+    
   # Get the output
   theout = rsync.stdout.read()
   rsync.stdout.close()
@@ -59,9 +61,11 @@ def runRsyncTest(testtype, updateurl, otherargs=[]):
   # Return the output
   return theout
 
+
 def main():
   if len(sys.argv) < 2:
     print 'Must supply base url!'
+    sys.exit(1)
 
   baseurl = sys.argv[1]
   ############################
