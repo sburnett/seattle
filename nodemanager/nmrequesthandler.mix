@@ -41,7 +41,9 @@ def initialize(myip, publickey, version):
   
   # this allows requests to specify they should only be enacted by us (by 
   # public key which should be unique)
-  signeddata_set_identity(str(publickey))
+  #BUG FIX: we are storing rsa_publickey_to_string(publickey) instead of str(publickey) so that the entry is in the same format as 
+  #the way the data is stored and used by the client
+  signeddata_set_identity(rsa_publickey_to_string(publickey))
 
   # init the node manager's API (mostly for information it returns when a call
   # gets generic node information)
