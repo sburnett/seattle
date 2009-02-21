@@ -14,7 +14,7 @@ socket-like connections.
 include deserialize.py
 
 # Define Module Constants
-FRAME_HEADER_DIGITS = 2 # How many digits can be used to indicate header length
+FRAME_HEADER_DIGITS = 3 # How many digits can be used to indicate header length
 FRAME_DIVIDER = ";" # What character is used to divide a frame header
 
 # These are the valid Message Types
@@ -47,7 +47,7 @@ class MultiplexerFrame():
     except AttributeError:
       return "<MultiplexerFrame instance, FRAME_NOT_INIT>"
     
-  def initClientFrame(self,requestedID, ip, port):
+  def initClientFrame(self,requestedID, remotehost, remoteport, localip, localport):
     """
     <Purpose>
       Makes the frame a INIT_CLIENT frame
@@ -68,7 +68,7 @@ class MultiplexerFrame():
     self.referenceID = requestedID
     
     # Set the content as a dict
-    requestDict = {'remoteip':ip,'remoteport':port}
+    requestDict = {'localip':remotehost,'localport':remoteport,'remoteip':localip,'remoteport':localport}
     self.content = str(requestDict)
     self.contentLength = len(self.content)
     
@@ -190,7 +190,9 @@ class MultiplexerFrame():
       An EnvironmentError will be raised if an unexpected header is received. This could happen if the socket is closed.
     """    
     # Read in the header frame size
-    headerSize = int(inSocket.recv(FRAME_HEADER_DIGITS))
+    headerSize = inSocket.recv(FRAME_HEADER_DIGITS+len(FRAME_DIVIDER))
+    headerSize = headerSize.rstrip(FRAME_DIVIDER)
+    headerSize = int(headerSize)-1
     header = inSocket.recv(headerSize)
     
     if len(header) == headerSize:
@@ -217,7 +219,7 @@ class MultiplexerFrame():
     contentlength = int(contentlength)
     
     # Strip the last semicolon off
-    ref = ref.rstrip(FRAME_DIVIDER)
+    ref = int(ref.rstrip(FRAME_DIVIDER))
     
     # Setup the Frame
     self.mesgType = msgtype
@@ -241,7 +243,7 @@ class MultiplexerFrame():
       raise AttributeError, "Frame is not yet initialized!"
     
     # Create header
-    frameHeader = str(self.mesgType) + FRAME_DIVIDER + str(self.contentLength) + \
+    frameHeader = FRAME_DIVIDER + str(self.mesgType) + FRAME_DIVIDER + str(self.contentLength) + \
                   FRAME_DIVIDER + str(self.referenceID) + FRAME_DIVIDER
     
     # Determine variable header size
@@ -256,40 +258,8 @@ class MultiplexerFrame():
 
 # This helps abstract the details of a NAT connection    
 class Multiplexer():
-  # Is everything setup?
-  connectionInit = False 
-
-  # Default incoming and outgoing buffer size expansion value
-  # Defaults to 128 kilobytes
-  # -1 to disable
-  defaultBufSize = 128*1024
   
-  # This is the main socket
-  socket = None 
-  
-  # Locks, this is to make sure only one thread is reading or writing at any time
-  readLock = getlock()
-  writeLock = getlock()
-  
-  # Callback function that is passed a socket object and frame when it is received
-  # This needs to be set by the forwarder, this is also used by waitforconn
-  callbackFunction = None
-  
-  # This dictionary keeps track of sockets we are waiting to open
-  pendingSockets = {}
-  
-  # If we want a new client, what number should we request?
-  referenceCounter = 0
-  
-  # A dictionary that associates reference ID's to their MultiplexerSocket objects
-  virtualSockets = {}
-  virtualSocketsLock = getlock()
-  
-  # Signals that the _socketReader should terminate if true
-  stopSocketReader = False
-
-  
-  def __init__(self, socket):
+  def __init__(self, socket, info={}):
     """
     <Purpose>
       Initializes the Multiplexer object.
@@ -297,13 +267,55 @@ class Multiplexer():
     <Arguments>
       socket:
         Socket like object that is used for multiplexing
-    """
-    # Setup the socket
-    self.socket = socket
-    
+    """    
     # If we are given a socket, assume it is setup
     if socket != None:
-      self.connectionInit = True
+      # Is everything setup?
+      self.connectionInit = True 
+
+      # Default incoming and outgoing buffer size expansion value
+      # Defaults to 128 kilobytes
+      # -1 to disable
+      self.defaultBufSize = 128*1024
+
+      # This is the main socket
+      self.socket = socket 
+
+      # This dictionary contains information about this socket
+      # This just has some junk default values, and is filled in during init
+      self.socketInfo = {"localip":"127.0.0.1","localport":0,"remoteip":"127.0.0.1","remoteport":0}
+
+      # Locks, this is to make sure only one thread is reading or writing at any time
+      self.readLock = getlock()
+      self.writeLock = getlock()
+
+      # Callback function that is passed a socket object and frame when it is received
+      # This needs to be set by the forwarder, this is also used by waitforconn
+      self.callbackFunction = None
+
+      # This dictionary keeps track of sockets we are waiting to open, e.g. openconn has been called
+      # but the partner multiplexer has not responded yet
+      self.pendingSockets = {}
+
+      # If we want a new client, what number should we request?
+      self.referenceCounter = 0
+
+      # A dictionary that associates reference ID's to their MultiplexerSocket objects
+      self.virtualSockets = {}
+      self.virtualSocketsLock = getlock()
+
+      # Signals that the _socketReader should terminate if true
+      self.stopSocketReader = False      
+      
+      # Inject or override socket info given to use
+      for key, value in info.items():
+        self.socketInfo[key] = value
+        
+      # Launch event to handle the multiplexing
+      settimer(0, self._socketReader, ())
+      
+    else:
+      raise ValueError, "Must pass in a valid socket!"
   
   # Closes the NATConnection, and cleans up
   def close(self, closeSocket=True):
@@ -421,13 +433,12 @@ class Multiplexer():
     frame = MultiplexerFrame()
     
     # Initialize it
-    frame.initAsDataFrame(referenceID, data)
+    frame.initDataFrame(referenceID, data)
     
     # Send it!
-    self.sendFrame(frame)
+    self._sendFrame(frame)
 
-  # TODO: implement this
-  def openconn(self, desthost, destport, localip=None,localport=None,timeout=5):
+  def openconn(self, desthost, destport, localip=None,localport=None,timeout=15):
     """
     <Purpose>
       Opens a connection, returning a socket-like object
@@ -440,8 +451,95 @@ class Multiplexer():
 
     <Returns>
       A socket like object.
-    """
-    pass
+    """    
+    # Check if we are initialized
+    if not self.connectionInit:
+      raise AttributeError, "Multiplexer is not yet initialized!"
+    
+    # Check for default values
+    if localip == None:
+      localip = self.socketInfo["localip"]
+      
+    if localport == None:
+      localport = self.socketInfo["localport"]
+    
+    # Create an INIT_CLIENT frame
+    frame = MultiplexerFrame()
+    
+    # Get a new id
+    requestedID = self.referenceCounter
+    
+    # Increment the counter
+    self.referenceCounter = self.referenceCounter + 1
+    
+    # Setup the frame
+    frame.initClientFrame(requestedID, desthost, destport, localip, localport)
+    
+    # Send the request
+    self._sendFrame(frame)
+    
+    # Add this request to the pending sockets, add a bool to hold if this was successful, and a lock that we use for blocking
+    # The third element is a timer handle, that is used for the timeout
+    self.pendingSockets[requestedID] = [False, getlock(), None]
+    
+    # Now we block until the request is handled, or until we reach the timeout
+    
+    # Set a timer to unblock us after a timeout
+    self.pendingSockets[requestedID][2] = settimer(timeout, self._openconn_timeout, [requestedID])
+    
+    # Acquire the lock twice, and wait for it to be release
+    self.pendingSockets[requestedID][1].acquire()
+    self.pendingSockets[requestedID][1].acquire()
+    
+    # Were we successful?
+    success = self.pendingSockets[requestedID][0]
+    
+    # Get the timer handle
+    handle = self.pendingSockets[requestedID][2]
+    
+    # Remove the request
+    del self.pendingSockets[requestedID]
+    
+    # At this point we've been unblocked, so were we successful?
+    if success:
+      # Create info dictionary
+      info  = {"localip":localip,"localport":localport,"remoteip":desthost,"remoteport":destport}
+      
+      # Return a virtual socket
+      socket = MultiplexerSocket(requestedID, self, self.defaultBufSize, info)
+      
+      # By default there is no data, so set the lock
+      socket.socketLocks["nodata"].acquire()
+      
+      # Lock the virtual sockets dictionary
+      self.virtualSocketsLock.acquire()
+      
+      # Create the entry for it, add the data to it
+      self.virtualSockets[requestedID] = socket
+      
+      # Release the dictionary lock
+      self.virtualSocketsLock.release()
+      
+      return socket
+      
+    # We failed or timed out  
+    else:
+      if handle == None:
+        # Our partner responded, but not with STATUS_CONFIRMED
+        raise EnvironmentError, "Connection Refused!"
+      else:
+        # Our connection timed out
+        raise EnvironmentError, "Connection timed out!"
+      
+  
+  # Unblocks openconn after a timeout
+  def _openconn_timeout(self, refID):
+    # Release the socket, so that openconn can continue execution
+    try:
+      self.pendingSockets[refID][1].release()
+    except:
+      # This is just to be safe
+      pass
     
   def waitforconn(self, localip, localport, function):
     """
@@ -468,18 +566,14 @@ class Multiplexer():
     # Check if we are initialized
     if not self.connectionInit:
       raise AttributeError, "Multiplexer is not yet initialized!"
+    
+    # Update the socket info
+    self.socketInfo["localip"] = localip
+    self.socketInfo["localport"] = localport
       
     # Setup the user function to call if there is a new client
     self.callbackFunction = function
     
-    # Create dictionary
-    self.virtualSockets = {}
-    
-    # Set stopSocketReader to false
-    self.stopSocketReader = False
-    
-    # Launch event to handle this
-    settimer(0, self._socketReader, ())
   
   
   # Handles a client closing a connection
@@ -580,9 +674,26 @@ class Multiplexer():
     
   
   # Handles INIT_STATUS messages for a pending client
-  # TODO: implement this
   def _pending_client(self, frame, refID):
-    pass
+    # Return if the referenced client is not in the pending list
+    if not (refID in self.pendingSockets):
+      return
+    
+    # Cancel the timeout timer
+    canceltimer(self.pendingSockets[refID][2])
+    
+    # Set the handle to None
+    self.pendingSockets[refID][2] = None
+      
+    # Has our partner confirmed the connection? If so, then update the pending socket
+    if frame.content == STATUS_CONFIRMED:
+      self.pendingSockets[refID][0] = True
+    
+    # Unblock openconn
+    try:
+      self.pendingSockets[refID][1].release()
+    except:
+      pass
   
   # Simple function to determine if a client is connected,
   # and if so returns their virtual socket
@@ -600,7 +711,7 @@ class Multiplexer():
        
     return sock
      
-  # This is launched as an even for waitforconn
+  # This is launched as an event to handle multiplexing the connection
   def _socketReader(self):
     # This thread is responsible for reading all incoming frames,
     # so it pushes data into the buffers, initializes new threads for each new client
@@ -612,7 +723,7 @@ class Multiplexer():
       
       # Read in a frame
       try:
-        frame = self._recv()
+        frame = self._recvFrame()
         refID = frame.referenceID
         frameType = frame.mesgType
       except:
@@ -657,34 +768,31 @@ class Multiplexer():
 
 # A socket like object with an understanding that it is part of a Multiplexer
 # Has the same functions as the socket like object in repy
-class MultiplexerSocket():
-  # Reference ID
-  id = 0
-  
-  # Pointer to the master Multiplexer
-  mux = None
-  
-  # Socket information
-  socketInfo = {"closed":False,"localip":"","localport":0,"remoteip":"","remoteport":0}
-  
-  # Actual buffer of unread data
-  buffer = ""
-  
-  # Buffering Information
-  bufferInfo = {"incoming":0,"outgoing":0}
-  
-  # Various locks used in the socket
-  socketLocks = {"main":getlock(),"nodata":getlock(),"outgoing":getlock()}
+class MultiplexerSocket():  
   
   def __init__(self, id, mux, buf, info):
     # Initialize
+    
+    # Reference ID
     self.id = id
+    
+    # Pointer to the master Multiplexer
     self.mux = mux
-    self.bufferInfo["incoming"] = buf
-    self.bufferInfo["outgoing"] = buf
+    
+    # Socket information
+    self.socketInfo = {"closed":False,"localip":"","localport":0,"remoteip":"","remoteport":0}
+    
+    # Actual buffer of unread data
+    self.buffer = ""
+    
+    # Buffering Information
+    self.bufferInfo = {"incoming":buf,"outgoing":buf}
+
+    # Various locks used in the socket
+    self.socketLocks = {"main":getlock(),"nodata":getlock(),"outgoing":getlock()}
     
     # Inject or override socket info given to use
-    for key, value in info:
+    for key, value in info.items():
       self.socketInfo[key] = value
   
   def close(self):
