@@ -1,6 +1,6 @@
 """
 <Program Name>
-  None yet
+  Linux_resources.py
 
 <Started>
   January 18, 2009
@@ -10,19 +10,20 @@
 
 <Purpose>
   Measure system resources on a Linux system, makes
-  extensive use of /proc files 
+  extensive use of /proc files and df command for
+  disk info.
 
-<TODO>
-  How to handle failures in these methods they dont
-  catch non-integer values from being returned, also different
-  possible units on information in proc files?
+  
 """
 
 import commands
 import sys
 
 def get_cpu():
-  
+  """
+  Anthony - still has difficulty sorting out difference
+  between hyperthreading, multi-core, multi-processor.
+  """
   #Stores integer value for number of cores
   cpucores = ''
   cpudefault = 1
@@ -101,87 +102,30 @@ def get_diskused():
   working directory is on.
   """
 
-  disksize = 0
   disksizedefault = 10000000
  
-  #blocksize unit is bytes
-  blocksize = 0
+  #blocks are typically 1024bytes
+  blocksize = 1024
   freeblocks = 0
 
-  #Basic commands for linux stat
-  # stat arguement -f get filesystem info
-  # stat arguement -c use valid format sequence
-  #   %s block size (faster transfer)
-  #   %S Fundamental block size (for block count)
-  #   %b Total data blocks in the file system.
-  statresult = commands.getstatusoutput('stat -f  -c "%S %b" $PWD')
+  #Unix command df
+  #-P, --portability     use the POSIX output format
+  #Possible result from "df -P ."
+  # Filesystem  1024-blocks  Used  Available Capacity Mounted on
+  # /dev/sda1   15007228   5645076  8757148      40%    /
+  statresult = commands.getstatusoutput('df -P .')
    
   # Test because if first element of tuple is other than 0
   # then the exit status of the linux command is an error.
   if (statresult[0] != 0):
-    #Failed
     return disksizedefault
-    
+  
+  # Second element of tuple returned by commands.getstatusoutput
+  # is the stdout from the command.  
   statresult = (statresult[1]).split()
-  #Example of expected value for statresult
-  #['4096', '3751807']
 
   try:
-    blocksize = long(statresult[0])
-  except ValueError:
-    return disksizedefault
-
-  try:
-    freeblocks = long(statresult[1])
-  except ValueError:
-    return disksizedefault
-
-  disksize = blocksize * freeblocks 
-  return disksize 
-
-
-def get_freediskspace():
-  """
-  NOTE: THIS RETURNS FREE DISK SPACE, different than get_diskused() 
-  I guessed this might be usefull.   
-
-  Will return the disk space available for non-super users
-  in the working directory (integer/long number of bytes). 
- 
-  """
-
-  disksize = 0
-  disksizedefault = 10000000
- 
-  #blocksize unit is bytes
-  blocksize = 0
-  freeblocks = 0
-
-  #Basic commands for linux stat
-  # stat arguement -f get filesystem info
-  # stat arguement -c use valid format sequence
-  #   %s block size (faster transfer)
-  #   %S Fundamental block size (for block count)
-  #   %a free blocks available to non-super user
-  statresult = commands.getstatusoutput('stat -f  -c "%S %a" $PWD')
-   
-  # Test because if first element of tuple is other than 0
-  # then the exit status of the linux command is an error.
-  if (statresult[0] != 0):
-    #Failed
-    return disksizedefault
-    
-  statresult = (statresult[1]).split()
-  #Example of expected value for statresult
-  #['4096', '3751807']
-
-  try:
-    blocksize = long(statresult[0])
-  except ValueError:
-    return disksizedefault
-
-  try:
-    freeblocks = long(statresult[1])
+    freeblocks = long(statresult[10])
   except ValueError:
     return disksizedefault
 
@@ -191,33 +135,44 @@ def get_freediskspace():
 
 def get_events():
   maxevents = 0
-  
+  defaultevents = 10  
+
   try:
     openfile = open('/proc/sys/kernel/threads-max', 'r') 
   except IOError:     
-    return 10
+    return defaultevents
   
-  #TODO---
-  #Should I catch the file read to make sure its an int?
-  maxevents = int(openfile.read()) 
+  try:
+    maxevents = int(openfile.read())
+  except ValueError:
+    openfile.close()
+    return defaultevents 
+   
   openfile.close()
-    
   return maxevents
 
 
 def get_filesopened():
+  """
+  Reads the value stored in /proc/sys/fs/file-max
+  May not represent the number of file descriptors
+  that a user/process is able to obtain.
+  """
   maxfile = 0
-  
+  defaultmaxfile = 5  
+
   try:
     openfile = open('/proc/sys/fs/file-max', 'r') 
   except IOError:     
-    return 5
+    return defaultmaxfile
   
-  #TODO---
-  #Should I catch file read to make sure its an int?
-  maxfile = int(openfile.read()) 
+  try:
+    maxfile = int(openfile.read())
+  except ValueError:
+    openfile.close()
+    return defaultmaxfile
+
   openfile.close()
-    
   return maxfile
 
 
@@ -231,6 +186,7 @@ def get_filesopened():
   resource fileread 10000
   resource filesopened 5
 """
+
 print 'resource cpu', get_cpu()
 print 'resource memory', get_memory()
 print 'resource diskused', get_diskused()
