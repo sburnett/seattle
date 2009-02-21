@@ -10,12 +10,9 @@
   Carter Butaud
   
 """
-# get_mess will build a string of 0's
-def get_mess(bytes):
-  mess = ""
-  for i in range(bytes):
-    mess += "0"
-  return mess
+
+def do_nothing(ip, port, mess, ch):
+  pass
     
 if callfunc == "initialize":
   ip = getmyip()
@@ -30,9 +27,12 @@ if callfunc == "initialize":
   server_conn.send(str(num_to_send))
   server_conn.close()
     
+  # Listening on the channel we plan to send on increases the send speed
+  recvmess(ip, mycontext["udp_port"], do_nothing)
+
   # Send the UDP packet train
   for i in range(num_to_send):
-    sendmess(mycontext["server_ip"], mycontext["udp_port"], get_mess(512))
+    sendmess(mycontext["server_ip"], mycontext["udp_port"], "0" * 512, ip, mycontext["upd_port"])
  
   sleep(1)
   
