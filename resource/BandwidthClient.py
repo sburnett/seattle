@@ -32,7 +32,7 @@ def get_bandwidth(server_ip):
   server_conn.close()
     
   # Listening on the channel we plan to send on increases the send speed
-  recvmess(ip, mycontext["udp_port"], do_nothing)
+  connhandle = recvmess(ip, mycontext["udp_port"], do_nothing)
 
   # Send the UDP packet train
   for i in range(num_to_send):
@@ -48,6 +48,8 @@ def get_bandwidth(server_ip):
   
   data = server_conn.recv(200)
   server_conn.close()
+  
+  stopcomm(connhandle)
   return int(float(data))
     
 if callfunc == "initialize":

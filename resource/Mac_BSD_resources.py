@@ -15,7 +15,7 @@
 
 import subprocess
 import re
-
+import bandwidth
 
 def getShellPipe(cmd):
     return subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE).stdout
@@ -96,6 +96,14 @@ def main():
     if len(line_s) > 1:
       maxsockets = int(line_s[1])
   pipe.close()
+
+  # Get the available bandwidth, defaulting to 100000
+  bandwidth = 100000
+  server_ip = 0.0.0.0
+  try:
+    bandwidth = bandwidth.get_bandwidth(server_ip)
+  except:
+    pass
   
   print "resource cpu", num_cpu
   print "resource memory", phys_mem
@@ -104,6 +112,9 @@ def main():
   print "resource events", events
   print "resource insockets", maxsockets / 2
   print "resource outsockets", maxsockets / 2
+  print "resource netsend", bandwidth
+  print "resource netreceive", bandwidth
+
 
 if __name__ == "__main__":
     main()
