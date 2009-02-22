@@ -98,10 +98,10 @@ def main():
   pipe.close()
 
   # Get the available bandwidth, defaulting to 100000
-  bandwidth = 100000
-  server_ip = 0.0.0.0
+  my_bandwidth = 100000
+  server_ip = "128.208.1.137"
   try:
-    bandwidth = bandwidth.get_bandwidth(server_ip)
+    my_bandwidth = bandwidth.get_bandwidth(server_ip)
   except:
     pass
   
@@ -112,8 +112,8 @@ def main():
   print "resource events", events
   print "resource insockets", maxsockets / 2
   print "resource outsockets", maxsockets / 2
-  print "resource netsend", bandwidth
-  print "resource netreceive", bandwidth
+  print "resource netsend", my_bandwidth
+  print "resource netreceive", my_bandwidth
 
 
 if __name__ == "__main__":
