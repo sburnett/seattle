@@ -101,9 +101,12 @@ def parse_packet(packet_str):
   if len(packet_spl) < 2:
     raise Exception("Invalid packet")
   try:
-    return (packet_spl[0], int(packet_spl[1]))
-  catch:
+    index = int(packet_spl[1])
+  except ValueError:
     raise Exception("Invalid packet")
+
+  return (packet_spl[0], int(packet_spl[1]))
+
 
 # process_UDP handles all of the UDP connections, will ignore
 # packets from clients who have not first initialized with a
