@@ -54,33 +54,62 @@ class Client():
     self.packets = []
     self.intendedpackets = 0
     self.latestpackettime = -1.0
+    
+def get_sorted_intervals(orig_packets):
+  intervals = []
+  for packet in orig_packets:
+    if packet[1] != -1:
+      intervals.append(packet[1])
+  intervals.sort()
+  return intervals
+
+def get_sorted_sizes(orig_packets):
+  sizes = []
+  for packet in orig_packets:
+    if packet[1] != -1:
+      sizes.append(len(packet[0]))
+  sizes.sort()
+  return sizes
+  
+def get_median(numlist):
+  if len(numlist) % 2 == 0:
+    return numlist[len(numlist) / 2]
+  else:
+    return (numlist[len(numlist) / 2 - 1] + numlist[len(numlist) / 2]) / 2
+    
+def get_average(numlist):
+  total = 0
+  for num in numlist:
+    total += num
+  return total / len(numlist)
   
 def get_info(client):  
-  average_sum = 0
-  number_averaged = 0
   totalbytes = 0
   packetcount = len(client.packets)
   for packet in client.packets:
     totalbytes += len(packet[0])
     
-  for packet in client.packets:
-    if packet[1] != -1:
-      # If we have the time interval between it and the next, go ahead and
-      # calculate bandwidth.
-      cur_ave = len(packet[0]) / packet[1]
-      average_sum += cur_ave
-      number_averaged += 1
-  
-  if number_averaged < 1:
+  if len(client.packets) < 2:
     print "Insufficient data to calculate bandwidth"
-    return
-    
-  bytespersec = average_sum / number_averaged
+    return ""
+
+  sizes = get_sorted_sizes(client.packets)
+  ave_size = get_average(sizes)
+  print "Average packet size:", ave_size
+  
+  intervals = get_sorted_intervals(client.packets)
+  print "Intervals:"
+  for i in intervals:
+    print i
+  median_int = get_median(intervals)
+  print "Median interval size:", median_int
+  
+  bytespersec = ave_size / median_int
   
   print
   print '===============', client.ip, '=================='
   print 'Packets:', packetcount , 'Expected:', client.intendedpackets
-  print 'Packet size:', totalbytes / number_averaged, 'byte'
+  print 'Packet size:', totalbytes / packetcount, 'byte'
   print 'Total', totalbytes, 'Bytes  ', totalbytes / 1000, 'KB'
   print 'Bytes/sec:', bytespersec, '  KB/sec:', bytespersec / (1000)
   print '===================================================='
