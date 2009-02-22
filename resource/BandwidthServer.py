@@ -49,30 +49,42 @@
 class Client():
   def __init__(self):
     self.ip = '0.0.0.0'
+    self.idstring = ""
     self.creationtime = getruntime() # time that client initialized test
-    self.packetcount = 0
+    self.packets = []
     self.intendedpackets = 0
-    self.totalbytes = 0
-    self.startrectime = getruntime() # time that first packet was received
-    self.latestpacket = getruntime()
+    self.latestpackettime = -1.0
   
-def get_info(client):
+def get_info(client):  
+  average_sum = 0
+  number_averaged = 0
+  totalbytes = 0
+  packetcount = len(client.packets)
+  for packet in client.packets:
+    totalbytes += len(packet[0])
     
-  #Need to ensure get_info does no execute if packet count is 0 or 1.
-  if(client.packetcount < 2):
-    print "Insufficent data recieved"
-    #SHOULD RETURN DEFAULT
+  for packet in client.packets:
+    if packet[1] != -1:
+      # If we have the time interval between it and the next, go ahead and
+      # calculate bandwidth.
+      cur_ave = len(packet[0]) / packet[1]
+      average_sum += cur_ave
+      number_averaged += 1
+  
+  if number_averaged < 1:
+    print "Insufficient data to calculate bandwidth"
+    return
     
-  bytesec = (client.totalbytes) / (client.latestpacket - client.startrectime)
+  bytespersec = average_sum / number_averaged
   
   print
   print '===============', client.ip, '=================='
-  print 'Packets:', client.packetcount , 'Expected:', client.intendedpackets
-  print 'Packet size:', client.totalbytes / client.packetcount, 'byte'
-  print 'Total', client.totalbytes, 'Bytes  ', client.totalbytes / 1000, 'KB'
-  print 'Bytes/sec:', bytesec, '  KB/sec:', bytesec / (1000)
+  print 'Packets:', packetcount , 'Expected:', client.intendedpackets
+  print 'Packet size:', totalbytes / number_averaged, 'byte'
+  print 'Total', totalbytes, 'Bytes  ', totalbytes / 1000, 'KB'
+  print 'Bytes/sec:', bytespersec, '  KB/sec:', bytespersec / (1000)
   print '===================================================='
-  return str(bytesec)
+  return str(bytespersec)
   
 # finalize will return the test data to the client and remove
 # them from the global dictionary.  
@@ -82,6 +94,16 @@ def finalize(client_ip, conn):
   conn.close()   
   del mycontext["clients"][client_ip]
   print "Client " + client_ip + " is finished."
+  
+
+def parse_packet(packet_str):
+  packet_spl = packet_str.split("|")
+  if len(packet_spl) < 2:
+    raise Exception("Invalid packet")
+  try:
+    return (packet_spl[0], int(packet_spl[1]))
+  catch:
+    raise Exception("Invalid packet")
 
 # process_UDP handles all of the UDP connections, will ignore
 # packets from clients who have not first initialized with a
@@ -94,11 +116,43 @@ def process_UDP(cl_ip, cl_port, mess, ch):
     return
   
   client = mycontext["clients"][cl_ip]
-  # The packet was expected there for we update the Client
-  # object with new data.     
-  client.packetcount += 1
-  client.totalbytes += len(mess)
-  client.latestpacket = getruntime()
+  # The packet was expected, so check that it is valid and in the right
+  # order.
+  try:     
+    idstring, newindex = parse_packet(mess)
+  except Exception, err:
+    if "Invalid packet" in str(err):
+      print "Invalid packet from client " + cl_ip
+      return
+    raise err
+  
+  if len(client.packets) > 0:
+    previouspacket = client.packets[-1]
+    previndex = parse_packet(previouspacket[0])[1]
+    
+    if newindex > previndex + 1:
+      # We missed a packet somewhere, so throw out the old one
+      del client.packets[-1]
+      client.packets.append([mess, -1])
+      
+    elif newindex < previndex + 1:
+      # Packet is out of order, so don't add it
+      pass
+    
+    else:
+      # Valid ordering, so calculate and save the interval between the last packet
+      # and this one
+      interval = getruntime() - client.latestpackettime
+      previouspacket = client.packets[-1]
+      previouspacket[1] = interval
+      client.packets[-1] = previouspacket
+      # Then append this packet to our list
+      client.packets.append([mess, -1])
+  else:
+    # We don't have any packets yet, so just go ahead and append this one
+    client.packets.append([mess, -1])
+    
+  client.latestpackettime = getruntime()
     
 
 def process_TCP(client_ip, client_port, conn, th, lh):

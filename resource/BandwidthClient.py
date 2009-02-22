@@ -11,14 +11,21 @@
   
 """
 
+def get_mess(size, idstring, index):
+  mess = idstring + "|" + str(index) + "|"
+  return mess + "0" * (size - len(mess))
+  
 def do_nothing(ip, port, mess, ch):
   pass
     
 if callfunc == "initialize":
+  if len(callargs) < 1:
+    raise Exception("A server ip is required.")
+    
   ip = getmyip()
   mycontext["tcp_port"] = 12345
   mycontext["udp_port"] = 12346
-  mycontext["server_ip"] = "128.208.1.137"
+  mycontext["server_ip"] = callargs[0]
 
   num_to_send = 30 # number of packets to be sent
   
@@ -32,7 +39,8 @@ if callfunc == "initialize":
 
   # Send the UDP packet train
   for i in range(num_to_send):
-    sendmess(mycontext["server_ip"], mycontext["udp_port"], "0" * 512, ip, mycontext["upd_port"])
+    mess = get_mess(512, "testing", i)
+    sendmess(mycontext["server_ip"], mycontext["udp_port"], mess, ip, mycontext["udp_port"])
  
   sleep(1)
   
