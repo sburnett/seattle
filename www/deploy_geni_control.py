@@ -21,12 +21,14 @@
   that the folder passed in as an argument to the script exists.
 
 <Usage>
-  deploy_geni_control.py <target_folder>
+  export PYTHONPATH=$PYTHONPATH:/loc/of/svn_trunk && 
+  deploy_geni_control.py <target_folder_to_build GENI> <svn_trunk>
   
 """
 
 import os
 import sys
+import shutil
 
 import preparetest
 
@@ -36,26 +38,53 @@ def main():
         print "python deploy_geni_control <geni_root> <svn_root>"
         return
     
-    if not os.path.isdir(sys.argv[1]) or \
-       not os.path.isdir(sys.argv[2]):
-        print "ERROR: one (or both) of the paths given do not exist."
+    geni_root = sys.argv[1]
+    svn_trunk = sys.argv[2]
+    
+    # check for existence of svn trunk
+    if not os.path.isdir(svn_trunk):
+        print "ERROR: the path to the SVN root given does not exist."
         return
 
-    # alpers - moves dir to actual repy dir
-    if not sys.argv[1][-1] == "/":
-        sys.argv[1] += "/"
-    sys.argv[1] += "geni/control/repy_dist"
+    # warn the user if we're about to overwrite files
+    if os.path.isdir(geni_root):
+        ans = raw_input("WARNING: directory found at geni_root location.  Delete? [y/n]")
+        ans = str.lower(ans)
+        if not ans == 'y':
+            exit()
+        else:
+            shutil.rmtree(geni_root)
 
+    # copy over most recent build of geni from SVN to specified directory
+    if not svn_trunk.endswith("/"):
+        svn_trunk += "/"
+    geni_svn = svn_trunk + "www/geni/"
+
+    print "copied"
+    shutil.copytree(geni_svn, geni_root)
+
+    # alpers - moves dir to actual repy dir
+    if not geni_root.endswith("/"):
+        geni_root += "/"
+    geni_repy = geni_root + "control/repy_dist"
+
+    # make the repy directory if it doesn't exist
+    if not os.path.isdir(geni_repy):
+        os.mkdir(geni_repy)
+
+    # need to modify argument so preparetest can pick it up
+    sys.argv[1] = geni_repy
 
     # this is for preparetest to work
     current_dir = os.getcwd()
 
     # makes this a full path, otherwise preparetest doesn't like it
-    if not sys.argv[1][0] == "/":
-        sys.argv[1] = current_dir + "/" + sys.argv[1]
+    if not os.path.isabs(sys.argv[1]):
+        sys.argv[1] = os.path.abspath(sys.argv[1])
 
-    os.chdir(sys.argv[2])
+    os.chdir(svn_trunk)
     target_dir = sys.argv[1]
+    print sys.argv[1]
     preparetest.main()
 
     
