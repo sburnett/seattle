@@ -71,7 +71,8 @@ def main():
 		# delete vmap record from the database
 		vmap.delete()
 
-        # this is an essential hack to make get_expired_vesselmaps() not use internal models caching
+        # this is an essential hack to make get_expired_vesselmaps() not use internal models caching:
+	# http://www.mail-archive.com/django-users@googlegroups.com/msg14826.html
 	try:
             transaction.commit()
         except django.db.transaction.TransactionManagementError:
