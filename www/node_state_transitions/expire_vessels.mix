@@ -23,6 +23,8 @@
 from repyportability import *
 include nmclient.repy
 
+from django.db import transaction
+
 import changeusers
 # db api
 import genidb
@@ -68,6 +70,13 @@ def main():
 	        print str(time.ctime()) + " Expired vessel " + str(vesselname) + " on node " + str(nmip) + " with expiration stamp: " + str(vmap.expiration)
 		# delete vmap record from the database
 		vmap.delete()
+
+        # this is an essential hack to make get_expired_vesselmaps() not use internal models caching
+	try:
+            transaction.commit()
+        except django.db.transaction.TransactionManagementError:
+            pass
+          
         sleep(60)
 	print time.ctime(), "."
 
