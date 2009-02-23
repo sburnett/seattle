@@ -327,24 +327,25 @@ class VesselMap(models.Model):
         return "%s:%s:%s"%(self.vessel_port.vessel.donation.ip, self.vessel_port.vessel.name, self.user.www_user.username)
 
     def time_remaining(self):
-        """
-        <Purpose>
-          Returns the number of seconds remaining to the assignment of
-          a user to a vessel
-        <Arguments>
-          None
-        <Exceptions>
-          None
-        <Side Effects>
-          None
-        <Returns>
-          Number of seconds before the vessel expires
+        """                                                                                                                                                                                                                                                                                                                
+        <Purpose>                                                                                                                                                                                                                                                                                                          
+          Returns the amount of time remaining to the assignment of                                                                                                                                                                                                                                                        
+          a user to a vessel as a string                                                                                                                                                                                                                                                                                   
+        <Arguments>                                                                                                                                                                                                                                                                                                        
+          None                                                                                                                                                                                                                                                                                                             
+        <Exceptions>                                                                                                                                                                                                                                                                                                       
+          None                                                                                                                                                                                                                                                                                                             
+        <Side Effects>                                                                                                                                                                                                                                                                                                     
+          None                                                                                                                                                                                                                                                                                                             
+        <Returns>                                                                                                                                                                                                                                                                                                          
+          Number of seconds before the vessel expires                                                                                                                                                                                                                                                                      
         """
         curr_time = datetime.datetime.now()
-        delta = self.expiration - curr_time
-        if delta.days == -1:
+        if self.expiration < curr_time:
+            # expiration in the past                                                                                                                                                                                                                                                                                       
             ret = "now"
         else:
+            delta = self.expiration - curr_time
             hours = delta.seconds / (60 * 60)
             minutes = (delta.seconds - (hours * 60 * 60)) / 60
             ret = str(hours) + "h " + str(minutes) + "m"
