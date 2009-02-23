@@ -26,8 +26,8 @@ import traceback
 from django.db import connection
 from django.db import transaction
 
-from geni.control.models import *
-from geni.control.repy_dist.vessel_operations import *
+from geni.control.models import User, VesselPort, VesselMap
+from geni.control.repy_dist.vessel_operations import release_vessels, acquire_lan_vessels, acquire_wan_vessels, acquire_rand_vessels
 
 # 4 hours worth of seconds
 VESSEL_EXPIRE_TIME_SECS = 14400

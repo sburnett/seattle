@@ -24,7 +24,7 @@ import time
 from django.db import connection
 from django.contrib.auth.models import User as DjangoUser
 
-from resource_operations import *
+from resource_operations import acquire_resources
 from models import Vessel
 
 from repyportability import *
