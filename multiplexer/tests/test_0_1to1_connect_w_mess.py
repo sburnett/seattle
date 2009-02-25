@@ -5,7 +5,7 @@
 include Multiplexer.py
 
 # Handle a new virtual connection
-def new_virtual_conn(remoteip, remoteport, virtualsock, multiplexer):
+def new_virtual_conn(remoteip, remoteport, virtualsock, junk, multiplexer):
   # Wait to recieve hi
   data = virtualsock.recv(3)
 
