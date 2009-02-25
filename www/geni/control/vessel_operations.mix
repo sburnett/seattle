@@ -24,8 +24,7 @@ import time
 from django.db import connection
 from django.contrib.auth.models import User as DjangoUser
 
-from resource_operations import acquire_resources
-from models import Vessel
+from geni.control.models import Vessel
 
 from repyportability import *
 include parallelize.repy
@@ -169,6 +168,8 @@ def parallel_acquire_vessels(vessel_list, geni_user):
     while not parallelize_isfunctionfinished(phandle):
         sleep(0.1)
 
+    acquired = []
+    explanation = ""
     resultdict = parallelize_getresults(phandle)
     for (vessel, (success, msg)) in resultdict['returned']:
         if success:
@@ -485,74 +486,74 @@ def acquire_rand_vessels(geni_user, num):
     return False, (summary, explanation)
 
 
-def test_acquire(username, num_nodes):
-    """
-    <Purpose>
+# def test_acquire(username, num_nodes):
+#     """
+#     <Purpose>
 
-    <Arguments>
-        request:
+#     <Arguments>
+#         request:
             
-        share_form:
-            
-
-    <Exceptions>
-        
-
-    <Side Effects>
-        
-
-    <Returns>
-        
-    """
-
-    user = DjangoUser.objects.get(username=username)
-    print "django user: ", user
-    geni_user = User.objects.get(www_user = user)
-    print "geni user: ", geni_user
-    ret = acquire_resources(geni_user, num_nodes, "LAN")
-    print "acquire returned: ", ret
-    if ret[0] == False:
-        print ret[1]
-
-def test_acquire_node(username,nodeip,vesselname):
-    """
-    <Purpose>
-        
-
-    <Arguments>
-        request:
-            
-        share_form:
+#         share_form:
             
 
-    <Exceptions>
+#     <Exceptions>
         
 
-    <Side Effects>
+#     <Side Effects>
         
 
-    <Returns>
+#     <Returns>
         
-    """
+#     """
 
-    user = DjangoUser.objects.get(username=username)
-    print "django user: ", user
-    geni_user = User.objects.get(www_user = user)
-    print "geni user: ", geni_user
+#     user = DjangoUser.objects.get(username=username)
+#     print "django user: ", user
+#     geni_user = User.objects.get(www_user = user)
+#     print "geni user: ", geni_user
+#     ret = acquire_resources(geni_user, num_nodes, "LAN")
+#     print "acquire returned: ", ret
+#     if ret[0] == False:
+#         print ret[1]
 
-    d = Donation.objects.get(ip = nodeip)
-    print "donation: " , d
-    v = Vessel.objects.get(donation = d, name = vesselname)
-    print "vessel: ", v
+# def test_acquire_node(username,nodeip,vesselname):
+#     """
+#     <Purpose>
+        
+
+#     <Arguments>
+#         request:
+            
+#         share_form:
+            
+
+#     <Exceptions>
+        
+
+#     <Side Effects>
+        
+
+#     <Returns>
+        
+#     """
+
+#     user = DjangoUser.objects.get(username=username)
+#     print "django user: ", user
+#     geni_user = User.objects.get(www_user = user)
+#     print "geni user: ", geni_user
+
+#     d = Donation.objects.get(ip = nodeip)
+#     print "donation: " , d
+#     v = Vessel.objects.get(donation = d, name = vesselname)
+#     print "vessel: ", v
     
-    # issue the command to remote nodemanager
-    userpubkeystringlist = [geni_user.pubkey]
-    nmip = v.donation.ip
-    nmport = int(v.donation.port)
-    vesselname = v.name
-    nodepubkey = v.donation.owner_pubkey
-    nodeprivkey = v.donation.owner_privkey
-    print "calling changeusers with: \npubkeystrlist %s\nnmip %s\nnmport %s\nvesselname %s\nnodepubkey %s\nnodeprivkey %s\n"%(userpubkeystringlist, nmip, nmport, vesselname, nodepubkey, nodeprivkey)
-    success,msg = changeusers(userpubkeystringlist, nmip, nmport, vesselname, nodepubkey, nodeprivkey)
-    print "returned: ", success, msg
+#     # issue the command to remote nodemanager
+#     userpubkeystringlist = [geni_user.pubkey]
+#     nmip = v.donation.ip
+#     nmport = int(v.donation.port)
+#     vesselname = v.name
+#     nodepubkey = v.donation.owner_pubkey
+#     nodeprivkey = v.donation.owner_privkey
+#     print "calling changeusers with: \npubkeystrlist %s\nnmip %s\nnmport %s\nvesselname %s\nnodepubkey %s\nnodeprivkey %s\n"%(userpubkeystringlist, nmip, nmport, vesselname, nodepubkey, nodeprivkey)
+#     success,msg = changeusers(userpubkeystringlist, nmip, nmport, vesselname, nodepubkey, nodeprivkey)
+#     print "returned: ", success, msg
 

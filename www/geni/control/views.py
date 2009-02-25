@@ -43,7 +43,7 @@ from django.views.generic.simple import direct_to_template
 from django.contrib.auth.decorators import login_required
 
 from models import User, Donation, Vessel, VesselMap, Share
-#from resource_operations import acquire_resources, release_resources
+from resource_operations import acquire_resources, release_resources
 import share_operations
 from db_operations import pop_key
 
