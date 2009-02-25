@@ -18,7 +18,7 @@ function add_cell(type, username, percent) {
 		} else {
 			var item = create_other(username, percent, false);
 			$("#creditotherstable").append(item);
-			if ($("#creditOthers")) {
+			if ($("#creditOthers").length > 0) {
 				edit_cell(type, "Others", get_percent("credits", "Others") + percent);
 			} else {
 				var others = create_block("Others", get_percent("credits", "Others") + percent, true);
@@ -35,7 +35,7 @@ function add_cell(type, username, percent) {
 			$("#usage").append(block);
 			$("#usagenames").append(label);
 		} else if (username == "Me") {
-			if ($("#usageFree")) {
+			if ($("#usageFree").length > 0) {
 				block.insertBefore("#usageFree");
 				label.insertBefore("#labelusageFree");
 			} else {
@@ -43,13 +43,13 @@ function add_cell(type, username, percent) {
 				$("#usagenames").append(label);
 			}
 		} else if (percent >= minwidth) {
-			if ($("#usageOthers")) {
+			if ($("#usageOthers").length > 0) {
 				block.insertBefore("#usageOthers");
 				label.insertBefore("#labelusageOthers");
-			} else if ($("#usageMe")) {
+			} else if ($("#usageMe").length > 0) {
 				block.insertBefore("#usageMe");
 				label.insertBefore("#labelusageMe");
-			} else if ($("#usageFree")) {
+			} else if ($("#usageFree").length > 0) {
 				block.insertBefore("#usageFree");
 				label.insertBefore("#labelusageFree");
 			} else {
@@ -59,18 +59,15 @@ function add_cell(type, username, percent) {
 		} else {
 			var item  = create_other(username, percent, true);
 			$("#usageotherstable").append(item);
-			if ($("#usageOthers")) {
-				alert("exists");
-				alert($("#usageOthers").text());
+			if ($("#usageOthers").length > 0) {
 				edit_cell(type, "Others", get_percent("shares", "Others") + percent);
 			} else {
-				alert("none exist");
 				var others = create_block("Others", get_percent("shares", "Others") + percent, true);
 				var labelothers = create_label("Others", get_percent("shares", "Others") + percent, true);
-				if ($("#usageMe")) {
+				if ($("#usageMe").length > 0) {
 					others.insertBefore("#usageMe");
 					labelothers.insertBefore("#labelusageMe");
-				} else if ($("#usageFree")) {
+				} else if ($("#usageFree").length > 0) {
 					others.insertBefore("#usageFree");
 					labelothers.insertBefore("#labelusageFree");
 				} else {
