@@ -96,8 +96,8 @@ Sleight of Hand
 :sprint
 02/19/2009
 Measure Twice, Cut Once
-anthony bandwidth
-carter bandwidth and testing
+0 anthony bandwidth
+0 carter bandwidth and testing
 1347 brent disk rate limiting
 1355 armon CPU / uptime measuring
 
