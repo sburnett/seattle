@@ -10,11 +10,11 @@ SIGINTACT="1"
 # Should we block stderr? This prevents ugly error messages when SIGINT is received
 BLOCKERR="1"
 
-function stop_forwarder() {
-	# stop the forwarder
-	echo "Stopping forwarder!"
-	./scripts/stop_forwarder.sh >/dev/null 2>&1
-}
+#function stop_forwarder() {
+#	# stop the forwarder
+#	echo "Stopping forwarder!"
+#	./scripts/stop_forwarder.sh >/dev/null 2>&1
+#}
 
 # If the script is interrupted (Control-C) handle this cleanly
 function interrupt() {
@@ -26,7 +26,7 @@ function interrupt() {
 	else
 		echo "#####"
 		echo "Caught User Interrupt!"
-		stop_forwarder
+		#stop_forwarder
 		exit	
 	fi
 }
@@ -65,32 +65,32 @@ then
 fi
 
 # Stop the old forwarder if it is running
-if [ -f run/forwarder.pid ]
-then
-  echo "Stopping old forwarder..."
-  ./scripts/stop_forwarder.sh
-fi
+#if [ -f run/forwarder.pid ]
+#then
+#  echo "Stopping old forwarder..."
+#  ./scripts/stop_forwarder.sh
+#fi
 
-echo "Starting forwarder..."
-./scripts/start_forwarder.sh
+#echo "Starting forwarder..."
+#./scripts/start_forwarder.sh
 
 # Setup interrupt handler
 trap "interrupt" SIGINT
 
 # Sleep for a second, give the forwarder a change to start
-echo "Waiting for forwarder to initialize..."
-sleep 5
+#echo "Waiting for forwarder to initialize..."
+#sleep 5
 
-forwarderpid=`cat ./run/forwarder.pid`
+#forwarderpid=`cat ./run/forwarder.pid`
 
 # Check if the forwarder is still running
-forwarderstat=`ps -p ${forwarderpid} | grep -c ""`
-if [ ${forwarderstat} -eq "1" ]
-then
-      echo "Fatal Error! Forwarder has not started!"
-      rm ./run/forwarder.pid
-      exit
-fi
+#forwarderstat=`ps -p ${forwarderpid} | grep -c ""`
+#if [ ${forwarderstat} -eq "1" ]
+#then
+#      echo "Fatal Error! Forwarder has not started!"
+#      rm ./run/forwarder.pid
+#      exit
+#fi
 
 # Pre-process each file
 echo "Running tests..."
@@ -136,20 +136,20 @@ do
   fi
 
   # Sleep for a second
-  sleep 1
+  #sleep 1
   
   # Check if the forwarder is still running
-  forwarderstat=`ps -p ${forwarderpid} | grep -c ""`
-  if [ ${forwarderstat} -eq "1" ]
-  then
-      echo "Fatal Error! Forwarder Dead!"
-      rm ./run/forwarder.pid
-      exit
-  fi
+  #forwarderstat=`ps -p ${forwarderpid} | grep -c ""`
+  #if [ ${forwarderstat} -eq "1" ]
+  #then
+  #    echo "Fatal Error! Forwarder Dead!"
+  #    rm ./run/forwarder.pid
+  #    exit
+  #fi
 done
 
 echo "#####"
 echo "Done!"
 
 # Stop the forwarder
-stop_forwarder
+#stop_forwarder

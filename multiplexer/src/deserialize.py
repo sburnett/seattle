@@ -58,15 +58,15 @@ def findChar(char, str):
   return indexes
       
 # Find sub-dictionaries
-def findSubDicts(str):
+def findSubObjs(str, start,end):
   # Location of the start and end braces
-  startIndexes = findChar("{", str)
+  startIndexes = findChar(start, str)
   
   # Check if any sub-dicts exist    
   if len(startIndexes) == 0:
     return []
             
-  endIndexes = findChar("}", str)
+  endIndexes = findChar(end, str)
   
   # Partitions of the string
   partitions = []
@@ -102,7 +102,7 @@ def deserializeDict(strDict, partitions=[]):
   
   # Check for sub dictionaries
   if strDict.find("{") != -1:
-    subDicts = findSubDicts(strDict)
+    subDicts = findSubObjs(strDict,"{","}")
     partitionIndex = 0
       
     # Determine maximum depth
