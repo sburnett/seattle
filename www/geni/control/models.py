@@ -129,6 +129,11 @@ class User(models.Model):
         self.port = random.sample(ALLOWED_USER_PORTS, 1)[0]
         # set default num acquired vessels to 0
         self.num_acquired_vessels = 0
+        # set default vcounts
+        self.vcount_base = 0
+        self.vcount_via_shares = 0
+        self.vcount_via_donations = 0
+        # save the object
         self.save()
         return True
 
