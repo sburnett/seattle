@@ -1,49 +1,104 @@
+var minwidth = 10;
+
 $(document).ready(function() {
 	load();
-	/*
-	var credits = $("#credits");
-	var creditnames = $("#creditnames");
-	create_block(credits, "Me", 35, false);
-	create_block(credits, "Ivan", 25, false);
-	create_block(credits, "Justin", 15, false);
-	create_block(credits, "Sean", 10, false);
-	create_block(credits, "Others", 15, false);
-	
-	create_label(creditnames, "Me", 35, false);
-	create_label(creditnames, "Ivan", 25, false);
-	create_label(creditnames, "Justin", 15, false);
-	create_label(creditnames, "Sean", 10, false);
-	create_label(creditnames, "Others", 15, false);
-	
-	var usage = $("#usage");
-	var usagenames = $("#usagenames");
-	create_block(usage, "Justin", 3, true);
-	create_block(usage, "Kate", 5, true);
-	create_block(usage, "Man", 8, true);
-	create_block(usage, "Me", 21, true);
-	create_block(usage, "Kevin", 14, true);
-	create_block(usage, "Others", 14, true);
-	create_block(usage, "Free", 35, true);
-	create_label(usagenames, "Justin", 3, true);
-	create_label(usagenames, "Kate", 5, true);
-	create_label(usagenames, "Man", 8, true);
-	create_label(usagenames, "Me", 21, true);
-	create_label(usagenames, "Kevin", 14, true);
-	create_label(usagenames, "Others", 14, true);
-	create_label(usagenames, "Free", 35, true);
-	*/
-	
-
-	
-
 });
+
+/*
+	A cell is a combination of block and label
+	Take care of cell order and cell minwidth
+*/
+function add_cell(type, username, percent) {
+	if (type == "credits") {
+		if (percent >= minwidth) {
+			var block = create_block(username, percent, false);
+			var label = create_label(username, percent, false);
+			$("#credits").append(block);
+			$("#creditnames").append(label);
+		} else {
+			var item = create_other(username, percent, false);
+			$("#creditothers").append(item);
+			if ($("#creditOthers")) {
+				edit_cell(type, "Others", get_percent("credits", "Others") + percent);
+			} else {
+				var others = create_block("Others", get_percent("credits", "Others") + percent, true);
+				var labelothers = create_label("Others", get_percent("credits", "Others") + percent, true);
+				$("#credits").append(others);
+				$("#creditnames").append(labelothers);
+			}
+		}
+	} else if (type == "shares") {
+		var block = create_block(username, percent, true);
+		var label = create_label(username, percent, true);	
+		
+		if (username == "Free") {
+			$("#usage").append(block);
+			$("#usagenames").append(label);
+		} else if (username == "Me") {
+			if ($("#usageFree")) {
+				block.insertBefore("#usageFree");
+				label.insertBefore("#labelusageFree");
+			} else {
+				$("#usage").append(block);
+				$("#usagenames").append(label);
+			}
+		} else if (percent >= minwidth) {
+			if ($("#usageOthers")) {
+				block.insertBefore("#usageOthers");
+				label.insertBefore("#labelusageOthers");
+			} else if ($("#usageMe")) {
+				block.insertBefore("#usageMe");
+				label.insertBefore("#labelusageMe");
+			} else if ($("#usageFree")) {
+				block.insertBefore("#usageFree");
+				label.insertBefore("#labelusageFree");
+			} else {
+				$("#usage").append(block);
+				$("#usagenames").append(label);
+			}
+		} else {
+			var item  = create_other(username, percent, true);
+			$("#usageothers").append(item);
+			if ($("#usageOthers")) {
+				edit_cell(type, "Others", get_percent("shares", "Others") + percent);
+			} else {
+				var others = create_block("Others", get_percent("shares", "Others") + percent, true);
+				var labelothers = create_label("Others", get_percent("shares", "Others") + percent, true);
+				if ($("#usageMe")) {
+					others.insertBefore("#usageMe");
+					labelothers.insertBefore("#labelusageMe");
+				} else if ($("#usageFree")) {
+					others.insertBefore("#usageFree");
+					labelothers.insertBefore("#labelusageFree");
+				} else {
+					$("#usage").append(others);
+					$("#usagenames").append(labelothers);
+				}
+			}
+		}
+	}
+}
+
+
+/*
+	Return the percent of the given user in given bar type
+*/
+function get_percent(type, username) {
+	var percent = 0;
+	if (type == "credits") {
+	 	percent = parseInt($("#credit" + username).css("width"));
+	} else if (type == "shares") {
+		percent = parseInt($("#usage" + username).css("width"));
+	}
+	return percent;
+}
 
 
 /*
 	Create a block with given width and background color,
 	and append it to the given bar element.
 */
-function create_block(bar, username, width, isClosable) {
+function create_block(bar, username, width, isShare) {
 	var block = $(document.createElement('td'));
 	block.css({
 		'width': width + '%',
@@ -52,7 +107,7 @@ function create_block(bar, username, width, isClosable) {
 	var percent = $(document.createElement('span'));
 	percent.text(width + '%');
 
-	if (isClosable) {
+	if (isShare) {
 		block.attr("id", "usage" + username);
 		if (username == "Free") {
 			var get = $(document.createElement('a'));
@@ -91,11 +146,37 @@ function create_block(bar, username, width, isClosable) {
 	}
 	
 	if (username == "Others") {
-		percent.click(function () { show_table(isClosable) });
+		percent.click(function () { show_table(isShare) });
+		block.attr("id", "creditOthers");
 	}
-	
 	block.append(percent);
-	bar.append(block);
+	return block;
+}
+
+
+
+/*
+	Create a name label with given width and append it to
+	the given name table.
+*/
+function create_label(username, width, isShare) {
+	var label = $(document.createElement('td'));
+	if (isShare) {
+		label.attr("id", "labelusage" + username);
+	}
+	label.text(username);
+	label.css({
+		'width': width + '%'
+	});
+	return label;
+}
+
+
+function create_other(username, percent, isShare) {
+	var tr = $(document.createElement("tr"));
+	tr.addClass("{% cycle 'odd' 'even' %}");
+	tr.html("<td>" + username + "</td><td>" + percent + "</td><td><button>Edit</button> <button>Delete</button></td>");
+	return tr;
 }
 
 
@@ -128,22 +209,23 @@ function edit_block(username, width) {
 	}
 }
 
-
-/*
-	Create a name label with given width and append it to
-	the given name table.
-*/
-function create_label(names, username, width, isClosable) {
-	var label = $(document.createElement('td'));
-	if (isClosable) {
-		label.attr("id", "labelusage" + username);
+function edit_cell(type, username, percent) {
+	if (type == "credits") {
+		edit_block(username, percent);
+	} else {
+		var block = $("#credits" + username);
+		var label = $("#creditnames" + username);
+		if (percent == 0) {
+			block.remove();
+			label.remove();
+		} else {
+			$("#credits" + username + " span").text(percent + '%');
+			block.css("width", percent + '%');
+			label.css("width", percent + '%');
+		}
 	}
-	label.text(username);
-	label.css({
-		'width': width + '%'
-	});
-	names.append(label);
 }
+
 
 /*
 	Display the change percent dialog box
@@ -178,6 +260,7 @@ function change_percent() {
 	$("#changepercentdialog").fadeIn("fast");
 }
 
+
 /*
 	Save the percent of the the block when click "save" on the
 	change_percent dialog box
@@ -197,24 +280,18 @@ function save_percent() {
 					edit_block(username, percent);
 				} else {
 					create_warning(json.error, $("#changepercentdialog h3"));
-					/*
-					var warning = $(document.createElement("span"));
-					warning.text(json.error);
-					warning.addClass("warning");
-					$("#changepercentdialog").css("height", "160px");
-					warning.insertBefore($("#changepercentdialog").children("input"));
-					*/
 				}
 	   		},
 			"json");
 }
 
 
+
 /*
 	Toggle display the tables for small percent users
 */
-function show_table(isClosable) {
-	if (isClosable) {
+function show_table(isShare) {
+	if (isShare) {
 		$("#usageothers").toggle();
 	} else {
 		$("#creditothers").toggle();
@@ -248,6 +325,28 @@ function close_dialog() {
 	$("#overlay").hide();
 }
 
+/*
+function received_ajax(data, fun) {
+	if data html ...
+	else
+		fun(data)
+	
+}
+
+
+function post_ajax(url, args, fun) {
+	$.post(url,
+		args,	
+				function (data) {
+					if data html ...
+					else	
+					fun(data)
+	}
+}
+*/
+
+
+
 
 function share_resources() {
 	var username = $("#shareresourcesdialog #username").val();
@@ -255,18 +354,22 @@ function share_resources() {
 	if ($("#shareresourcesdialog .warning")) {
 	    $("#shareresourcesdialog .warning").remove();
 	}
-
 	if (percent > 0) {
+		// post_ajax(url, args, function () {...})
 		$.post("../control/ajax_createshare",
 				{ username: username, percent: percent },
 				function (data) {
+					// func(data);
 					var json = eval('(' + data + ')');
 					if (json.success) {
 						$("#shareresourcesdialog").hide();
 						$("#dialogframe").hide();
 						$("#overlay").hide();
+						add_cell("share", username, percent);
+						/*
 						create_block($("#usage"), username, percent, true);
 						create_label($("#usagenames"), username, percent, true);
+						*/
 					} else {
 						create_warning(json.error, $("#shareresourcesdialog h3"));
 					}
@@ -293,8 +396,11 @@ function get_resources() {
 					$("#getresourcesdialog").hide();
 					$("#dialogframe").hide();
 					$("#overlay").hide();
+					add_cell("share", "Me", parseInt(json.mypercent));
+					/*
 					create_block($("#usage"), "Me", parseInt(json.mypercent), true);
 					create_label($("#usagenames"), "Me", parseInt(json.mypercent), true);
+					*/
 				} else {
 					create_warning(json.error, $("#getresourcesdialog h3"));
 				}
@@ -345,11 +451,22 @@ function load() {
 
 
 function update_blocks(type, data) {
+	var json = eval('(' + data + ')');
+	var total_percent = 0;
+	for (var i = 0; i < json.length; i++) {
+		add_cell(type, json[i].username, json[i].percent);
+		total_percent += json[i].percent;
+	}
+	if (type == "shares") {
+		add_cell(type, "Free", 100 - total_percent);
+	}
+	
+	/*
 	if (type == "credits") {
 		var credits = $("#credits");
 		var creditnames = $("#creditnames");
 		var json = eval('(' + data + ')');
-		for (var i = 0; i < json.length; i++) {
+		for (var i = 0; i < json.length; i++) {			
 			create_block(credits, json[i].username, json[i].percent, false);
 			create_label(creditnames, json[i].username, json[i].percent, false);
 		}
@@ -366,4 +483,5 @@ function update_blocks(type, data) {
 		create_block(usage, "Free", 100 - total_percent, true);
 		create_label(usagenames, "Free", 100 - total_percent, true);
 	}
+	*/
 }
