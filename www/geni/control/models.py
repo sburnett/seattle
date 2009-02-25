@@ -65,6 +65,12 @@ class User(models.Model):
     donor_privkey = models.CharField("Donor private Key", max_length=4096)
     # number of vessels this user has acquired
     num_acquired_vessels = models.IntegerField("Number of acquired vessels")
+    # base vessels this user is credited with
+    vcount_base = models.IntegerField("Base vessel credits")
+    # vessels credited to this user through shares from other users
+    vcount_via_shares = models.IntegerField("Vessel credits through shares from others")
+    # vessels credits to this user through the user's donations
+    vcount_via_donations = models.IntegerField("Vessel credits through donations")
 
     @classmethod
     def get_guser_by_username(cls, www_username):
