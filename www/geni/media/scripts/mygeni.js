@@ -60,8 +60,10 @@ function add_cell(type, username, percent) {
 			var item  = create_other(username, percent, true);
 			$("#usageothers").append(item);
 			if ($("#usageOthers")) {
+				alert("exists");
 				edit_cell(type, "Others", get_percent("shares", "Others") + percent);
 			} else {
+				alert("none exist");
 				var others = create_block("Others", get_percent("shares", "Others") + percent, true);
 				var labelothers = create_label("Others", get_percent("shares", "Others") + percent, true);
 				if ($("#usageMe")) {
@@ -98,7 +100,7 @@ function get_percent(type, username) {
 	Create a block with given width and background color,
 	and append it to the given bar element.
 */
-function create_block(bar, username, width, isShare) {
+function create_block(username, width, isShare) {
 	var block = $(document.createElement('td'));
 	block.css({
 		'width': width + '%',
@@ -210,7 +212,7 @@ function edit_block(username, width) {
 }
 
 function edit_cell(type, username, percent) {
-	if (type == "credits") {
+	if (type == "shares") {
 		edit_block(username, percent);
 	} else {
 		var block = $("#credits" + username);
