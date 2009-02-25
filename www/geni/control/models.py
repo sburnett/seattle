@@ -65,6 +65,16 @@ class User(models.Model):
     donor_privkey = models.CharField("Donor private Key", max_length=4096)
     # number of vessels this user has acquired
     num_acquired_vessels = models.IntegerField("Number of acquired vessels")
+
+    @classmethod
+    def get_guser_by_username(cls, www_username):
+        djusers = DjangoUser.objects.filter(username = www_username)
+        if djusers.count() != 1:
+            return False, None
+        users = User.objects.filter(www_user = djusers[0])
+        if djusers.count() != 1:
+            return False, None
+        return True, users[0]
     
     def __unicode__(self):
         """
