@@ -25,25 +25,13 @@ My GENI - GENI
 				<table class="names">
 					<tr id="creditnames"></tr>
 				</table>
-				<table id="creditothers" class="users">
+				<table id="creditotherstable" class="users">
 					<caption>Other donated resources</caption>
 					<tr class="odd">
 						<th>Username</td>
 						<th>Percent</td>
 					</tr>
-					<tr class="even">
-						<td>empty</td>
-						<td>empty</td>
-					</tr>
-					<tr class="odd">
-						<td>empty</td>
-						<td>empty</td>
-					</tr>
-					<tr class="even">
-						<td>empty</td>
-						<td>empty</td>
-					</tr>
-					<tr class="odd">
+					<tr class="{% cycle 'odd' 'even' %}">
 						<td>empty</td>
 						<td>empty</td>
 					</tr>
@@ -58,7 +46,7 @@ My GENI - GENI
 				<table class="names">
 					<tr id="usagenames"></tr>
 				</table>
-				<table id="usageothers" class="users">
+				<table id="usageotherstable" class="users">
 					<caption>Resource shared by others</caption>
 					<tr class="odd">
 						<th>Username</td>
@@ -69,26 +57,6 @@ My GENI - GENI
 						<td>empty</td>
 						<td>empty</td>
 						<td><button>Edit</button> <button>Delete</button></td>
-					</tr>
-					<tr class="odd">
-						<td>empty</td>
-						<td>empty</td>
-						<td><button>Edit</button> <button>Delete</button></td>
-					</tr>
-					<tr class="even">
-						<td>empty</td>
-						<td>empty</td>
-						<td><button>Edit</button> <button>Delete</button></td>
-					</tr>
-					<tr class="odd">
-						<td>empty</td>
-						<td>empty</td>
-						<td><button>Edit</button> <button>Delete</button></td>
-					</tr>
-					<tr class="even">
-						<td></td>
-						<td></td>
-						<td></td>
 					</tr>
 				</table>
 			</div>
