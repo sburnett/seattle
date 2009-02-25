@@ -61,6 +61,7 @@ function add_cell(type, username, percent) {
 			$("#usageotherstable").append(item);
 			if ($("#usageOthers")) {
 				alert("exists");
+				alert($("#usageOthers").text());
 				edit_cell(type, "Others", get_percent("shares", "Others") + percent);
 			} else {
 				alert("none exist");
@@ -294,9 +295,9 @@ function save_percent() {
 */
 function show_table(isShare) {
 	if (isShare) {
-		$("#usageothers").toggle();
+		$("#usageotherstable").toggle();
 	} else {
-		$("#creditothers").toggle();
+		$("#creditotherstable").toggle();
 	}
 }
 
