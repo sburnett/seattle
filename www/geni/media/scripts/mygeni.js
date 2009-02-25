@@ -1,4 +1,4 @@
-var minwidth = 10;
+var minwidth = 12;
 
 $(document).ready(function() {
 	load();
