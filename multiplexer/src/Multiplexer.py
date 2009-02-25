@@ -292,9 +292,9 @@ class Multiplexer():
       self.readLock = getlock()
       self.writeLock = getlock()
 
-      # Callback function that is passed a socket object and frame when it is received
-      # This needs to be set by the forwarder, this is also used by waitforconn
-      self.callbackFunction = None
+      # Callback function that is passed a socket object
+      # Maps a port to a function
+      self.callbackFunction = {}
 
       # This dictionary keeps track of sockets we are waiting to open, e.g. openconn has been called
       # but the partner multiplexer has not responded yet
@@ -320,6 +320,14 @@ class Multiplexer():
     else:
       raise ValueError, "Must pass in a valid socket!"
   
+  # So that we display properly  
+  def __repr__(self):
+    # Format a nice string with some of our info
+    return "<Multiplexer setup:"+str(self.connectionInit)+ \
+    " buf_size:"+str(self.defaultBufSize)+ \
+    " counter:"+str(self.referenceCounter)+ \
+    " info:"+str(self.socketInfo)+">"
+          
   # Closes the NATConnection, and cleans up
   def close(self, closeSocket=True):
     """
@@ -363,7 +371,7 @@ class Multiplexer():
       self.socket = None
       
   # Stops additional listener threads
-  def stopcomm(self):
+  def stopcomm(self,port):
     """
     <Purpose>
       Stops the listener thread from waitforconn.
@@ -372,8 +380,9 @@ class Multiplexer():
       The virtual sockets will no longer get data buffered. Incoming frames will not be parsed.
       
     """
-    # Set the callback to None, this way we know not to accept new clients  
-    self.callbackFunction = None
+    # Deletes the callback function on the specified port
+    if port in self.callbackFunction:
+      del self.callbackFunction[port]
     
   # Private: Recieves a single frame 
   def _recvFrame(self):
@@ -569,14 +578,10 @@ class Multiplexer():
     # Check if we are initialized
     if not self.connectionInit:
       raise AttributeError, "Multiplexer is not yet initialized!"
-    
-    # Update the socket info
-    self.socketInfo["localip"] = localip
-    self.socketInfo["localport"] = localport
       
     # Setup the user function to call if there is a new client
-    self.callbackFunction = function
-    
+    self.callbackFunction[localport] = function
+
   
   
   # Handles a client closing a connection
@@ -611,9 +616,23 @@ class Multiplexer():
     
   # Handles a new client connecting
   def _new_client(self, frame, refID):
-    # If there is no user function to handle this, then just return
-    # # If the client is already connected, then just return
-    if self.callbackFunction == None or self._virtualSock(refID) != None:
+    # Do an internal error check
+    if self._virtualSock(refID) != None:
+      raise Exception, "Attempting to connect with a used reference ID!"
+    
+    # Get the request info
+    id = frame.referenceID    # Get the ID from the frame
+    info = deserializeDict(frame.content)   # Get the socket info from
+    
+    # What port are they trying to connect to?
+    requestedPort = info["localport"]
+      
+    # Check for a callback function
+    if requestedPort in self.callbackFunction:
+      userfunc = self.callbackFunction[requestedPort]
+    
+    # Send a failure message and return
+    else:
       # Respond to our parter, send a failure message
       resp = MultiplexerFrame()
       resp.initResponseFrame(id,MULTIPLEXER_STATUS_FAILED)
@@ -624,8 +643,6 @@ class Multiplexer():
     self.virtualSocketsLock.acquire()
     
     # Create the socket
-    id = frame.referenceID    # Get the ID from the frame
-    info = deserializeDict(frame.content)   # Get the socket info from the frame content
     socket = MultiplexerSocket(id, self, self.defaultBufSize, info)
     
     # We need to increase our reference counter now, so as to prevent duplicates
@@ -651,7 +668,7 @@ class Multiplexer():
     
     # Make sure the user code is safe, launch an event for it
     try:
-      settimer(0, self.callbackFunction, (info["remoteip"], info["remoteport"], socket, self))
+      settimer(0, userfunc, (info["remoteip"], info["remoteport"], socket, self))
     except:      
       # Close the socket
       socket.close()
