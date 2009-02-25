@@ -14,7 +14,10 @@ socket-like connections.
 include deserialize.py
 
 # Define Module Constants
-MULTIPLEXER_FRAME_HEADER_DIGITS = 3 # How many digits can be used to indicate header length
+# 
+# How many digits can be used to indicate header length
+# Setting this number too low (e.g. 3) seems to cause recv to block indefinately
+MULTIPLEXER_FRAME_HEADER_DIGITS = 7 
 MULTIPLEXER_FRAME_DIVIDER = ";" # What character is used to divide a frame header
 
 # These are the valid Message Types
@@ -566,14 +569,14 @@ class Multiplexer():
         The local port to bind to
     
       function:
-        The function to call. It should take four arguments: (remoteip, remoteport, socketlikeobj, multiplexer)
+        The function to call. It should take four arguments: (remoteip, remoteport, socketlikeobj, None, multiplexer)
         If your function has an uncaught exception, the socket-like object it is using will be closed.
 
     <Side Effects>
       Starts an event handler that listens for connections.
 
     <Returns>
-      A multiplexer object
+      Nothing
     """
     # Check if we are initialized
     if not self.connectionInit:
@@ -668,7 +671,7 @@ class Multiplexer():
     
     # Make sure the user code is safe, launch an event for it
     try:
-      settimer(0, userfunc, (info["remoteip"], info["remoteport"], socket, self))
+      settimer(0, userfunc, (info["remoteip"], info["remoteport"], socket, None, self))
     except:      
       # Close the socket
       socket.close()
@@ -991,10 +994,12 @@ class MultiplexerSocket():
 # Functional Wrappers for the Multiplexer objects
 
 # This dictionary object links IP's to their respective multiplexer
+MULTIPLEXER_OJBECTS = {}
+
+# This dictionary has data about the various multiplexers, and our state
 MULTIPLEXER_STATE_DATA = {}
 
 # Setup key entries
-
 # Setup function pointers to be used by the multiplexer wrappers
 MULTIPLEXER_STATE_DATA["waitforconn"] = waitforconn
 MULTIPLEXER_STATE_DATA["openconn"] = openconn
@@ -1003,10 +1008,10 @@ MULTIPLEXER_STATE_DATA["stopcomm"] = stopcomm
 # Openconn that uses Multiplexers
 def mux_openconn(desthost, destport, localip=None,localport=None,timeout=15):
   # Check if we already have a real multiplexer
-  key = "IP:"+desthost
-  if key in MULTIPLEXER_STATE_DATA:
+  key = "IP:"+desthost+":"+destport
+  if key in MULTIPLEXER_OJBECTS:
     # Since a multiplexer already exists, lets just use that objects builtin method
-    mux = MULTIPLEXER_STATE_DATA[key]
+    mux = MULTIPLEXER_OJBECTS[key]
 
     return mux.openconn(desthost, destport, localip,localport,timeout)
 
@@ -1023,13 +1028,8 @@ def mux_openconn(desthost, destport, localip=None,localport=None,timeout=15):
 
     # Get an IP if necessary
     if localip == None:
-      # Do we have an established localip?
-      if "localip" in MULTIPLEXER_STATE_DATA:
-        info["localip"] = MULTIPLEXER_STATE_DATA["localip"]
-
       # Otherwise, use getmyip
-      else:
-        info["localip"] = getmyip()
+      info["localip"] = getmyip()
 
     # If we already have a user given localip, use that
     else:
@@ -1043,39 +1043,40 @@ def mux_openconn(desthost, destport, localip=None,localport=None,timeout=15):
     mux = Multiplexer(realsocket, info)
 
     # Add the key entry for this mux
-    MULTIPLEXER_STATE_DATA[key] = mux
+    MULTIPLEXER_OJBECTS[key] = mux
 
     # Now call openconn on the mux to get a virtual socket
     return mux.openconn(desthost, destport, localip,localport,timeout)
 
 # Helper function for mux_waitforconn, handles everything then calls user function
-def _helper_mux_waitforconn(remoteip, remoteport, socket, thiscommhandle, listencommhandle):
+def _helper_mux_waitforconn(ip, port, func, remoteip, remoteport, socket, thiscommhandle, listencommhandle):
   # Generate connection info
-  info = {"remoteip":remoteip,"remoteport":remoteport,"localip":MULTIPLEXER_STATE_DATA["localip"],"localport":MULTIPLEXER_STATE_DATA["localport"]}
+  info = {"remoteip":remoteip,"remoteport":remoteport,"localip":ip,"localport":port}
   
   # Create a mux
   mux = Multiplexer(socket, info)
   
   # Trigger user function
-  mux.waitforconn(MULTIPLEXER_STATE_DATA["localip"],MULTIPLEXER_STATE_DATA["localport"],MULTIPLEXER_STATE_DATA["userfunc"])
+  mux.waitforconn(ip,port,func)
+  
+  # Create key for this new mux
+  key = "IP:"+remoteip+":"+remoteport
+  
+  # Add the key entry for this mux
+  MULTIPLEXER_OJBECTS[key] = mux
 
 
 # Wait for connection to establish new multiplexers and new virtual connections
-def mux_waitforconn(localip, localport, function):
-  # Store the localip info
-  MULTIPLEXER_STATE_DATA["localip"] = localip
-  
-  # Store the localip info
-  MULTIPLEXER_STATE_DATA["localport"] = localport
-  
+def mux_waitforconn(localip, localport, function):  
   # Get the correct function
   waitforconn_func = MULTIPLEXER_STATE_DATA["waitforconn"]
   
-  # Set the user function
-  MULTIPLEXER_STATE_DATA["userfunc"] = function
+  # This adds ip and port and function information to help with multiplex waitforconns
+  def _add_ip_port_func(remoteip, remoteport, socket, thiscommhandle, listencommhandle):
+    _helper_mux_waitforconn(localip, localport, function, remoteip, remoteport, socket, thiscommhandle, listencommhandle)
   
   # Call waitforconn, and trigger our helper
-  handle = waitforconn_func(localip, localport, function)
+  handle = waitforconn_func(localip, localport, _add_ip_port_func)
   
   # Register the handle
   key = "LISTEN:"+localip+":"+localport
@@ -1093,7 +1094,7 @@ def mux_stopcomm(key):
     handle = MULTIPLEXER_STATE_DATA[key]
     
     # Call stopcomm on it
-    stopcomm_func = waitforconn_func = MULTIPLEXER_STATE_DATA["stopcomm"]
+    stopcomm_func = MULTIPLEXER_STATE_DATA["stopcomm"]
     
     # Stopcomm
     stopcomm_func(handle)
