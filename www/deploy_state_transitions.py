@@ -28,7 +28,11 @@
 import os
 import sys
 
-import preparetest
+try:
+  import preparetest
+except ImportError:
+  print "Error importing preparetest, make sure that preparetest is in your PYTHONPATH"
+  sys.exit(0)
 
 def main():
   # this is for preparetest to work
