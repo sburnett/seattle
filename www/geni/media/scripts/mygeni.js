@@ -17,7 +17,7 @@ function add_cell(type, username, percent) {
 			$("#creditnames").append(label);
 		} else {
 			var item = create_other(username, percent, false);
-			$("#creditothers").append(item);
+			$("#creditotherstable").append(item);
 			if ($("#creditOthers")) {
 				edit_cell(type, "Others", get_percent("credits", "Others") + percent);
 			} else {
@@ -58,7 +58,7 @@ function add_cell(type, username, percent) {
 			}
 		} else {
 			var item  = create_other(username, percent, true);
-			$("#usageothers").append(item);
+			$("#usageotherstable").append(item);
 			if ($("#usageOthers")) {
 				alert("exists");
 				edit_cell(type, "Others", get_percent("shares", "Others") + percent);
