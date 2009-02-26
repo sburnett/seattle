@@ -20,7 +20,7 @@ import tempfile
 import createnodekeys
 import subprocess
 
-import getopts
+import getopt
 import persist
 import traceback
 
