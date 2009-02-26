@@ -650,7 +650,7 @@ class Multiplexer():
     socket = MultiplexerSocket(id, self, self.defaultBufSize, info)
     
     # We need to increase our reference counter now, so as to prevent duplicates
-    referenceCounter = id + 1
+    self.referenceCounter = id + 1
     
     # Respond to our parter, send a success message
     resp = MultiplexerFrame()

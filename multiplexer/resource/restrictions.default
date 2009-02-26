@@ -14,7 +14,9 @@ resource looprecv 1000000
 resource lograte 30000
 resource random 100
 resource messport 12345
+resource messport 20000
 resource connport 12345
+resource connport 20000
 
 call gethostbyname_ex allow
 call sendmess allow

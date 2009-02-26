@@ -1,4 +1,5 @@
-# This test tries to use mux_waitforconn and mux_openconn. It has 3 clients connecting to 1 server.
+# This test tries to use mux_waitforconn and mux_openconn.
+# This has 2 servers, each connected to by 1 client.
 # It then attempts to exchange the numbers 1 to 100
 
 # Get the Multiplexer
@@ -20,9 +21,9 @@ def new_virtual_conn(remoteip, remoteport, virtualsock, junk, multiplexer):
       print "Unexpected number! Expected: ", str(num), " Received: ",data
 
 
-def client_exchange(clientn):
+def client_exchange(clientn,port,local):
   # Try to connect to the other multiplexer
-  virtualsock = mux_openconn("127.0.0.1", 12345)
+  virtualsock = mux_openconn("127.0.0.1", port,"127.0.0.1",local)
 
   # Try to exchange 1 to 10
   num = 1
@@ -45,16 +46,19 @@ def timeout():
 # Kill us in 25 seconds
 settimer(25, timeout,())
 
-# Setup a waitforconn on a real socket
+# Setup a waitforconn
 mux_waitforconn("127.0.0.1", 12345, new_virtual_conn)
 
+# Trigger two clients
+settimer(0,client_exchange,[1,12345,20000])
 
-# Trigger three clients
-settimer(0,client_exchange,[1])
+sleep(2)
 
-settimer(1,client_exchange,[2])
+# Setup second waitforconn
+mux_waitforconn("127.0.0.1", 20000, new_virtual_conn)
 
-settimer(2,client_exchange,[3])
+# Setup second client
+settimer(1,client_exchange,[2,20000,None])
 
 # Wait for a few seconds
 sleep(15)
@@ -66,7 +70,5 @@ if not 1 in mycontext or not mycontext[1]:
 if not 2 in mycontext or not mycontext[2]:
   print "Client 2 failed to finish!"
 
-if not 3 in mycontext or not mycontext[3]:
-  print "Client 3 failed to finish!"
-  
+
 exitall()
