@@ -1005,6 +1005,10 @@ MULTIPLEXER_STATE_DATA["waitforconn"] = waitforconn
 MULTIPLEXER_STATE_DATA["openconn"] = openconn
 MULTIPLEXER_STATE_DATA["stopcomm"] = stopcomm
 
+# This dictionary has all of the listener functions to propagate waitforconn to new muxes
+# E.g. if a new client connects, it inherits all of the waitforconns on the existing muxes
+MULTIPLEXER_WAIT_FUNCTIONS = {}
+
 # Openconn that uses Multiplexers
 def mux_openconn(desthost, destport, localip=None,localport=None,timeout=15):
   # Check if we already have a real multiplexer
@@ -1023,8 +1027,8 @@ def mux_openconn(desthost, destport, localip=None,localport=None,timeout=15):
     # Try to get a real socket
     realsocket = openconn_func(desthost, destport, localip,localport,timeout)
 
-    # Setup the info for this new mux
-    info = {"remoteip":desthost,"remoteport":destport}
+    # Setup the info for this new mux, give the mux its key
+    info = {"remoteip":desthost,"remoteport":destport,"key":key}
 
     # Get an IP if necessary
     if localip == None:
@@ -1050,24 +1054,46 @@ def mux_openconn(desthost, destport, localip=None,localport=None,timeout=15):
 
 # Helper function for mux_waitforconn, handles everything then calls user function
 def _helper_mux_waitforconn(ip, port, func, remoteip, remoteport, socket, thiscommhandle, listencommhandle):
+  # Create key for this new mux
+  key = "IP:"+remoteip+":"+remoteport
+	
   # Generate connection info
-  info = {"remoteip":remoteip,"remoteport":remoteport,"localip":ip,"localport":port}
+  info = {"remoteip":remoteip,"remoteport":remoteport,"localip":ip,"localport":port,"key":key}
   
   # Create a mux
   mux = Multiplexer(socket, info)
   
+  # Apply the old waitforconns
+  for (key, function) in MULTIPLEXER_WAIT_FUNCTIONS.itAems():
+    args = key.split(":")
+    mux.waitforconn(args[0],args[1],function)
+    
   # Trigger user function
   mux.waitforconn(ip,port,func)
-  
-  # Create key for this new mux
-  key = "IP:"+remoteip+":"+remoteport
   
   # Add the key entry for this mux
   MULTIPLEXER_OJBECTS[key] = mux
 
+# Maps a waitforconn to every multiplexer object
+def _map_virtual_waitforconn(localip,localport,func):
+  for (key, mux) in MULTIPLEXER_OJBECTS.items():
+    mux.waitforconn(localip, localport, func)
+
+# Maps a stopcomm to every multiplexer object
+def _map_virtual_stopcomm(port):
+  for (key, mux) in MULTIPLEXER_OJBECTS.items():
+    mux.stopcomm(port)
 
 # Wait for connection to establish new multiplexers and new virtual connections
-def mux_waitforconn(localip, localport, function):  
+def mux_waitforconn(localip, localport, function):
+  # Get the key
+  key = "LISTEN:"+localip+":"+localport 
+  
+  # Does this key already exist?
+  if key in MULTIPLEXER_STATE_DATA:
+    # Stop the last waitforconn, then make a new one
+    mux_stopcomm(key)
+    
   # Get the correct function
   waitforconn_func = MULTIPLEXER_STATE_DATA["waitforconn"]
   
@@ -1079,9 +1105,14 @@ def mux_waitforconn(localip, localport, function):
   handle = waitforconn_func(localip, localport, _add_ip_port_func)
   
   # Register the handle
-  key = "LISTEN:"+localip+":"+localport
   MULTIPLEXER_STATE_DATA[key] = handle
   
+  # Register the ip/port function for new multiplexers
+  MULTIPLEXER_WAIT_FUNCTIONS[localip+":"+localport] = function
+  
+  # Map this waitforconn to all existing multiplexers
+  _map_virtual_waitforconn(localip, localport, function)
+
   # Return the key
   return key
 
@@ -1099,3 +1130,21 @@ def mux_stopcomm(key):
     # Stopcomm
     stopcomm_func(handle)
 
+    # Get the values by spliting on colon
+    arr = key.split(":")
+    ip = arr[1]
+    port = arr[2]
+
+    # De-register this function for new multiplexers
+    del MULTIPLEXER_WAIT_FUNCTIONS[ip+":"+port]
+    
+    # Map this stopcomm to all existing multiplexers
+    _map_virtual_stopcomm(port)
+
+# Changes the underlying hooks that the mux wrappers use
+def mux_remap(wait, open, stop):
+  MULTIPLEXER_STATE_DATA["waitforconn"] = wait
+  MULTIPLEXER_STATE_DATA["openconn"] = open
+  MULTIPLEXER_STATE_DATA["stopcomm"] = stop
+
+	
