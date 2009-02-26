@@ -11,42 +11,68 @@
 <Purpose>
   Sends a specific amount of bytes with a specific chunk size and records the
   time that it required to complete.
+
+  First argument tells program to be a server or client:
+    Server: Only local port is needed in addition.
+    Client: localPor, DestinationIP, DestinationPort, TotalBytes, and ChunkSize are needed.
   
-  Arguments required: LocalPort DestinationIP DestinationPort TotalBytes ChunkSize
+  Arguments required: (-s or -c) LocalPort [DestinationIP DestinationPort TotalBytes ChunkSize]
 
 """
 
 
 include tcp.repy
 
+
+
+
+def serverListen(myport):
+  server = Connection()
+  server.bind(getmyip(), myport)
+
+
+
+
 if callfunc == 'initialize':
-  myport = callargs[0]
-  destip = callargs[1]
-  destport = int(callargs[2])
-  totalBytes = int(callargs[3])
-  chunkSize = int(callargs[4])
-  totalChunks = totalBytes/chunkSize
-  chunk = ""
-  i = 0
+  serverOrClient = callargs[0]
+  myport = callargs[1]
+  if (serverOrClient == "-s"):
+    serverListen(myport)
+  else:
 
-  while (i < totalChunks):
-    chunk += "a"
-    i += 1
+    destip = callargs[2]
+    destport = int(callargs[3])
+    totalBytes = int(callargs[4])
+    chunkSize = int(callargs[5])
+    totalChunks = totalBytes/chunkSize
+    chunk = ""
+    characterNum = 0
+    packetNum = 0
 
-  i = 0
-  socket = Connection()
-  socket.bind(getmyip(), myport)
-  socket.connect(destip, destport)
-  startTime = getruntime()
+    # Creating a chunk
+    while (characterNum < chunkSize):
+      chunk += "a"
+      characterNum += 1
 
-  while (i < totalChunks):
+    socket = Connection()
+    socket.bind(getmyip(), myport)
+    socket.connect(destip, destport)
+    startTime = getruntime()
+
+  while (packetNum < totalChunks):
     socket.send(chunk)
-    i += 1
+    packetNum += 1
 
   endTime = getruntime()
 
+  socket.disconnect()
+
+
+  print "******* Statistics for TCUP *******\n\n"
+  print "Connected to " + destip + "\n"
+  print "Sent " + totalChunks + " packets, which had a size of " + chunkSize + " bytes.\n\n" 
   print "Total runtime: " + (endTime - startTime) + " seconds.\n"
-  print "Rate: " + ((endTime - startTime)/ totalBytes) + " bytes/second.\n"
+  print "At a Rate of: " + ((endTime - startTime)/ totalBytes) + " B/S.\n"
   
   
   
