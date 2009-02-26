@@ -75,7 +75,7 @@ def main():
 	# http://www.mail-archive.com/django-users@googlegroups.com/msg14826.html
 	try:
             transaction.commit()
-        except django.db.transaction.TransactionManagementError:
+        except transaction.TransactionManagementError:
             pass
           
         sleep(60)
