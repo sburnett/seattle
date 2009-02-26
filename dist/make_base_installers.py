@@ -312,13 +312,10 @@ def package_mac(dist_dir, install_dir, inst_name, output_dir):
     <Returns>
       None.
     """
-    # For now, just runs the Linux installer packager
-    package_linux(dist_dir, install_dir, inst_name, output_dir)
-    
     # Uncomment the following to build the Mac installer separately,
     # but make sure that the appropriate files are in the /mac/scripts
     # directory first.
-    """
+    
     # First, create a new tarball with the standard files
     temp_tarball = inst_name + "temp_" + str(os.getpid()) + ".tgz"
     orig_dir = os.getcwd()
@@ -334,7 +331,7 @@ def package_mac(dist_dir, install_dir, inst_name, output_dir):
     build_installers.append_to_tar(output_dir + "/" + inst_name, 
                                    dist_dir + "/mac/scripts",
                                    INSTALL_DIR)
-    """
+    
 
 
 def build(options, trunk_location, pubkey, privkey, output_dir, version=""):
