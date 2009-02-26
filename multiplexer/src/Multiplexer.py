@@ -788,7 +788,7 @@ class Multiplexer():
       
       # We don't know what this is, so panic    
       else:
-        raise Exception, "Unhandled Frame type: ", frameType
+        raise Exception, "Unhandled Frame type: "+ str(frame)
 
 # A socket like object with an understanding that it is part of a Multiplexer
 # Has the same functions as the socket like object in repy
@@ -835,7 +835,7 @@ class MultiplexerSocket():
       termFrame.initConnTermFrame(self.id)
       
       # Tell our partner to terminate the client connection
-      self.mux.sendFrame(termFrame)
+      self.mux._sendFrame(termFrame)
     
     # Remove from the list of virtual sockets
     self.mux.virtualSocketsLock.acquire()
@@ -995,7 +995,7 @@ class MultiplexerSocket():
 # Functional Wrappers for the Multiplexer objects
 
 # This dictionary object links IP's to their respective multiplexer
-MULTIPLEXER_OJBECTS = {}
+MULTIPLEXER_OBJECTS = {}
 
 # This dictionary has data about the various multiplexers, and our state
 MULTIPLEXER_STATE_DATA = {}
@@ -1014,9 +1014,9 @@ MULTIPLEXER_WAIT_FUNCTIONS = {}
 def mux_openconn(desthost, destport, localip=None,localport=None,timeout=15):
   # Check if we already have a real multiplexer
   key = "IP:"+desthost+":"+str(destport)
-  if key in MULTIPLEXER_OJBECTS:
+  if key in MULTIPLEXER_OBJECTS:
     # Since a multiplexer already exists, lets just use that objects builtin method
-    mux = MULTIPLEXER_OJBECTS[key]
+    mux = MULTIPLEXER_OBJECTS[key]
 
     return mux.openconn(desthost, destport, localip,localport,timeout)
 
@@ -1056,7 +1056,7 @@ def mux_openconn(desthost, destport, localip=None,localport=None,timeout=15):
     mux = Multiplexer(realsocket, info)
 
     # Add the key entry for this mux
-    MULTIPLEXER_OJBECTS[key] = mux
+    MULTIPLEXER_OBJECTS[key] = mux
 
     # Now call openconn on the mux to get a virtual socket
     return mux.openconn(desthost, destport, localip,localport,timeout)
@@ -1073,7 +1073,7 @@ def _helper_mux_waitforconn(ip, port, func, remoteip, remoteport, socket, thisco
   mux = Multiplexer(socket, info)
   
   # Add the key entry for this mux
-  MULTIPLEXER_OJBECTS[key] = mux
+  MULTIPLEXER_OBJECTS[key] = mux
   
   # Apply the old waitforconns
   for (key, function) in MULTIPLEXER_WAIT_FUNCTIONS.items():
@@ -1086,12 +1086,12 @@ def _helper_mux_waitforconn(ip, port, func, remoteip, remoteport, socket, thisco
 
 # Maps a waitforconn to every multiplexer object
 def _map_virtual_waitforconn(localip,localport,func):
-  for (key, mux) in MULTIPLEXER_OJBECTS.items():
+  for (key, mux) in MULTIPLEXER_OBJECTS.items():
     mux.waitforconn(localip, localport, func)
 
 # Maps a stopcomm to every multiplexer object
 def _map_virtual_stopcomm(port):
-  for (key, mux) in MULTIPLEXER_OJBECTS.items():
+  for (key, mux) in MULTIPLEXER_OBJECTS.items():
     mux.stopcomm(port)
 
 # Wait for connection to establish new multiplexers and new virtual connections
