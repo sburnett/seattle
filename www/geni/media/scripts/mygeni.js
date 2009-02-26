@@ -130,7 +130,7 @@ function create_block(username, width, isShare) {
 			close.text('x');
 			close.click(function() {
 				$.post("../control/ajax_editshare",
-						{ username: username, percent: width },
+						{ username: username, percent: 0 },
 						function (data) {
 							var json = eval('(' + data + ')');
 							if (json.success) {

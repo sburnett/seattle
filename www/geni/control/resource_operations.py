@@ -103,6 +103,8 @@ def release_resources(geni_user, resource_id, all):
             r.delete()
             if not all:
                 ret = str(nmip) + ":" + str(nmport) + ":" + str(vesselname)
+            # credit the user for the released vessel
+            geni_user.num_acquired_vessels -= 1
     return ret
             
 @transaction.commit_manually    

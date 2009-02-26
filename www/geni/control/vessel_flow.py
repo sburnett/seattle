@@ -1,25 +1,38 @@
-'''
-Add shares:
-- validate
-- new share record
+"""
+<Program Name>
+  vessel_flow.py
 
-diplaying donated resources
-- for each vessel that has owner public key set to this user, addd it to the myvessels list
-- (donated by others, to me)
-  - ?
+<Started>
+  February 25th, 2009
 
-displaying shares:
-- select all shares for which i am the from_user
+<Author>
+  Ivan Beschastnikh
 
-get resources (get_more):
-- 1. check whether the person is allowed to get more resources
-'''
+<Purpose>
+  Deals with the share graph of GENI resources and provides
+  functionality for understanding the amount of resources flowing into
+  a node and out of a node via the sharing relationships between nodes
+  (GENI users).
 
-import sys
+<ToDo>
+  1. Created unit tests for all the functions with simple dictionary objects as
+  shares/pshares and strings as nodes
+  2. Add logging
+"""
+
 from copy import deepcopy
 from geni.control.models import Share, User
 
 def build_shares(with_percent=True):
+   """
+   <Purpose>
+   <Arguments>
+   <Exceptions>
+   <Side Effects>
+   <Returns>
+   <Note>
+   <Todo>
+   """
    shares = {}
    for share in Share.objects.all():
       if with_percent:
@@ -32,21 +45,57 @@ def build_shares(with_percent=True):
          shares[share.from_user] = [s]
    return shares
 
+
+
 def get_base_vessels():
+   """
+   <Purpose>
+   <Arguments>
+   <Exceptions>
+   <Side Effects>
+   <Returns>
+   <Note>
+   <Todo>
+   """
+   
    vessels = {}
-   for share in Shares.objects.all():
+   for share in Share.objects.all():
       for u in [share.to_user, share.from_user]:
          if not vessels.has_key(u):
-            vessels[u] = u.base_vcount
+            vessels[u] = u.vcount_base
    return vessels
 
+
+
 def get_percent(a, b, pshares):
+   """
+   <Purpose>
+   <Arguments>
+   <Exceptions>
+   <Side Effects>
+   <Returns>
+   <Note>
+   <Todo>
+   """
+   
    for (x,p) in pshares[a]:
       if x == b:
          return (p * 1.0) / 100.0
    return 0
 
+
+
 def get_flow_vessels(flow, pshares, vessels):
+   """
+   <Purpose>
+   <Arguments>
+   <Exceptions>
+   <Side Effects>
+   <Returns>
+   <Note>
+   <Todo>
+   """
+   
    vcount = 0
    for i in range(len(flow)-1):
       a = flow[i]
@@ -57,13 +106,37 @@ def get_flow_vessels(flow, pshares, vessels):
       vcount += vessels[a] * p
    return vcount
 
+
+
 def get_children(shares):
+   """
+   <Purpose>
+   <Arguments>
+   <Exceptions>
+   <Side Effects>
+   <Returns>
+   <Note>
+   <Todo>
+   """
+   
    children = []
    for dsts in shares.values():
       children += dsts
    return children
 
+
+
 def get_root_nodes(shares):
+   """
+   <Purpose>
+   <Arguments>
+   <Exceptions>
+   <Side Effects>
+   <Returns>
+   <Note>
+   <Todo>
+   """
+   
    roots = []
    children = get_children(shares)
    for src in shares.keys():
@@ -71,12 +144,36 @@ def get_root_nodes(shares):
          roots.append(src)
    return roots
 
+
+
 def prune_roots(shares, roots):
+   """
+   <Purpose>
+   <Arguments>
+   <Exceptions>
+   <Side Effects>
+   <Returns>
+   <Note>
+   <Todo>
+   """
+   
    for root in roots:
       del(shares[root])
    return
 
+
+
 def get_reachable_nodes(shares, src):
+   """
+   <Purpose>
+   <Arguments>
+   <Exceptions>
+   <Side Effects>
+   <Returns>
+   <Note>
+   <Todo>
+   """
+   
    # returns a list of all nodes reachables in shares from src
    reachables = []
    if not shares.has_key(src):
@@ -85,13 +182,34 @@ def get_reachable_nodes(shares, src):
       reachables += get_reachable_nodes(shares, child)
    reachables += shares[src]
    return reachables
-   
-def will_form_loop(shares, src, dst):
-   # returns True if adding src-dst link would form a loop in shares
-   # otherwise returns False
+
+
+
+def link_will_form_loop(shares, src, dst):
+   """
+   <Purpose>
+   <Arguments>
+   <Exceptions>
+   <Side Effects>
+   <Returns>
+     Returns True if adding src-dst link would form a loop in shares
+     otherwise returns False
+   <Note>
+   <Todo>
+   """
    return (src in get_reachable_nodes(shares, dst))
 
 def flow_credits_from_roots(orig_shares, pshares, vessels):
+   """
+   <Purpose>
+   <Arguments>
+   <Exceptions>
+   <Side Effects>
+   <Returns>
+   <Note>
+   <Todo>
+   """
+   
    shares = deepcopy(orig_shares)
    # print "initial vessels: "
 #    print vessels
@@ -100,7 +218,9 @@ def flow_credits_from_roots(orig_shares, pshares, vessels):
 
    credits_from = {}
    for node, value in vessels.items():
-      credits_from[node] = [(node, value)]
+      credits_from[node] = []#[(node, value)]
+
+   vessels_from_shares = {}
    
    while len(shares.keys()) != 0:
       roots = get_root_nodes(shares)
@@ -110,7 +230,11 @@ def flow_credits_from_roots(orig_shares, pshares, vessels):
          for child in shares[root]:
             p = get_percent(root, child, pshares)
             value = vessels[root] * p
-            vessels[child] += value
+            if not vessels_from_shares.has_key(child):
+               vessels_from_shares[child] = value
+            else:
+               vessels_from_shares[child] += value
+            #vessels[child] += value
             credits_from[child].append((root, value))
       prune_roots(shares, roots)
       # print "pruned roots, resulting shares: "
@@ -120,47 +244,60 @@ def flow_credits_from_roots(orig_shares, pshares, vessels):
 #       print
 #    print "credits from: "
 #    print credits_from
+   return credits_from, vessels_from_shares
 
-      
-def get_flows_in(node, shares):
-   def get_alist(n):
-      retlist = []
-      for src, dsts in shares.items():
-         if n in dsts:
-            # print "found ", n , " in " , dsts
-            subchains = get_alist(src)
-            # print "subchains is " , subchains
-            link = [(src)]
-            if subchains == []:
-               # print "subchain is [], link :" , link
-               retlist.append(link)
-            else:
-               for subchain in subchains:
-                  newsubchain = link + subchain
-                  # print "newsubchain : " , newsubchain
-                  retlist.append(newsubchain)
-      return retlist
+
+# # TODO: potentially useful for building up credit list for a user without reflooding the vessel counts
+# def get_flows_in(node, shares):
+#    def get_alist(n):
+#       retlist = []
+#       for src, dsts in shares.items():
+#          if n in dsts:
+#             # print "found ", n , " in " , dsts
+#             subchains = get_alist(src)
+#             # print "subchains is " , subchains
+#             link = [(src)]
+#             if subchains == []:
+#                # print "subchain is [], link :" , link
+#                retlist.append(link)
+#             else:
+#                for subchain in subchains:
+#                   newsubchain = link + subchain
+#                   # print "newsubchain : " , newsubchain
+#                   retlist.append(newsubchain)
+#       return retlist
    
-   alist = get_alist(node)
-   for chain in alist:
-      chain.insert(0,node)
-      chain.reverse()
-   return alist
+#    alist = get_alist(node)
+#    for chain in alist:
+#       chain.insert(0,node)
+#       chain.reverse()
+#    return alist
 
 
-def main():
-   success, guser = User.get_guser_by_username("ivan")
-   if not success:
-      print "ERROR"
-   shares = build_shares(False)
-   pshares = build_shares(True)
-   base_vessels = get_base_vessels()
-   print "before flow_credit_from_roots: " , base_vessels
-   flow_credits_from_roots(shares, pshares, base_vessels)
-   print "after flow_credit_from_roots: " , base_vessels
+# def main():
+#    # test for user ivan
+#    success, guser = User.get_guser_by_username("ivan")
+#    if not success:
+#       print "ERROR"
+#    shares = build_shares(False)
+#    pshares = build_shares(True)
+#    base_vessels = get_base_vessels()
+#    print "before flow_credit_from_roots: " , base_vessels
+#    flow_credits_from_roots(shares, pshares, base_vessels)
+#    print "after flow_credit_from_roots: " , base_vessels
 
 
 def unit_test():
+   """
+   <Purpose>
+   <Arguments>
+   <Exceptions>
+   <Side Effects>
+   <Returns>
+   <Note>
+   <Todo>
+   """
+   
    shares = {'a' : ['b', 'c'],
              'b' : ['d', 'e', 'f', 'g'],
              'c' : ['g', 'h', 'i', 'j'],
@@ -196,11 +333,12 @@ def unit_test():
 
    print get_reachable_nodes(shares, 'a')
    print get_reachable_nodes(shares, 'f')
-   print will_form_loop(shares, 'g', 'a')
-   print will_form_loop(shares, 'g', 'h')
-   
+   print link_will_form_loop(shares, 'g', 'a')
+   print link_will_form_loop(shares, 'g', 'h')
    
 
+
+
+   
 if __name__ == "__main__":
    unit_test()
-   main()

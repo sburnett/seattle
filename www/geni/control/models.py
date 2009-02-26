@@ -192,8 +192,12 @@ class User(models.Model):
           The number of vessels this user is allowed to acquire
         """
         num_donations = Donation.objects.filter(user=self).filter(active=1).count()
-        max_num = 10 * (num_donations + 1)
-        return max_num
+        # TODO: TEMP (this code should really be in the node state transitions)
+        self.num_acquired_vessels = VesselMap.objects.filter(user = geni_user).count()
+        self.vcount_via_donations = 10 * (num_donations)
+        self.vcount_base = 10
+        self.save()
+        return self.vcount_base + self.vcount_via_donations + self.vcount_via_shares
     
 class Donation(models.Model):
     """
@@ -348,18 +352,18 @@ class VesselMap(models.Model):
         return "%s:%s:%s"%(self.vessel_port.vessel.donation.ip, self.vessel_port.vessel.name, self.user.www_user.username)
 
     def time_remaining(self):
-        """                                                                                                                                                                                                                                                                                                                
-        <Purpose>                                                                                                                                                                                                                                                                                                          
-          Returns the amount of time remaining to the assignment of                                                                                                                                                                                                                                                        
-          a user to a vessel as a string                                                                                                                                                                                                                                                                                   
-        <Arguments>                                                                                                                                                                                                                                                                                                        
-          None                                                                                                                                                                                                                                                                                                             
-        <Exceptions>                                                                                                                                                                                                                                                                                                       
-          None                                                                                                                                                                                                                                                                                                             
-        <Side Effects>                                                                                                                                                                                                                                                                                                     
-          None                                                                                                                                                                                                                                                                                                             
-        <Returns>                                                                                                                                                                                                                                                                                                          
-          Number of seconds before the vessel expires                                                                                                                                                                                                                                                                      
+        """
+        <Purpose>
+          Returns the amount of time remaining to the assignment of
+          a user to a vessel as a string
+        <Arguments>
+          None
+        <Exceptions>
+          None
+        <Side Effects>
+          None
+        <Returns>
+          Number of seconds before the vessel expires
         """
         curr_time = datetime.datetime.now()
         if self.expiration < curr_time:

@@ -818,9 +818,15 @@ def ajax_getshares(request):
     geni_user = ret
 
     ret = share_operations.get_user_shares(geni_user)
-    # last share record must be 'Me', if its not 0%    
+
+    print "get_user_shares returned: "
+    print ret
+
+    # last share record must be 'Me', if its not 0%
+    geni_user_percent_used = share_operations.get_percent_usage(geni_user)
+
     ret.append({'username' : "Me",
-                'percent' : 8})
+                'percent' : geni_user_percent_used})
     
     return __jsonify(ret)
 
@@ -878,12 +884,25 @@ def ajax_getcredits(request):
 
     # NOTE: total percentage must always be 100% here
     ret = []
+    
     if request.method == u'POST':
-        ret.append({'username' : "Me",
-                    'percent' : 10})
-        for i in range(9):
-            ret.append({'username' : "user" + str(i+1),
-                        'percent' : 10})
+        percent_credits, total_vessels = share_operations.get_user_credits(geni_user)
+        print "GOT:"
+        print percent_credits
+        print total_vessels
+        for guser, percent in percent_credits:
+            if guser == geni_user:
+                username = "Me"
+            else:
+                username = str(guser)
+            ret.append({'username' : username,
+                        'percent' : percent})
+            
+#         ret.append({'username' : "Me",
+#                     'percent' : 10})
+#         for i in range(9):
+#             ret.append({'username' : "user" + str(i+1),
+#                         'percent' : 10})
 
     return __jsonify(ret)
 
