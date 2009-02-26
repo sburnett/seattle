@@ -107,7 +107,10 @@ def main():
   
     # call the process_mix function to process all mix files in the target directory
     preparetest.process_mix("repypp.py")
-    
+
+    # touch __init__.py
+    open("__init__.py", "w").close()
+
     # go back to root project directory
     os.chdir(current_dir) 
 
