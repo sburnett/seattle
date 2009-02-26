@@ -33,13 +33,14 @@ import shutil
 try:
   import preparetest
 except ImportError:
-  print "Error importing preparetest, make sure that preparetest is in your PYTHONPATH"
+  print "Error importing preparetest, make sure that it is in your PYTHONPATH"
+  print "\te.x.: export PYTHONPATH=$PYTHONPATH:/loc/of/svn_trunk"
   sys.exit(0)
 
 def main():
     
     if not len(sys.argv) == 3:
-        print "python deploy_geni_control <geni_root> <svn_root>"
+        print "python deploy_geni_control <loc/of/geni_root> <loc/of/svn_trunk>"
         return
     
     geni_root = sys.argv[1]
@@ -64,8 +65,8 @@ def main():
         svn_trunk += "/"
     geni_svn = svn_trunk + "www/geni/"
 
-    print "copied"
-    shutil.copytree(geni_svn, geni_root)
+    shutil.copytree(geni_svn, geni_root, symlinks=True)
+    print "copied successfully (symlinks intact)"
 
     # alpers - moves dir to actual repy dir
     if not geni_root.endswith("/"):
