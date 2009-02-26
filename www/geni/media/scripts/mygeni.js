@@ -176,7 +176,31 @@ function create_label(username, width, isShare) {
 function create_other(username, percent, isShare) {
 	var tr = $(document.createElement("tr"));
 	tr.addClass("{% cycle 'odd' 'even' %}");
-	tr.html("<td>" + username + "</td><td>" + percent + "</td><td><button>Edit</button> <button>Delete</button></td>");
+	tr.html("<td>" + username + "</td><td>" + percent + "</td>");
+	var control = $(document.createElement("td"));
+	var edit = $(document.createElement("button"));
+	edit.text("Edit");
+	edit.click(function() {
+		change_percent();
+	});
+	var close = $(document.createElement("button"));
+	close.text("Delete");
+	close.click(function() {
+		$.post("../control/ajax_editshare",
+				{ username: username, percent: 0 },
+				function(data) {
+					var json = eval('(' + data + ')');
+					if (json.success) {
+						edit_block(username, 0);
+					} else {
+						alert(json.error);
+					}
+				});
+		tr.remove();
+	});
+	control.append(edit);
+	control.append(close);
+	tr.append(control);
 	return tr;
 }
 
