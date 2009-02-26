@@ -1072,6 +1072,9 @@ def _helper_mux_waitforconn(ip, port, func, remoteip, remoteport, socket, thisco
   # Create a mux
   mux = Multiplexer(socket, info)
   
+  # Add the key entry for this mux
+  MULTIPLEXER_OJBECTS[key] = mux
+  
   # Apply the old waitforconns
   for (key, function) in MULTIPLEXER_WAIT_FUNCTIONS.items():
     args = key.split(":")
@@ -1080,8 +1083,6 @@ def _helper_mux_waitforconn(ip, port, func, remoteip, remoteport, socket, thisco
   # Trigger user function
   mux.waitforconn(ip,port,func)
   
-  # Add the key entry for this mux
-  MULTIPLEXER_OJBECTS[key] = mux
 
 # Maps a waitforconn to every multiplexer object
 def _map_virtual_waitforconn(localip,localport,func):
