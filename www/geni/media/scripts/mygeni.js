@@ -62,7 +62,7 @@ function add_cell(type, username, percent) {
 			if ($("#usageOthers").length > 0) {
 				edit_cell(type, "Others", get_percent("shares", "Others") + percent);
 			} else {
-				var others = create_block("Others", get_percent("shares", "Others") + percent, true);
+				var others = create_block("Others", percent, true);
 				var labelothers = create_label("Others", get_percent("shares", "Others") + percent, true);
 				if ($("#usageMe").length > 0) {
 					others.insertBefore("#usageMe");
@@ -366,10 +366,7 @@ function share_resources() {
 						$("#dialogframe").hide();
 						$("#overlay").hide();
 						add_cell("share", username, percent);
-						/*
-						create_block($("#usage"), username, percent, true);
-						create_label($("#usagenames"), username, percent, true);
-						*/
+						alert("cell added!");
 					} else {
 						create_warning(json.error, $("#shareresourcesdialog h3"));
 					}
