@@ -8,9 +8,7 @@ MAX_NUM = 100
 
 # Handle a new virtual connection
 def new_virtual_conn(remoteip, remoteport, virtualsock, junk, multiplexer):
-  # Wait to recieve hi
-  data = virtualsock.recv(3)
-
+  # Exchange 1 to 100
   num = 1
   while True and num < MAX_NUM:
     data = virtualsock.recv(1024)
@@ -50,9 +48,7 @@ mux = Multiplexer(realsocket, {"remoteip":"127.0.0.1","remoteport":12345,"mux":"
 # Try to setup a virtual socket
 virtualsock = mux.openconn("127.0.0.1", 12345,timeout=5)
 
-# Send hi, wait to recieve hi back
-virtualsock.send("Hi!")
-
+# Try to exchange 1 to 100
 num = 1
 while True and num <= MAX_NUM:
   virtualsock.send(str(num))
