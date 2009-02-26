@@ -60,10 +60,11 @@ function add_cell(type, username, percent) {
 			var item  = create_other(username, percent, true);
 			$("#usageotherstable").append(item);
 			if ($("#usageOthers").length > 0) {
+				alert(get_percent("shares", "Others") + " " + percent);
 				edit_cell(type, "Others", get_percent("shares", "Others") + percent);
 			} else {
 				var others = create_block("Others", percent, true);
-				var labelothers = create_label("Others", get_percent("shares", "Others") + percent, true);
+				var labelothers = create_label("Others", percent, true);
 				if ($("#usageMe").length > 0) {
 					others.insertBefore("#usageMe");
 					labelothers.insertBefore("#labelusageMe");
