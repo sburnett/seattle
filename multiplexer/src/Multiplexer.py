@@ -318,7 +318,8 @@ class Multiplexer():
         self.socketInfo[key] = value
         
       # Launch event to handle the multiplexing
-      settimer(0, self._socketReader, ())
+      # Wait 2 seconds so that the user has a change to set waitforconn
+      settimer(2, self._socketReader, ())
       
     else:
       raise ValueError, "Must pass in a valid socket!"
@@ -1012,7 +1013,7 @@ MULTIPLEXER_WAIT_FUNCTIONS = {}
 # Openconn that uses Multiplexers
 def mux_openconn(desthost, destport, localip=None,localport=None,timeout=15):
   # Check if we already have a real multiplexer
-  key = "IP:"+desthost+":"+destport
+  key = "IP:"+desthost+":"+str(destport)
   if key in MULTIPLEXER_OJBECTS:
     # Since a multiplexer already exists, lets just use that objects builtin method
     mux = MULTIPLEXER_OJBECTS[key]
@@ -1025,15 +1026,23 @@ def mux_openconn(desthost, destport, localip=None,localport=None,timeout=15):
     openconn_func = MULTIPLEXER_STATE_DATA["openconn"]
 
     # Try to get a real socket
-    realsocket = openconn_func(desthost, destport, localip,localport,timeout)
-
+    if localport != None and localip != None:
+      realsocket = openconn_func(desthost, destport, localip,localport,timeout)
+    else:
+      realsocket = openconn_func(desthost, destport,timeout=timeout)
+      
     # Setup the info for this new mux, give the mux its key
     info = {"remoteip":desthost,"remoteport":destport,"key":key}
 
     # Get an IP if necessary
     if localip == None:
-      # Otherwise, use getmyip
-      info["localip"] = getmyip()
+      try:
+        # Otherwise, use getmyip
+        info["localip"] = getmyip()
+        
+        # On failure, use a local loopback ip
+      except:
+        info["localip"] = "127.0.0.1"
 
     # If we already have a user given localip, use that
     else:
@@ -1055,7 +1064,7 @@ def mux_openconn(desthost, destport, localip=None,localport=None,timeout=15):
 # Helper function for mux_waitforconn, handles everything then calls user function
 def _helper_mux_waitforconn(ip, port, func, remoteip, remoteport, socket, thiscommhandle, listencommhandle):
   # Create key for this new mux
-  key = "IP:"+remoteip+":"+remoteport
+  key = "IP:"+remoteip+":"+str(remoteport)
 	
   # Generate connection info
   info = {"remoteip":remoteip,"remoteport":remoteport,"localip":ip,"localport":port,"key":key}
@@ -1064,9 +1073,9 @@ def _helper_mux_waitforconn(ip, port, func, remoteip, remoteport, socket, thisco
   mux = Multiplexer(socket, info)
   
   # Apply the old waitforconns
-  for (key, function) in MULTIPLEXER_WAIT_FUNCTIONS.itAems():
+  for (key, function) in MULTIPLEXER_WAIT_FUNCTIONS.items():
     args = key.split(":")
-    mux.waitforconn(args[0],args[1],function)
+    mux.waitforconn(args[0],int(args[1]),function)
     
   # Trigger user function
   mux.waitforconn(ip,port,func)
@@ -1087,7 +1096,7 @@ def _map_virtual_stopcomm(port):
 # Wait for connection to establish new multiplexers and new virtual connections
 def mux_waitforconn(localip, localport, function):
   # Get the key
-  key = "LISTEN:"+localip+":"+localport 
+  key = "LISTEN:"+localip+":"+str(localport) 
   
   # Does this key already exist?
   if key in MULTIPLEXER_STATE_DATA:
@@ -1108,7 +1117,7 @@ def mux_waitforconn(localip, localport, function):
   MULTIPLEXER_STATE_DATA[key] = handle
   
   # Register the ip/port function for new multiplexers
-  MULTIPLEXER_WAIT_FUNCTIONS[localip+":"+localport] = function
+  MULTIPLEXER_WAIT_FUNCTIONS[localip+":"+str(localport)] = function
   
   # Map this waitforconn to all existing multiplexers
   _map_virtual_waitforconn(localip, localport, function)
@@ -1133,7 +1142,7 @@ def mux_stopcomm(key):
     # Get the values by spliting on colon
     arr = key.split(":")
     ip = arr[1]
-    port = arr[2]
+    port = int(arr[2])
 
     # De-register this function for new multiplexers
     del MULTIPLEXER_WAIT_FUNCTIONS[ip+":"+port]
