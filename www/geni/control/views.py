@@ -817,17 +817,32 @@ def ajax_getshares(request):
         return __jsonify({"success" : False, "error" : "could not validate your identity"})
     geni_user = ret
 
-    ret = share_operations.get_user_shares(geni_user)
-
+    # retrieve all shares for the geni_user
+    shares = share_operations.get_user_shares(geni_user)
     print "get_user_shares returned: "
-    print ret
+    print shares
 
-    # last share record must be 'Me', if its not 0%
+    # sort the shares according to their percent
+    def share_compare(a, b):
+        return cmp(a['percent'], b['percent'])
+    shares.sort(share_compare)
+    print "sorted shares: "
+    shares
+
+    # sort shares into two lists: shares above threshold limit and
+    # below threshold limit (for nice display on page)
+    share_thresh = 10
+    shares_above_thresh = []
+    shares_below_thresh = []
+    for share in shares:
+        if share['percent'] > share_thresh:
+            shares_above_thresh.append(share)
+
+    # calculate the share for 'me'
     geni_user_percent_used = share_operations.get_percent_usage(geni_user)
-
-    ret.append({'username' : "Me",
-                'percent' : geni_user_percent_used})
+    geni_user_record = [{'username' : "Me", 'percent' : geni_user_percent_used}]
     
+    ret = [shares_above_thresh, shares_below_thresh, geni_user_record]
     return __jsonify(ret)
 
 
