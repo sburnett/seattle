@@ -57,13 +57,12 @@ function create_block(username, width, isShare) {
 			percent.hover(
 				function() {
 					var hint = $(document.createElement("span"));
-					hint.html("<br />Click to edit percent");
+					hint.html("Click to edit percent");
 					hint.addClass("hint");
-					$(this).append(hint);
+					hint.insertAfter($(this));
 				},
 				function () {
-					$(this).empty();
-					$(this).text(width + '%');
+					$(this).next().remove();
 				});
 			percent.click(function() {
 				change_percent(username, width);
@@ -75,13 +74,12 @@ function create_block(username, width, isShare) {
 		percent.hover(
 			function() {
 				var hint = $(document.createElement("span"));
-				hint.text("Click to reveal");
+				hint.html("Click to reveal");
 				hint.addClass("hint");
-				$(this).append(hint);
+				hint.insertAfter($(this));
 			},
 			function () {
-				$(this).empty();
-				$(this).text(width + '%');
+				$(this).next().remove();
 			});
 		percent.click(function () { show_table(isShare) });
 		// block.attr("id", "creditOthers");
