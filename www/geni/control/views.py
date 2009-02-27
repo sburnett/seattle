@@ -827,7 +827,7 @@ def ajax_getshares(request):
         return cmp(a['percent'], b['percent'])
     shares.sort(share_compare)
     print "sorted shares: "
-    shares
+    print shares
 
     # sort shares into two lists: shares above threshold limit and
     # below threshold limit (for nice display on page)
@@ -837,6 +837,8 @@ def ajax_getshares(request):
     for share in shares:
         if share['percent'] > share_thresh:
             shares_above_thresh.append(share)
+        else:
+            shares_below_thresh.append(share)
 
     # calculate the share for 'me'
     geni_user_percent_used = share_operations.get_percent_usage(geni_user)
@@ -889,36 +891,46 @@ def ajax_createshare(request):
 
 @login_required()
 def ajax_getcredits(request):
-    # First username must be 'Me'
-
-    ret, success = __validate_guser__(request)
+    ret, success = __validate_ajax(request)
     if not success:
-        return __jsonify({"success" : False, "error" : "could not validate your identity"})
+        return ret
     geni_user = ret
 
-
-    # NOTE: total percentage must always be 100% here
-    ret = []
+    # NOTE: total percentage of percent_credits must be 100%
+    percent_credits, total_vessels = share_operations.get_user_credits(geni_user)
     
-    if request.method == u'POST':
-        percent_credits, total_vessels = share_operations.get_user_credits(geni_user)
-        print "GOT:"
-        print percent_credits
-        print total_vessels
-        for guser, percent in percent_credits:
-            if guser == geni_user:
-                username = "Me"
-            else:
-                username = str(guser)
-            ret.append({'username' : username,
-                        'percent' : percent})
-            
-#         ret.append({'username' : "Me",
-#                     'percent' : 10})
-#         for i in range(9):
-#             ret.append({'username' : "user" + str(i+1),
-#                         'percent' : 10})
+    print "get_user_credits returned: "
+    print percent_credits
+    print total_vessels
 
+    credits = []
+    for guser, percent in percent_credits:
+        if guser == geni_user:
+            geni_user_record = [{'username' : "Me", 'percent' : percent}]
+            continue
+
+        credits.append({'username' : str(guser),
+                        'percent' : percent})
+    
+    # sort the credits list according to their percent
+    def credit_compare(a, b):
+        return cmp(a['percent'], b['percent'])
+    credits.sort(credit_compare)
+    print "sorted credits: "
+    print credits
+
+    # sort credits into two lists: credits above threshold limit and
+    # below threshold limit (for nice display on page)
+    credit_thresh = 10
+    credits_above_thresh = []
+    credits_below_thresh = []
+    for credit in credits:
+        if credit['percent'] > credit_thresh:
+            credits_above_thresh.append(credit)
+        else:
+            credits_below_thresh.append(credit)
+
+    ret = [credits_above_thresh, credits_below_thresh, geni_user_record]
     return __jsonify(ret)
 
 
