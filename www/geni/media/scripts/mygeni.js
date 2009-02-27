@@ -335,6 +335,7 @@ function save_percent() {
 	var input = $("#changepercentdialog input");
 	var percent = input.val();
 	var username = input.attr("name").substring(5);
+	alert("username " + username + " percent " + percent);
 	$.post("../control/ajax_editshare",
 			{ username: username, percent: percent },
 			function (data) {
