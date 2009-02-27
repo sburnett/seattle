@@ -47,31 +47,33 @@ def timeout():
   print "Reached timeout!"
   exitall()
 
-# Kill us in 25 seconds
-settimer(25, timeout,())
-
-# Setup a waitforconn on a real socket
-mux_waitforconn("127.0.0.1", 12345, new_virtual_conn)
-
-
-# Trigger three clients
-settimer(0,client_exchange,[1])
-
-settimer(1,client_exchange,[2])
-
-settimer(2,client_exchange,[3])
-
-# Wait for a few seconds
-sleep(15)
-
-# Check that they all registered and finished
-if not 1 in mycontext or not mycontext[1]:
-  print "Client 1 failed to finish!"
-
-if not 2 in mycontext or not mycontext[2]:
-  print "Client 2 failed to finish!"
-
-if not 3 in mycontext or not mycontext[3]:
-  print "Client 3 failed to finish!"
+if callfunc=='initialize':
   
-exitall()
+  # Kill us in 25 seconds
+  settimer(25, timeout,())
+
+  # Setup a waitforconn on a real socket
+  mux_waitforconn("127.0.0.1", 12345, new_virtual_conn)
+
+
+  # Trigger three clients
+  settimer(0,client_exchange,[1])
+
+  settimer(1,client_exchange,[2])
+
+  settimer(2,client_exchange,[3])
+
+  # Wait for a few seconds
+  sleep(15)
+
+  # Check that they all registered and finished
+  if not 1 in mycontext or not mycontext[1]:
+    print "Client 1 failed to finish!"
+
+  if not 2 in mycontext or not mycontext[2]:
+    print "Client 2 failed to finish!"
+
+  if not 3 in mycontext or not mycontext[3]:
+    print "Client 3 failed to finish!"
+  
+  exitall()

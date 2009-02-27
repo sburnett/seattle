@@ -27,26 +27,27 @@ def timeout():
   print "Reached timeout!"
   exitall()
 
-# Kill us in 15 seconds
-settimer(15, timeout,())
+if callfunc=='initialize':
+  # Kill us in 15 seconds
+  settimer(15, timeout,())
 
-# Setup a waitforconn on a real socket
-mux_waitforconn("127.0.0.1", 12345, new_virtual_conn)
+  # Setup a waitforconn on a real socket
+  mux_waitforconn("127.0.0.1", 12345, new_virtual_conn)
 
-# Try to connect to the other multiplexer
-virtualsock = mux_openconn("127.0.0.1", 12345)
+  # Try to connect to the other multiplexer
+  virtualsock = mux_openconn("127.0.0.1", 12345)
 
-# Try to exchange 1 to 10
-num = 1
-while True and num <= MAX_NUM:
-  virtualsock.send(str(num))
-  num = num + 1
-  data = virtualsock.recv(1024)
-  if data == str(num):
+  # Try to exchange 1 to 10
+  num = 1
+  while True and num <= MAX_NUM:
+    virtualsock.send(str(num))
     num = num + 1
-  else:
-    print "Unexpected number! Expected: ", str(num), " Received: ",data
+    data = virtualsock.recv(1024)
+    if data == str(num):
+      num = num + 1
+    else:
+      print "Unexpected number! Expected: ", str(num), " Received: ",data
 
-virtualsock.close()
+  virtualsock.close()
 
-exitall()
+  exitall()

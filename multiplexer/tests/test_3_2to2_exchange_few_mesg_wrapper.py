@@ -58,36 +58,37 @@ def timeout():
   print "Reached timeout!"
   exitall()
 
-# Kill us in 30 seconds
-settimer(30, timeout,())
+if callfunc=='initialize':
+  # Kill us in 30 seconds
+  settimer(30, timeout,())
 
-# Setup a waitforconn
-mux_waitforconn("127.0.0.1", 12345, new_virtual_conn)
+  # Setup a waitforconn
+  mux_waitforconn("127.0.0.1", 12345, new_virtual_conn)
 
-# Trigger two clients
-settimer(0,client_exchange,[1,12345,20000])
+  # Trigger two clients
+  settimer(0,client_exchange,[1,12345,20000])
 
-# Wait before calling waitforconn
-sleep(5)
+  # Wait before calling waitforconn
+  sleep(5)
 
-# Setup second waitforconn
-mux_waitforconn("127.0.0.1", 20000, new_virtual_conn)
+  # Setup second waitforconn
+  mux_waitforconn("127.0.0.1", 20000, new_virtual_conn)
 
-# Setup second client
-settimer(1,client_exchange,[2,20000,None])
+  # Setup second client
+  settimer(1,client_exchange,[2,20000,None])
 
-# Wait for a few seconds
-sleep(20)
+  # Wait for a few seconds
+  sleep(20)
 
-# Get the lock incase we need to print
-printlock.acquire()
+  # Get the lock incase we need to print
+  printlock.acquire()
 
-# Check that they all registered and finished
-if not 1 in mycontext or not mycontext[1]:
-  print "Client 1 failed to finish!"
+  # Check that they all registered and finished
+  if not 1 in mycontext or not mycontext[1]:
+    print "Client 1 failed to finish!"
 
-if not 2 in mycontext or not mycontext[2]:
-  print "Client 2 failed to finish!"
+  if not 2 in mycontext or not mycontext[2]:
+    print "Client 2 failed to finish!"
 
 
-exitall()
+  exitall()

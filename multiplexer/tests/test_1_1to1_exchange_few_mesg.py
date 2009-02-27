@@ -36,33 +36,34 @@ def timeout():
   print "Reached timeout!"
   exitall()
 
-# Kill us in 20 seconds
-settimer(10, timeout,())
+if callfunc=='initialize':
+  # Kill us in 20 seconds
+  settimer(10, timeout,())
 
-# Setup a waitforconn on a real socket
-waitforconn("127.0.0.1", 12345, new_connection)
+  # Setup a waitforconn on a real socket
+  waitforconn("127.0.0.1", 12345, new_connection)
 
-# Try to connect to the real socket
-realsocket = openconn("127.0.0.1", 12345)
+  # Try to connect to the real socket
+  realsocket = openconn("127.0.0.1", 12345)
 
-# Try to setup a multiplexed connection on this
-mux = Multiplexer(realsocket, {"remoteip":"127.0.0.1","remoteport":12345,"mux":"openconn"})
+  # Try to setup a multiplexed connection on this
+  mux = Multiplexer(realsocket, {"remoteip":"127.0.0.1","remoteport":12345,"mux":"openconn"})
 
-# Try to setup a virtual socket
-virtualsock = mux.openconn("127.0.0.1", 12345,timeout=5)
+  # Try to setup a virtual socket
+  virtualsock = mux.openconn("127.0.0.1", 12345,timeout=5)
 
-# Try to exchange 1 to 100
-num = 1
-while True and num <= MAX_NUM:
-  virtualsock.send(str(num))
-  num = num + 1
-  data = virtualsock.recv(1024)
-  if data == str(num):
+  # Try to exchange 1 to 100
+  num = 1
+  while True and num <= MAX_NUM:
+    virtualsock.send(str(num))
     num = num + 1
-  else:
-    print "Unexpected number! Expected: ", str(num), " Received: ",data
+    data = virtualsock.recv(1024)
+    if data == str(num):
+      num = num + 1
+    else:
+      print "Unexpected number! Expected: ", str(num), " Received: ",data
 
 
-virtualsock.close()
+  virtualsock.close()
     
-exitall()
+  exitall()

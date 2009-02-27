@@ -33,28 +33,29 @@ def timeout():
   print "Reached timeout!"
   exitall()
 
-# Kill us in 20 seconds
-settimer(10, timeout,())
-mycontext["send"] = False
+if callfunc=='initialize':
+  # Kill us in 20 seconds
+  settimer(10, timeout,())
+  mycontext["send"] = False
 
-# Setup a waitforconn on a real socket
-waitforconn("127.0.0.1", 12345, new_connection)
+  # Setup a waitforconn on a real socket
+  waitforconn("127.0.0.1", 12345, new_connection)
 
-# Try to connect to the real socket
-realsocket = openconn("127.0.0.1", 12345)
+  # Try to connect to the real socket
+  realsocket = openconn("127.0.0.1", 12345)
 
-# Try to setup a multiplexed connection on this
-mux = Multiplexer(realsocket, {"remoteip":"127.0.0.1","remoteport":12345,"mux":"openconn"})
+  # Try to setup a multiplexed connection on this
+  mux = Multiplexer(realsocket, {"remoteip":"127.0.0.1","remoteport":12345,"mux":"openconn"})
 
-# Try to setup a virtual socket
-virtualsock = mux.openconn("127.0.0.1", 12345,timeout=5)
+  # Try to setup a virtual socket
+  virtualsock = mux.openconn("127.0.0.1", 12345,timeout=5)
 
-# Send hi, wait to recieve hi back
-virtualsock.send("Hi!")
-mycontext["send"] = True
-data = virtualsock.recv(3)
+  # Send hi, wait to recieve hi back
+  virtualsock.send("Hi!")
+  mycontext["send"] = True
+  data = virtualsock.recv(3)
 
-if data != "Hi!":
-  print "Client. Recieved unexpected response! Expected Hi!  Received:  ",data
+  if data != "Hi!":
+    print "Client. Recieved unexpected response! Expected Hi!  Received:  ",data
 
-exitall()
+  exitall()
