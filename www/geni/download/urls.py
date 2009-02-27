@@ -42,11 +42,11 @@ urlpatterns = patterns('geni.download.views',
                        # show the main download page for downloading installers
                        (r'^(?P<username>\w{3,32})/$', 'download', {}, 'installers'),
                        # build and download the mac installer
-                       (r'^(?P<username>\w{3,32})/seattle_mac.tgz$', 'build_mac_installer', {}, 'mac'),
+                       (r'^(?P<username>\w{3,32})/seattle_mac.tgz$', 'build_mac_installer', {}, 'mac_installer'),
                        # build and download the linux installer
-                       (r'^(?P<username>\w{3,32})/seattle_linux.tgz$', 'build_linux_installer', {}, 'linux'),
+                       (r'^(?P<username>\w{3,32})/seattle_linux.tgz$', 'build_linux_installer', {}, 'linux_installer'),
                        # build and download the windows installer
-                       (r'^(?P<username>\w{3,32})/seattle_win.zip$', 'build_win_installer', {}, 'win'),
+                       (r'^(?P<username>\w{3,32})/seattle_win.zip$', 'build_win_installer', {}, 'win_installer'),
 
                        # help page
                        (r'^(?P<username>\w{3,32})/help$', 'help', {}, 'help'),
