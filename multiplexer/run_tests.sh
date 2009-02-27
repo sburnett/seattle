@@ -136,7 +136,7 @@ do
   fi
 
   # Sleep for a second
-  #sleep 1
+  sleep 2
   
   # Check if the forwarder is still running
   #forwarderstat=`ps -p ${forwarderpid} | grep -c ""`
