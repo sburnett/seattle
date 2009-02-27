@@ -115,6 +115,14 @@ body {
 	padding-bottom: 60px;
 }
 
+.warning {
+	border: 1px solid red;
+	margin: 20px;
+	padding: 10px;
+	color: red;
+	font-weight: bold;
+}
+
 
 /******************************
 * STYLESHEET FOR login.html and register.html
