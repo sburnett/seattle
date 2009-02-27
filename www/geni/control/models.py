@@ -193,7 +193,7 @@ class User(models.Model):
         """
         num_donations = Donation.objects.filter(user=self).filter(active=1).count()
         # TODO: TEMP (this code should really be in the node state transitions)
-        self.num_acquired_vessels = VesselMap.objects.filter(user = geni_user).count()
+        self.num_acquired_vessels = VesselMap.objects.filter(user = self).count()
         self.vcount_via_donations = 10 * (num_donations)
         self.vcount_base = 10
         self.save()

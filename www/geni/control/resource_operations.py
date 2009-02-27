@@ -27,6 +27,7 @@ from django.db import connection
 from django.db import transaction
 
 from geni.control.models import User, VesselPort, VesselMap
+#from geni.control.repy_dist.changeusers import changeusers
 from geni.control.repy_dist.vessel_operations import release_vessels, acquire_lan_vessels, acquire_wan_vessels, acquire_rand_vessels
 
 # 4 hours worth of seconds
@@ -92,17 +93,18 @@ def release_resources(geni_user, resource_id, all):
     for r in myresources:
         if (all is True) or (r.id == resource_id):
             v = r.vessel_port.vessel
-            nmip = v.donation.ip
-            nmport = int(v.donation.port)
-            vesselname = v.name
-            nodepubkey = v.donation.owner_pubkey
-            nodeprivkey = v.donation.owner_privkey
-            success,msg = changeusers([""], nmip, nmport, vesselname, nodepubkey, nodeprivkey)
-            if not success:
-                print msg
+            release_vessels([v])
+            # nmip = v.donation.ip
+#             nmport = int(v.donation.port)
+#             vesselname = v.name
+#             nodepubkey = v.donation.owner_pubkey
+#             nodeprivkey = v.donation.owner_privkey
+#             success,msg = changeusers([""], nmip, nmport, vesselname, nodepubkey, nodeprivkey)
+#             if not success:
+#                 print msg
             r.delete()
             if not all:
-                ret = str(nmip) + ":" + str(nmport) + ":" + str(vesselname)
+                ret = str(v.donation.ip) + ":" + str(v.donation.port) + ":" + str(v.name)
             # credit the user for the released vessel
             geni_user.num_acquired_vessels -= 1
     return ret

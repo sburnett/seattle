@@ -15,7 +15,7 @@ def initialize_time_if_needed():
 
 def do_announce(pubkey,value,valuelifetime):
   try:
-    advertise.announce(pubkey, value, valuelifetime,logfo)
+    advertise.announce(pubkey, value, valuelifetime)
   except Exception, e:
     print time.ctime(),e
 

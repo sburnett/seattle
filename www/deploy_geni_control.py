@@ -51,6 +51,15 @@ def main():
         print "ERROR: the path to the SVN root given does not exist."
         return
 
+    if not svn_trunk.endswith("/"):
+        svn_trunk += "/"
+
+    # make sure this is the svn trunk
+    if not os.path.exists(svn_trunk + "www"):
+        print svn_trunk + "www"
+        print "ERROR: the given SVN doesn't look like SVN (/loc/of/trunk/www missing)"
+        return
+
     # warn the user if we're about to overwrite files
     if os.path.isdir(geni_root):
         ans = raw_input("WARNING: directory found at geni_root location.  Delete? [y/n]")
@@ -61,10 +70,7 @@ def main():
             shutil.rmtree(geni_root)
 
     # copy over most recent build of geni from SVN to specified directory
-    if not svn_trunk.endswith("/"):
-        svn_trunk += "/"
     geni_svn = svn_trunk + "www/geni/"
-
     shutil.copytree(geni_svn, geni_root, symlinks=True)
     print "copied successfully (symlinks intact)"
 
@@ -73,7 +79,7 @@ def main():
         geni_root += "/"
     geni_repy = geni_root + "control/repy_dist"
 
-    # make the repy directory if it doesn't exist
+    # make the repy_dist directory if it doesn't exist
     if not os.path.isdir(geni_repy):
         os.mkdir(geni_repy)
 
@@ -101,6 +107,10 @@ def main():
 
     # copy files to target dir (this is supposed to be geni/control)
     preparetest.copy_to_target(target_dir + "/../*.mix", target_dir)
+    # this is node_state_transitions/changeusers.mix
+    changeusers_path = os.path.abspath(svn_trunk) + "/www/node_state_transitions/changeusers.mix"
+    print "changeusers_path:", changeusers_path
+    preparetest.copy_to_target(changeusers_path, target_dir)
     
     # set working dir to target
     os.chdir(target_dir)
