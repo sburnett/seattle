@@ -477,7 +477,7 @@ function update_credits() {
 					add_cell("credits", "Others", total_others);
 				}
 				add_cell("credits", json[2][0].username, json[2][0].percent);
-				$("#vesselscredits").text(json[3] + " vessels credit");
+				$("#vesselscredits").text(json[3] + " vessels credits");
 			}, 
 			"json");
 }
