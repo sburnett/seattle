@@ -137,7 +137,8 @@ def processnode(node, acceptnewnode, startstate, endstate, nodeerrorfunction, no
   print time.ctime(),"Processing: ",node
   try:
     nmhandle, nodevesseldict = getnodehandleanddict(node,acceptnewnode)
-  except NMClientException, e:
+#  except NMClientException, e:
+  except Exception, e:
     print time.ctime(), "On node "+node+" error '"+str(e)+"' getting node handle"
     nodeerrorfunction(node)
     return
@@ -287,7 +288,9 @@ def locateandprocessvessels(statefunctionargtuplelist, uniquename, sleeptime, ac
         # clean up the handle
         parallelize_closefunction(phandle)
 
+      print "%s sleeping for %i seconds"%(time.ctime(), sleeptime)
       time.sleep(sleeptime)
+      print "%s woke up"%(time.ctime())
 
 
 
@@ -353,7 +356,8 @@ def getnodehandleanddict(node, acceptnewnode=False):
     print time.ctime(),"Exception in getnodehandleanddict"
     traceback.print_exc(file=sys.stdout)
     nmclient_destroyhandle(thisnmhandle)
-    raise
+    
+    # raise
 
   return thisnmhandle,retdict
 
