@@ -53,6 +53,17 @@ function create_block(username, width, isShare) {
 						});
 			});
 			block.append(close);
+			percent.css("cursor", "pointer");
+			percent.hover(
+				function() {
+					var hint = $(document.createElement("span"));
+					hint.html("<br />Click to edit percent");
+					$(this).append(hint);
+				},
+				function () {
+					$(this).empty();
+					$(this).text(width + '%');
+				});
 			percent.click(function() {
 				change_percent(username, width);
 			});
@@ -60,8 +71,18 @@ function create_block(username, width, isShare) {
 	}
 	
 	if (username == "Others") {
+		percent.hover(
+			function() {
+				var hint = $(document.createElement("span"));
+				hint.html("<br />Click to reveal");
+				$(this).append(hint);
+			},
+			function () {
+				$(this).empty();
+				$(this).text(width + '%');
+			});
 		percent.click(function () { show_table(isShare) });
-		block.attr("id", "creditOthers");
+		// block.attr("id", "creditOthers");
 	}
 	block.append(percent);
 	return block;
@@ -95,30 +116,32 @@ function add_other(type, username, percent) {
 	}
 	var tr = $(document.createElement("tr"));
 	tr.html("<td>" + username + "</td><td>" + percent + "</td>");
-	var control = $(document.createElement("td"));
-	var edit = $(document.createElement("button"));
-	edit.text("Edit");
-	edit.click(function() {
-		change_percent(username, percent);
-	});
-	var close = $(document.createElement("button"));
-	close.text("Delete");
-	close.click(function() {
-		$.post("../control/ajax_editshare",
-				{ username: username, percent: 0 },
-				function(data) {
-					var json = eval('(' + data + ')');
-					if (json.success) {
-						update_shares();
-					} else {
-						alert(json.error);
-					}
-				});
-		tr.remove();
-	});
-	control.append(edit);
-	control.append(close);
-	tr.append(control);
+	if (type == "shares") {
+		var control = $(document.createElement("td"));
+		var edit = $(document.createElement("button"));
+		edit.text("Edit");
+		edit.click(function() {
+			change_percent(username, percent);
+		});
+		var close = $(document.createElement("button"));
+		close.text("Delete");
+		close.click(function() {
+			$.post("../control/ajax_editshare",
+					{ username: username, percent: 0 },
+					function(data) {
+						var json = eval('(' + data + ')');
+						if (json.success) {
+							update_shares();
+						} else {
+							alert(json.error);
+						}
+					});
+			tr.remove();
+		});
+		control.append(edit);
+		control.append(close);
+		tr.append(control);
+	}
 	table.append(tr);
 }
 

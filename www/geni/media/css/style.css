@@ -259,7 +259,6 @@ table.credits tr td, table.usage tr td {
 table.credits tr td span, table.usage tr td span {
     font-size: 14pt;
     font-weight: bold;
-    cursor: pointer;
 }
 
 table.usage tr td a {
