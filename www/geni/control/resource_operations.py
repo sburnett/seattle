@@ -87,28 +87,45 @@ def release_resources(geni_user, resource_id, all):
       that was removed. Otherwise returns an empty string
     """
 
+    ret = ""
     myresources = VesselMap.objects.filter(user=geni_user)
 
-    ret = ""
-    for r in myresources:
-        if (all is True) or (r.id == resource_id):
-            v = r.vessel_port.vessel
-            release_vessels([v])
-            # nmip = v.donation.ip
-#             nmport = int(v.donation.port)
-#             vesselname = v.name
-#             nodepubkey = v.donation.owner_pubkey
-#             nodeprivkey = v.donation.owner_privkey
-#             success,msg = changeusers([""], nmip, nmport, vesselname, nodepubkey, nodeprivkey)
-#             if not success:
-#                 print msg
-            r.delete()
-            if not all:
-                ret = str(v.donation.ip) + ":" + str(v.donation.port) + ":" + str(v.name)
-            # credit the user for the released vessel
+    # select the vessels from current resources based on all or specific
+    # resource_id
+    myvessels = []
+    if all:
+        for r in myresources:
+            myvessels.append(r.vessel_port.vessel)
+    else:
+        for r in myresources:
+            if r.id == resource_id:
+                myvessels.append(r.vessel_port.vessel)
+            
+    # release the selected vessels
+    resultdict = release_vessels(myvessels)
+
+    # cycle through the results of releasing, make sure releasing succeeded
+    # before modifying database/objects
+    for vessel, (success, msg) in resultdict.iteritems():
+        vmaps = VesselMap.objects.filter(vessel_port__vessel__exact = vessel)
+        if vmaps.count() != 1:
+            print "release_resources: got too many/little matches to specific vessel (%s) when releasing (count = %d); not releasing" % (vessel, vmaps.count())
+            continue
+
+        # if releasing did not succeed, don't bother modifying metadata
+        if not success:
+            print "release_resources: failed to changeusers to "", not releasing, reason: %s" % msg
+            continue
+        # if it did succeed, update state
+        else:
+            ret = str(vessel.donation.ip) + ":" + str(vessel.donation.port) + \
+                ":" + str(vessel.name)
+            vmaps[0].delete()
             geni_user.num_acquired_vessels -= 1
+
     return ret
             
+
 @transaction.commit_manually    
 def acquire_resources(geni_user, num, env_type):
     """

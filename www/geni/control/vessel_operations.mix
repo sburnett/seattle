@@ -10,7 +10,7 @@
   Alper Sarikaya
 
 <Purpose>
-x  Encapsulate all functionality related to vessel acquisition and release
+  Encapsulate all functionality related to vessel acquisition and release
   through the GENI portal.
 
 <ToDo>
@@ -24,7 +24,7 @@ import time
 from django.db import connection
 from django.contrib.auth.models import User as DjangoUser
 
-from geni.control.models import Vessel
+from geni.control.models import Vessel, Donation
 from geni.control.repy_dist.changeusers import changeusers
 
 from repyportability import *
@@ -60,7 +60,7 @@ def acquire_vessel(vessel, pubkey_list):
     # explanation += "nodepubkey : %s<br>nodeprivkey: %s<br>"%(nodepubkey,nodeprivkey)
     # explanation += "calling changeusers with: \npubkeystrlist %s\nnmip %s\nnmport %s\nvesselname %s\nnodepubkey %s\nnodeprivkey %s\n"%(userpubkeystringlist, nmip, nmport, vesselname, nodepubkey, nodeprivkey)
     # explanation += " Acquiring %s:%s"%(nmip,nmport)
-    print "changeusers ", time.time()
+    print "changeusers ", time.time(), "on", nmip, ":", nmport, ":", vesselname
     success,msg = changeusers(userpubkeystringlist, nmip, nmport, vesselname, nodepubkey, nodeprivkey)
     print "/changeusers " , time.time()
 
@@ -106,7 +106,7 @@ def get_base_vessels(geni_user):
     return v_active
 
 
-def release_vessels(vessels):
+def release_vessels(vessels, num_threads=10):
     """
     <Purpose>
       'Releases' a list of vessels by performing a changeusers on each
@@ -122,21 +122,27 @@ def release_vessels(vessels):
     <Returns>
       True
     """
-    # this must not fail -- it can however miss nodes that are offline
-    # at the time when we are releasing them
-    for v in vessels:
-        try:
-            success, ret = acquire_vessel(v, [""])
-        except:
-            print "exception raised in release_vessels"
-            raise
-        else:
-            if not success:
-                print "release_vessels : " + str(ret)
-    return True
+
+    phandle = parallelize_initfunction(vessels, acquire_vessel,
+                                       num_threads, [""])
+
+    while not parallelize_isfunctionfinished(phandle):
+        sleep(0.1)
+
+    resultdict = parallelize_getresults(phandle)
+    returndict = {}
+    for vessel, (success, msg) in resultdict['returned']:
+        returndict[vessel] = (success, msg)
+
+    for vessel, exception_str in resultdict['exception']:
+        returndict[vessel] = (False, "Exception: " + msg)
+        
+    print "release_vessels: ", returndict
+    return returndict
 
 
-def parallel_acquire_vessels(vessel_list, geni_user):
+
+def parallel_acquire_vessels(vessel_list, geni_user, num_threads=10):
     """
     <Purpose>
       Acquires the vessels given in parallel.
@@ -163,60 +169,29 @@ def parallel_acquire_vessels(vessel_list, geni_user):
 
     """
 
-
+    # start acquisition
     phandle = parallelize_initfunction(vessel_list, acquire_vessel,
-                                       10, [geni_user.pubkey])
+                                       num_threads, [geni_user.pubkey])
 
+    # wait until all acquisitions have been attempted
     while not parallelize_isfunctionfinished(phandle):
         sleep(0.1)
 
+    # get the results, create a list of all vessels successfully acquired
     acquired = []
     explanation = ""
     resultdict = parallelize_getresults(phandle)
-    for (vessel, (success, msg)) in resultdict['returned']:
+    print "parallel_acquire_resultdict: ", resultdict
+    for vessel, (success, msg) in resultdict['returned']:
         if success:
             acquired.append(vessel)
         else:
             explanation += " " + msg
 
+    # return the list of acquired vessels, along with an explanation of failed
+    # acquisitions
     return acquired, explanation
 
-    """phandles = []
-    acquired = []
-    explanation = ""
-
-    # start all acquisition, store handles in array
-    # NOTE: vessels are locked at database level; if 2+ users try to get the same 
-    # vessel, only one acquisition will atomically succeed
-    for vessel in vessel_list:
-        phandles.append(parallelize_initfunction([vessel], acquire_vessel,
-                                                 1, [geni_user.pubkey]))
-
-    # wait until all handles are done running
-    done_phandles = []
-    while not len(phandles) == 0:
-        for i in range(len(phandles)):
-            if i >= len(phandles):
-                break
-            if parallelize_isfunctionfinished(phandles[i]):
-                done_phandles.append(phandles.pop(i))
-        time.sleep(0.2)
-
-    # check status of obtained vessels, append approved acquisitions to 'acquired' list
-    # NOTE: I assume here that acquire_vessel will NEVER throw an exception
-    #       i.e. result['returned'] will always be populated (server will err otherwise)
-    # CLAIFICATION: result['returned'][0] consists of 
-    #               (vessel, (bool_acquired, explanation))
-    for phandle in done_phandles:
-        result = parallelize_getresults(phandle)
-        result = result['returned'][0]
-        if result[1][0]:
-            acquired.append(result[0])
-        else:
-            explanation += " " + result[1][1]
-        parallelize_closefunction(phandle)
-
-    return acquired, explanation"""
 
 
 def acquire_lan_vessels(geni_user, num):
