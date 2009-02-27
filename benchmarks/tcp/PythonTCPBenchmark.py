@@ -5,45 +5,86 @@
 <Started>
   February 15, 2009
 
-<Author>
+<Author>                 
   Michael Moshofsky
 
 <Purpose>
   Sends a specific amount of bytes with a specific chunk size and records the
   time that it required to complete.
-  
-  Arguments required: LocalPort DestinationIP DestinationPort TotalBytes ChunkSize
+
+  First argument tells program to be a server or client:
+    Server: Only local port is needed in addition.
+    Client: localPor, DestinationIP, DestinationPort, TotalBytes, and ChunkSize are needed.
+
+  Arguments required: (-s or -c) LocalPort [DestinationIP DestinationPort TotalBytes ChunkSize]
 
 """
+import socket
+import sys
+import time
+
+def serverListen(s):
+  s.listen(1)               
+  conn, addr = s.accept()
+  print 'Connected by', addr
+  while 1:              
+    data = conn.recv(1024)
+
+  s.close()
+
+import socket
+import sys
 import time
 
 
+def serverListen(s):
+  s.listen(1)
+  conn, addr = s.accept()
+  print 'Connected by', addr
+  while 1:
+    data = conn.recv(1024)
 
-myport = argv[0]
-destip = argv[1]
-destport = int(argv[2])
-totalBytes = int(argv[3])
-chunkSize = int(argv[4])
-totalChunks = totalBytes/chunkSize
-chunk = ""
-i = 0
+def clientSend(s, totalBytes, chunkSize):
+  totalChunks = totalBytes/chunkSize
+  chunk = chunkSize * "a"
 
-while (i < totalChunks):
-  chunk += "a"
-  i += 1
+  startTime = time.clock()
+  i = 0
+  while (i < totalChunks):
+    s.send(chunk)
+    i += 1
+  endTime = time.clock()
 
-i = 0
-socket = socket()
-socket.bind(getmyip(), myport)
-socket.connect(destip, destport)
-startTime = time.clock()
+  runTime = endTime - startTime * 1.0
 
-while (i < totalChunks):
-  socket.send(chunk)
-  i += 1
+  print "******* Statistics for Python TCP *******"
+  print "Connected to " + str(s.getpeername())
+  print "Sent " + str(totalChunks) + " packets, which had a size of " + str(chunkSize) + " bytes." 
+  print "Total runtime: " + str(runTime) + " seconds."
+  if runTime:
+    print "At a Rate of: " + str(totalBytes/runtime) + " B/S.\n"
 
-endTime = time.clock()
+def main():
+  # where are we?
+  myport = int(sys.argv[2])
+  myip = socket.gethostbyname(socket.gethostname())
+  s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+  s.bind((myip, myport))
 
-print "Total runtime: " + (endTime - startTime) + " seconds.\n"
-print "Rate: " + ((endTime - startTime)/ totalBytes) + " bytes/second.\n"
+  # who are we?
+  serverOrClient = sys.argv[1]
+  if serverOrClient == "-s":
+    serverListen(s)
+  else: # client
+    destip = sys.argv[3]
+    destport = int(sys.argv[4])
+    addr = (destip, destport)
+    s.connect(addr)
+    totalBytes = int(sys.argv[5])
+    chunkSize = int(sys.argv[6])
+    clientSend(s, totalBytes, chunkSize)
 
+  s.close()
+
+# do it
+main()
