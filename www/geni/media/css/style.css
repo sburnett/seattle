@@ -124,6 +124,10 @@ body {
 	background-color: #f2dbdb;
 }
 
+.hint {
+	font-size: 10pt;
+	font-weight: normal;
+}
 
 /******************************
 * STYLESHEET FOR login.html and register.html
@@ -251,7 +255,7 @@ table.usage {
 }
 
 table.credits tr td, table.usage tr td {
-	color: #888;
+	color: #666;
 	text-align: center;
 	padding: 8px;
 }
