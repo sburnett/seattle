@@ -7,7 +7,7 @@
 {% block navigation %}
 	<div id="navigator">
 		<div id="tabs">
-			<span id="meta">{{ user.username }}: <a href="{% url logout %}"><font color="red">Logout</font></a></span>
+			<span id="meta">Logged in as {{ user.username }}, <a href="{% url logout %}"><font color="red">Logout</font></a></span>
 			<table>
 				<tr>
 					{% block nav_profile %}
