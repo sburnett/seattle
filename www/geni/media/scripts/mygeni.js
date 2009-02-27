@@ -466,10 +466,10 @@ function update_credits() {
 				var json = eval('(' + data + ')');
 				var total_others = 0;
 				add_cell("credits", json[2][0].username, json[2][1].percent);
-				for (var i = 0; i < json.length; i++) {
+				for (var i = 0; i < json[0].length; i++) {
 					add_cell("credits", json[0][i].username, json[0][i].percent);
 				}
-				for (var i = 0; i < json.length; i++) {
+				for (var i = 0; i < json[1].length; i++) {
 					add_other("credits", json[1][i].username, json[1][i].percent);
 					total_others += json[1][i].percent;
 				}
@@ -486,11 +486,11 @@ function update_shares() {
 				var json = eval('(' + data + ')');
 				var total_percent = 0;
 				var total_others = 0;
-				for (var i = 0; i < json.length; i++) {
+				for (var i = 0; i < json[0].length; i++) {
 					add_cell("shares", json[0][i].username, json[0][i].percent);
 					total_percent += json[0][i].percent;
 				}
-				for (var i = 0; i < json.length; i++) {
+				for (var i = 0; i < json[1].length; i++) {
 					add_other("shares", json[1][i].username, json[1][i].percent);
 					total_others += json[1][i].percent;
 				}
