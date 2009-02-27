@@ -29,7 +29,7 @@ def noop(*args):
 def main():
 
   # The format is: (startstate, endstate, function, args...)
-  statefunctionargtuplelist = [(acceptdonationpublickey, canonicalpublickey, noop)]
+  statefunctionargtuplelist = [(acceptdonationpublickey, canonicalpublickey, noop, noop)]
 
   locateandprocessvessels(statefunctionargtuplelist, 'donationtocanonical', 10, True)
   

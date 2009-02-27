@@ -161,7 +161,7 @@ def main():
 
   # The format is: (startstate, endstate, function, args...)
   statefunctionargtuplelist = [ 
-      (canonicalpublickey, movingtoonepercent2publickey, noop),
+      (canonicalpublickey, movingtoonepercent2publickey, noop, noop),
       (movingtoonepercent2publickey, onepercent2publickey, onepercentdivide, onepercentresourcetemplate),
       (movingtoonepercent2publickey, canonicalpublickey, combinevessels, movingtoonepercent2publickey)]
 

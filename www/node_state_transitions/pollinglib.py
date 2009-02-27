@@ -128,7 +128,7 @@ knownstates = [canonicalpublickey, acceptdonationpublickey,
 
 
 
-def processnode(node, acceptnewnode, startstate, endstate, nodeprocessfunction, args):
+def processnode(node, acceptnewnode, startstate, endstate, nodeerrorfunction, nodeprocessfunction, args):
 
   if not node:
     # sometimes an empty string is returned by OpenDHT
@@ -139,6 +139,7 @@ def processnode(node, acceptnewnode, startstate, endstate, nodeprocessfunction, 
     nmhandle, nodevesseldict = getnodehandleanddict(node,acceptnewnode)
   except NMClientException, e:
     print time.ctime(), "On node "+node+" error '"+str(e)+"' getting node handle"
+    nodeerrorfunction(node)
     return
 
   # always clean up the handle
@@ -171,11 +172,21 @@ def locateandprocessvessels(statefunctionargtuplelist, uniquename, sleeptime, ac
 
    <Arguments>
       statefunctionargtuplelist:
-         A list of tuples with a start state (publickey), end state 
-         (publickey), a function to change the node
-         state, and a list of arguments to the function.    The function has
-         the first two arguments already provided, the node handle and the
-         node name.
+         A list of tuples with a:
+
+           start state : publickey
+
+           end state : publickey
+
+           nodeerrorfunction : called when there is an error in
+           contacting the node. This function has the first argument
+           already provided : the node name (IP address).
+
+           nodeprocessfunction : called to change the node state. This
+           function has the first two arguments already provided, the
+           node handle and the node name.
+         
+           nodeprocessfunction args list : list of arguments to the nodeprocessfunction.    
 
       uniquename:
          A unique name for this action that can be used for logging and to
@@ -234,8 +245,9 @@ def locateandprocessvessels(statefunctionargtuplelist, uniquename, sleeptime, ac
 
       startstate = statefunctionargtuple[0]
       endstate = statefunctionargtuple[1]
-      nodeprocessfunction = statefunctionargtuple[2]
-      args = statefunctionargtuple[3:]
+      nodeerrorfunction = statefunctionargtuple[2]
+      nodeprocessfunction = statefunctionargtuple[3]
+      args = statefunctionargtuple[4:]
 
       # I likely need to do something smart here when this fails...
       nodelist = advertise.lookup(startstate)
@@ -257,7 +269,7 @@ def locateandprocessvessels(statefunctionargtuplelist, uniquename, sleeptime, ac
       random.shuffle(cachednodelist)
 
 # parallelize the execution of the function across the nodes...
-      phandle = parallelize_initfunction(cachednodelist, processnode, parallelinstances, acceptnewnode, startstate, endstate, nodeprocessfunction, args)
+      phandle = parallelize_initfunction(cachednodelist, processnode, parallelinstances, acceptnewnode, startstate, endstate, nodeerrorfunction, nodeprocessfunction, args)
 
       try: 
         while not parallelize_isfunctionfinished(phandle):

@@ -43,7 +43,7 @@ def main():
 
   # The format is: (startstate, endstate, function, args...)
   statefunctionargtuplelist = [ 
-      (genilookuppublickey, movingtogenilookuppublickey, noop),
+      (genilookuppublickey, movingtogenilookuppublickey, noop, noop),
       (movingtogenilookuppublickey, canonicalpublickey, combineandflushdatabase, movingtogenilookuppublickey)]
 
   locateandprocessvessels(statefunctionargtuplelist, 'genilookuptocanonical', 10)

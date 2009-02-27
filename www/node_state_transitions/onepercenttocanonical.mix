@@ -43,7 +43,7 @@ def main():
 
   # The format is: (startstate, endstate, function, args...)
   statefunctionargtuplelist = [ 
-      (onepercentpublickey, movingtoonepercentpublickey, noop),
+      (onepercentpublickey, movingtoonepercentpublickey, noop, noop),
       (movingtoonepercentpublickey, canonicalpublickey, combineandflushdatabase, movingtoonepercentpublickey)]
 
   locateandprocessvessels(statefunctionargtuplelist, 'onepercenttocanonical', 10)

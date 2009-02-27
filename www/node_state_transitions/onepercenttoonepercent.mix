@@ -24,11 +24,15 @@ def updatedb(nmhandle, node, retdict, *args):
   genidb.update_node(dbnode, retdict, host, port, 'Ready')
   print time.ctime(), "updated node db record with version " + str(dbnode.version) + ", status " + str(dbnode.status)
 
+def nodeerrorfun(node):
+    print "nodeerrorfun called with node: ", node
+    pass
+
   
 def main():
 
   # The format is: (startstate, endstate, function, args...)
-  statefunctionargtuplelist = [(onepercent2publickey, onepercent2publickey, updatedb)]
+  statefunctionargtuplelist = [(onepercent2publickey, onepercent2publickey, nodeerrorfun, updatedb)]
 
   # check 10 nodes concurrently
   locateandprocessvessels(statefunctionargtuplelist, 'onepercenttoonepercent', 10, acceptnewnode=False, parallelinstances=10)
