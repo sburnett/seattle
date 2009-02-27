@@ -221,6 +221,10 @@ table.profile tr.even {
     margin-bottom: 10px;
 }
 
+.vesselstatus {
+	float: right;	
+}
+
 table.credits {
 	border-spacing: 3px;
 	border: 2px solid #999;
