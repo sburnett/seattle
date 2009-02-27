@@ -19,6 +19,9 @@ def new_virtual_conn(remoteip, remoteport, virtualsock, junk, multiplexer):
     else:
       print "Unexpected number! Expected: ", str(num), " Received: ",data
 
+  # Sleep a second before closing the socket
+  sleep(1)
+  virtualsock.close()
 
 def client_exchange(clientn):
   # Try to connect to the other multiplexer
@@ -34,6 +37,8 @@ def client_exchange(clientn):
       num = num + 1
     else:
       print "Unexpected number! Expected: ", str(num), " Received: ",data
+  
+  virtualsock.close()
   
   # This finished...
   mycontext[clientn] = True
