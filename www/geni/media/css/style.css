@@ -79,7 +79,7 @@ body {
 
 #meta {
     float: right;
-    font-size: 14pt;
+    font-size: 13pt;
     margin: 5px 0;
 }
 
@@ -90,7 +90,7 @@ body {
 
 #tabs table tr td {
    padding: 5px 15px;
-   font-size: 16pt;
+   font-size: 14pt;
    border-top: 1px solid #222;
    border-right: 2px solid #222;
    border-left: 2px solid #222;

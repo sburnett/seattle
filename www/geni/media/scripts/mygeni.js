@@ -68,6 +68,7 @@ function create_block(username, width, isShare) {
 	}
 	
 	if (username == "Others") {
+		percent.css("cursor", "pointer");
 		percent.hover(
 			function() {
 				$(this).text("Click to reveal");
