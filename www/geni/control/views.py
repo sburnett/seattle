@@ -935,7 +935,7 @@ def ajax_getcredits(request):
         else:
             credits_below_thresh.append(credit)
 
-    ret = [credits_above_thresh, credits_below_thresh, geni_user_record, total_vessels]
+    ret = [credits_above_thresh, credits_below_thresh, geni_user_record, int(total_vessels)]
     return __jsonify(ret)
 
 
