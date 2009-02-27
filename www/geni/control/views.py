@@ -834,21 +834,20 @@ def ajax_getshares(request):
     share_thresh = 10
     shares_above_thresh = []
     shares_below_thresh = []
-    free_percent = 100
     for share in shares:
         if share['percent'] > share_thresh:
             shares_above_thresh.append(share)
         else:
             shares_below_thresh.append(share)
-        free_percent -= share['percent']
 
     # calculate the share for 'me'
     geni_user_percent_used = share_operations.get_percent_usage(geni_user)
     geni_user_record = [{'username' : "Me", 'percent' : geni_user_percent_used}]
 
-    free_percent -= geni_user_percent_used
-    percent_credits, total_vessels = share_operations.get_user_credits(geni_user)
-    total_vessels_free = int((total_vessels * free_percent * 1.0) / 100.0)
+    #free_percent = share_operations.get_user_free_percent(geni_user)
+    #percent_credits, total_vessels = share_operations.get_user_credits(geni_user)
+    #int((total_vessels * free_percent * 1.0) / 100.0)
+    total_vessels_free = geni_user.vessel_credit_limit()
     
     ret = [shares_above_thresh, shares_below_thresh, geni_user_record, total_vessels_free]
     return __jsonify(ret)

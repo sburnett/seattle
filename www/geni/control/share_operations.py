@@ -39,6 +39,14 @@ def get_user_shares(geni_user):
                     'percent' : int(share.percent)})
     return ret
 
+def get_user_free_percent(geni_user):
+    shares = get_user_shares(geni_user)
+    free_percent = 100
+    for share in shares:
+        free_percent -= share['percent']
+    return free_percent
+
+
 def get_vcount_available(geni_user):
     return geni_user.vcount_base + geni_user.vcount_via_shares + geni_user.vcount_via_donations
 

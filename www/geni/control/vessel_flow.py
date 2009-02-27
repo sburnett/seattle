@@ -62,7 +62,7 @@ def get_base_vessels():
    for share in Share.objects.all():
       for u in [share.to_user, share.from_user]:
          if not vessels.has_key(u):
-            vessels[u] = u.vcount_base
+            vessels[u] = u.vcount_base + u.vcount_via_donations
    return vessels
 
 
@@ -205,6 +205,7 @@ def flow_credits_from_roots(orig_shares, pshares, vessels):
    <Arguments>
    <Exceptions>
    <Side Effects>
+   None!
    <Returns>
    <Note>
    <Todo>

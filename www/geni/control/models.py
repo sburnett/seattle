@@ -31,9 +31,11 @@ import random
 import datetime
 import time
 
-from geni.control.db_operations import pop_key
 from django.db import models
 from django.contrib.auth.models import User as DjangoUser
+
+from geni.control.db_operations import pop_key
+from geni.control import share_operations
 
 
 class User(models.Model):
@@ -197,7 +199,16 @@ class User(models.Model):
         self.vcount_via_donations = 10 * (num_donations)
         self.vcount_base = 10
         self.save()
-        return self.vcount_base + self.vcount_via_donations + self.vcount_via_shares
+
+        percent_credits, total_vessels = share_operations.get_user_credits(self)
+        free_percent = share_operations.get_user_free_percent(self)
+        total_vessels_free = int((total_vessels * free_percent * 1.0) / 100.0)
+
+        # TODO: this should be :
+        # return self.vcount_base + self.vcount_via_donations + self.vcount_via_shares
+        return total_vessels_free
+    
+        
     
 class Donation(models.Model):
     """

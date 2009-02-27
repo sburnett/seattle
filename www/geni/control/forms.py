@@ -63,25 +63,27 @@ def gen_get_form(geni_user,req_post=None):
         more vessels.
     """
     
-    # max allowed resources this user may get
-    donations = Donation.objects.filter(user=geni_user).filter(active=1)
-    num_donations = len(donations)
-    max_num = 10 * (num_donations + 1)
+#     # max allowed resources this user may get
+#     donations = Donation.objects.filter(user=geni_user).filter(active=1)
+#     num_donations = len(donations)
+#     max_num = 10 * (num_donations + 1)
     
-    # number of vessels already used by this user
-    myvessels = VesselMap.objects.filter(user = geni_user)
+#     # number of vessels already used by this user
+#     myvessels = VesselMap.objects.filter(user = geni_user)
 
-    ## CHANGE max_num to:
-    # geni_user.vessel_credit_remaining()
-    ##
+#     ## CHANGE max_num to:
+#     # geni_user.vessel_credit_remaining()
+#     ##
     
-    if len(myvessels) > max_num:
-        max_num = 0
-    else:
-        max_num = max_num - len(myvessels)
+#     if len(myvessels) > max_num:
+#         max_num = 0
+#     else:
+#         max_num = max_num - len(myvessels)
 
-    if max_num == 0:
-        return None
+#     if max_num == 0:
+#         return None
+
+    max_num = geni_user.vessel_credit_remaining()
 
     # the total number of vessels a user may acquire
     get_vessel_choices = zip(range(1,max_num+1),range(1,max_num+1))
