@@ -176,7 +176,13 @@ function create_label(username, width, isShare) {
 }
 
 
-function add_other(username, percent, isShare) {
+function add_other(type, username, percent) {
+	var table;
+	if (type == "credits") {
+		table = $("#creditotherstable");
+	} else if (type == "shares") {
+		table = $("#usageotherstable");
+	}
 	var tr = $(document.createElement("tr"));
 	tr.addClass("{% cycle 'odd' 'even' %}");
 	tr.html("<td>" + username + "</td><td>" + percent + "</td>");
@@ -205,7 +211,7 @@ function add_other(username, percent, isShare) {
 	control.append(edit);
 	control.append(close);
 	tr.append(control);
-	return tr;
+	table.append(tr);
 }
 
 
@@ -459,7 +465,6 @@ function update_credits() {
 				$("#creditnames").empty();
 				var json = eval('(' + data + ')');
 				var total_others = 0;
-				add_cell("credits", json[2][0].username, json[2][0].percent);
 				for (var i = 0; i < json[0].length; i++) {
 					add_cell("credits", json[0][i].username, json[0][i].percent);
 				}
@@ -470,6 +475,7 @@ function update_credits() {
 				if (total_others > 0) {
 					add_cell("credits", "Others", total_others);
 				}
+				add_cell("credits", json[2][0].username, json[2][0].percent);
 			}, 
 			"json");
 }
