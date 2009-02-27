@@ -124,8 +124,8 @@ body {
 	background-color: #f2dbdb;
 }
 
-.hint {
-	font-size: 10pt;
+span.hint {
+	font-size: 8pt;
 	font-weight: normal;
 }
 

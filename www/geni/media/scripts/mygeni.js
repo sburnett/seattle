@@ -57,8 +57,8 @@ function create_block(username, width, isShare) {
 			percent.hover(
 				function() {
 					var hint = $(document.createElement("span"));
-					hint.addClass("hint");
 					hint.html("<br />Click to edit percent");
+					hint.addClass("hint");
 					$(this).append(hint);
 				},
 				function () {
@@ -75,8 +75,8 @@ function create_block(username, width, isShare) {
 		percent.hover(
 			function() {
 				var hint = $(document.createElement("span"));
-				hint.addClass("hint");
 				hint.html("<br />Click to reveal");
+				hint.addClass("hint");
 				$(this).append(hint);
 			},
 			function () {
