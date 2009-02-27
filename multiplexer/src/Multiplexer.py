@@ -770,8 +770,10 @@ class Multiplexer():
         self._pending_client(frame, refID)
         
       # Handle MULTIPLEXER_CONN_TERM
-      elif socket != None and frameType == MULTIPLEXER_CONN_TERM:
-        self._closeCONN(socket, refID)
+      elif frameType == MULTIPLEXER_CONN_TERM:
+        # If the socket is none, that means this client is already terminated
+        if socket != None: 
+          self._closeCONN(socket, refID)
       
       # Handle MULTIPLEXER_CONN_BUF_SIZE
       elif socket != None and frameType == MULTIPLEXER_CONN_BUF_SIZE:
