@@ -35,7 +35,7 @@ def serverListen(myport):
 
 if callfunc == 'initialize':
   serverOrClient = callargs[0]
-  myport = callargs[1]
+  myport = int(callargs[1])
   if (serverOrClient == "-s"):
     serverListen(myport)
   else:
@@ -59,20 +59,20 @@ if callfunc == 'initialize':
     socket.connect(destip, destport)
     startTime = getruntime()
 
-  while (packetNum < totalChunks):
-    socket.send(chunk)
-    packetNum += 1
+    while (packetNum < totalChunks):
+      socket.send(chunk)
+      packetNum += 1
 
-  endTime = getruntime()
+    endTime = getruntime()
 
-  socket.disconnect()
+    socket.disconnect()
 
 
-  print "******* Statistics for TCUP *******\n\n"
-  print "Connected to " + destip + "\n"
-  print "Sent " + totalChunks + " packets, which had a size of " + chunkSize + " bytes.\n\n" 
-  print "Total runtime: " + (endTime - startTime) + " seconds.\n"
-  print "At a Rate of: " + ((endTime - startTime)/ totalBytes) + " B/S.\n"
+    print "\n\n******* Statistics for TCUP *******\n\n"
+    print "Connected to " + destip + "\n"
+    print "Sent " + totalChunks + " packets, which had a size of " + chunkSize + " bytes.\n\n" 
+    print "Total runtime: " + (endTime - startTime) + " seconds.\n"
+    print "At a Rate of: " + ((endTime - startTime)/ totalBytes) + " B/S.\n"
   
   
   
