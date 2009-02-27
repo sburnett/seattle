@@ -301,9 +301,9 @@ function change_percent_table() {
 	dialog.attr("id", "changepercentdialog");
 	dialog.html('<h3>Change Percent</h3>');
 	var input = $(document.createElement("input"));
-	input.attr("name", $(this).parent().prev().prev().text());
+	input.attr("name", $(this).parent().parent().prev().prev().text());
 	input.attr("type", "text");
-	input.val(parseInt($(this).parent().prev().text()));
+	input.val(parseInt($(this).parent().parent().prev().text()));
 	input.click(function () { $(this).val("") });
 	var symbol = $(document.createElement("span"));
 	symbol.html(" %<br />");
