@@ -500,17 +500,27 @@ table#downloads tr td a {
 #toc {
     float: right;
     border: 2px solid #999;
-    width: 400px;
+    width: 300px;
     padding: 10px 15px;
     background-color: #fff;
-    margin: 10px 0;
+    margin: 10px 30px;
+	font-size: 10pt;
+}
+
+#toc a {
+	color: #0066FF;
 }
 
 #toc ul {
-    margin: 5px 10px;
+    margin: 5px 15px;
     list-style: disc inside;
 }
 
-P {
-    margin: 10px auto 20px 0;
+p {
+    margin: 20px auto 20px 0;
+	font-size: 11pt;
+}
+
+p a {
+	color: #0066FF;
 }
