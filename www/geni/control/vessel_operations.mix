@@ -139,7 +139,7 @@ def release_vessels(vessels, num_threads=10):
         returndict[vessel] = (success, msg)
 
     for vessel, exception_str in resultdict['exception']:
-        returndict[vessel] = (False, "Exception: " + msg)
+        returndict[vessel] = (False, "Exception: " + exception_str)
         
     print "release_vessels: ", returndict
     return returndict
@@ -355,7 +355,7 @@ def acquire_wan_vessels(geni_user, num):
         # Attempts to prevent function from populating a huge list that it will hardly use.
         # This line is super-suspect, although this saves the time of aggregating a list, it
         # *can* be possible that 2x the number of vessels requested can all fail.
-        if len(vessel_subnets.keys()) > (num * 2):
+        if len(vessel_subnets.keys()) > (num * 4):
             break
 
     # we've collected our collection of vessels, let's try to acquire some 
