@@ -145,7 +145,9 @@ function create_block(username, width, isShare) {
 						});
 			});
 			block.append(close);
-			percent.click(change_percent);
+			percent.click(function() {
+				change_percent(username, width);
+			});
 		}
 	}
 	
@@ -190,7 +192,7 @@ function add_other(type, username, percent) {
 	var edit = $(document.createElement("button"));
 	edit.text("Edit");
 	edit.click(function() {
-		change_percent_table(username, percent);
+		change_percent(username, percent);
 	});
 	var close = $(document.createElement("button"));
 	close.text("Delete");
@@ -266,42 +268,11 @@ function edit_cell(type, username, percent) {
 /*
 	Display the change percent dialog box
 */
-function change_percent() {
+function change_percent(username, percent) {
 	var dialog = $(document.createElement("div"));
 	dialog.attr("id", "changepercentdialog");
 	dialog.html('<h3>Change Percent</h3>');
 	var input = $(document.createElement("input"));
-	input.attr("name", $(this).parent().attr("id"));
-	input.attr("type", "text");
-	input.val(parseInt($(this).text()));
-	input.click(function () { $(this).val("") });
-	var symbol = $(document.createElement("span"));
-	symbol.html(" %<br />");
-	var cancel = $(document.createElement("button"));
-	cancel.text("Cancel");
-	var save = $(document.createElement("button"));
-	save.text("Save");
-	cancel.click(function () {
-		close_dialog();
-		$(this).parent().remove();
-	});
-	save.click(save_percent);
-	dialog.append(input);
-	dialog.append(symbol);
-	dialog.append(cancel);
-	dialog.append(save);
-	$("#dialogframe").append(dialog);
-	$("#dialogframe").fadeIn("fast");
-	$("#overlay").fadeIn("fast");
-	$("#changepercentdialog").fadeIn("fast");
-}
-
-function change_percent_table(username, percent) {
-	var dialog = $(document.createElement("div"));
-	dialog.attr("id", "changepercentdialog");
-	dialog.html('<h3>Change Percent</h3>');
-	var input = $(document.createElement("input"));
-	input.attr("name", username);
 	input.attr("type", "text");
 	input.val(percent);
 	input.click(function () { $(this).val("") });
@@ -315,7 +286,9 @@ function change_percent_table(username, percent) {
 		close_dialog();
 		$(this).parent().remove();
 	});
-	save.click(save_percent);
+	save.click(function() {
+		 save_percent(username, parseInt(input.val()));
+	});
 	dialog.append(input);
 	dialog.append(symbol);
 	dialog.append(cancel);
@@ -331,11 +304,7 @@ function change_percent_table(username, percent) {
 	Save the percent of the the block when click "save" on the
 	change_percent dialog box
 */
-function save_percent() {
-	var input = $("#changepercentdialog input");
-	var percent = input.val();
-	var username = input.attr("name").substring(5);
-	alert("username " + username + " percent " + percent);
+function save_percent(username, percent) {
 	$.post("../control/ajax_editshare",
 			{ username: username, percent: percent },
 			function (data) {
