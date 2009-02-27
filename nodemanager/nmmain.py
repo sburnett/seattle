@@ -29,6 +29,11 @@ they do not terminate prematurely (restarting them as necessary).
 
 """
 
+# Let's make sure the version of python is supported
+import checkpythonversion
+checkpythonversion.ensure_python_version_is_supported()
+
+
 import time
 
 import threading

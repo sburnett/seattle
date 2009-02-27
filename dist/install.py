@@ -14,6 +14,10 @@
   configuration files, and starting seattle itself.
 """
 
+# Let's make sure the version of python is supported
+import checkpythonversion
+checkpythonversion.ensure_python_version_is_supported()
+
 import os
 import shutil
 import platform
