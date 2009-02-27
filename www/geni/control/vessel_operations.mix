@@ -114,13 +114,17 @@ def release_vessels(vessels, num_threads=10):
     <Arguments>
       vessels:
         a list of vessels to release
+      num_threads:
+        an optional argument to increase the parallelization of the method
     <Exceptions>
       None -- exceptions triggered by change users are caught and
       ignored. The idea is to release as many vessels as possible.
     <Side Effects>
-      Changes the user keys on vessels to []
+      Changes the user keys on vessels to [""]
     <Returns>
-      True
+      A dictionary that has vessels (the key) mapping to a tuple of 
+      (success?, msg).  On success, msg will be empty.  Otherwise, 
+      msg will contain an debug string for why changeuser failed
     """
 
     phandle = parallelize_initfunction(vessels, acquire_vessel,

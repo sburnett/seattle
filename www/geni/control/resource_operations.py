@@ -114,7 +114,7 @@ def release_resources(geni_user, resource_id, all):
 
         # if releasing did not succeed, don't bother modifying metadata
         if not success:
-            print "release_resources: failed to changeusers to "", not releasing, reason: %s" % msg
+            print "release_resources: failed to changeusers to \"\", not releasing, reason: %s" % msg
             continue
         # if it did succeed, update state
         else:
