@@ -35,7 +35,7 @@ from django.db import models
 from django.contrib.auth.models import User as DjangoUser
 
 from geni.control.db_operations import pop_key
-from geni.control import share_operations
+from geni.control import vessel_flow
 
 
 class User(models.Model):
@@ -200,13 +200,70 @@ class User(models.Model):
         self.vcount_base = 10
         self.save()
 
-        percent_credits, total_vessels = share_operations.get_user_credits(self)
-        free_percent = share_operations.get_user_free_percent(self)
+        percent_credits, total_vessels = self.get_user_credits()
+        free_percent = self.get_user_free_percent()
         total_vessels_free = int((total_vessels * free_percent * 1.0) / 100.0)
 
         # TODO: this should be :
         # return self.vcount_base + self.vcount_via_donations + self.vcount_via_shares
         return total_vessels_free
+
+    def get_user_shares(self):
+        """
+        <Purpose>
+        <Arguments>
+        <Exceptions>
+        <Side Effects>
+        <Returns>
+        """
+        myshares = Share.objects.filter(from_user = self)
+        ret = []
+        print "getting user shares for user:" + str(self)
+        for share in myshares:
+            print share
+            ret.append({'username' : share.to_user.www_user.username,
+                        'percent' : int(share.percent)})
+        return ret
+
+    def get_user_free_percent(self):
+        shares = self.get_user_shares()
+        free_percent = 100
+        for share in shares:
+            free_percent -= share['percent']
+        return free_percent
+
+    
+    def get_user_credits(self):
+        # credits_from has format: (geni_user_giving_me_vessels, num_vessels_via_share),
+        # except for (geni_user, num_base_vessels + num_donated_vessels)
+        shares = Share.build_shares(False)
+        pshares = Share.build_shares(True)
+        base_vessels = Share.get_base_vessels()
+        credits_from, vessels_from_shares = vessel_flow.flow_credits_from_roots(shares, pshares, base_vessels)
+        
+        base_and_donations = (self, self.vcount_base + self.vcount_via_donations)
+        if credits_from.has_key(self):
+            credits_from[self].append(base_and_donations)
+        else:
+            credits_from[self] = [base_and_donations]
+
+        total_vessels = 0
+        credits = credits_from[self]
+        for guser, credit in credits:
+            total_vessels += credit
+    
+        percent_credits = []
+        total_percent = 0
+        for guser, credit in credits:
+            percent = int((credit*1.0 / total_vessels*1.0) * 100)
+            percent_credits.append([guser, percent])
+            total_percent += percent
+
+        # make sure that all the percents sum to 100%
+        if total_percent < 100:
+            percent_credits[0][1] += (100 - total_percent)
+        
+        return percent_credits, total_vessels
     
         
     
@@ -417,3 +474,47 @@ class Share(models.Model):
           String representation of the Share class
         """
         return "%s->%s"%(self.from_user.www_user.username,self.to_user.www_user.username)
+
+    
+    @classmethod
+    def build_shares(cls, with_percent=True):
+        """
+        <Purpose>
+        <Arguments>
+        <Exceptions>
+        <Side Effects>
+        <Returns>
+        <Note>
+        <Todo>
+        """
+        shares = {}
+        for share in Share.objects.all():
+            if with_percent:
+                s = (share.to_user, int(share.percent))
+            else:
+                s = share.to_user
+            if shares.has_key(share.from_user):
+                shares[share.from_user].append(s)
+            else:
+                shares[share.from_user] = [s]
+        return shares
+    
+    @classmethod
+    def get_base_vessels(cls):
+        """
+        <Purpose>
+        <Arguments>
+        <Exceptions>
+        <Side Effects>
+        <Returns>
+        <Note>
+        <Todo>
+        """
+   
+        vessels = {}
+        for share in Share.objects.all():
+            for u in [share.to_user, share.from_user]:
+                if not vessels.has_key(u):
+                    vessels[u] = u.vcount_base + u.vcount_via_donations
+        return vessels
+

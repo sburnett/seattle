@@ -42,10 +42,10 @@ from django.shortcuts import render_to_response, get_object_or_404
 from django.views.generic.simple import direct_to_template
 from django.contrib.auth.decorators import login_required
 
-from models import User, Donation, Vessel, VesselMap, Share
-from resource_operations import acquire_resources, release_resources
-import share_operations
-from db_operations import pop_key
+from geni.control.models import User, Donation, Vessel, VesselMap, Share
+from geni.control.resource_operations import acquire_resources, release_resources
+from geni.control import share_operations
+from geni.control.db_operations import pop_key
 
 ############################################# Private helper functions
 
@@ -818,7 +818,7 @@ def ajax_getshares(request):
     geni_user = ret
 
     # retrieve all shares for the geni_user
-    shares = share_operations.get_user_shares(geni_user)
+    shares = geni_user.get_user_shares()
     print "get_user_shares returned: "
     print shares
 
@@ -902,7 +902,7 @@ def ajax_getcredits(request):
     geni_user = ret
 
     # NOTE: total percentage of percent_credits must be 100%
-    percent_credits, total_vessels = share_operations.get_user_credits(geni_user)
+    percent_credits, total_vessels = geni_user.get_user_credits()
     
     print "get_user_credits returned: "
     print percent_credits

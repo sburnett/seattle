@@ -21,50 +21,6 @@
 """
 
 from copy import deepcopy
-from geni.control.models import Share, User
-
-def build_shares(with_percent=True):
-   """
-   <Purpose>
-   <Arguments>
-   <Exceptions>
-   <Side Effects>
-   <Returns>
-   <Note>
-   <Todo>
-   """
-   shares = {}
-   for share in Share.objects.all():
-      if with_percent:
-         s = (share.to_user, int(share.percent))
-      else:
-         s = share.to_user
-      if shares.has_key(share.from_user):
-         shares[share.from_user].append(s)
-      else:
-         shares[share.from_user] = [s]
-   return shares
-
-
-
-def get_base_vessels():
-   """
-   <Purpose>
-   <Arguments>
-   <Exceptions>
-   <Side Effects>
-   <Returns>
-   <Note>
-   <Todo>
-   """
-   
-   vessels = {}
-   for share in Share.objects.all():
-      for u in [share.to_user, share.from_user]:
-         if not vessels.has_key(u):
-            vessels[u] = u.vcount_base + u.vcount_via_donations
-   return vessels
-
 
 
 def get_percent(a, b, pshares):
@@ -77,7 +33,6 @@ def get_percent(a, b, pshares):
    <Note>
    <Todo>
    """
-   
    for (x,p) in pshares[a]:
       if x == b:
          return (p * 1.0) / 100.0

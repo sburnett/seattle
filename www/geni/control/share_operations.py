@@ -18,34 +18,8 @@
 import random
 import time
 
-import vessel_flow
-from models import Share, VesselMap
-
-
-def get_user_shares(geni_user):
-    """
-    <Purpose>
-    <Arguments>
-    <Exceptions>
-    <Side Effects>
-    <Returns>
-    """
-    myshares = Share.objects.filter(from_user = geni_user)
-    ret = []
-    print "getting user shares for user:" + str(geni_user)
-    for share in myshares:
-        print share
-        ret.append({'username' : share.to_user.www_user.username,
-                    'percent' : int(share.percent)})
-    return ret
-
-def get_user_free_percent(geni_user):
-    shares = get_user_shares(geni_user)
-    free_percent = 100
-    for share in shares:
-        free_percent -= share['percent']
-    return free_percent
-
+from geni.control import vessel_flow
+from geni.control.models import Share, VesselMap
 
 def get_vcount_available(geni_user):
     return geni_user.vcount_base + geni_user.vcount_via_shares + geni_user.vcount_via_donations
@@ -84,37 +58,6 @@ def edit_user_share(geni_user, geni_user_to_share_with, percent):
     share.save()
     return True, ""
 
-def get_user_credits(geni_user):
-    # credits_from has format: (geni_user_giving_me_vessels, num_vessels_via_share),
-    # except for (geni_user, num_base_vessels + num_donated_vessels)
-    shares = vessel_flow.build_shares(False)
-    pshares = vessel_flow.build_shares(True)
-    base_vessels = vessel_flow.get_base_vessels()
-    credits_from, vessels_from_shares = vessel_flow.flow_credits_from_roots(shares, pshares, base_vessels)
-
-    base_and_donations = (geni_user, geni_user.vcount_base + geni_user.vcount_via_donations)
-    if credits_from.has_key(geni_user):
-        credits_from[geni_user].append(base_and_donations)
-    else:
-        credits_from[geni_user] = [base_and_donations]
-
-    total_vessels = 0
-    credits = credits_from[geni_user]
-    for guser, credit in credits:
-        total_vessels += credit
-    
-    percent_credits = []
-    total_percent = 0
-    for guser, credit in credits:
-        percent = int((credit*1.0 / total_vessels*1.0) * 100)
-        percent_credits.append([guser, percent])
-        total_percent += percent
-
-    # make sure that all the percents sum to 100%
-    if total_percent < 100:
-        percent_credits[0][1] += (100 - total_percent)
-        
-    return percent_credits, total_vessels
 
 def create_user_share(geni_user, geni_user_to_share_with, percent):
     """
@@ -125,7 +68,7 @@ def create_user_share(geni_user, geni_user_to_share_with, percent):
     <Returns>
     """
     
-    shares = vessel_flow.build_shares(False)
+    shares = Share.build_shares(False)
     if vessel_flow.link_will_form_loop(shares, geni_user, geni_user_to_share_with):
         return False, "Cannot add a share that will create a sharing cycle"
     
@@ -134,9 +77,9 @@ def create_user_share(geni_user, geni_user_to_share_with, percent):
                 percent   = percent)
     s.save()
 
-    shares = vessel_flow.build_shares(False)
-    pshares = vessel_flow.build_shares(True)
-    base_vessels = vessel_flow.get_base_vessels()
+    shares = Share.build_shares(False)
+    pshares = Share.build_shares(True)
+    base_vessels = Share.get_base_vessels()
     credits_from, vessels_from_shares = vessel_flow.flow_credits_from_roots(shares, pshares, base_vessels)
 
     print "new vessels_from_shares: "
