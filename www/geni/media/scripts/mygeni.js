@@ -506,6 +506,7 @@ function update_shares() {
 				add_cell("shares", json[2][0].username, json[2][0].percent);
 				add_cell("shares", "Free", 100 - total_percent);
 				$("#vesselsavailable").text(json[3] + " vessels available");
+				update_numvessels(json[3]);
 			},
 			"json");
 }
@@ -525,3 +526,12 @@ function add_cell(type, username, percent) {
 	}
 }
 
+
+function update_numvessels(number) {
+	$("#numvessels").empty();
+	for (var i = 1; i <= number; i++) {
+		var option = $(document.createElement("option"));
+		option.text(i);
+		$("#numvessels").append(option);
+	}
+}
