@@ -463,6 +463,7 @@ function update_credits() {
 			function (data) {
 				$("#credits").empty();
 				$("#creditnames").empty();
+				$("#creditotherstable").empty();
 				var json = eval('(' + data + ')');
 				var total_others = 0;
 				for (var i = 0; i < json[0].length; i++) {
@@ -485,6 +486,7 @@ function update_shares() {
 			function (data) {
 				$("#usage").empty();
 				$("#usagenames").empty();
+				$("#usageotherstable").empty();	
 				var json = eval('(' + data + ')');
 				var total_percent = 0;
 				var total_others = 0;
