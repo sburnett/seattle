@@ -1,7 +1,8 @@
 var minwidth = 10;
 
 $(document).ready(function() {
-	load();
+	update_credits();
+	update_shares();
 });
 
 /*
@@ -307,7 +308,6 @@ function save_percent() {
 					$("#dialogframe").hide();
 					$("#overlay").hide();
 					update_shares();
-					
 					// edit_block(username, percent);
 				} else {
 					create_warning(json.error, $("#changepercentdialog h3"));
@@ -355,7 +355,6 @@ function close_dialog() {
 	$("#dialogframe").hide();
 	$("#overlay").hide();
 }
-
 
 
 function post_ajax(url, args, func) {
@@ -453,11 +452,6 @@ function color_generator(username) {
 }
 
 
-function load() {
-	update_credits();
-	update_shares();
-}
-
 function update_credits() {
 	$.post("../control/ajax_getcredits",
 			function (data) {
@@ -473,7 +467,9 @@ function update_credits() {
 					add_other("credits", json[1][i].username, json[1][i].percent);
 					total_others += json[1][i].percent;
 				}
-				add_cell("credits", "Others", total_others);
+				if (total_others > 0) {
+					add_cell("credits", "Others", total_others);
+				}
 			}, 
 			"json");
 }
@@ -487,7 +483,6 @@ function update_shares() {
 				var total_percent = 0;
 				var total_others = 0;
 				for (var i = 0; i < json[0].length; i++) {
-					alert(json[0].length);
 					add_cell("shares", json[0][i].username, json[0][i].percent);
 					total_percent += json[0][i].percent;
 				}
@@ -496,7 +491,9 @@ function update_shares() {
 					total_others += json[1][i].percent;
 				}
 				total_percent += total_others + json[2][0].percent;
-				add_cell("shares", "Others", total_others);
+				if (total_others > 0) {
+					add_cell("shares", "Others", total_others);
+				}
 				add_cell("shares", json[2][0].username, json[2][0].percent);
 				add_cell("shares", "Free", 100 - total_percent);
 			}, 
