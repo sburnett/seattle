@@ -190,7 +190,7 @@ function add_other(type, username, percent) {
 	var edit = $(document.createElement("button"));
 	edit.text("Edit");
 	edit.click(function() {
-		change_percent();
+		change_percent_table();
 	});
 	var close = $(document.createElement("button"));
 	close.text("Delete");
@@ -274,6 +274,36 @@ function change_percent() {
 	input.attr("name", $(this).parent().attr("id"));
 	input.attr("type", "text");
 	input.val(parseInt($(this).text()));
+	input.click(function () { $(this).val("") });
+	var symbol = $(document.createElement("span"));
+	symbol.html(" %<br />");
+	var cancel = $(document.createElement("button"));
+	cancel.text("Cancel");
+	var save = $(document.createElement("button"));
+	save.text("Save");
+	cancel.click(function () {
+		close_dialog();
+		$(this).parent().remove();
+	});
+	save.click(save_percent);
+	dialog.append(input);
+	dialog.append(symbol);
+	dialog.append(cancel);
+	dialog.append(save);
+	$("#dialogframe").append(dialog);
+	$("#dialogframe").fadeIn("fast");
+	$("#overlay").fadeIn("fast");
+	$("#changepercentdialog").fadeIn("fast");
+}
+
+function change_percent_table() {
+	var dialog = $(document.createElement("div"));
+	dialog.attr("id", "changepercentdialog");
+	dialog.html('<h3>Change Percent</h3>');
+	var input = $(document.createElement("input"));
+	input.attr("name", $(this).parent().prev().prev().text());
+	input.attr("type", "text");
+	input.val(parseInt($(this).parent().prev().text()));
 	input.click(function () { $(this).val("") });
 	var symbol = $(document.createElement("span"));
 	symbol.html(" %<br />");
