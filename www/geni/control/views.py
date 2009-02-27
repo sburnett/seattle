@@ -847,7 +847,7 @@ def ajax_getshares(request):
     #free_percent = share_operations.get_user_free_percent(geni_user)
     #percent_credits, total_vessels = share_operations.get_user_credits(geni_user)
     #int((total_vessels * free_percent * 1.0) / 100.0)
-    total_vessels_free = geni_user.vessel_credit_limit()
+    total_vessels_free = geni_user.vessel_credit_remaining()
     
     ret = [shares_above_thresh, shares_below_thresh, geni_user_record, total_vessels_free]
     return __jsonify(ret)
