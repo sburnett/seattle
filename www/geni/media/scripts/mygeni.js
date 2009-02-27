@@ -94,7 +94,6 @@ function add_other(type, username, percent) {
 		table = $("#usageotherstable");
 	}
 	var tr = $(document.createElement("tr"));
-	tr.addClass("{% cycle 'odd' 'even' %}");
 	tr.html("<td>" + username + "</td><td>" + percent + "</td>");
 	var control = $(document.createElement("td"));
 	var edit = $(document.createElement("button"));
@@ -397,6 +396,7 @@ function update_numvessels(number) {
 	$("#numvessels").empty();
 	for (var i = 1; i <= number; i++) {
 		var option = $(document.createElement("option"));
+		option.val(i);
 		option.text(i);
 		$("#numvessels").append(option);
 	}
