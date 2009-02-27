@@ -496,35 +496,3 @@ table#downloads tr td a {
 }
 
 
-
-/******************************
-* STYLESHEET FOR help.html
-*******************************/
-
-#toc {
-    float: right;
-    border: 2px solid #999;
-    width: 300px;
-    padding: 10px 15px;
-    background-color: #fff;
-    margin: 10px 30px;
-	font-size: 10pt;
-}
-
-#toc a {
-	color: #0066FF;
-}
-
-#toc ul {
-    margin: 5px 15px;
-    list-style: disc inside;
-}
-
-p {
-    margin: 20px auto 20px 0;
-	font-size: 11pt;
-}
-
-p a {
-	color: #0066FF;
-}
