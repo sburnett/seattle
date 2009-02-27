@@ -18,6 +18,10 @@ def new_virtual_conn(remoteip, remoteport, virtualsock, junk, multiplexer):
       num = num + 1
     else:
       print "Unexpected number! Expected: ", str(num), " Received: ",data
+  
+  # Sleep a second before closing the socket
+  sleep(1)
+  virtualsock.close()
 
 def timeout():
   print "Reached timeout!"
@@ -43,5 +47,6 @@ while True and num <= MAX_NUM:
   else:
     print "Unexpected number! Expected: ", str(num), " Received: ",data
 
+virtualsock.close()
 
 exitall()

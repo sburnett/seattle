@@ -19,6 +19,9 @@ def new_virtual_conn(remoteip, remoteport, virtualsock, junk, multiplexer):
     else:
       print "Unexpected number! Expected: ", str(num), " Received: ",data
 
+  # Sleep a second before closing the socket
+  sleep(1)
+  virtualsock.close()
 
 # Handle a new client connecting to us
 def new_connection(remoteip, remoteport, socket, thiscommhandle, listencommhandle):
@@ -60,4 +63,6 @@ while True and num <= MAX_NUM:
     print "Unexpected number! Expected: ", str(num), " Received: ",data
 
 
+virtualsock.close()
+    
 exitall()
