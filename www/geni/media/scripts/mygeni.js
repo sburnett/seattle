@@ -8,6 +8,7 @@ $(document).ready(function() {
 	A cell is a combination of block and label
 	Take care of cell order and cell minwidth
 */
+/*
 function add_cell(type, username, percent) {
 	if (type == "credits") {
 		if (percent >= minwidth) {
@@ -79,11 +80,11 @@ function add_cell(type, username, percent) {
 		}
 	}
 }
-
+*/
 
 /*
 	Return the percent of the given user in given bar type
-*/
+
 function get_percent(type, username) {
 	var percent = 0;
 	if (type == "credits") {
@@ -93,7 +94,7 @@ function get_percent(type, username) {
 	}
 	return percent;
 }
-
+*/
 
 /*
 	Create a block with given width and background color,
@@ -135,7 +136,8 @@ function create_block(username, width, isShare) {
 						function (data) {
 							var json = eval('(' + data + ')');
 							if (json.success) {
-								edit_block(username, 0);
+								//edit_block(username, 0);
+								update_shares();
 							} else {
 								alert(json.error);
 							}
@@ -173,7 +175,7 @@ function create_label(username, width, isShare) {
 }
 
 
-function create_other(username, percent, isShare) {
+function add_other(username, percent, isShare) {
 	var tr = $(document.createElement("tr"));
 	tr.addClass("{% cycle 'odd' 'even' %}");
 	tr.html("<td>" + username + "</td><td>" + percent + "</td>");
@@ -191,7 +193,8 @@ function create_other(username, percent, isShare) {
 				function(data) {
 					var json = eval('(' + data + ')');
 					if (json.success) {
-						edit_block(username, 0);
+						//edit_block(username, 0);
+						update_shares();
 					} else {
 						alert(json.error);
 					}
@@ -210,7 +213,7 @@ function create_other(username, percent, isShare) {
 	actual width. Resize free block to	fit the width of the bar.
 	Remove the block from the usage bar if width is 0
 	Called by save_percent or close on the block
-*/
+
 function edit_block(username, width) {
 	if (username != "Free") {
 		var block = $("#usage" + username);
@@ -250,6 +253,7 @@ function edit_cell(type, username, percent) {
 		}
 	}
 }
+*/
 
 
 /*
@@ -302,7 +306,9 @@ function save_percent() {
 					$("#changepercentdialog").remove();
 					$("#dialogframe").hide();
 					$("#overlay").hide();
-					edit_block(username, percent);
+					update_shares();
+					
+					// edit_block(username, percent);
 				} else {
 					create_warning(json.error, $("#changepercentdialog h3"));
 				}
@@ -350,27 +356,17 @@ function close_dialog() {
 	$("#overlay").hide();
 }
 
-/*
-function received_ajax(data, fun) {
-	if data html ...
-	else
-		fun(data)
-	
+
+
+function post_ajax(url, args, func) {
+	$.post(url, args, function(data) {
+		// check data
+		// if data ok then:
+		func(data)
+		// else:
+		// display content as raw html in a new popup
+	});
 }
-
-
-function post_ajax(url, args, fun) {
-	$.post(url,
-		args,	
-				function (data) {
-					if data html ...
-					else	
-					fun(data)
-	}
-}
-*/
-
-
 
 
 function share_resources() {
@@ -380,18 +376,16 @@ function share_resources() {
 	    $("#shareresourcesdialog .warning").remove();
 	}
 	if (percent > 0) {
-		// post_ajax(url, args, function () {...})
-		$.post("../control/ajax_createshare",
+		post_ajax("../control/ajax_createshare",
 				{ username: username, percent: percent },
-				function (data) {
-					// func(data);
+				function(data) {
 					var json = eval('(' + data + ')');
 					if (json.success) {
 						$("#shareresourcesdialog").hide();
 						$("#dialogframe").hide();
 						$("#overlay").hide();
-						add_cell("share", username, percent);
-						alert("cell added!");
+						update_shares();
+						// add_cell("share", username, percent);
 					} else {
 						create_warning(json.error, $("#shareresourcesdialog h3"));
 					}
@@ -418,11 +412,8 @@ function get_resources() {
 					$("#getresourcesdialog").hide();
 					$("#dialogframe").hide();
 					$("#overlay").hide();
-					add_cell("share", "Me", parseInt(json.mypercent));
-					/*
-					create_block($("#usage"), "Me", parseInt(json.mypercent), true);
-					create_label($("#usagenames"), "Me", parseInt(json.mypercent), true);
-					*/
+					update_shares();
+					// add_cell("share", "Me", parseInt(json.mypercent));
 				} else {
 					create_warning(json.error, $("#getresourcesdialog h3"));
 				}
@@ -463,47 +454,66 @@ function color_generator(username) {
 
 
 function load() {
+	update_credits();
+	update_shares();
+}
+
+function update_credits() {
 	$.post("../control/ajax_getcredits",
-		function (data) { update_blocks("credits", data); }, 
-		"json");
+			function (data) {
+				$("#credits").empty();
+				$("#creditnames").empty();
+				var json = eval('(' + data + ')');
+				var total_others = 0;
+				add_cell("credits", json[2][0].username, json[2][1].percent);
+				for (var i = 0; i < json.length; i++) {
+					add_cell("credits", json[0][i].username, json[0][i].percent);
+				}
+				for (var i = 0; i < json.length; i++) {
+					add_other("credits", json[1][i].username, json[1][i].percent);
+					total_others += json[1][i].percent;
+				}
+				add_cell("credits", "Others", total_others);
+			}, 
+			"json");
+}
+
+function update_shares() {
 	$.post("../control/ajax_getshares",
-		function (data) { update_blocks("shares", data); }, 
-		"json");
+			function (data) {
+				$("#usage").empty();
+				$("#usagenames").empty();
+				var json = eval('(' + data + ')');
+				var total_percent = 0;
+				var total_others = 0;
+				for (var i = 0; i < json.length; i++) {
+					add_cell("shares", json[0][i].username, json[0][i].percent);
+					total_percent += json[0][i].percent;
+				}
+				for (var i = 0; i < json.length; i++) {
+					add_other("shares", json[1][i].username, json[1][i].percent);
+					total_others += json[1][i].percent;
+				}
+				total_percent += total_others + json[2][1].percent;
+				add_cell("shares", "Others", total_others);
+				add_cell("shares", json[2][0].username, json[2][1].percent);
+				add_cell("shares", "Free", 100 - total_percent);
+			}, 
+			"json");
 }
 
 
-function update_blocks(type, data) {
-	var json = eval('(' + data + ')');
-	var total_percent = 0;
-	for (var i = 0; i < json.length; i++) {
-		add_cell(type, json[i].username, json[i].percent);
-		total_percent += json[i].percent;
-	}
-	if (type == "shares") {
-		add_cell(type, "Free", 100 - total_percent);
-	}
-	
-	/*
+function add_cell(type, username, percent) {
 	if (type == "credits") {
-		var credits = $("#credits");
-		var creditnames = $("#creditnames");
-		var json = eval('(' + data + ')');
-		for (var i = 0; i < json.length; i++) {			
-			create_block(credits, json[i].username, json[i].percent, false);
-			create_label(creditnames, json[i].username, json[i].percent, false);
-		}
+		var block = create_block(username, percent, false);
+		var label = create_label(username, percent, false);
+		$("#credits").append(block);
+		$("#creditnames").append(label);
 	} else if (type == "shares") {
-		var usage = $("#usage");
-		var usagenames = $("#usagenames");
-		var json = eval('(' + data + ')');
-		var total_percent = 0;
-		for (var i = 0; i < json.length; i++) {
-			create_block(usage, json[i].username, json[i].percent, true);
-			create_label(usagenames, json[i].username, json[i].percent, true);
-			total_percent += json[i].percent;
-		}
-		create_block(usage, "Free", 100 - total_percent, true);
-		create_label(usagenames, "Free", 100 - total_percent, true);
+		var block = create_block(username, percent, true);
+		var label = create_label(username, percent, true);
+		$("#usage").append(block);
+		$("#usagenames").append(label);
 	}
-	*/
 }
+
