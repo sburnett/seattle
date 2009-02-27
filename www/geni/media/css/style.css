@@ -300,6 +300,10 @@ table.users tr th {
     color: #fff;
 }
 
+table.users tr.header {
+	background-color: purple;
+}
+
 table.users tr.odd {
     background-color: #fff;
 }

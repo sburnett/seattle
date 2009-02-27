@@ -1,4 +1,3 @@
-var minwidth = 10;
 
 $(document).ready(function() {
 	update_credits();
@@ -286,7 +285,9 @@ function get_resources() {
 			});
 }
 
-
+/*
+	Create and insert a warning sign after the given position
+*/
 
 function create_warning(error, position) {
 	var warning = $(document.createElement("p"));
@@ -295,11 +296,11 @@ function create_warning(error, position) {
 	warning.insertAfter(position);
 }
 
+
 /*
 	Generate a color in hex notation for a username, which assigns different
 	colors to different usernames.
 */
-
 function color_generator(username) {
 	var seeds = ['cc','ff'];
 	var color = seeds[username.charCodeAt(0) % 2] +
@@ -324,7 +325,7 @@ function update_credits() {
 			function (data) {
 				$("#credits").empty();
 				$("#creditnames").empty();
-				$("#creditotherstable").empty();
+				$("#creditotherstable tr:gt(0)").empty();
 				var json = eval('(' + data + ')');
 				var total_others = 0;
 				for (var i = 0; i < json[0].length; i++) {
@@ -339,6 +340,8 @@ function update_credits() {
 				}
 				add_cell("credits", json[2][0].username, json[2][0].percent);
 				$("#vesselscredits").text(json[3] + " vessels credits");
+				$("#creditotherstable tr:odd").addClass("odd");
+				$("#creditotherstable tr:even").addClass("even");
 			}, 
 			"json");
 }
@@ -348,7 +351,7 @@ function update_shares() {
 			function (data) {
 				$("#usage").empty();
 				$("#usagenames").empty();
-				$("#usageotherstable").empty();	
+				$("#usageotherstable tr:gt(0)").empty();
 				var json = eval('(' + data + ')');
 				var total_percent = 0;
 				var total_others = 0;
@@ -368,6 +371,8 @@ function update_shares() {
 				add_cell("shares", "Free", 100 - total_percent);
 				$("#vesselsavailable").text(json[3] + " vessels available");
 				update_numvessels(json[3]);
+				$("#usageotherstable tr:odd").addClass("odd");
+				$("#usageotherstable tr:even").addClass("even");
 			},
 			"json");
 }
