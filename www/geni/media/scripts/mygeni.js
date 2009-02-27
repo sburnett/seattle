@@ -173,7 +173,6 @@ function save_percent(username, percent) {
 					$("#dialogframe").hide();
 					$("#overlay").hide();
 					update_shares();
-					// edit_block(username, percent);
 				} else {
 					create_warning(json.error, $("#changepercentdialog h3"));
 				}
@@ -249,7 +248,6 @@ function share_resources() {
 						$("#dialogframe").hide();
 						$("#overlay").hide();
 						update_shares();
-						// add_cell("share", username, percent);
 					} else {
 						create_warning(json.error, $("#shareresourcesdialog h3"));
 					}
@@ -262,7 +260,7 @@ function share_resources() {
 
 function get_resources() {
 	var numvessels = parseInt($("#numvessels").val());
-	var env = $("#environment").val();
+	var env = parseInt($("#environment").val());
 	if ($("#getresourcesdialog .warning")) {
 	    $("#getresourcesdialog .warning").remove();
 	}
@@ -277,7 +275,6 @@ function get_resources() {
 					$("#dialogframe").hide();
 					$("#overlay").hide();
 					update_shares();
-					// add_cell("share", "Me", parseInt(json.mypercent));
 				} else {
 					create_warning(json.error, $("#getresourcesdialog h3"));
 				}
