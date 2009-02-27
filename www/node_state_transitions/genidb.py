@@ -58,6 +58,7 @@ from django.db import transaction
 # django exceptions we might see
 import django.core.exceptions as exceptions
 
+DEFAULT_EPOCH_COUNT = 5
 
 def __get_guser__(donor_pubkey_string):
     """
@@ -118,6 +119,34 @@ def get_nodes():
     nodes = Donation.objects.all()
     return nodes
 
+def lookup_donations_by_ip(nodeip):
+    # this returns an array of potentially mulptiple donation objects that match nodeip in the database
+    donations = Donation.objects.filter(ip = nodeip)
+    return donations
+
+@transaction.commit_manually
+def handle_inactive_donation(donation):
+    try:
+        if donation.epoch == 0:
+            print "Donation [%s] epoch count is 0, making inactive"%(donation)
+            vmaps = VesselMap.objects.filter(vessel_port__vessel__donation__exact = donation)
+            print "Deleting %i vesselmaps linked to this donation: %s"(vmapslcount(), vmaps)
+            for vmap in vmaps:
+                vmap.delete()
+            # TODO: need to update people's flow records here!!!
+            donation.active = 0    
+        else:
+            donation.epoch -= 1
+            print "Donation [%s] inactive, epoch count is now %i"%(donation.epoch)
+    except:
+        traceback.print_exc()
+        transaction.rollback()
+        raise
+    else:
+        # success
+        transaction.commit()
+    return True
+    
 
 def lookup_node(node_pubkey):
     """
@@ -320,12 +349,16 @@ def update_node(node_obj, retdict, ip, port, status):
     """
     version = retdict['version']
     
+    if node_obj.active == 0:
+        print "updating node [%s] that was inactive -> active"%(node_obj)
+
     # update the Donation object's fields
     node_obj.version = version
     node_obj.ip = ip
     node_obj.port = port
     node_obj.status = status
     node_obj.active = 1
+    node_obj.epoch = DEFAULT_EPOCH_COUNT
     # save node record 
     # NOTE: node's last seen timestamp is updated automatically on
     # call to save()

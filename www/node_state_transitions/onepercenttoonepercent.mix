@@ -24,9 +24,12 @@ def updatedb(nmhandle, node, retdict, *args):
   genidb.update_node(dbnode, retdict, host, port, 'Ready')
   print time.ctime(), "updated node db record with version " + str(dbnode.version) + ", status " + str(dbnode.status)
 
-def nodeerrorfun(node):
-    print "nodeerrorfun called with node: ", node
-    pass
+def nodeerrorfun(nodeip):
+    print "nodeerrorfun called with nodeip: ", nodeip
+    donations = genidb.lookup_donations_by_ip(nodeip)
+    for donation in donations:
+      genidb.handle_inactive_donation(donation)
+    return
 
   
 def main():
