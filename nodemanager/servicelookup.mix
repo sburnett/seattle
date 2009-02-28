@@ -1,0 +1,38 @@
+"""
+<Program>
+  servicelookup.py
+
+<Date Started>
+  Feburary 11th, 2008
+
+<Author>
+  Sean (Xuanhua) Ren
+  shawiz@cs.washington.edu
+
+<Purpose>
+  Look up the vesseldict
+  
+<TODOs>
+  Make real test cases
+  modify service logger to utilize servicelookup
+  make sure that if vx doesn't exist, then do whatever to fix it
+  otherwise, take the smallest v and if not, take the second smallest, etc
+  
+"""
+
+from repyportability import *
+include rsa.repy
+
+def get_service_vessels(vesseldict, ownerkey, ownerinfo):
+  """
+  <Purpose>
+    Return a list of vessels that match the owner key and contain the ownerinfo
+  <Arguments>
+    ownerkey - the ownerkey to match
+    ownerinfo - the owner information that contained in the vessels
+  """
+  ret = [];
+  for vid, vinfo in vesseldict.iteritems():
+    if (ownerkey == rsa_publickey_to_string(vinfo['ownerkey']) and ownerinfo in vinfo['ownerinformation']):
+      ret.append(vid)
+  return ret
