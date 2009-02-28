@@ -33,6 +33,12 @@ checkpythonversion.ensure_python_version_is_supported()
 ### Integration fix here...
 from repyportability import *
 
+try:
+  # Add smarter history / command substitution if possible
+  import readline
+except ImportError:
+  pass
+
 
 include nmclient.repy
 
