@@ -276,8 +276,8 @@ function get_resources() {
 			{ numvessels: numvessels, env: env },
 			function (data) {
 				var json = eval('(' + data + ')');
-				alert(json.mypercent);
-				alert(json.success);
+				// alert(json.mypercent);
+				// alert(json.success);
 				if (json.success) {
 					$("#getresourcesdialog").hide();
 					$("#dialogframe").hide();
