@@ -124,6 +124,14 @@ body {
 	background-color: #f2dbdb;
 }
 
+.tooltip {
+	background-color: #fff;
+	color: #333;
+	font-size: 9pt;
+    border:solid 1px #333;
+	z-index:100;
+}
+
 
 /******************************
 * STYLESHEET FOR login.html and register.html

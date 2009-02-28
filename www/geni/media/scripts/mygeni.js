@@ -53,14 +53,9 @@ function create_block(username, width, isShare) {
 						});
 			});
 			block.append(close);
+			percent.attr("title", "Click to change percent");
+			percent.tooltip({cssClass:"tooltip"});
 			percent.css("cursor", "pointer");
-			percent.hover(
-				function() {
-					$(this).text("Click to edit percent");
-				},
-				function () {
-					$(this).text(width + '%');
-				});
 			percent.click(function() {
 				change_percent(username, width);
 			});
@@ -68,14 +63,9 @@ function create_block(username, width, isShare) {
 	}
 	
 	if (username == "Others") {
+		percent.attr("title", "Click to reveal");
+		percent.tooltip({cssClass:"tooltip"});
 		percent.css("cursor", "pointer");
-		percent.hover(
-			function() {
-				$(this).text("Click to reveal");
-			},
-			function () {
-				$(this).text(width + '%');
-			});
 		percent.click(function () { show_table(isShare) });
 		// block.attr("id", "creditOthers");
 	}
