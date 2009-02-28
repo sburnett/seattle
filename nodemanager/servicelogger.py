@@ -60,7 +60,7 @@ def init(logname, cfgdir='.'):
   if service_vessels:
     found = False
     i = 0;
-    while i < len(service_vessels) and !found:
+    while i < len(service_vessels) and (not found):
       found = os.path.isdir(service_vessels[i])
       i++
     
@@ -104,7 +104,7 @@ def multi_process_log(message, logname, cfgdir='.'):
     if service_vessels:
       found = False
       i = 0;
-      while i < len(service_vessels) and !found:
+      while i < len(service_vessels) and (not found):
         found = os.path.isdir(service_vessels[i])
         i++
 
