@@ -40,9 +40,9 @@ import time
 def serverListen(s):
   s.listen(1)
   conn, addr = s.accept()
-  print 'Connected by', addr
   while 1:
     data = conn.recv(1024)
+  conn.close()
 
 def clientSend(s, totalBytes, chunkSize):
   totalChunks = totalBytes/chunkSize
@@ -57,12 +57,17 @@ def clientSend(s, totalBytes, chunkSize):
 
   runTime = endTime - startTime * 1.0
 
-  print "******* Statistics for Python TCP *******"
-  print "Connected to " + str(s.getpeername())
-  print "Sent " + str(totalChunks) + " packets, which had a size of " + str(chunkSize) + " bytes." 
-  print "Total runtime: " + str(runTime) + " seconds."
+  addr = s.getpeername()
+  s.close()
+
+  print "\n\n******* Statistics for Python TCP *******"
+  print "* Connected to " + str(addr)
+  print "* Sent " + str(totalChunks) + " packets, which had a size of " + str(chunkSize) + " bytes." 
+  print "* Total runtime: " + str(runTime) + " seconds."
   if runTime:
-    print "At a Rate of: " + str(totalBytes/runtime) + " B/S.\n"
+    print "* At a Rate of: " + str(totalBytes/runtime) + " B/S."
+  print "*****************************************\n\n"
+
 
 def main():
   # where are we?
@@ -83,8 +88,6 @@ def main():
     totalBytes = int(sys.argv[5])
     chunkSize = int(sys.argv[6])
     clientSend(s, totalBytes, chunkSize)
-
-  s.close()
 
 # do it
 main()
