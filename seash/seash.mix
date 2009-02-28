@@ -1616,8 +1616,8 @@ update             -- Update information about the vessels
           remotefn = userinputlist[1]
           localfn = userinputlist[1]
         elif len(userinputlist)==3:
-          localfn = userinputlist[1]
-          remotefn = userinputlist[2]
+          remotefn = userinputlist[1]
+          localfn = userinputlist[2]
         else:
           raise UserError("Usage: download localfn (remotefn)")
 
