@@ -20,14 +20,17 @@ import sys
 import shutil
 import subprocess
 
+DEBUG = False
+
 # For unique temp folders
 PROGRAM_NAME = "build_and_update"
-UPDATER_SITE = "/home/couvb/public_html/updatesite"
+UPDATER_SITE = "/home/couvb/public_html/updatesite/real"
+if DEBUG:
+    UPDATER_SITE = "/home/couvb/public_html/updatesite/test"
 INSTALL_DIR = "seattle_repy"
-#DIST_DIR = "/var/www/dist"
-DIST_DIR = "/home/butaud/temp/dist"
-
-DEBUG = True
+DIST_DIR = "/var/www/dist"
+if DEBUG:
+    DIST_DIR = "/home/butaud/temp/dist"
 
 def main():
     if len(sys.argv) < 4:
@@ -47,6 +50,7 @@ def main():
                 print "Use make_base_installers instead to just create installers."
         else:
             # If we're in DEBUG mode, don't bother to confirm
+            print "Operating in debug mode..."
             if len(sys.argv) < 3:
                 build_and_update(sys.argv[1], sys.argv[2], sys.argv[3])
             else:
@@ -81,9 +85,7 @@ def build_and_update(trunk_location, pubkey, privkey, version=""):
     """
     if not os.path.exists(trunk_location):
         raise IOError("Trunk could not be found at " + trunk_location)
-    update_dir = UPDATER_SITE + "/real"
-    if DEBUG:
-        update_dir = UPDATER_SITE + "/test"
+    update_dir = UPDATER_SITE
     
     # First, make the temp directories
     temp_dir = "/tmp/" + PROGRAM_NAME + str(os.getpid())
