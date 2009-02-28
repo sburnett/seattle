@@ -46,7 +46,7 @@ import nminit
 def write_meta_and_copy(destdir, keyname):
 
   # create the metainfo file for the files in the current directory
-  writemetainfo.create_metainfo_file(keyname+'.privatekey', keyname+'.publickey')
+  writemetainfo.create_metainfo_file(keyname+'.privatekey', keyname+'.publickey', True)
 
   print 'Copying files to '+destdir+' folder...'
 
