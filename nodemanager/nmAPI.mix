@@ -215,11 +215,11 @@ def startvessel(vesselname, argstring):
       # First element should be the script (repy)
       command[0] = "\"" + repy_constants.PATH_SEATTLE_INSTALL + "repy.py"  + "\""
       # Second element should be the parameters
-      command[1] = donationIP_str + "--logfile " + vesseldict[vesselname]['logfilename'] + " --stop "+ vesseldict[vesselname]['stopfilename'] + " --status " + vesseldict[vesselname]['statusfilename'] + " --cwd " + updir + " " + vesseldict[vesselname]['resourcefilename']+" "+argstring
+      command[1] = donationIP_str + "--logfile " + vesseldict[vesselname]['logfilename'] + " --stop "+ vesseldict[vesselname]['stopfilename'] + " --status " + vesseldict[vesselname]['statusfilename'] + " --cwd " + updir + " --servicelog " + vesseldict[vesselname]['resourcefilename']+" "+argstring
     
     else:  
       # architecturally, I'm unsure prepending ../ is the best solution...
-      command = "python ../repy.py " + donationIP_str + "--logfile ../"+vesseldict[vesselname]['logfilename']+" --stop ../"+vesseldict[vesselname]['stopfilename']+" --status ../"+vesseldict[vesselname]['statusfilename']+ " --cwd " + currentDirectory + " ../" + vesseldict[vesselname]['resourcefilename']+" "+argstring
+      command = "python ../repy.py " + donationIP_str + "--logfile ../"+vesseldict[vesselname]['logfilename']+" --stop ../"+vesseldict[vesselname]['stopfilename']+" --status ../"+vesseldict[vesselname]['statusfilename']+ " --cwd " + currentDirectory + " --servicelog ../" + vesseldict[vesselname]['resourcefilename']+" "+argstring
 
     start_task(command)
 
