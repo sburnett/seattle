@@ -244,8 +244,7 @@ def main():
   # Copy back everything from noup so the restart tests start with a 
   # clean slate.
   for originalfile in glob.glob(tmpserver + '/noup/*'):
-    splitpath = originalfile.split('/')
-    shutil.copy(originalfile, splitpath[len(splitpath)-1])
+    shutil.copy(originalfile, os.path.basename(originalfile))
    
     
   ##################################
