@@ -59,14 +59,14 @@ if callfunc == 'initialize':
 
     endTime = getruntime()
 
-    socket.disconnect()
+    stopcomm(socket)
 
 
     print "\n\n******* Statistics for TCUP *******\n\n"
-    print "Connected to " + destip + "\n"
-    print "Sent " + totalChunks + " packets, which had a size of " + chunkSize + " bytes.\n\n" 
-    print "Total runtime: " + (endTime - startTime) + " seconds.\n"
-    print "At a Rate of: " + ((endTime - startTime)/ totalBytes) + " B/S.\n"
+    print "Connected to " + str(destip) + "\n"
+    print "Sent " + str(totalChunks) + " packets, which had a size of " + str(chunkSize) + " bytes.\n\n" 
+    print "Total runtime: " + str((endTime - startTime)) + " seconds.\n"
+    print "At a Rate of: " + str(((endTime - startTime)/ totalBytes)) + " B/S.\n\n\n"
 
 
 
