@@ -55,3 +55,8 @@ p {
 p a {
 	color: #0066FF;
 }
+
+p.footnote {
+	font-size: 10pt;
+	margin: 20px 10px;
+}
