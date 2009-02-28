@@ -16,19 +16,18 @@
   service vessel.  init must be called before log.
 """
 
-from repyportability import *
 import os
 import logging
 import time
 
+# We don't import from repyportability because when this is imported from
+# within repy, restrictions files are no longer honored.
 include servicelookup.repy
 
 
 logfile = None
 servicevessel = None
 
-class ServiceLogError(Exception):
-  pass
 
 def get_servicevessel():
   """
@@ -107,7 +106,7 @@ def init(logname):
     logfile = logging.circular_logger(servicevessel + '/' + logname, use_nanny=False)
   
   
-def multi_process_log(message, logname):
+def multi_process_log(message, logname, cfgdir):
   """
   <Purpose>
     Logs the given message to a log.  Does some trickery to make sure there
@@ -117,6 +116,7 @@ def multi_process_log(message, logname):
   <Arguments>
     message - The message that should be written to the log.
     logname - The name to be used for the logfile.
+    cfgdir - The directory that contains the vesseldict
   
   <Exceptions>
     Exception if there is a problem reading from cfgdir/nodeman.cfg or writing
@@ -131,16 +131,28 @@ def multi_process_log(message, logname):
   global servicevessel
   
   if servicevessel == None:
+    # We need to make sure we are in the directory with vesseldict
+    cwd = os.getcwd()
+    os.chdir(cfgdir)
     servicevessel = get_servicevessel()
+    os.chdir(cwd)
   
   if servicevessel == None:
     return
     
   logcount = 0
-  for servicefile in os.listdir(cfgdir + '/' + servicevessel):
+
+  servicefiles = os.listdir(cfgdir + '/' + servicevessel)
+  for servicefile in servicefiles:
+    # Count all the log files.  There is always either a .old or .new for
+    # every log
     if servicefile.endswith('.old'):
-      # Count all the log files.  There is always a .old for every log?
       logcount = logcount + 1
+    elif servicefile.endswith('.new'):
+      if (servicefile[:-4] + ".old") not in servicefiles:
+        # If there is a new file but no old file, we will count it
+        logcount = logcount + 1
+
       
   if logcount >= 10:
     # If there are 10 or more logfiles already present, we don't want to create
@@ -159,11 +171,18 @@ def multi_process_log(message, logname):
     # after we checked.  If so, lets delete ourselves so we don't contribute
     # to the mess.
     logcount = 0
-    for servicefile in os.listdir(cfgdir + '/' + servicevessel):
+    
+    servicefiles = os.listdir(cfgdir + '/' + servicevessel)
+    for servicefile in servicefiles:
+      # Count all the log files.  There is always either a .old or .new for
+      # every log
       if servicefile.endswith('.old'):
-        # Count all the log files.  There is always a .old for every log?
         logcount = logcount + 1
-      
+      elif servicefile.endswith('.new'):
+        if (servicefile[:-4] + ".old") not in servicefiles:
+          # If there is a new file but no old file, we will count it
+          logcount = logcount + 1
+    
     if logcount >= 10:
       # Make sure we try to remove both the .old and .new files.
       try:
@@ -202,8 +221,7 @@ def log(message):
   """
 
   if logfile == None or servicevessel == None:
-    # If we don't have a current log file, lets raise an exception
-    # raise ServiceLogError("init needs to be called before using the service log")
+    # If we don't have a current log file, lets just return
     return
 
   logfile.write(str(time.time()) + ':PID-' + str(os.getpid()) + 
