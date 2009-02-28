@@ -54,6 +54,7 @@ import traceback
 
 import advertise            #  used to do OpenDHT lookups
 
+import os.path    # fix path names when doing upload, loadkeys, etc.
 
 
 
@@ -1287,14 +1288,18 @@ update             -- Update information about the vessels
       elif userinputlist[0] == 'genkeys':
         if len(userinputlist)==2:
           keylength = 1024
-          keyname = userinputlist[1]
-          pubkeyfn = keyname+'.publickey'
-          privkeyfn = keyname+'.privatekey'
+          # expand '~'
+          fileandpath = os.path.expanduser(userinputlist[1])
+          keyname = os.path.basename(fileandpath)
+          pubkeyfn = fileandpath+'.publickey'
+          privkeyfn = fileandpath+'.privatekey'
         elif len(userinputlist)==3:
           keylength = int(userinputlist[2])
-          keyname = userinputlist[1]
-          pubkeyfn = keyname+'.publickey'
-          privkeyfn = keyname+'.privatekey'
+          # expand '~'
+          fileandpath = os.path.expanduser(userinputlist[1])
+          keyname = os.path.basename(fileandpath)
+          pubkeyfn = fileandpath+'.publickey'
+          privkeyfn = fileandpath+'.privatekey'
         elif len(userinputlist)==4:
           if userinputlist[2] != 'as':
             raise UserError("Usage: genkeys filename [len] [as identity]")
@@ -1332,22 +1337,30 @@ update             -- Update information about the vessels
         if len(userinputlist)==2:
           # they typed 'loadpub foo.publickey'
           if userinputlist[1].endswith('.publickey'):
-            keyname = userinputlist[1][:len('.publickey')]
-            pubkeyfn = userinputlist[1]
+            # handle '~'
+            fileandpath = os.path.expanduser(userinputlist[1])
+            keyname = os.path.basename(fileandpath[:len('.publickey')])
+            pubkeyfn = fileandpath
           else:
             # they typed 'loadpub foo'
-            keyname = userinputlist[1]
-            pubkeyfn = userinputlist[1]+'.publickey'
+            # handle '~'
+            fileandpath = os.path.expanduser(userinputlist[1])
+            keyname = os.path.basename(fileandpath)
+            pubkeyfn = fileandpath+'.publickey'
         elif len(userinputlist)==4:
           if userinputlist[2] != 'as':
             raise UserError("Usage: loadpub filename [as identity]")
 
           # they typed 'loadpub foo.publickey'
           if userinputlist[1].endswith('.publickey'):
-            pubkeyfn = userinputlist[1]
+            # handle '~'
+            fileandpath = os.path.expanduser(userinputlist[1])
+            pubkeyfn = fileandpath
           else:
             # they typed 'loadpub foo'
-            pubkeyfn = userinputlist[1]+'.publickey'
+            # handle '~'
+            fileandpath = os.path.expanduser(userinputlist[1])
+            pubkeyfn = fileandpath+'.publickey'
           keyname = userinputlist[3]
         else:
           raise UserError("Usage: loadpub filename [as identity]")
@@ -1370,22 +1383,30 @@ update             -- Update information about the vessels
         if len(userinputlist)==2:
           # they typed 'loadpriv foo.privatekey'
           if userinputlist[1].endswith('.privatekey'):
-            keyname = userinputlist[1][:len('.privatekey')]
-            privkeyfn = userinputlist[1]
+            # handle '~'
+            fileandpath = os.path.expanduser(userinputlist[1])
+            privkeyfn = fileandpath+'.privatekey'
+            keyname = os.path.basename(fileandpath[:len('.privatekey')])
           else:
             # they typed 'loadpriv foo'
-            keyname = userinputlist[1]
-            privkeyfn = keyname+'.privatekey'
+            # handle '~'
+            fileandpath = os.path.expanduser(userinputlist[1])
+            privkeyfn = fileandpath+'.privatekey'
+            keyname = os.path.basename(fileandpath)
         elif len(userinputlist)==4:
           if userinputlist[2] != 'as':
             raise UserError("Usage: loadpriv filename [as identity]")
 
           # they typed 'loadpriv foo.privatekey'
           if userinputlist[1].endswith('.privatekey'):
-            privkeyfn = userinputlist[1]
+            # handle '~'
+            fileandpath = os.path.expanduser(userinputlist[1])
+            privkeyfn = fileandpath
           else:
             # they typed 'loadpriv foo'
-            privkeyfn = userinputlist[1]+'.privatekey'
+            # handle '~'
+            fileandpath = os.path.expanduser(userinputlist[1])
+            privkeyfn = fileandpath+'.publickey'
           keyname = userinputlist[3]
         else:
           raise UserError("Usage: loadpriv filename [as identity]")
@@ -1405,17 +1426,28 @@ update             -- Update information about the vessels
 # loadkeys filename [as identity]                    -- loads a private key
       elif userinputlist[0] == 'loadkeys':
         if len(userinputlist)==2:
+
           # they typed 'loadpriv foo'
-          keyname = userinputlist[1]
-          privkeyfn = keyname+'.privatekey'
-          pubkeyfn = keyname+'.publickey'
+
+          # the user input may have a directory or tilde in it.   The key name 
+          # shouldn't have either.
+          fileandpath = os.path.expanduser(userinputlist[1])
+          keyname = os.path.basename(fileandpath)
+          privkeyfn = fileandpath+'.privatekey'
+          pubkeyfn = fileandpath+'.publickey'
+
+
         elif len(userinputlist)==4:
           if userinputlist[2] != 'as':
             raise UserError("Usage: loadkeys filename [as identity]")
 
+          # the user input may have a directory or tilde in it.   The key name 
+          # shouldn't have either.
+          fileandpath = os.path.expanduser(userinputlist[1])
+          privkeyfn = fileandpath+'.privatekey'
+          pubkeyfn = fileandpath+'.publickey'
+
           keyname = userinputlist[3]
-          privkeyfn = userinputlist[1]+'.privatekey'
-          pubkeyfn = userinputlist[1]+'.publickey'
         else:
           raise UserError("Usage: loadkeys filename [as identity]")
 
@@ -1569,10 +1601,14 @@ update             -- Update information about the vessels
 # upload localfn (remotefn)   -- Upload a file 
       elif userinputlist[0] == 'upload':
         if len(userinputlist)==2:
-          remotefn = userinputlist[1]
-          localfn = userinputlist[1]
+          # expand '~'
+          fileandpath = os.path.expanduser(userinputlist[1])
+          remotefn = os.path.basename(fileandpath)
+          localfn = fileandpath
         elif len(userinputlist)==3:
-          localfn = userinputlist[1]
+          # expand '~'
+          fileandpath = os.path.expanduser(userinputlist[1])
+          localfn = fileandpath
           remotefn = userinputlist[2]
         else:
           raise UserError("Usage: upload localfn (remotefn)")
@@ -1613,11 +1649,15 @@ update             -- Update information about the vessels
 # download remotefn (localfn) -- Download a file 
       elif userinputlist[0] == 'download':
         if len(userinputlist)==2:
-          remotefn = userinputlist[1]
-          localfn = userinputlist[1]
+          # handle '~'
+          fileandpath = os.path.expanduser(userinputlist[1])
+          remotefn = os.path.basename(fileandpath)
+          localfn = fileandpath
         elif len(userinputlist)==3:
           remotefn = userinputlist[1]
-          localfn = userinputlist[2]
+          # handle '~'
+          fileandpath = os.path.expanduser(userinputlist[2])
+          localfn = fileandpath
         else:
           raise UserError("Usage: download localfn (remotefn)")
 
@@ -1755,8 +1795,10 @@ update             -- Update information about the vessels
 # run file [args...]    -- Shortcut for upload a file and start
       elif userinputlist[0] == 'run':
         if len(userinputlist)>1:
-          filename = userinputlist[1]
-          argstring = " ".join(userinputlist[1:])
+          # Handle '~' in file names
+          fileandpath = os.path.expanduser(userinputlist[1])
+          onlyfilename = os.path.basename(fileandpath)
+          argstring = " ".join([onlyfilename] + userinputlist[2:])
         else:
           raise UserError("Usage: run file [args ...]")
 
@@ -1765,14 +1807,14 @@ update             -- Update information about the vessels
   
 
         # read the local file...
-        fileobj = open(filename,"r")
+        fileobj = open(fileandpath,"r")
         filedata = fileobj.read()
         fileobj.close()
 
         faillist = []
         goodlist = []
 
-        retdict = contact_targets(targets[currenttarget],run_target,filename,filedata, argstring)
+        retdict = contact_targets(targets[currenttarget],run_target,onlyfilename,filedata, argstring)
 
         for longname in retdict:
           if retdict[longname][0]:
@@ -1800,7 +1842,9 @@ update             -- Update information about the vessels
 
       elif userinputlist[0] == 'split':
         if len(userinputlist)==2:
-          resourcefn = userinputlist[1]
+          # expand ~
+          fileandpath = os.path.expanduser(userinputlist[1])
+          resourcefn = fileandpath
         else:
           raise UserError("Usage: split resourcefn")
 
