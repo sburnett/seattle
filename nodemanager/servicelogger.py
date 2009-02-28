@@ -16,10 +16,13 @@
   service vessel.  init must be called before log.
 """
 
+from repyportability import *
 import os
 import logging
-import servicelookup
 import time
+
+include servicelookup.repy
+
 
 logfile = None
 servicevessel = None
@@ -27,7 +30,7 @@ servicevessel = None
 class ServiceLogError(Exception):
   pass
 
-def getvessel():
+def get_servicevessel():
   """
   <Purpose>
     Get a service vessel directory from vesseldict. If none of the
@@ -57,7 +60,7 @@ def getvessel():
   readfileobj.close()
   vesseldict = (eval(readdata))
   
-  service_vessels = servicelookup.get_service_vessels(vesseldict, ownerkey, ownerinfo)
+  service_vessels = servicelookup_get_servicevessels(vesseldict, ownerkey, ownerinfo)
   
   if service_vessels:
     found = False
@@ -98,7 +101,7 @@ def init(logname):
 
   global logfile, servicevessel
   
-  servicevessel = getvessel()
+  servicevessel = get_servicevessel()
   
   if servicevessel != None:
     logfile = logging.circular_logger(servicevessel + '/' + logname, use_nanny=False)
@@ -128,7 +131,7 @@ def multi_process_log(message, logname):
   global servicevessel
   
   if servicevessel == None:
-    servicevessel = getvessel()
+    servicevessel = get_servicevessel()
   
   if servicevessel == None:
     return
