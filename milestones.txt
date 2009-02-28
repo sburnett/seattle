@@ -106,5 +106,5 @@ Measure Twice, Cut Once
 Indoctrination
 1449 jenn grade() function inside each webserver repy testfile with dictionary format; print SUCCESS
 alper unit tests; reset() code for eric's use; figure out blocking issue and test; rename source file to nm_remote_api
-eric presentation for saturday; try except around code to alper's code with graceful failure and traceback logging; use repyhelper to import jenn's repy testfiles and call grade().
+1513 eric presentation for saturday; try except around code to alper's code with graceful failure and traceback logging; use repyhelper to import jenn's repy testfiles and call grade().
 sal djangofy the web-pages; write the code/lib that eric can use to extract assignments to grade/submit assignment output once graded
