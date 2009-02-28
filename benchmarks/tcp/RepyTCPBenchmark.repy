@@ -61,10 +61,12 @@ if callfunc == 'initialize':
 
     stopcomm(socket)
 
+    runTime = endTime - startTime
 
     print "\n\n******* Statistics for Repy TCP *******"
     print "Connected to " + str(destip)
     print "Sent " + str(totalChunks) + " packets, which had a size of " + str(chunkSize) + " bytes."
-    print "Total runtime: " + str(endTime - startTime) + " seconds."
-    print "At a Rate of: " + str(totalBytes /(endTime - startTime)) + " B/S."
+    print "Total runtime: " + str(runTime) + " seconds."
+    if runTime:
+      print "At a Rate of: " + str(totalBytes /runTime) + " B/S."
     print "***************************************\n\n"
