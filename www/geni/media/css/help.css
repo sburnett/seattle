@@ -59,4 +59,5 @@ p a {
 p.footnote {
 	font-size: 10pt;
 	margin: 30px 10px;
+	font-style: italic;
 }
