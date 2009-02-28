@@ -28,14 +28,12 @@
 
 
 #TODO
-#and try excepts
-# check status of running targets
 # get alpers reset
 # integrate with jenn
 
 
-
-
+import time
+import tarfile
 import os
 import shutil
 import remote_emulab
@@ -46,7 +44,7 @@ import threading
 TO_GRADE_DIR = 'to_grade'
 GRADED_DIR = 'graded'
 STATUS_DIR = 'status'
-TEST_DIR = 'temp_test'
+TEST_DIR = 'meta_test'
 SEATTLE = 'Seattle'  # the name of our project in emulab
 ASSIGNMENT_NAME = 'webserver' #emulab exp name
 
@@ -65,12 +63,9 @@ class Student_code_runner(threading.Thread):
     self.student_file_name = student_file_name 
     self.student_file_data = student_file_data
   
-  def run(self):
-    
-
-    print "\n"+self.vessel+"\n"+self.student_file_name
-    print self.student_file_data
-
+  def run(self):   
+    #print "\n"+self.vessel+"\n"+self.student_file_name
+    #print self.student_file_data
     try:
       webserver_running,error = install_autograder.run_target(self.vessel,
                             self.student_file_name,self.student_file_data,
@@ -88,10 +83,12 @@ class Student_code_runner(threading.Thread):
     #TODO CLEAR LOGS
 
 
+
+
+
+
 # coordinate running code on emulab and processing the output
-def grade(name_ip_tuples):
-  
-  print "Starting grading"
+def grade_it(name_ip_tuples):
 
   while files_need_grading():
 
@@ -103,7 +100,26 @@ def grade(name_ip_tuples):
     file_obj.close()
   
     # execute the assignment and tests in emulab
-    run_webserver_tests(file_to_grade,name_ip_tuples)
+    #run_webserver_tests(file_to_grade,name_ip_tuples)
+    fake_test(file_to_grade,name_ip_tuples)
+
+
+# FAKE FAKE FAKE
+# a fake function while the remote seash stuff is broke
+def fake_test(file_to_grade,name_ip_tuples):
+
+  time.sleep(2)
+  
+  # get the contents of the students repy file
+  student_file_name,student_file_data = get_tared_repy_file_data(file_to_grade)
+  
+  test_tuples = get_tests()
+  for (test_name,test_data) in test_tuples:
+    test_log = ""
+    results = score(test_log,test_name)
+    save_grade(results,file_to_grade)
+  shutil.move(TO_GRADE_DIR+"/"+file_to_grade, GRADED_DIR+"/")
+  
 
 
 # execute repy code on emulab nodes
@@ -112,18 +128,11 @@ def run_webserver_tests(filename,name_ip_tuples):
   # get a tuple for each test [(filename,file_content_str)...]
   test_tuples = get_tests()
 
-  # get the student file to grade
-  file_obj = open(TO_GRADE_DIR+"/"+filename,'r')
-  student_file_data = file_obj.read()
-  file_obj.close()
-
   #get list of hosts
   host_list =[]
   for (host,ip) in name_ip_tuples:
     host_list.append(host)
-
-  print "initializing vessels"
-  
+ 
   # initialize seattle nodes on each host
   try:
     is_init, vessels = install_autograder.initialize(host_list, "autograder")
@@ -132,11 +141,16 @@ def run_webserver_tests(filename,name_ip_tuples):
     raise
   else:
     if not is_init:
+      clean_up()
       raise Exception, 'failed to intialize seattle nodes '+str(vessels)
 
+  
+  # get the contents of the students repy file
+  student_file_name,student_file_data = get_tared_repy_file_data(filename)  
+
   #create a thread to run student code
-  student_code_thread = Student_code_runner(vessels[0],
-                             filename,student_file_data)
+  student_code_thread = Student_code_runner(vessels[0],student_file_name,
+                                                 student_file_data)
 
 
   #TODO, reset all nodes after each test  
@@ -148,7 +162,7 @@ def run_webserver_tests(filename,name_ip_tuples):
 
     testargs =test_name+" "+webserver_ip+"63173"
     print "running test "+test_name+" against "+filename
-    
+
     # run the test    
     try:
       test_running,error = install_autograder.run_target(vessels[1],
@@ -164,12 +178,13 @@ def run_webserver_tests(filename,name_ip_tuples):
     
     # get vessel logs
     try:
-      #server_log =  install_autograder.showlog_vessel(vessels[0])
       test_log = install_autograder.showlog_vessel(vessels[1])
     except Exception:
       clean_up()
       raise
-    
+    print test_log    
+
+
     # stop the repy code
     install_autograder.stop_target(vessel[1])
     student_code_thread.stop()
@@ -195,7 +210,7 @@ def score(test_log,test_name):
   try:
     repyhelper.translate_and_import(TEST_DIR+"/"+test_name)
     results = grade(test_log)
-    return results
+    return test_name+": "+results
   except Exception:
     print "error occured importing grade from "+test_name
     clean_up()
@@ -229,7 +244,7 @@ def start_emulab():
   remote_emulab.wait_for_active(SEATTLE,ASSIGNMENT_NAME,900)
 
   # get a mapping of host names to internal ips
-  emualb_network_mapping = remote_emulab.get_links(SEATTLE,ASSIGNMENT_NAME)
+  emulab_network_mapping = remote_emulab.get_links(SEATTLE,ASSIGNMENT_NAME)
   host_ip_tuples = remote_emulab.simplify_links(SEATTLE,ASSIGNMENT_NAME
                                                  ,emulab_network_mapping)
   print 'assignment running on emulab'
@@ -277,10 +292,45 @@ def next_file_to_grade():
   file_list = files_to_grade()
   return file_list[0]
 
+# returns the contents of .repy file that is compressed in a tar file
+def get_tared_repy_file_data(filename):
+  
+  if filename[-3:] != "tar":
+    clean_up()
+    raise Exception, "file to grade was not a tar file"
+  tar = tarfile.open(TO_GRADE_DIR+"/"+filename)
+  names = tar.getnames()
+  if len(names) != 1:
+    tar.close()
+    clean_up()
+    raise Exception, "Tarfile did not have one thing in it"
+  if names[0][-4:] != "repy":
+    tar.close
+    clean_up()
+    raise Exception, "Tarfile did not contain a repy file"
+
+  file_obj = tar.extractfile(names[0])
+  data = file_obj.read()
+  file_obj.close()
+  tar.close()
+  return names[0], data
+
+
+
 # save the result of grading to the status dir
 def save_grade(results,filename):
-  file_obj = open(STATUS_DIR+"/"+filename+".txt",'a')
-  file_obj.write(results)
+  
+  # check to see if grading status is complete
+  file_obj = open(STATUS_DIR+"/"+filename+".txt",'r')
+  contents = file_obj.read()
+  file_obj.close()
+  if contents.find("Grading Complete") == -1:
+    file_obj = open(STATUS_DIR+"/"+filename+".txt",'w')  
+    file_obj.write("Grading Complete\n")
+  else:
+    file_obj = open(STATUS_DIR+"/"+filename+".txt",'a')
+  
+  file_obj.write(results+"\n")
   file_obj.close()
 
 # return a list of tuples
@@ -316,15 +366,25 @@ def waitforfiles():
 
       print 'starting emulab'
       name_ip_tuples = start_emulab()
-      grade(name_ip_tuples)
+      grade_it(name_ip_tuples)
       
       # terminate the expirament
-    
+      clean_up()
 
-    #temporary break so we just do this once for testing  
-    print "FINISHED!"
-    break  
+      
+    print "Completed a grading pass"
+    #sleep for 10 seconds before looping again
+    time.sleep(10)    
+
+
+def fakewaitforfiles():
+  while True:
     
+    install_autograder.tear_down()
+    links = [('node-1.webserver.Seattle.emulab.net','10.1.1.1'),('node-2.webserver.Seattle.emulab.net','10.1.1.2')]
+    grade_it(links)
+
+
 
 if __name__ == "__main__":
 
@@ -332,7 +392,5 @@ if __name__ == "__main__":
   #waitforfiles()
   
   # temp code for running on exisiting emulab exp
+  fakewaitforfiles()
   
-  install_autograder.tear_down()
-  links = [('node-1.webserver.Seattle.emulab.net','10.1.1.1'),('node-2.webserver.Seattle.emulab.net','10.1.1.2')]
-  grade(links)
