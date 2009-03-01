@@ -273,7 +273,7 @@ function get_resources() {
 	    $("#getresourcesdialog .warning").remove();
 	}
 	$.post("../control/ajax_getvessels",
-			{ numvessels: numvessels, env: env },
+			{ num: numvessels, env: env },
 			function (data) {
 				var json = eval('(' + data + ')');
 				// alert(json.mypercent);

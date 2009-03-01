@@ -71,6 +71,11 @@ def register(request):
                 if file.size > 2048:
                     return HttpResponse("Public key too large, file size limit is 2048 bytes")
                 txt_pubkey = file.read()
+                
+            print "TXT_PUBKEY IS:", txt_pubkey    
+            if form.cleaned_data['gen_upload_choice'] == 2 and txt_pubkey == "":
+                return HttpResponse("Enter a public key")
+
             # this saves the user's record to the database
             new_user = form.save()
 

@@ -964,10 +964,10 @@ def ajax_getvessels(request):
     
     # deserealize the returned value of the acquisition
     if not success:
-        num_acquired,action_explanation,action_summary = ret
+        action_explanation,action_summary = ret
         return __jsonify({"success" : False, "error" : action_summary})
 
-    action_explanation,action_summary = ret
+    num_acquired, action_explanation, action_summary = ret
     print "acquire_resources returned: "
     print action_summary
     print action_explanation
