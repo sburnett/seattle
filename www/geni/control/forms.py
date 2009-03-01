@@ -62,30 +62,10 @@ def gen_get_form(geni_user,req_post=None):
         (if given). None is returned if the user cannot acquire any
         more vessels.
     """
-    
-#     # max allowed resources this user may get
-#     donations = Donation.objects.filter(user=geni_user).filter(active=1)
-#     num_donations = len(donations)
-#     max_num = 10 * (num_donations + 1)
-    
-#     # number of vessels already used by this user
-#     myvessels = VesselMap.objects.filter(user = geni_user)
-
-#     ## CHANGE max_num to:
-#     # geni_user.vessel_credit_remaining()
-#     ##
-    
-#     if len(myvessels) > max_num:
-#         max_num = 0
-#     else:
-#         max_num = max_num - len(myvessels)
-
-#     if max_num == 0:
-#         return None
-
+    # the total number of vessels a user may acquire
     max_num = geni_user.vessel_credit_remaining()
 
-    # the total number of vessels a user may acquire
+    # dynamically generate the get vessels form
     get_vessel_choices = zip(range(1,max_num+1),range(1,max_num+1))
 
     class GetVesselsForm(forms.Form):
@@ -101,10 +81,10 @@ def gen_get_form(geni_user,req_post=None):
                 to generate a form from an existing POST request
         """
         # maximum number of vessels a user is allowed to acquire
-        num = forms.ChoiceField(choices=get_vessel_choices)
+        num = forms.ChoiceField(choices=get_vessel_choices, error_messages={'required' : 'Please enter the number of vessels to acquire'})
 
         # the various environmen types the user may select from
-        env = forms.ChoiceField(choices=((1,'LAN'),(2,'WAN'),(3,'Random')))
+        env = forms.ChoiceField(choices=((1,'LAN'),(2,'WAN'),(3,'Random')), error_messages={'required' : 'Please enter the networking environment for vessels to acquire'})
 
         def get_errors_as_str(self):
             return str(self.errors)
