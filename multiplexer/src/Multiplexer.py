@@ -16,8 +16,7 @@ include deserialize.py
 # Define Module Constants
 # 
 # How many digits can be used to indicate header length
-# Setting this number too low (e.g. 3) seems to cause recv to block indefinately
-MULTIPLEXER_FRAME_HEADER_DIGITS = 7 
+MULTIPLEXER_FRAME_HEADER_DIGITS = 3 
 MULTIPLEXER_FRAME_DIVIDER = ";" # What character is used to divide a frame header
 
 # These are the valid Message Types

@@ -5,7 +5,7 @@ Author: Armon Dadgar
 Start Date: February 16th, 2009
 
 Description:
-Functions to reconstruct a dictionary object from its string representation.
+Functions to reconstruct a list or dictionary object from its string representation.
 
 """
 # Constants for the types
