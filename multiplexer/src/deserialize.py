@@ -5,12 +5,13 @@ Author: Armon Dadgar
 Start Date: February 16th, 2009
 
 Description:
-Functions to reconstruct a list or dictionary object from its string representation.
+Functions to reconstruct objects from their string representation.
 
 """
-# Constants for the types
+# Constants for the types, these are the supported object types
 DERSERIALIZE_DICT = 1
 DERSERIALIZE_LIST = 2
+DERSERIALIZE_TUPLE = 3
 
 # Convert a string, which either a boolean, None, floating point number,
 # long, or int to a primitive, not string type
@@ -67,8 +68,8 @@ def deserialize_findChar(char, str):
 # Find sub-objects
 def deserialize_findSubObjs(str):
   # Object types
-  objectStarts = {"{":DERSERIALIZE_DICT,"[":DERSERIALIZE_LIST}
-  objectEnds = {"}":DERSERIALIZE_DICT,"]":DERSERIALIZE_LIST}
+  objectStarts = {"{":DERSERIALIZE_DICT,"[":DERSERIALIZE_LIST,"(":DERSERIALIZE_TUPLE}
+  objectEnds = {"}":DERSERIALIZE_DICT,"]":DERSERIALIZE_LIST,")":DERSERIALIZE_TUPLE}
   
   # Location of the start and end braces
   startIndexes = []
@@ -245,6 +246,8 @@ def deserialize_removeObjects(strIn, partitions=[]):
           realObj = deserialize_dictObj(strIn[start:end+1],partitions)
         elif type == DERSERIALIZE_LIST:
           realObj = deserialize_listObj(strIn[start:end+1],partitions)
+        elif type == DERSERIALIZE_TUPLE:
+          realObj = deserialize_tupleObj(strIn[start:end+1],partitions)
         
         # Store the real object
         partitions.append(realObj)
@@ -295,7 +298,7 @@ def deserialize_dictObj(strDict, partitions):
     newDict[key] = value
 
   return newDict
-  
+
 # Convert a string representation of a list back into a list
 def deserialize_listObj(strList, partitions):
   # Remove list brackets
@@ -312,15 +315,41 @@ def deserialize_listObj(strList, partitions):
     # Check for a sub-object filler
     if (value[0] == "#"):
       value = deserialize_partitionedObj(value,partitions)
+
+    # Else this is a primitive type
+    else:
+      value = deserialize_stringToPrimitive(value)
+
+    # Store the element
+    newList.append(value)
+
+  return newList
+      
+# Convert a string representation of a tuple back into a tuple
+def deserialize_tupleObj(strList, partitions):
+  # Remove tuple brackets
+  strList = strList[1:len(strList)-1]
+
+  # Get values by exploding on commas
+  values = strList.split(", ")
+
+  # Create new tuple
+  newTuple = ()
+
+  # Process each value
+  for value in values:
+    # Check for a sub-object filler
+    if (value[0] == "#"):
+      value = deserialize_partitionedObj(value,partitions)
     
     # Else this is a primitive type
     else:
       value = deserialize_stringToPrimitive(value)
       
     # Store the element
-    newList.append(value)
+    newTuple += (value,)
 
-  return newList  
+  return newTuple  
 
 # Converts a string representation of a list or dictionary 
 # back into the real object. This works with sub-lists, sub-dictionaries,
