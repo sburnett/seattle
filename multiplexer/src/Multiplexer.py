@@ -626,7 +626,7 @@ class Multiplexer():
     
     # Get the request info
     id = frame.referenceID    # Get the ID from the frame
-    info = deserializeDict(frame.content)   # Get the socket info from
+    info = deserialize(frame.content)   # Get the socket info from
     
     # What port are they trying to connect to?
     requestedPort = info["localport"]
