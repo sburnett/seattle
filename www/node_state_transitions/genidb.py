@@ -45,6 +45,8 @@
   http://docs.djangoproject.com/en/dev/topics/db/transactions/
 """
 
+# for time stuff
+import time
 # used for computing whether a VesselMap object is expired or not
 import datetime
 # useful for outputting the stack trace when there is a django exception
@@ -121,29 +123,29 @@ def get_nodes():
 
 def lookup_donations_by_ip(nodeip):
     # this returns an array of potentially mulptiple donation objects that match nodeip in the database
-    print "looking up donations by nodeip ", nodeip
+    print time.ctime(), "looking up donations by nodeip ", nodeip
     donations = Donation.objects.filter(ip = nodeip)
-    print "found %i donations"%(donations.count())
+    print time.ctime(), "found %i donations"%(donations.count())
     return donations
 
 @transaction.commit_manually
 def handle_inactive_donation(donation):
     if donation.active == 0:
-        print "Donation [%s] already inactive"%(donation) 
+        print time.ctime(), "Donation [%s] already inactive"%(donation) 
         return
 
     try:
         if donation.epoch == 0:
-            print "Donation [%s] epoch count is 0, making inactive"%(donation)
+            print time.ctime(), "Donation [%s] epoch count is 0, making inactive"%(donation)
             vmaps = VesselMap.objects.filter(vessel_port__vessel__donation__exact = donation)
-            print "Deleting %i vesselmaps linked to this donation: %s"%(vmaps.count(), vmaps)
+            print time.ctime(), "Deleting %i vesselmaps linked to this donation: %s"%(vmaps.count(), vmaps)
             for vmap in vmaps:
                 vmap.delete()
             # TODO: need to update people's flow records here!!!
             donation.active = 0    
         else:
             donation.epoch -= 1
-            print "Donation [%s] inactive, epoch count is now %i"%(donation , donation.epoch)
+            print time.ctime(), "Donation [%s] inactive, epoch count is now %i"%(donation , donation.epoch)
         donation.save()    
     except:
         traceback.print_exc()

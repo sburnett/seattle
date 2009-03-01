@@ -32,6 +32,7 @@ import genidb
 # circular logging to a file
 import logging
 
+import traceback
 
 
 
@@ -58,25 +59,23 @@ def main():
     	# grab all currently donation node records from the db
         donations = genidb.get_nodes()
         for donation in donations:
-            if not donation.active:
-                print time.ctime(), "skipping inactive donation", donation
-                continue
-            
             host = donation.ip
             port = int(donation.port)
 
-            # close the handle on any error...
             try:
                 thisnmhandle = nmclient_createhandle(host, port)
                 retdict = nmclient_getvesseldict(thisnmhandle)
                 nodeID = rsa_publickey_to_string(retdict['nodekey'])
             except:
+                # close the handle on any error...
                 print time.ctime(), "Exception in processing donation", donation
                 traceback.print_exc(file=sys.stdout)
                 nmclient_destroyhandle(thisnmhandle)
-                genidb.handle_inactive_donation(donation)
+		genidb.handle_inactive_donation(donation)
             else:
+	       	print time.ctime(), "Detected active donation", donation
                 donation.epoch = genidb.DEFAULT_EPOCH_COUNT
+		donation.active = 1
                 donation.save()
   
         # this is an essential hack to make get_expired_vesselmaps() not use internal models caching:
