@@ -1,0 +1,102 @@
+"""
+<Program Name>
+  dbnode_checker.py
+
+<Started>
+  Februrary 28, 2008
+
+<Author>
+  ivan@cs.washington.edu
+  Ivan Beschastnikh
+
+<Purpose>
+  Checks for expired vessels and performs a changeusers on them
+
+<Usage>
+  Preprocessing this mix file into a python file using e.g.:
+  $ python repypp.py dbnode_checker.mix dbnode_checker.py
+  
+  And then run it from the command line without any args:
+  $ python dbnode_checker.py
+"""
+
+from repyportability import *
+include nmclient.repy
+
+from django.db import transaction
+#import pollinglib
+
+#import changeusers
+# db api
+import genidb
+# circular logging to a file
+import logging
+
+
+
+
+def main():
+    """
+    <Purpose>
+        Main loop of the expiration script. Checks for expired vessels
+        in the database, and performs a changeusers on them.
+
+    <Arguments>
+        None.
+
+    <Exceptions>
+        None.
+
+    <Side Effects>
+        Vessels that are expired will have their users set to "".
+
+    <Returns>
+        Never returns (daemon).
+    """
+    # loop forever
+    while True:
+    	# grab all currently donation node records from the db
+        donations = genidb.get_nodes()
+        for donation in donations:
+            if not donation.active:
+                print time.ctime(), "skipping inactive donation", donation
+                continue
+            
+            host = donation.ip
+            port = int(donation.port)
+
+            # close the handle on any error...
+            try:
+                thisnmhandle = nmclient_createhandle(host, port)
+                retdict = nmclient_getvesseldict(thisnmhandle)
+                nodeID = rsa_publickey_to_string(retdict['nodekey'])
+            except:
+                print time.ctime(), "Exception in processing donation", donation
+                traceback.print_exc(file=sys.stdout)
+                nmclient_destroyhandle(thisnmhandle)
+                genidb.handle_inactive_donation(donation)
+            else:
+                donation.epoch = genidb.DEFAULT_EPOCH_COUNT
+                donation.save()
+  
+        # this is an essential hack to make get_expired_vesselmaps() not use internal models caching:
+	# http://www.mail-archive.com/django-users@googlegroups.com/msg14826.html
+	try:
+            transaction.commit()
+        except transaction.TransactionManagementError:
+            pass
+          
+        sleep(60)
+	print time.ctime(), "."
+
+	
+if __name__ == '__main__':
+  logfn = "log.dbnode_checker.old"
+  # set up the circular logger (at least 50 MB buffer)
+  loggerfo = logging.circular_logger(logfn, 50*1024*1024)
+
+  # redirect standard out / error to the circular log buffer
+  sys.stdout = loggerfo
+  sys.stderr = loggerfo
+  print "logging output to " + str(logfn)
+  main()
