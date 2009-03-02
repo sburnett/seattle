@@ -36,7 +36,7 @@ import repy_constants
 
 SILENT_MODE = False
 OS = nonportable.ostype
-SUPPORTED_OSES = ["Windows", "WindowsCE", "Linux"]
+SUPPORTED_OSES = ["Windows", "WindowsCE", "Linux", "Darwin"]
 
 
 class UnsupportedOSError(Exception):
@@ -202,6 +202,8 @@ def get_starter_file_name():
   if OS == "WindowsCE":
     return "start_seattle.py"
   if OS == "Linux":
+    return "start_seattle.sh"
+  if OS == "Darwin":
     return "start_seattle.sh"
   return ""
 
