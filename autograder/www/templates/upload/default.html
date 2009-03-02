@@ -1,0 +1,17 @@
+{% include "common/header.html" %}
+{% block content %}
+<body>
+{% include "common/banner.html" %}
+
+
+
+    {% ifnotequal info "" %}
+    <p><font color="blue">
+	{{ info }}
+    </font></p><br>
+    {% endifnotequal %}
+
+
+</body>
+{% endblock %}
+{% include "common/footer.html" %}
