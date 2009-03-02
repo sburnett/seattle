@@ -1,11 +1,13 @@
 {% comment %}
 
-this tempalte expects a username variable to exist in the current context
+NOTE : This template expects a username variable to exist in the current context
 
 {% endcomment %}
 
-
+<p>Donate resources on behalf of {{ username }}.</p>
+			  
 			<table id="downloads">
+
 				<tr id="mac">
 					<td><a href="{% url mac_installer username %}"><img src="{{ MEDIA_URL }}images/mac.png" alt="mac" /></a></td>
 					<td>
