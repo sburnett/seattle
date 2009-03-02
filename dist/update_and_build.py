@@ -26,7 +26,7 @@ DEBUG = False
 PROGRAM_NAME = "build_and_update"
 UPDATER_SITE = "/home/couvb/public_html/updatesite/real"
 if DEBUG:
-    UPDATER_SITE = "/home/couvb/public_html/updatesite/test"
+    UPDATER_SITE = "/home/butaud/temp/updatesite/test"
 INSTALL_DIR = "seattle_repy"
 DIST_DIR = "/var/www/dist"
 if DEBUG:
@@ -113,6 +113,13 @@ def build_and_update(trunk_location, pubkey, privkey, version=""):
     make_base_installers.package_win(dist_dir, install_dir, make_base_installers.get_inst_name("win", version), DIST_DIR)
     make_base_installers.package_linux(dist_dir, install_dir, make_base_installers.get_inst_name("linux", version), DIST_DIR)
     make_base_installers.package_mac(dist_dir, install_dir, make_base_installers.get_inst_name("mac", version), DIST_DIR)
+
+    # Copy each versioned installer name over the corresponding base
+    # base installer
+    for dist in ["win", "linux", "mac"]:
+        versioned_name = make_base_installers.get_inst_name(dist, version)
+        unversioned_name = make_base_installers.get_inst_name(dist, "")
+        shutil.copy(DIST_DIR + "/" + versioned_name, DIST_DIR + "/" + unversioned_name)
 
     # Remove the temp directory when done.
     shutil.rmtree(temp_dir)
