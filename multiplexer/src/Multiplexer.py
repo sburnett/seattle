@@ -1013,6 +1013,39 @@ MULTIPLEXER_WAIT_FUNCTIONS = {}
 
 # Openconn that uses Multiplexers
 def mux_openconn(desthost, destport, localip=None,localport=None,timeout=15):
+  """
+  <Purpose>
+    Opens a multiplexed connection to a remote host, and returns a virtual socket.
+  
+  <Arguments>
+    desthost
+      The IP address of the host to connect to.
+    
+    destport
+      The port of the remote host to connect to.
+      
+    localip
+      The localip to use when connecting to the remote host
+    
+    localport
+      The localport to use when connecting to the remote host
+    
+    timeout
+      How long before timing out the connection
+  
+  <Exceptions>
+    See openconn.
+  
+  <Side effects>
+    If this is the first connect to the remote host, an additional event will be used to establish the multiplexing
+  
+  <Returns>
+    A socket-like object that supports close, send, and recv
+  
+  <Remarks>
+    If there is no multiplexed connection pre-established, an attempt will be made to establish a new connection.
+    If a connection is already established, then only a virtual socket will be opened.
+  """
   # Check if we already have a real multiplexer
   key = "IP:"+desthost+":"+str(destport)
   if key in MULTIPLEXER_OBJECTS:
@@ -1097,6 +1130,31 @@ def _map_virtual_stopcomm(port):
 
 # Wait for connection to establish new multiplexers and new virtual connections
 def mux_waitforconn(localip, localport, function):
+  """
+  <Purpose>
+    Sets up an event handler for an incoming connection. The connection will be multiplexed.
+    
+  <Arguments>
+    localip
+      The IP address to listen on
+    
+    localport
+      The port to listen on
+    
+    function
+      The user function to call when a new connection is established. This function should take the following parameters:
+        remoteip   : The IP address of the remote host
+        remoteport : The port of the remote host for this connection
+        socket     : A socket like object that supports close,send,recv
+        thiscommhandle   : Nothing, this should not be used
+        listencommhandle : A reference to the parent multiplexer
+  
+  <Exceptions>
+    See waitforconn.
+  
+  <Returns>
+    A handle that can be used with mux_stopcomm to stop listening on this port for new connections.
+  """
   # Get the key
   key = "LISTEN:"+localip+":"+str(localport) 
   
@@ -1130,6 +1188,20 @@ def mux_waitforconn(localip, localport, function):
 
 # Stops waiting for new connections
 def mux_stopcomm(key):
+  """
+  <Purpose>
+    Stops waiting for new clients
+  
+  <Arguments>
+    key:
+      Key returned by mux_waitforconn
+  
+  <Side effects>
+    New connections will no longer trigger the user function.
+  
+  <Returns>
+    None
+  """
   # Is this a real handle?
   if key in MULTIPLEXER_STATE_DATA:
     # Retrieve the handle
@@ -1154,6 +1226,23 @@ def mux_stopcomm(key):
 
 # Changes the underlying hooks that the mux wrappers use
 def mux_remap(wait, open, stop):
+  """
+  <Purpose>
+    Remaps the underlying calls used by mux_openconn, mux_waitforconn, and mux_stopcomm
+    
+  <Arguments>
+    wait:
+      The underlying waitforconn function to use
+    
+    open:
+      The underlying openconn function to use
+    
+    stop:
+      The underlying stopcomm function to use
+    
+  <Returns>
+    None
+  """
   MULTIPLEXER_STATE_DATA["waitforconn"] = wait
   MULTIPLEXER_STATE_DATA["openconn"] = open
   MULTIPLEXER_STATE_DATA["stopcomm"] = stop
