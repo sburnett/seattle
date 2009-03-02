@@ -40,6 +40,10 @@ from django.conf import settings
 urlpatterns = patterns('',
                        # assignment upload view
                        (r'^%supload/'%(settings.URL_PREFIX), 'autograder.upload.views.upload', {}, 'upload'),
+                       #assignment grading view
+                       (r'^%sgrade/'%(settings.URL_PREFIX), 'autograder.upload.views.grade', {}, 'grade'),
+                       #assignment grading stats
+                       (r'^%sshowstat/'%(settings.URL_PREFIX), 'autograder.upload.views.showstat', {}, 'showstat'),
                        # see all uploaded assignments
                        (r'^%suploads/'%(settings.URL_PREFIX), 'autograder.upload.views.see_uploads', {}, 'see_uploads'),
                        (r'^%spreview/(?P<classcode>\w+)/(?P<email>\w+)'%(settings.URL_PREFIX), 'autograder.upload.views.preview', {}, 'preview'),

@@ -37,3 +37,12 @@ class UploadAssignmentForm(forms.Form):
                                  min_length = 3,
                                  error_messages = {'required': 'Please enter a class code'})
 
+
+
+class GradeAssignmentForm(forms.Form):
+    #which file to grade
+  which = forms.CharField()
+  which = forms.CharField(max_length = 320,
+                            min_length = 3,
+                            error_messages = {'required': 'form is invalid'})
+

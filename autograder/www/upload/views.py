@@ -33,6 +33,7 @@ from django.http import HttpResponseRedirect
 from django.http import HttpResponse
 from django.conf import settings
 import glob
+import os
 
 # import local forms used by the upload application
 import forms
@@ -93,13 +94,21 @@ def upload(request):
                   # save the user's assignment
                   fhandle.write(txt_assignment)
                   fhandle.close()
-                  info = 'Assignment uploaded successfully.'
+                  info = 'Assignment uploaded successfully.\n'
+                  info += 'File: '+ file_path.split('/')[-1]
+
+                  if (os.path.isdir(settings.ASSIGNMENT_UPLOAD_PATH+"Status"))==False:
+                    os.mkdir(settings.ASSIGNMENT_UPLOAD_PATH+"Status")
+
+                  os.system('echo "Not Graded\n" >>'+settings.ASSIGNMENT_UPLOAD_PATH+"Status/"+file_path.split('/')[-1]+".txt; chmod 664 "+settings.ASSIGNMENT_UPLOAD_PATH+"Status/"+file_path.split('/')[-1]+".txt")
+                    #Status folder should exist
+                  
                   if 'nohtml' not in request.POST:
                     return direct_to_template(request, 'upload/success_upload.html',
                               {'info' : info, 'form' : forms.UploadAssignmentForm()})
 
         else:
-            info = 'Form is invalid'#SAL
+            info = 'Form is invalid'
             pass
             
     if 'nohtml' in request.POST:
@@ -108,7 +117,39 @@ def upload(request):
     return direct_to_template(request, 'upload/upload.html',
                               {'info' : info, 'form' : forms.UploadAssignmentForm()})
 
+def showstat(request):
+  
+  if request.method == 'POST':
+    file=request.POST['which']
+    form = forms.UploadAssignmentForm(request.POST)
 
+    status="No Status Available"
+    if os.path.exists(settings.ASSIGNMENT_UPLOAD_PATH+"Status/"+file+".txt"):
+      status=open(settings.ASSIGNMENT_UPLOAD_PATH+"Status/"+file+".txt").read()
+    return HttpResponse(status)
+
+
+
+def grade(request):
+  whichFile=""
+  result=""
+  if request.method == 'POST':
+    form = forms.UploadAssignmentForm(request.POST)
+    whichFile=request.POST['which']
+    if (os.path.isdir(settings.ASSIGNMENT_UPLOAD_PATH+"ToGrade"))==False:
+      os.mkdir(settings.ASSIGNMENT_UPLOAD_PATH+"ToGrade")
+    os.system('cp '+settings.ASSIGNMENT_UPLOAD_PATH+whichFile+' '+settings.ASSIGNMENT_UPLOAD_PATH+"ToGrade; chmod 664 "+settings.ASSIGNMENT_UPLOAD_PATH+"ToGrade/"+whichFile)
+
+#    for hidden in form.hidden_fields:
+ #      result+=hidden
+    
+#    if form.is_valid():
+
+#    whichFile = str(form.cleaned_data['which'])
+#  email = str(form.cleaned_data['email'])
+  #return HttpResponse("Grading"+whichFile+result)
+  return direct_to_template(request, 'upload/default.html',
+                {'info' : "Grading "+whichFile, 'form' : forms.UploadAssignmentForm()})
     
 def see_uploads(request):
     """
@@ -133,11 +174,15 @@ def see_uploads(request):
 
     upload_entries = []
     for file in uploaded_files:
+      #if we have a file(assinment)
+      if os.path.isdir(file)==False:
         file = file.split(settings.ASSIGNMENT_UPLOAD_PATH)[1]
         
-        classcode, email = file.split('.')[0].split("_")#SAL (can't see ext while browsing)
-       
-        upload_entries.append((classcode, email, file))
+        classcode, email = file.split('_.')[0].split("_")#SAL (can't see ext while browsing)
+        status="No Status Available"
+        if os.path.exists(settings.ASSIGNMENT_UPLOAD_PATH+"Status/"+file+".txt"):
+           status=open(settings.ASSIGNMENT_UPLOAD_PATH+"Status/"+file+".txt").next()
+        upload_entries.append((classcode, email, file, status))
         
     return direct_to_template(request, 'upload/uploads.html', {'upload_entries' : upload_entries})
 
