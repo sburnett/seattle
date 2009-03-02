@@ -551,7 +551,7 @@ def install(prog_path):
     output("Done!")
   
   # Next, customize the constants file
-  output("Configuing seattle constants...")
+  output("Configuring seattle constants...")
   setup_constants(prog_path)
   output("Done!")
 

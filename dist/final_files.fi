@@ -21,6 +21,7 @@ del softwareupdater.logfile
 
 req advertise.py
 req centralizedadvertise.repy
+req checkpythonversion.py
 req emulcomm.py
 req emulfile.py
 req emulmisc.py
@@ -46,12 +47,15 @@ req persist.py
 req random.repy
 req repy.py
 req repy_constants.py
+req repyhelper.py
 req repyportability.py
 req repypp.py
 req restrictions.py
 req rsa.repy
 req safe.py
 req seash.py
+req servicelogger.py
+req servicelookup.repy
 req session.repy
 req sha.repy
 req signeddata.repy
