@@ -1,13 +1,13 @@
 """
 <Program Name>
-  install_autograder.py
+  nm_remote_api.mix/py
 
 <Author>
   Alper Sarikaya
   alpers@cs.washington.edu
 
 <Purpose>
-  Creates an interface between Emulab Beraber instances and the autograder
+  Creates an interface between Emulab Seattle instances and the autograder
   scripting.
 
   Summary of functionality:
@@ -17,6 +17,10 @@
         given timeout
             run_on_targets(), run_target()
       - acquires log output from vessels and stores them in state for user
+
+  This is a general interface with connecting with remote Seattle instances
+  directly, but the functionality is geared toward the needs of the
+  autograder.
 
 """
 
@@ -50,19 +54,19 @@ def add_vessel(longname, vesselhandle):
 def add_node_by_hostname(host, port=DEFAULT_NODEMANAGER_PORT):
     """
     <Purpose>
-      Attempts to find a running Beraber instance at the host specified, 
+      Attempts to find a running Seattle instance at the host specified, 
       connect to it, and add meta-information about the instance and its 
       available vessels to the internal dictionary (vesselinfo).
 
     <Arguments>
       host:
-          The host where the Beraber instance is running (ip or full-qual name)
+          The host where the Seattle instance is running (ip or full-qual name)
       port:
-          The port where the Beraber instance is running (default 1224)
+          The port where the Seattle instance is running (default 1224)
 
     <Exceptions>
       Will throw an exception if the module has not been initalized, the host 
-      was not found, or no Beraber instance was found running on the specified
+      was not found, or no Seattle instance was found running on the specified
       host:port.
 
     <Side Effects>
@@ -343,19 +347,105 @@ def showlog_vessel(longname):
 
 
 
+def reset_targets(longname_list):
+    """
+    <Purpose>
+      Cleans a group of vessels for reuse.  Specifically, cleans the vessels'
+      logs, filesystems, and halts any running code.
+
+    <Arguments>
+      longname_list:
+          A list of vessel longnames, i.e. [ip:port:v1, ip:port,v2, ...]
+
+    <Exceptions>
+      Only raises an exception if the module has not been initialized.  
+      All exceptions from reset_target() will be caught and returned in the 
+      failed_hosts dictionary (including longname KeyErrors).
+
+    <Side Effects>
+      Clears the log state of this module IFF resetting all vessels was 
+      successful.
+
+    <Returns>
+      A tuple consisting of (success?, failed_dict).  A success is determined
+      by each vessel successfully resetting; a failure is designated by at
+      least one failure.  The failures are detailed in the failed_dict, where 
+      the key is the longname and the value is the exception string.
+    """
+
+    check_is_initialized()
+    
+    phandle = parallelize_initfunction(longname_list, reset_target, 20)
+
+    while not parallelize_isfunctionfinished(phandle):
+        sleep(0.1)
+
+    resultdict = parallelize_getresults(phandle)
+
+    failed_hosts = {}
+    for (vessel, (success, msg)) in resultdict['returned']:
+        print vessel, success, msg
+        if not success:
+            failed_hosts[vessel] = msg
+    
+    for (vessel, exception_str) in resultdict['exception']:
+        failed_hosts[vessel] = msg
+
+    if len(failed_hosts.keys()) == 0:
+        return (True, "")
+    else:
+        return (False, failed_hosts)
+
+
+
+def reset_target(longname):
+    """
+    <Purpose>
+      Cleans a specific vessel for reuse.  Specifically, cleans the vessels
+      log, filesystem, and halts any running code.
+
+    <Arguments>
+      longname:
+          The vessel's longname, i.e. ip:port:vessel_name
+    
+    <Exceptions>
+      At the moment throws a KeyError if the longname is not in the current
+      state or if the module has not been initialized.
+
+    <Side Effects>
+      Will NOT clear the local logs unless reset_targets() is called.
+
+    <Returns>
+      A tuple consisting of (success?, info).  A successful reset have no info,
+      otherwise the exception will be copied to the info variable.
+
+    """
+    
+    check_is_initialized()
+
+    vesselname = vesselinfo[longname]['vesselname']
+    handle = vesselinfo[longname]['handle']
+    try:
+        nmclient_signedsay(handle, "ResetVessel", vesselname)
+    except NMClientException, e:
+        return (False, str(e))
+    else:
+        return (True, "")
+
+
 # alpers - initialize stuff!
 def initialize(host_list, keyname):
     """
     <Purpose>
       Initializes the state of the module, attempts to connect to each instance
-      of Beraber on the given Emulab nodes.
+      of Seattle on the given Emulab nodes.
 
     <Arguments>
       host_list: 
-          A list of valid Emulab hostnames with running Beraber instances.
+          A list of valid Emulab hostnames with running Seattle instances.
       keyname:
           The name of the public and private keys of which to authenticate
-          to the Beraber instances.  This string is the prefix of the publickey
+          to the Seattle instances.  This string is the prefix of the publickey
           and privatekey files. (e.g. "autograder" for "autograder.publickey")
 
     <Exceptions>

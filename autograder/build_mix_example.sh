@@ -2,8 +2,8 @@
 # this is just an example of how to use this script, just change
 # directory structure to work with your own.
 
-IN=install_autograder.mix
-OUT=install_autograder.py
+IN=nm_remote_api.mix
+OUT=nm_remote_api.py
 
 # go to svn trunk location
 cd ../../svn_seattle/trunk
