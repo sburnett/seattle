@@ -1,6 +1,6 @@
 """
 <Program Name>
-  deploy_geni_control
+  deploy_geni
 
 <Started>
   February 5, 2008
@@ -22,7 +22,7 @@
 
 <Usage>
   export PYTHONPATH=$PYTHONPATH:/loc/of/svn_trunk && 
-  deploy_geni_control.py <target_folder_to_build GENI> <svn_trunk>
+  deploy_geni.py <target_folder_to_build GENI> <svn_trunk>
   
 """
 
@@ -40,7 +40,7 @@ except ImportError:
 def main():
     
     if not len(sys.argv) == 3:
-        print "python deploy_geni_control <loc/of/geni_root> <loc/of/svn_trunk>"
+        print "python deploy_geni <loc/of/geni_root> <loc/of/svn_trunk>"
         return
     
     geni_root = sys.argv[1]
