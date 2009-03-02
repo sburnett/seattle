@@ -1049,10 +1049,8 @@ def mux_openconn(desthost, destport, localip=None,localport=None,timeout=15):
   # Check if we already have a real multiplexer
   key = "IP:"+desthost+":"+str(destport)
   if key in MULTIPLEXER_OBJECTS:
-    # Since a multiplexer already exists, lets just use that objects builtin method
-    mux = MULTIPLEXER_OBJECTS[key]
-
-    return mux.openconn(desthost, destport, localip,localport,timeout)
+    # Since a connection already exists, do a virtual openconn
+    return mux_virtual_openconn(desthost, destport, destport, localip,localport,timeout)
 
     # We need to establish a new multiplexer with this host
   else:
@@ -1116,17 +1114,6 @@ def _helper_mux_waitforconn(ip, port, func, remoteip, remoteport, socket, thisco
     
   # Trigger user function
   mux.waitforconn(ip,port,func)
-  
-
-# Maps a waitforconn to every multiplexer object
-def _map_virtual_waitforconn(localip,localport,func):
-  for (key, mux) in MULTIPLEXER_OBJECTS.items():
-    mux.waitforconn(localip, localport, func)
-
-# Maps a stopcomm to every multiplexer object
-def _map_virtual_stopcomm(port):
-  for (key, mux) in MULTIPLEXER_OBJECTS.items():
-    mux.stopcomm(port)
 
 # Wait for connection to establish new multiplexers and new virtual connections
 def mux_waitforconn(localip, localport, function):
@@ -1176,11 +1163,8 @@ def mux_waitforconn(localip, localport, function):
   # Register the handle
   MULTIPLEXER_STATE_DATA[key] = handle
   
-  # Register the ip/port function for new multiplexers
-  MULTIPLEXER_WAIT_FUNCTIONS[localip+":"+str(localport)] = function
-  
-  # Map this waitforconn to all existing multiplexers
-  _map_virtual_waitforconn(localip, localport, function)
+  # Do a virtual waitforconn as well as the real one
+  mux_virtual_waitforconn(localip, localport, function)
 
   # Return the key
   return key
@@ -1216,13 +1200,11 @@ def mux_stopcomm(key):
     # Get the values by spliting on colon
     arr = key.split(":")
     ip = arr[1]
-    port = int(arr[2])
+    port = arr[2]
 
-    # De-register this function for new multiplexers
-    del MULTIPLEXER_WAIT_FUNCTIONS[ip+":"+port]
-    
-    # Map this stopcomm to all existing multiplexers
-    _map_virtual_stopcomm(port)
+    # Propogate this stopcomm virtually
+    mux_virtual_stopcomm(ip+":"+port)
+
 
 # Changes the underlying hooks that the mux wrappers use
 def mux_remap(wait, open, stop):
@@ -1247,4 +1229,110 @@ def mux_remap(wait, open, stop):
   MULTIPLEXER_STATE_DATA["openconn"] = open
   MULTIPLEXER_STATE_DATA["stopcomm"] = stop
 
-	
+
+# This function will only do a virtual opeconn, and will not attempt to establish a new connection
+def mux_virtual_openconn(desthost, destport, virtualport, localip=None,localport=None,timeout=15):
+  """
+  <Purpose>
+    Opens a new virtual socket on an existing multiplexed connection.
+  
+  <Arguments>
+    desthost
+      The IP address of the host machine, to which there is an existing connection
+    
+    destport
+      The real port of the remote host with the multiplexed connection
+    
+    virtualport
+      The virtualport to connect to on the remote host
+    
+    localip
+      The localip to report to the remote host
+    
+    localport
+      The localport to report to the remote host
+    
+    timeout
+      How long before timing out the connection
+  
+  <Exceptions>
+    Raises a ValueError if there is no pre-existing connection to the requested host
+  
+  <Returns>
+    A socket-like object. See mux_openconn.
+  """
+  # Get the key to the existing multiplexer
+  key = "IP:"+desthost+":"+str(destport)
+  
+  if key in MULTIPLEXER_OBJECTS:
+    # Since a multiplexer already exists, lets just use that objects builtin method
+    mux = MULTIPLEXER_OBJECTS[key]
+
+    return mux.openconn(desthost, virtualport, localip,localport,timeout)
+  else:
+    raise ValueError, "There is no pre-existing connection to the requested host!"
+    
+
+# This function will only affect multiplexers, and does not listen on real ports
+def mux_virtual_waitforconn(localip, localport, function):
+  """
+  <Purpose>
+    Similar to mux_waitforconn, however it only waits on virtual ports and not on real ports.
+  
+  <Arguments>
+    localip
+      The localip to listen on. This will be ignored, and the port will be mapped to all multiplexers.
+    
+    localport
+      What port the multiplexers should respond on
+    
+    function
+      What function should be triggered by connections on localport
+  
+  <Side effects>
+    All multiplexers will begin waiting on the local port
+  
+  <Returns>
+    A handle that can be used with mux_virtual_stopcomm
+  """
+  # Generate a key
+  key = localip+":"+str(localport)
+  
+  # Register the ip/port function for new multiplexers
+  MULTIPLEXER_WAIT_FUNCTIONS[key] = function
+  
+  # Map this waitforconn to all existing multiplexers
+  for (key, mux) in MULTIPLEXER_OBJECTS.items():
+    mux.waitforconn(localip, localport, function)
+  
+  return key
+  
+
+# This function will only affect multiplexers, and does not listen on real ports
+def mux_virtual_stopcomm(key):
+  """
+  <Purpose>
+    Instructs all multiplexers to stop responding to new connections on the virtual port.
+
+  <Arguments>
+    port
+      The virtual port to stop listening on
+
+  <Side effects>
+    All multiplexers will stop waiting on the local port
+
+  <Returns>
+    None
+  """
+  # Get the values by spliting on colon
+  arr = key.split(":")
+  ip = arr[0]
+  port = int(arr[1])
+
+  # De-register this function for new multiplexers
+  del MULTIPLEXER_WAIT_FUNCTIONS[key]
+  
+  # Map this stopcomm to all existing multiplexers
+  for (key, mux) in MULTIPLEXER_OBJECTS.items():
+    mux.stopcomm(port)
+  
