@@ -33,9 +33,30 @@ INSTALLER_NAME = "seattle"
 
 
 def get_inst_name(dist, version):
-    # Given the OS it is for and the version, returns
-    # the proper name for the installer. Meant for
-    # internal use.
+    """
+    <Purpose>
+      Given the OS and the version, returns what the name of the installer
+      ought to be.
+
+    <Arguments>
+      dist:
+        The OS that the installer is intended for, should be win, mac, linux,
+        or winmob.
+      version:
+        A string to be appended between the dist and the extension - for
+        instance, if version is "0.1d", then the linux installer name will
+        be "seattle_linux0.1d.tgz".
+
+    <Exceptions>
+      None.
+
+    <Side Effects>
+      None.
+
+    <Returns>
+      The proper installer name for the specified OS and version if the
+      OS is supported, an empty string otherwise.
+    """
     base_name = INSTALLER_NAME + version + "_" + dist
     if dist == "win":
         base_name += ".zip"
