@@ -21,8 +21,7 @@ Help - SeattleGENI
       <h3>Table of Contents</h3>
       <ul>
 	<li><a href="#intro" title="Donation
-	       Introduction">Introduction to Seattle Donation</a>,
-	       thanks for Donating!</li>   
+	       Introduction">Introduction to Seattle Donations</a></li>   
 	<li><a href="#install" title="Installing Seattle">Installing
 	    Seattle</a></li>
 	<li><a href="#pause" title="Pausing Seattle">Pausing
@@ -34,48 +33,50 @@ Help - SeattleGENI
       </ul>
     </div>
 
-    <h2><a name="intro">Introduction to Seattle Donation</a></h2>
-    <p>By running Seattle on your home computer, workstation, or
-    computer, you are helping everyone using the Beraber framework!
-    By making your donation available to Seattle users, you are 
-    allowing users to try new topologies of nodes. This enables both
-    more accurate representations of Internet (increased and varied
-    latency times) and allows more undergraduates, graduate students,
-    and professors to test their hypotheses on a internetwork-like
-    testbed without charge.</p> 
+    <h2><a name="intro">Introduction to Seattle Donations</a></h2>
 
-    <p>On the download page, you may notice that it details that you
-    are donating resources on behalf of a specific user.  By
-    downloading the installer from this page, you are donating
-    resources to be owned by the user detailed on this page.  The
-    owner of the donation then has the flexibility to organize
-    permissions and allocate vessels to specific users and the general
-    Seattle public.</p>
+    <p>By
+      running <a href="https://seattle.cs.washington.edu/">Seattle</a>
+      on your computer, you are contributing to a growing testbed of
+      hundreds of machines around the world. Your donation will make
+      available some resources on your computer for use by other
+      Seattle users. The Seattle project strives to provide a testbed
+      for more accurate network experimentation and to enable
+      researchers to test their hypotheses on an testbed of Internet
+      scale free of charge.</p>
 
-    <p>The philosophy of the Seattle project is use donationed
-    resources in a way that is <strong>secure (including
-    performance-isolation)</strong>.  Programs that run donated
-    resources are isolated so that a program can't write or read files
-    it isn't supposed to or do other bad things to your computer.  The
-    Beraber framework also ensures fair play with each donation by
-    isolating the performance of your programs from the programs that
-    run on donated resources.  Our promise to you is to use no more
-    than 10% of your computer's resources. <strong>*</strong></p> 
+    <p><strong>Thank you for donating to the Seattle
+    testbed!<strong></p>
+
+    <p>On the download page, you may notice that it details that your
+      installation of Seattle will be crediting resources on behalf of
+      a specific user.  By downloading the installer from this page,
+      you are donating resources to the particular user.</p>
+
+    <p>The philosophy of the Seattle project is provide use of donated
+      resources in a way that is <strong>secure (including
+      performance-isolation)</strong>.  Programs that run on the
+      donated resources are isolated so that a program cannot write or
+      read files it is not supposed to or perform other insecure
+      operations on your computer. The Seattle framework ensures fair
+      play for each donation by isolating the performance of all
+      program that run on the donated resources. Our promise to you is
+      to use no more than 10% of your computer's
+      resources. <strong>*</strong></p>
 
     <h2><a name="install">Installing Seattle</a></h2> 
-    <p>Running Seattle on your machine is easy.  Simply start the
-    install script (<code>install.bat</code>
-    or <code>install.sh</code>, depending on the type of your system),  
-    and the application will do three things.  (1) start the main
-    communication program, nmmain.py (standing for node manager main
-    thread), (2) start up the software updater, and (3) insert
-    nmmain.py into your startup queue (crontab for linux/apple,
-    startup items for windows).</p> 
+    <p>Running Seattle on your machine is easy. Simply start the
+      install script (<code>install.bat</code>
+      or <code>install.sh</code>, depending on the type of your
+      system), and the application will do three things.  (1) start
+      the node manager program (2) start up the software updater, and
+      (3) register the node manager to start automatically on system
+      startup.</p>
 
     <h2><a name="pause">Pausing Seattle</a></h2>
     <p>To pause the execution of Seattle, run the python script
     <code>seattlestopper.py</code> (or use the
-    script <code>stop_seattle.sh</code>).  To unpause, run the python
+    script <code>stop_seattle.sh</code>).  To unpause Seattle, run the python
     script <code>seattlestarter.py</code> (or use the
     script <code>start_seattle.sh</code>).  During the paused period,
     your computer's resources will not be consumed by student
@@ -83,18 +84,18 @@ Help - SeattleGENI
 
     <h2><a name="uninstall">Uninstalling Seattle</a></h2>
     <p>If you decide to end your donation, Seattle can be uninstalled
-    simply by running the python script <code>uninstall.py</code> (or
-    the script <code>uninstall.sh</code>).  This process will remove
-    Seattle from the startup queue, deactivate the main thread, and
-    remove the execution from the user's crontab (if
-    applicable).</p> 
+      simply by running the python script <code>uninstall.py</code>
+      (or the script <code>uninstall.sh</code>).  This process will
+      stop the node manager, and remove all traces of Seattle from
+      your system.</p>
 
     {% include "common/help_contact.html" %}
 
-	<p class="footnote"><strong>*</strong> Computational resources are
- 	things like RAM, CPU time, network bandwidth, and hard drive space.
- 	We're working on allowing you to reset the percentages or absolute
- 	value to allow you to change the amount.</p>
+	<p class="footnote"><strong>*</strong> Computational resources
+ 	  include RAM, CPU time, network bandwidth, and hard drive
+ 	  space.  We're working on allowing users to specify a
+ 	  user-defined percentages or absolute values for each of
+ 	  these resources.</p>
 
   </div>
 </div>
