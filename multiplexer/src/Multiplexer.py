@@ -29,12 +29,12 @@ MULTIPLEXER_INIT_STATUS = 4
 # Special Case
 MULTIPLEXER_FRAME_NOT_INIT = -1
 
-# Valid Forwarder responses to init
+# Valid Multiplexer responses to init
 MULTIPLEXER_STATUS_CONFIRMED = "CONFIRMED"
 MULTIPLEXER_STATUS_FAILED = "FAILED"
 
 # Core unit of the Specification, this is used for multiplexing a single connection,
-# and for initializing connection to the forwarder
+# and for initializing connections
 class MultiplexerFrame():
   
   # Set the frame instance variables
@@ -261,7 +261,7 @@ class MultiplexerFrame():
     
 
 
-# This helps abstract the details of a NAT connection    
+# This helps abstract the details of a Multiplexed connection    
 class Multiplexer():
   
   def __init__(self, socket, info={}):
@@ -280,7 +280,6 @@ class Multiplexer():
 
       # Default incoming and outgoing buffer size expansion value
       # Defaults to 128 kilobytes
-      # -1 to disable
       self.defaultBufSize = 128*1024
 
       # This is the main socket
@@ -331,7 +330,7 @@ class Multiplexer():
     " counter:"+str(self.nextReferenceID)+ \
     " info:"+str(self.socketInfo)+">"
           
-  # Closes the NATConnection, and cleans up
+  # Closes the Multiplexer, and cleans up
   def close(self, closeSocket=True):
     """
     <Purpose>
@@ -610,7 +609,7 @@ class Multiplexer():
     # Release the socket
     socket.socketLocks["main"].release()
 
-  # Handles a forwarder MULTIPLEXER_CONN_BUF_SIZE message
+  # Handles a MULTIPLEXER_CONN_BUF_SIZE message
   # Increases the amount we can send out
   def _conn_buf_size(self,socket, num):
     # Acquire a lock for the socket
@@ -915,7 +914,7 @@ class MultiplexerSocket():
       buf_frame = MultiplexerFrame()
       buf_frame.initConnBufSizeFrame(self.id, self.mux.defaultBufSize)
       
-      # Send it to the Forwarder
+      # Send it
       self.mux._sendFrame(buf_frame)
       
       # Increase our incoming buffer
@@ -971,7 +970,7 @@ class MultiplexerSocket():
       
       # If we can, just send it all at once
       if len(data) < outgoingAvailable:
-        # Instruct the NATConnection object to send our data
+        # Instruct the multiplexer object to send our data
         self.mux._send(self.id, data)
         
         # Reduce the size of outgoing avail
