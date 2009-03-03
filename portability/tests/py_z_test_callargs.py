@@ -17,4 +17,5 @@ modname = repyhelper.translate(TESTFILE, callargs=["", "samoas"])
 mod = __import__(modname)
 if mod.num_callargs() is not 2:
   print "translate had wrong number of callargs:"
+  print "callargs =", mod.callargs
 
