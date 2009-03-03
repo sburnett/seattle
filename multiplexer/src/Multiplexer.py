@@ -1012,7 +1012,7 @@ MULTIPLEXER_STATE_DATA["stopcomm"] = stopcomm
 MULTIPLEXER_WAIT_FUNCTIONS = {}
 
 # Openconn that uses Multiplexers
-def mux_openconn(desthost, destport, localip=None,localport=None,timeout=15):
+def mux_openconn(desthost, destport, localip=None,localport=None,timeout=15,virtualport=None):
   """
   <Purpose>
     Opens a multiplexed connection to a remote host, and returns a virtual socket.
@@ -1033,6 +1033,9 @@ def mux_openconn(desthost, destport, localip=None,localport=None,timeout=15):
     timeout
       How long before timing out the connection
   
+    virtualport
+      Specify a virtual port to connect to, defaults to the destport
+      
   <Exceptions>
     See openconn.
   
@@ -1046,11 +1049,15 @@ def mux_openconn(desthost, destport, localip=None,localport=None,timeout=15):
     If there is no multiplexed connection pre-established, an attempt will be made to establish a new connection.
     If a connection is already established, then only a virtual socket will be opened.
   """
+  # Use the destport by default for the virtualport
+  if virtualport == None:
+    virtualport = destport
+    
   # Check if we already have a real multiplexer
   key = "IP:"+desthost+":"+str(destport)
   if key in MULTIPLEXER_OBJECTS:
     # Since a connection already exists, do a virtual openconn
-    return mux_virtual_openconn(desthost, destport, destport, localip,localport,timeout)
+    return mux_virtual_openconn(desthost, destport, virtualport, localip,localport,timeout)
 
     # We need to establish a new multiplexer with this host
   else:
@@ -1090,8 +1097,11 @@ def mux_openconn(desthost, destport, localip=None,localport=None,timeout=15):
     # Add the key entry for this mux
     MULTIPLEXER_OBJECTS[key] = mux
 
+    # Map the old waitforconn's
+    _helper_map_existing_waits(mux)
+    
     # Now call openconn on the mux to get a virtual socket
-    return mux.openconn(desthost, destport, localip,localport,timeout)
+    return mux.openconn(desthost, virtualport, localip,localport,timeout)
 
 # Helper function for mux_waitforconn, handles everything then calls user function
 def _helper_mux_waitforconn(ip, port, func, remoteip, remoteport, socket, thiscommhandle, listencommhandle):
@@ -1107,13 +1117,18 @@ def _helper_mux_waitforconn(ip, port, func, remoteip, remoteport, socket, thisco
   # Add the key entry for this mux
   MULTIPLEXER_OBJECTS[key] = mux
   
+  # Map the old waitforconn's
+  _helper_map_existing_waits(mux)
+    
+  # Trigger user function
+  mux.waitforconn(ip,port,func)
+
+# Helper function to map pre-existing waitforconn's to a new multiplexer
+def _helper_map_existing_waits(mux):
   # Apply the old waitforconns
   for (key, function) in MULTIPLEXER_WAIT_FUNCTIONS.items():
     args = key.split(":")
     mux.waitforconn(args[0],int(args[1]),function)
-    
-  # Trigger user function
-  mux.waitforconn(ip,port,func)
 
 # Wait for connection to establish new multiplexers and new virtual connections
 def mux_waitforconn(localip, localport, function):
