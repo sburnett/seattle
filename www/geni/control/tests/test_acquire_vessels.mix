@@ -1,0 +1,60 @@
+from geni.control.resource_operations import release_resources
+from geni.control.repy_dist.vessel_operations import acquire_lan_vessels, acquire_wan_vessels, acquire_rand_vessels
+
+include nmclient.py
+
+
+def acquire_node(geni_user):
+
+    success, blob = acquire_rand_vessels(geni_user, 1)
+    
+    if not success:
+        summary, explanation = blob
+        print "Failed to acquire node."
+        print "Summary:", summary
+        print "Details:", explanation
+        
+        return
+
+    else: 
+        summary, explanation, acquired = blob
+        new_node = acquired[0]
+        print "Successfull acquired node (" + str(new_node) + ")"
+        
+        parts = new_node.partition(":")
+        hostname = parts[0]
+        port = int(parts[2])
+        
+        nmhandle = nmclient_createhandle(hostname, port)
+        nmclient_rawsay(nmhandle, "GetVessels")
+        nmclient_getvesseldict(nmhandle)
+
+        return hostname, port
+
+
+def release_node(geni_user, hostname, port):
+    success, blob = release_resources(geni_user, 0, True)
+    
+    # vessel should be released now, check
+    
+    wait(10)
+
+    try:
+        nmhandle = nmclient_createhandle(hostname, port)
+        nmclient_rawsay(nmhandle, "GetVessels")
+        nmclient_getvesseldict(nmhandle)
+    except NMClientException:
+        print "successfully unreachable"
+    else:
+        print "node still contactable"
+    
+
+if __init__ == "__main__":
+    user = DjangoUser.objects.get(username="test_geni")
+    print "django user:", user
+    
+    geni_user = User.objects.get(www_user = user)
+    print "geni user:", geni_user
+
+    hostname, port = acquire_node(geni_user)
+    release_node(geni_user, hostname, port)
