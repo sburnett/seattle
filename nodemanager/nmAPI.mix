@@ -67,6 +67,9 @@ try:
 except: # This will fail on non-windows platforms
   windowsAPI = None
 
+# Armon: Import nonportable to use getruntime
+import nonportable
+
 offcutfilename = "resources.offcut"
 
 # The node information (reported to interested clients)
@@ -227,10 +230,10 @@ def startvessel(vesselname, argstring):
     # reset the path
     os.chdir('..')
 
-  starttime = time.time()
+  starttime = nonportable.getruntime()
 
   # wait for 10 seconds for it to start (else return an error)
-  while time.time()-starttime < 10:
+  while nonportable.getruntime()-starttime < 10:
     newstatus, newtimestamp = statusstorage.read_status(vesseldict[vesselname]['statusfilename'])
     # Great!   The timestamp was updated...   The new status is the result of 
     # our work.   Let's tell the user what happened...
@@ -279,10 +282,10 @@ def stopvessel(vesselname):
   # create the stop file
   open(vesseldict[vesselname]['stopfilename'],"w").close()
 
-  starttime = time.time()
+  starttime = nonportable.getruntime()
 
   # wait for up to 10 seconds for it to stop (else return an error)
-  while time.time()-starttime < 10:
+  while nonportable.getruntime()-starttime < 10:
     if vesseldict[vesselname]['status'] != 'Started':
       break
 
