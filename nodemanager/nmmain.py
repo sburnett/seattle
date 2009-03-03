@@ -109,14 +109,14 @@ def should_start_waitable_thread(threadid, threadname):
 
   # If it has been started, and the elapsed time is too short, always return
   # False to say it shouldn't be restarted
-  if thread_starttime[threadid] and time.time() - thread_starttime[threadid] < thread_waittime[threadid]:
+  if thread_starttime[threadid] and nonportable.getruntime() - thread_starttime[threadid] < thread_waittime[threadid]:
     return False
     
   for thread in threading.enumerate():
     if threadname in str(thread):
       # running now.   If it's run for a reasonable time, let's reduce the 
       # wait time...
-      if time.time() - thread_starttime[threadid] > reasonableruntime:
+      if nonportable.getruntime() - thread_starttime[threadid] > reasonableruntime:
         thread_waittime[threadid] = max(minwaittime, thread_waittime[threadid]-decreaseamount)
       return False
   else:
@@ -124,7 +124,7 @@ def should_start_waitable_thread(threadid, threadname):
 
 # this is called when the thread is started...
 def started_waitable_thread(threadid):
-  thread_starttime[threadid] = time.time()
+  thread_starttime[threadid] = nonportable.getruntime()
   thread_waittime[threadid] = min(maxwaittime, thread_waittime[threadid] ** wait_exponent)
 
   
