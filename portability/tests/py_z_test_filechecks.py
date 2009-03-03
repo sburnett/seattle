@@ -15,6 +15,7 @@ Description:
 
 import os
 import repyhelper
+import test_utils
   
 #The (preexisting) repy file to use as a reference for translating
 SRCFILE = "rhtest_filetests.repy"
@@ -23,11 +24,6 @@ TESTFILE = "rhtest_filetests_new.repy"
 #The translation name corresponding to TESTFILE
 TESTFILE_TR = repyhelper._get_module_name(TESTFILE) + ".py"
 
-
-#delete file if it exists
-def clean_file(name):
-  if os.path.isfile(name):
-    os.remove(name)
 
 
 def create_testfile(filename, file_tag):
@@ -50,7 +46,7 @@ if repyhelper._translation_is_needed(SRCFILE, "file_doesnt_exist'"):
 else:
   print "Test failed for translation path that doesn't exist'"
 
-clean_file(TESTFILE_TR)
+test_utils.cleanup_file(TESTFILE_TR)
 
 #Test source (repy) file
 try: 
@@ -60,7 +56,7 @@ except repyhelper.TranslationError:
 else:
   print "test didnt raise exception when provided bad souce file"
 
-clean_file(TESTFILE_TR)
+test_utils.cleanup_file(TESTFILE_TR)
 
 create_testfile(TESTFILE, "")
 
@@ -72,7 +68,7 @@ except repyhelper.TranslationError:
 else:
   print "directory passed test as file needing to be read"
 
-clean_file(TESTFILE_TR)
+test_utils.cleanup_file(TESTFILE_TR)
 
 
 
@@ -89,7 +85,7 @@ except repyhelper.TranslationError:
 else:
   print "tagline detection incorrectly passed, would have clobbered file"
 
-clean_file(TESTFILE_TR)
+test_utils.cleanup_file(TESTFILE_TR)
 
 
 
@@ -103,7 +99,7 @@ if repyhelper._translation_is_needed(SRCFILE, TESTFILE):
 else:
   print "tagline detection should have passed, but failed"
   
-clean_file(TESTFILE_TR)
+test_utils.cleanup_file(TESTFILE_TR)
 
 
 #Perform the same tests as last (valid translation file), but keep modtime of
@@ -114,6 +110,7 @@ if repyhelper._translation_is_needed(SRCFILE, TESTFILE):
 else:
     print "file modification time tests failed!"
 
+test_utils.cleanup_file(TESTFILE_TR)
 
 #Test the file path check for a bogus path
 create_testfile(TESTFILE, "badfiletag")  
@@ -125,5 +122,5 @@ except repyhelper.TranslationError:
 else:
   print "Bogus file path check failed"  
   
-clean_file(TESTFILE_TR)
+test_utils.cleanup_file(TESTFILE_TR)
 

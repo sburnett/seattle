@@ -1,3 +1,9 @@
+"""
+A series of utility helpers for running the repyhelper tests.
+
+"""
+
+
 import os
 import repyhelper
 
@@ -9,16 +15,21 @@ def get_translation_filename(filename):
 def get_translation_filenames(filenames):
   return map(get_translation_filename, filenames)
 
-def cleanup_files(files):
-  """
-    Remove the files list in files, to ensure that fresh translations are used
-    between unit tests
-    
-  """
-  for f in files:
-    if os.path.isfile(f):
-      try:
-        os.remove(f)
-      except (OSError, IOError):
-        pass
 
+#Given a list of repy files, remove the corresponding translations if they exist
+def cleanup_translations(files):
+  translations = get_translation_filenames(files)
+  for translation in translations:
+    cleanup_file(translation)
+  
+  
+def cleanup_file(filename):
+  """
+    Remove filename if it exists
+  """
+  if os.path.isfile(filename):
+    try:
+      #print "erasing ", filename #DEBUG
+      os.remove(filename)
+    except (OSError, IOError):
+      raise

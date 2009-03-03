@@ -9,22 +9,28 @@ Description:
   
 """
 
+TESTFILES = ['rhtestrecursion_1.repy', 'rhtestrecursion_2.repy', 'rhtestrecursion_3.repy', 'rhtestrecursion_4.repy']
+
+
 import repyhelper
+import test_utils
+
+test_utils.cleanup_translations(TESTFILES)
 
 #This tests circular includes
-translation = repyhelper.translate("rhtestrecursion_1.repy")
+translation = repyhelper.translate(TESTFILES[0])
 if translation == "":
   print "Error translating circular recursion"
 else:
   #actually include it to make sure the translation was valid
-  __import__(translation)
+  mod = __import__(translation)
  
-
+test_utils.cleanup_translations(TESTFILES)
   
   
 #Tests self include  
-translation = repyhelper.translate("rhtestrecursion_4.repy")
+translation = repyhelper.translate(TESTFILES[-1])
 if translation == "":
   print "Error translating self-include"
 else:
-  __import__(translation)
+  mod2 = __import__(translation)

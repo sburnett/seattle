@@ -6,11 +6,10 @@ import repyhelper
 import test_utils
 
 
-TESTFILE1 = "rhtest_mycontext1.repy"
-TESTFILE2 = "rhtest_mycontext2.repy"
+TESTFILE1 = "rhtest_mycontext_unique1.repy"
+TESTFILE2 = "rhtest_mycontext_unique2.repy"
 
-translations = test_utils.get_translation_filenames([TESTFILE1, TESTFILE2])
-test_utils.cleanup_files(translations)
+test_utils.cleanup_translations([TESTFILE1, TESTFILE2])
 
 
 modname1 = repyhelper.translate(TESTFILE1, shared_mycontext=False)
@@ -24,3 +23,4 @@ if mod2.foo() is None:
 else:
   print "Context sharing wasn't unique'! foo returned", mod2.foo()
 
+test_utils.cleanup_translations([TESTFILE1, TESTFILE2])

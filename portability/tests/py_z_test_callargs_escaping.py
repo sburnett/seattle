@@ -3,8 +3,9 @@ import repyhelper
 
 TESTFILE = "rhtest_callargs.repy"
 #Make sure we have fresh translations per test run
-translations = test_utils.get_translation_filenames([TESTFILE])
-test_utils.cleanup_files(translations)
+
+test_utils.cleanup_translations([TESTFILE])
+
 
 #Now test that the string escaping works properly
 modname = repyhelper.translate(TESTFILE, callargs=["\"a\"", "samoas", "\\\'b\"\\", ""])
@@ -20,5 +21,6 @@ if mod.callargs[2] != "\\\'b\"\\":
 if mod.callargs[3] != "":
   print "empty string improperly passed:", mod.callargs[1]
 
-
-
+test_utils.cleanup_translations([TESTFILE])
+import time
+time.sleep(1)

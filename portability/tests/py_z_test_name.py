@@ -7,7 +7,7 @@ Description
 """
 import os
 import repyhelper
-
+import test_utils
 
 def prepare_file(filename):
   #make an empty test file of name filename
@@ -20,26 +20,17 @@ def prepare_file(filename):
     return False
     
     
-def cleanup(filename):
-  if os.path.isfile(filename):
-    os.remove(filename)
-  else:
-    print "Couldn't cleanup file", filename
-    
-    
 def test_name(name, expected):
   if prepare_file(name):
     translation_name = repyhelper.translate(name)
     
     if translation_name != expected:
-      print "ERROR: expected:", expected, "translation:", translation_name
+      print "ERROR: expected:", expected, " but translation name was:", translation_name
       
-    cleanup(name)
-
-    cleanup(translation_name + ".py")
-  
+    test_utils.cleanup_file(name)
+    test_utils.cleanup_file(translation_name + ".py")
   else:
-    print "ERROR: couldn't prepare test for filename", name
+    print "couldn't prepare test for filename test:", name
 
 
 test_name("rhtestname_file1.repy", "rhtestname_file1_repy")
