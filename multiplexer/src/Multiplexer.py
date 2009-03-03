@@ -362,15 +362,16 @@ class Multiplexer():
     
     # Get the buffer lock, and close everything if it exists
     self.stopSocketReader = True # Tell the socket reader to quit
-      
+     
     # Close each individual socket
-    for refID, sock in self.virtualSockets:
-      self._closeCONN(sock, refID)
-      
+    for refID, sock in self.virtualSockets.items():
+      self._closeCONN(sock, refID) 
+    
     # Close the real socket
     if closeSocket and self.socket != None:
       self.socket.close()
       self.socket = None
+
       
   # Stops additional listener threads
   def stopcomm(self,port):
@@ -401,9 +402,16 @@ class Multiplexer():
       
       # Construct frame, this blocks
       frame.initFromSocket(self.socket)
-    finally:
-      # Release the lock
-      self.readLock.release()
+   
+    except Exception, exp:
+      # We need to close the multiplexer
+      self.close()
+      
+      # Re-raise the exception
+      raise exp
+
+    # Release the lock
+    self.readLock.release()
     
     # Return the frame
     return frame
@@ -417,12 +425,19 @@ class Multiplexer():
     try:
       # Get the send lock
       self.writeLock.acquire()
-        
+
       # Send the frame!
       self.socket.send(frame.toString())
-    finally:
-      # release the send lock
-      self.writeLock.release()
+    
+    except Exception, exp:
+      # We need to close the multiplexer
+      self.close()
+      
+      # Re-raise the exception
+      raise exp
+        
+    # release the send lock
+    self.writeLock.release()
    
   def _send(self,referenceID, data):
     """
@@ -587,10 +602,7 @@ class Multiplexer():
   
   
   # Handles a client closing a connection
-  def _closeCONN(self,socket, refID):
-    # Acquire a lock for the socket
-    socket.socketLocks["main"].acquire()
-    
+  def _closeCONN(self,socket, refID):    
     # Close the socket
     socket.socketInfo["closed"] = True
     
@@ -606,8 +618,7 @@ class Multiplexer():
     except:
       pass
     
-    # Release the socket
-    socket.socketLocks["main"].release()
+    
 
   # Handles a MULTIPLEXER_CONN_BUF_SIZE message
   # Increases the amount we can send out
@@ -861,6 +872,13 @@ class MultiplexerSocket():
     self.buffer = None
     self.bufferInfo = None
     self.socketLocks = None
+  
+  # Checks if the socket is closed, and handles it
+  def _handleClosed(self):
+    # Check if the socket is closed, raise an exception
+    if self.socketInfo["closed"]:
+      self.close() # Clean-up
+      raise EnvironmentError, "The socket has been closed!"
     
   def recv(self,bytes):
     """
@@ -881,6 +899,9 @@ class MultiplexerSocket():
     if bytes <= 0:
       raise ValueError, "Must read a positive integer number of bytes!"
         
+    # Check if the socket is closed
+    self._handleClosed()
+        
     # Block until there is data
     # This lock is released whenever new data arrives, or if there is data remaining to be read
     self.socketLocks["nodata"].acquire()
@@ -890,10 +911,8 @@ class MultiplexerSocket():
       # Some weird timing issues can cause an exception, but it is harmless
       pass
     
-    # Check if the socket is closed, raise an exception
-    if self.socketInfo["closed"]:
-      self.close() # Clean-up
-      raise EnvironmentError, "The socket has been closed!"
+    # Check if the socket is closed
+    self._handleClosed()
             
     # Get our own lock
     self.socketLocks["main"].acquire()
@@ -946,9 +965,12 @@ class MultiplexerSocket():
     # Input sanity
     if len(data) == 0:
       raise ValueError, "Cannot send a null data-set!"
-    
+        
     # Send chunks of data until it is all sent
     while True:
+      # Check if the socket is closed
+      self._handleClosed()
+        
       # Make sure we have available outgoing bandwidth
       self.socketLocks["outgoing"].acquire()
       try:
@@ -957,10 +979,8 @@ class MultiplexerSocket():
         # Some weird timing issues can cause an exception, but it is harmless
         pass
       
-      # Check if the socket is closed, raise an exception
-      if self.socketInfo["closed"]:
-        self.close() # Clean-up
-        raise EnvironmentError, "The socket has been closed!"
+      # Check if the socket is closed
+      self._handleClosed()
         
       # Get our own lock
       self.socketLocks["main"].acquire()

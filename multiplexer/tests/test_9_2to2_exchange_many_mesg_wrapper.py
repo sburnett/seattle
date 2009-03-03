@@ -51,8 +51,6 @@ def client_exchange(clientn,port,local):
   # Try to exchange 1 to MESG_LIMT
   num = 1
   while True and num <= MESG_LIMT:
-    if clientn == 1:
-      print num, MESG_LIMT
     virtualsock.send(str(num))
     num = num + 1
     data = virtualsock.recv(1024)
