@@ -1,0 +1,7 @@
+"""
+  a file which is used as a base for testing the file checks
+"""
+if callfunc == "initialize":
+  print "hello, world!"
+  
+

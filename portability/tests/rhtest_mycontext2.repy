@@ -1,0 +1,7 @@
+def foo():
+  if 'foo' in mycontext:
+    return mycontext['foo']
+  else:
+    return None
+    
+
