@@ -83,7 +83,8 @@ def register(request):
             geni_user = User(www_user = new_user, affiliation=form.cleaned_data['affiliation'], pubkey=txt_pubkey, privkey="")
             geni_user.save_new_user()
             
-            return HttpResponseRedirect('/' + settings.URL_PREFIX + 'accounts/login')
+            return show_login(request, 'accounts/login.html',
+                              {'msg' : "Username %s has been successfully registered."%(new_user)})
     else:
         form = forms.UserCreationForm()
     return direct_to_template(request,'accounts/register.html', {'form' : form})
@@ -116,7 +117,7 @@ def login_redirect(request):
 
 
 
-def login(request, simplelogin=False):
+def login(request, simplelogin=False, msg=""):
     """
    <Purpose>
       Logs the user in by verifying their username/password. Checks if
@@ -142,13 +143,11 @@ def login(request, simplelogin=False):
     else:
         ltemplate = 'accounts/login.html'
         
-    err = ""
     if request.method == 'POST':
         form = AuthenticationForm(request.POST)
         if not request.session.test_cookie_worked():
-            err = "Please enable your cookies and try again."
             request.session.set_test_cookie()
-            return direct_to_template(request,ltemplate, {'form' : form, 'err' : err})
+            return show_login(request, ltemplate, {'err' : "Please enable your cookies and try again."}, form)
             
         user = authenticate(username=request.POST['username'], password=request.POST['password'])
         if user is not None:
@@ -167,20 +166,23 @@ def login(request, simplelogin=False):
                 return HttpResponseRedirect(reverse("profile"))
             else:
                 # Return a 'disabled account' error message
-                err = "This account has been disabled."
-                return direct_to_template(request,ltemplate, {'form' : form, 'err' : err})
-        else:
-            # Return an 'invalid login' error message.
-            err = "Wrong username or password."
-            return direct_to_template(request,ltemplate, {'form' : form, 'err' : err})
-    else:
+                return show_login(request, ltemplate, {'err' : "This account has been disabled."}, form)
+
+        # Return an 'invalid login' error message.
+        return show_login(request, ltemplate, {'err' : "Wrong username or password."}, form)
+
+    return show_login(request, ltemplate, {})
+
+
+def show_login(request, ltemplate, template_dict, login_form = None):
+    if login_form == None:
         # initial page load
         form = AuthenticationForm()
         # set test cookie, but only once -- remove it on login
         #if not request.session.test_cookie_worked():
         request.session.set_test_cookie()
-    return direct_to_template(request,ltemplate, {'form' : form, 'err' : err})
-
+    template_dict['form'] = form
+    return direct_to_template(request,ltemplate, template_dict, template_dict)
 
 
 def help(request):

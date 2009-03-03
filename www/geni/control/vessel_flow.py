@@ -167,10 +167,10 @@ def flow_credits_from_roots(orig_shares, pshares, vessels):
    """
    
    shares = deepcopy(orig_shares)
-   # print "initial vessels: "
-#    print vessels
-#    print "initial pshares :"
-#    print pshares
+   print "initial vessels: "
+   print vessels
+   print "initial pshares :"
+   print pshares
 
    credits_from = {}
    for node, value in vessels.items():
@@ -180,8 +180,8 @@ def flow_credits_from_roots(orig_shares, pshares, vessels):
    
    while len(shares.keys()) != 0:
       roots = get_root_nodes(shares)
-      #print "roots: "
-      #print roots
+      print "roots: "
+      print roots
       for root in roots:
          for child in shares[root]:
             p = get_percent(root, child, pshares)
@@ -193,13 +193,13 @@ def flow_credits_from_roots(orig_shares, pshares, vessels):
             #vessels[child] += value
             credits_from[child].append((root, value))
       prune_roots(shares, roots)
-      # print "pruned roots, resulting shares: "
-#       print shares
-#       print "pruned roots, resulting vessels: "
-#       print vessels
-#       print
-#    print "credits from: "
-#    print credits_from
+      print "pruned roots, resulting shares: "
+      print shares
+      print "pruned roots, resulting vessels: "
+      print vessels
+      print
+   print "credits from: "
+   print credits_from
    return credits_from, vessels_from_shares
 
 

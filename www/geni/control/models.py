@@ -239,7 +239,9 @@ class User(models.Model):
         shares = Share.build_shares(False)
         pshares = Share.build_shares(True)
         base_vessels = Share.get_base_vessels()
+        print "in get_user_credits with base_vessels: ", base_vessels
         credits_from, vessels_from_shares = vessel_flow.flow_credits_from_roots(shares, pshares, base_vessels)
+        print "flow_credits_from_roots returned credits_from: ", credits_from
         
         base_and_donations = (self, self.vcount_base + self.vcount_via_donations)
         if credits_from.has_key(self):

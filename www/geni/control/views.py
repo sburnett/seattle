@@ -812,6 +812,7 @@ def __validate_ajax(request):
 
 @login_required()
 def ajax_getshares(request):
+    print "ajax_getshares called"
     ret, success = __validate_guser__(request)
     if not success:
         return __jsonify({"success" : False, "error" : "could not validate your identity"})
@@ -855,6 +856,7 @@ def ajax_getshares(request):
 
 @login_required()
 def ajax_editshare(request):
+    print "ajax_editshares called"
     ret, success = __validate_ajax(request)
     if not success:
         return ret
@@ -875,6 +877,7 @@ def ajax_editshare(request):
 
 @login_required()
 def ajax_createshare(request):
+    print "ajax_createshare called"
     ret, success = __validate_ajax(request)
     if not success:
         return ret
@@ -896,6 +899,7 @@ def ajax_createshare(request):
 
 @login_required()
 def ajax_getcredits(request):
+    print "ajax_getcredits called"
     ret, success = __validate_ajax(request)
     if not success:
         return ret
