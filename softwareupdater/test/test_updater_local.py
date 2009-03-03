@@ -42,7 +42,6 @@ from repyportability import *
 import test_updater
 import subprocess
 import os
-import platform
 import signal
 import glob
 import sys
@@ -50,10 +49,11 @@ import shutil
 import time
 import urllib
 import tempfile
+# To determine the OS type
+import nonportable
 
 
-
-if platform.system() == 'Windows' or platform.system() == 'Microsoft':
+if nonportable.ostype == 'Windows':
   # We need to be able to kill the webserver.
   import windows_api
 
@@ -126,7 +126,7 @@ def kill_webserver(pid, url):
   <Returns>
     None
   """
-  if platform.system() == 'Windows' or platform.system() == 'Microsoft':
+  if nonportable.ostype == 'Windows':
     windows_api.killProcess(pid)
   else:
     os.kill(pid, signal.SIGKILL)
@@ -256,14 +256,22 @@ def main():
   # Keep track of whether ps is there (it isn't on Windows)
   no_ps = False
   
-  if platform.system() == 'Windows' or platform.system() == 'Microsoft':
+  if nonportable.ostype == 'Windows':
     # If we are running on windows, disable the ps calls.
     no_ps = True
-    
+   
+  # ps works different on a mac, where we need to use 'ps -aww' instead of
+  # 'ps -ef'.
+  if nonportable.ostype == 'Darwin':
+    pscommand = 'ps -aww'
+  else:
+    pscommand = 'ps -ef'
+
+ 
   updateprocess = subprocess.Popen(['python', 'softwareupdater.py'])
   if not no_ps:
     # Only do the ps check if ps is available
-    ps = subprocess.Popen('ps -ef | grep "python softwareupdater.py" | grep -v grep', shell=True, stdout=subprocess.PIPE)
+    ps = subprocess.Popen(pscommand + ' | grep "softwareupdater.py" | grep -v grep', shell=True, stdout=subprocess.PIPE)
     psout = ps.stdout.read()
     print 'Initial ps out:'
     print psout
@@ -285,7 +293,7 @@ def main():
     pass
     if not no_ps:
       # Only do the ps check if ps is available
-      ps = subprocess.Popen('ps -ef | grep "python softwareupdater.py" | grep -v grep', shell=True, stdout=subprocess.PIPE)
+      ps = subprocess.Popen(pscommand + ' | grep "softwareupdater.py" | grep -v grep', shell=True, stdout=subprocess.PIPE)
       psout = ps.stdout.read()
       psout.strip()
       print 'After ps out:'
