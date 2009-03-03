@@ -595,6 +595,18 @@ class Multiplexer():
     # Close the socket
     socket.socketInfo["closed"] = True
     
+    # Release the client sockets nodata and sending locks, so that they immediately see the message
+    # Wrap in try/catch since release will fail on a non-acquired lock
+    try:
+      socket.socketLocks["nodata"].release()
+    except:
+      pass
+    
+    try:
+      socket.socketLocks["outgoing"].release()
+    except:
+      pass
+    
     # Release the socket
     socket.socketLocks["main"].release()
 
@@ -830,7 +842,7 @@ class MultiplexerSocket():
       and most likely Runtime Errors will be encountered.
     """
     # If the Multiplexer is still initialized, then lets send a close message
-    if self.mux.connectionInit:
+    if self.mux != None and self.mux.connectionInit:
       # Create termination frame
       termFrame = MultiplexerFrame()
       termFrame.initConnTermFrame(self.id)
@@ -839,9 +851,10 @@ class MultiplexerSocket():
       self.mux._sendFrame(termFrame)
     
     # Remove from the list of virtual sockets
-    self.mux.virtualSocketsLock.acquire()
-    del self.mux.virtualSockets[self.id]
-    self.mux.virtualSocketsLock.release()
+    if self.mux != None:
+      self.mux.virtualSocketsLock.acquire()
+      del self.mux.virtualSockets[self.id]
+      self.mux.virtualSocketsLock.release()
     
     # Clean-up
     self.mux = None
