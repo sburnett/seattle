@@ -174,8 +174,8 @@ def login(request, simplelogin=False, msg=""):
     return show_login(request, ltemplate, {})
 
 
-def show_login(request, ltemplate, template_dict, login_form = None):
-    if login_form == None:
+def show_login(request, ltemplate, template_dict, form = None):
+    if form == None:
         # initial page load
         form = AuthenticationForm()
         # set test cookie, but only once -- remove it on login
