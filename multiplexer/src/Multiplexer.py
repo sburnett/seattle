@@ -880,7 +880,7 @@ class MultiplexerSocket():
       self.close() # Clean-up
       raise EnvironmentError, "The socket has been closed!"
     
-  def recv(self,bytes):
+  def recv(self,bytes,blocking=False):
     """
     <Purpose>
       To read data from the socket. This operation will block until some data is available. It will not block if some, non "bytes" amount is available. 
@@ -889,6 +889,9 @@ class MultiplexerSocket():
       bytes:
         Read up to "bytes" input. Positive integer.
     
+      blocking
+        Should the operation block until all "bytes" worth of data are read.
+        
     <Exceptions>
       If the socket is closed, an EnvironmentError will be raised. If bytes is a non-positive integer, a ValueError will be raised.
         
@@ -919,12 +922,13 @@ class MultiplexerSocket():
   
     # Read up to bytes
     data = self.buffer[:bytes] 
+    amountIn = len(data)
     
     # Remove what we read from the buffer
     self.buffer = self.buffer[bytes:] 
   
     # Reduce amount of incoming data available
-    self.bufferInfo["incoming"] -= len(data)
+    self.bufferInfo["incoming"] -= amountIn
   
     # Check if there is more incoming buffer available, if not, send a MULTIPLEXER_CONN_BUF_SIZE
     # This does not count against the outgoingAvailable quota
@@ -946,7 +950,19 @@ class MultiplexerSocket():
     # Release the lock
     self.socketLocks["main"].release() 
     
-    return data
+    # Are we supposed to block?
+    if blocking and amountIn < bytes:
+      # How much more do we need?
+      more = bytes - amountIn
+      
+      # Try to recieve the extra, recursively call ourself
+      moreData = self.recv(more, True)
+      
+      # Return the original data, plus the extra
+      return (data + moreData)
+    # Otherwise, just return what we have
+    else:
+      return data
 
   def send(self,data):
     """
