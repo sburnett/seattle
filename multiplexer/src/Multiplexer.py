@@ -303,7 +303,7 @@ class Multiplexer():
       self.pendingSockets = {}
 
       # If we want a new client, what number should we request?
-      self.referenceCounter = 0
+      self.nextReferenceID = 0
 
       # A dictionary that associates reference ID's to their MultiplexerSocket objects
       self.virtualSockets = {}
@@ -328,7 +328,7 @@ class Multiplexer():
     # Format a nice string with some of our info
     return "<Multiplexer setup:"+str(self.connectionInit)+ \
     " buf_size:"+str(self.defaultBufSize)+ \
-    " counter:"+str(self.referenceCounter)+ \
+    " counter:"+str(self.nextReferenceID)+ \
     " info:"+str(self.socketInfo)+">"
           
   # Closes the NATConnection, and cleans up
@@ -482,10 +482,10 @@ class Multiplexer():
     frame = MultiplexerFrame()
     
     # Get a new id
-    requestedID = self.referenceCounter
+    requestedID = self.nextReferenceID
     
     # Increment the counter
-    self.referenceCounter = self.referenceCounter + 1
+    self.nextReferenceID = self.nextReferenceID + 1
     
     # Setup the frame
     frame.initClientFrame(requestedID, desthost, destport, localip, localport)
@@ -649,7 +649,7 @@ class Multiplexer():
     socket = MultiplexerSocket(id, self, self.defaultBufSize, info)
     
     # We need to increase our reference counter now, so as to prevent duplicates
-    self.referenceCounter = id + 1
+    self.nextReferenceID = id + 1
     
     # Respond to our parter, send a success message
     resp = MultiplexerFrame()
