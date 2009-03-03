@@ -73,6 +73,7 @@ req writemetainfo.py
 req parallelize.repy
 req seattlestarter.py
 req windows_api.py
+req win_cpu_nanny.py
 req uniqueid.repy
 req timeout_xmlrpclib.py
 req listops.repy
