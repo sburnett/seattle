@@ -491,12 +491,12 @@ def start_seattle(prog_path):
   global OS
   starter_fn = prog_path + os.sep + get_starter_file_name()
   if OS == "Windows":
-    p = subprocess.Popen("start /min " + starter_fn)
+    p = subprocess.Popen("start /min " + starter_fn, shell=True)
     p.wait()
   elif OS == "WindowsCE":
     windows_api.launchPythonScript(starter_fn)
   else:
-    p = subprocess.Popen(starter_fn)
+    p = subprocess.Popen(starter_fn, shell=True)
     p.wait()
 
 

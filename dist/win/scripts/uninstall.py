@@ -36,7 +36,7 @@ class UninstallError(Exception):
 
 
 
-def uninstall(startup, starter_script):
+def uninstall(starter_script):
   """
   <Purpose>
     Shuts down all seattle processes using seattlestopper.py
@@ -55,14 +55,14 @@ def uninstall(startup, starter_script):
     None.
   """
   try:
-    if not os.path.exists(startup + "\\" + starter_script):
+    if not os.path.exists(starter_script):
       raise UninstallError("Could not find startup file.")
         
     # Stop all instances of seattle from running
     seattlestopper.killall()
     
     # Remove the startup script
-    os.remove(startup + "\\" + starter_script)
+    os.remove(starter_script)
         
     # Alert the user that we're done
     print "seattle was successfully uninstalled."
@@ -70,16 +70,16 @@ def uninstall(startup, starter_script):
 
   except UninstallError, (e):
     print "Install failed:", e.parameter
-    print "To uninstall manually, remove the file " + starter_script + " from your startup folder, then restart your computer."
+    print "To uninstall manually, remove the file " + os.path.basename(starter_script) + " from your startup folder, then restart your computer."
     print "You can then delete the directory containing seattle, if you wish."
 
 
 
 def main():
-  if len(sys.argv) < 3:
-    print "Usage: python uninstall.py path\\to\\startup\\folder\\ starter_script_name"
+  if len(sys.argv) < 2:
+    print "Usage: python uninstall.py path\\to\\startup\\script"
   else:
-    uninstall(sys.argv[1], sys.argv[2])
+    uninstall(sys.argv[1])
 
 if __name__ == "__main__":
   main()
