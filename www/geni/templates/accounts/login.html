@@ -14,10 +14,10 @@ Login - GENI
 		<div id="middle">
 		  <form method="post" action="{% url login %}">
 		  {% if err %}
-		  <p><font color="red">{{ err }}</font></p><br>
+		  <p class="warning">{{ err }}</p><br>
 		  {% endif %}
 		  {% if msg %}
-		  <p><font color="blue">{{ msg }}</font></p><br>
+		  <p class="message">{ msg }}</p><br>
 		  {% endif %}
 
 		  <table class="login">

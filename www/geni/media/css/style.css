@@ -134,6 +134,16 @@ body {
 	text-align: center;
 }
 
+.message {
+	border: 1px solid green;
+	margin: 20px 60px;
+	padding: 10px 20px;
+	color: green;
+	font-weight: bold;
+	background-color: #CCFFCC;
+	text-align: center;
+}
+
 .tooltip {
 	background-color: #efefef;
 	color: #333;
