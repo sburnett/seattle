@@ -1,14 +1,12 @@
-window.onload = function () {
-	if ($("id_gen_upload_choice").lastChild.selected == "selected") {
-		$("id_pubkey").style.display = "block";
+
+$(document).ready(function() {
+	$("#id_gen_upload_choice").chnage(toggle_upload);
+});
+
+function toggle_upload() {
+	if ($("#id_gen_upload_choice").val() == "1") {
+		$("#uploadkey").hide();
 	} else {
-		$("id_pubkey").style.display = "none";
+		$("#uploadkey").show();
 	}
-	$("id_gen_upload_choice").onchange = function() {
-		if (this.value == "1") {
-			$("id_pubkey").style.display = "none";
-		} else {
-			$("id_pubkey").style.display = "block";
-		}
-	}
-};
+}

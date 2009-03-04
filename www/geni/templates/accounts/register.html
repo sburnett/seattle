@@ -4,6 +4,11 @@
 Profile - GENI
 {% endblock title %}
 
+{% block script %}
+{{ block.super }}
+<script type="text/javascript" src="{{ MEDIA_URL}}scripts/register.js" charset="utf-8"></script>
+{% endblock script %}
+
 {% block nav_register %}
 <td class="active">Register</td>
 {% endblock nav_register %}
@@ -45,8 +50,11 @@ Profile - GENI
 		    <tr>
 		      <td class="key">{{ form.pubkey.label_tag }}</td>
 		      <td class="value">{{ form.gen_upload_choice }}</td>
-		      <td class="value">{{ form.pubkey }}</td>
 		    </tr>
+			  <tr id="uploadkey">
+			    <td class="key"></td>
+				  <td class="value">{{ form.pubkey }}</td>
+			  </tr>
 		    <tr>
 		      <td class="key"></td>
 		      <td class="value"><input type="submit" value="Register" /></td>
