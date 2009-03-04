@@ -314,12 +314,8 @@ table.users tr td{
     
 table.users tr th {
     font-weight: bold;
-    background-color: #888;
-    color: #fff;
-}
-
-table.users tr.header {
-	background-color: purple;
+    background-color: #FFCCFF;
+    color: #333;
 }
 
 table.users tr.odd {
