@@ -20,12 +20,14 @@ Profile - GENI
 		  <form action="{% url register %}" method="POST" enctype="multipart/form-data">
 
 		  {% if form.username.errors or form.password1.errors or form.password2.errors or form.affiliation.errors or form.pubkey.errors %}
-		  <p class="warning">Please correct the following:</p>
-		  <p class="warning">{{ form.username.errors }}</p>
-		  <p class="warning">{{ form.password1.errors }}</p>
-		  <p class="warning">{{ form.password2.errors }}</p>
-		  <p class="warning">{{ form.affiliation.errors }}</p>
-		  <p class="warning">{{ form.pubkey.errors }}</p>
+		  <p class="warning">
+		  Please correct the following:</p>
+		  {{ form.username.errors }}
+		  {{ form.password1.errors }}
+		  {{ form.password2.errors }}
+		  {{ form.affiliation.errors }}
+		  {{ form.pubkey.errors }}
+		  <br>
 		  {% endif %}
 
 		  <table class="login">
