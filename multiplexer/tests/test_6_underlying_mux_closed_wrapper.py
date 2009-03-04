@@ -1,5 +1,6 @@
 # This test tries to use mux_waitforconn and mux_openconn. It has 3 clients connecting to 1 server.
 # After the first client connects, the server severs the underlying socket.
+# The remaining two clients are expected to successfully connect and finish
 
 # Get the Multiplexer
 include Multiplexer.py
@@ -53,20 +54,20 @@ def client_exchange(clientn):
         num = num + 1
       else:
         print "Unexpected number! Expected: ", str(num), " Received: ",data
-  
+    
     virtualsock.close()
   
     # This finished...
     mycontext[clientn] = True
     
   except EnvironmentError, err:
-    if clientn == 1 and str(err) == "The socket has been closed!":
+    if clientn == 1 and (str(err) == "The socket has been closed!" or str(err) == "Connection Refused!"):
       # This is expected
       pass
-    elif clientn == 2 and str(err) == "Connection Refused!":
-      # This is expected
-      pass
-      
+    else:
+      print "Client Unexpected Error",clientn,err
+      raise err    
+    
   except Exception, err:
     print "Client Unexpected Error",clientn,err
     raise err
@@ -89,24 +90,24 @@ if callfunc=='initialize':
   # Trigger three clients
   settimer(0,client_exchange,[1])
 
-  settimer(2,client_exchange,[2])
+  settimer(3,client_exchange,[2])
 
-  settimer(4,client_exchange,[3])
+  settimer(6,client_exchange,[3])
 
   # Wait for a few seconds
-  sleep(10)
+  sleep(12)
 
   # Check that they all registered and finished
   if 1 in mycontext and mycontext[1]:
     print "Client 1 finished after a closed socket!"
 
-  if 1 in mycontext and mycontext[1]:
-    print "Client 2 finished after a closed socket!"
+  if not 2 in mycontext or not mycontext[2]:
+    print "Client 2 failed to finish!"
 
   if not 3 in mycontext or not mycontext[3]:
     print "Client 3 failed to finish!"
   
-  if not mycontext["client"] == 2:
-    print mycontext["client"],"Clients were able to connect. Only 2 expected."
+  if not mycontext["client"] == 3:
+    print mycontext["client"],"Clients were able to connect. 3 expected."
   
   exitall()
