@@ -1,6 +1,7 @@
 
 $(document).ready(function() {
-	$("#id_gen_upload_choice").chnage(toggle_upload);
+	toggle_upload();
+	$("#id_gen_upload_choice").change(toggle_upload);
 });
 
 function toggle_upload() {
