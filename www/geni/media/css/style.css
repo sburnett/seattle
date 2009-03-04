@@ -67,6 +67,15 @@ body {
     font-size: 10pt;
 }
 
+#header #linktohome {
+	float: right;
+}
+
+#header #linktohome a {
+	font-size: 10pt;
+	color: #0066FF;
+}
+
 #navigator {
     width: 100%;
     border-bottom: 3px solid #222;
