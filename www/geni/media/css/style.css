@@ -320,7 +320,7 @@ table.users {
 
 table.users caption {
     font-weight: bold;
-	margin: 20px auto;
+	padding: 20px auto 10px auto;
 }
 
 table.users tr td{
