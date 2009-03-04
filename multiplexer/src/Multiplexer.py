@@ -1451,21 +1451,17 @@ def mux_stopall():
     All multiplexers will stop and be destroyed.
 
   """ 
-  # Remove all the wait functions
-  MULTIPLEXER_WAIT_FUNCTIONS = {}
-  
   # Map this close to all existing multiplexers
   for (key, mux) in MULTIPLEXER_OBJECTS.items():
     mux.close()
-  
-  # Purge the dictionary
-  MULTIPLEXER_OBJECTS = {}
+    del MULTIPLEXER_OBJECTS[key]
   
   # Stop all underlying waitforconns
-  for key in MULTIPLEXER_WAIT_HANDLES:
+  for key in MULTIPLEXER_WAIT_HANDLES.keys():
     # Map stopcomm to each key
     mux_stopcomm(key)
-  
-  # Purge the state data  
-  MULTIPLEXER_WAIT_HANDLES = {}  
+    
+  # Remove all the wait functions
+  for key in MULTIPLEXER_WAIT_FUNCTIONS.keys():
+    mux_virtual_stopcomm(key) 
   
