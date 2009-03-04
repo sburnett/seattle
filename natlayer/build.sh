@@ -21,10 +21,41 @@ cp ./resource/* ./built/
 echo "Copying Script files..."
 cp -R ./scripts ./built/
 
+# Link to repy and repypp
+cd built/
+ln -s ../../repy/repy.py repy.py
+ln -s ../../seattlelib/repypp.py repypp.py
+
+# Copy multiplexer files
 # Go into the source
-cd src
+cd ../../multiplexer/src
+
+echo "#####"
+echo "Copying Multiplexer files..."
+echo "#####"
+all_mux_files=`ls *.py`
+for f in ${all_mux_files}
+do
+  echo "Copying: ${f}"
+  cp ${f} ../../natlayer/built/${f} # Copy original file
+done
+
+cd ../../natlayer/built/
+
+# Then process
+for f in ${all_mux_files}
+do
+  echo "Pre-processing: ${f}"
+  python repypp.py ${f} ${f}.out # Process file
+  rm ${f}  # Remove non-preprocessed
+  mv ${f}.out ${f} # Replace it with the processed file
+done
+
+# Go into the source
+cd ../src
 
 # Pre-process each file
+echo "#####"
 echo "Building src files..."
 echo "#####"
 all_files=`ls *.py`
@@ -38,10 +69,6 @@ done
 
 # Go into built
 cd ../built
-
-# Link to repy and repypp
-ln -s ../../repy/repy.py repy.py
-ln -s ../../seattlelib/repypp.py repypp.py
 
 # Then process
 for f in ${all_files}
