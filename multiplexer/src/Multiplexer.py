@@ -406,7 +406,7 @@ class Multiplexer():
   def _recvFrame(self):
     # Check if we are initialized
     if not self.connectionInit:
-      raise AttributeError, "Multiplexer is not yet initialized!"
+      raise AttributeError, "Multiplexer is not yet initialized or is closed!"
             
     # Init frame
     frame = MultiplexerFrame()
@@ -435,7 +435,7 @@ class Multiplexer():
   def _sendFrame(self,frame):
     # Check if we are initialized
     if not self.connectionInit:
-      raise AttributeError, "Multiplexer is not yet initialized!"
+      raise AttributeError, "Multiplexer is not yet initialized or is closed!"
     
     try:
       # Get the send lock
@@ -469,10 +469,6 @@ class Multiplexer():
     <Exceptions>
       If the connection is not initialized, an AttributeError is raised. Socket error can be raised if the socket is closed during transmission.
     """
-    # Check if we are initialized
-    if not self.connectionInit:
-      raise AttributeError, "Multiplexer is not yet initialized!"
-      
     # Build the frame
     frame = MultiplexerFrame()
     
@@ -498,7 +494,7 @@ class Multiplexer():
     """    
     # Check if we are initialized
     if not self.connectionInit:
-      raise AttributeError, "Multiplexer is not yet initialized!"
+      raise AttributeError, "Multiplexer is not yet initialized or is closed!"
     
     # Check for default values
     if localip == None:
@@ -609,7 +605,7 @@ class Multiplexer():
     """
     # Check if we are initialized
     if not self.connectionInit:
-      raise AttributeError, "Multiplexer is not yet initialized!"
+      raise AttributeError, "Multiplexer is not yet initialized or is closed!"
       
     # Setup the user function to call if there is a new client
     self.callbackFunction[localport] = function
@@ -773,60 +769,68 @@ class Multiplexer():
      
   # This is launched as an event to handle multiplexing the connection
   def _socketReader(self):
-    # This thread is responsible for reading all incoming frames,
-    # so it pushes data into the buffers, initializes new threads for each new client
-    # and handles all administrative frames
-    while True:
-      # Should we quit?
-      if self.stopSocketReader or not self.connectionInit:
-        break
+    # If this thread crashes, close the multiplexer
+    try:
+      # This thread is responsible for reading all incoming frames,
+      # so it pushes data into the buffers, initializes new threads for each new client
+      # and handles all administrative frames
+      while True:
+        # Should we quit?
+        if self.stopSocketReader or not self.connectionInit:
+          break
       
-      # Read in a frame
-      try:
-        frame = self._recvFrame()
-        refID = frame.referenceID
-        frameType = frame.mesgType
-      except:
-        # This is probably because the socket is now closed, so lets loop around and see
-        continue
+        # Read in a frame
+        try:
+          frame = self._recvFrame()
+          refID = frame.referenceID
+          frameType = frame.mesgType
+        except:
+          # This is probably because the socket is now closed, so lets loop around and see
+          continue
       
-      # It is possible we recieved a stopcomm while doing recv, so lets check again and handle this
-      if self.stopSocketReader:
-        break 
+        # It is possible we recieved a stopcomm while doing recv, so lets check again and handle this
+        if self.stopSocketReader or not self.connectionInit:
+          break 
       
-      # Get the virtual socket if it exists
-      socket = self._virtualSock(refID)
+        # Get the virtual socket if it exists
+        socket = self._virtualSock(refID)
       
-      # Handle MULTIPLEXER_INIT_CLIENT
-      if frameType == MULTIPLEXER_INIT_CLIENT:
-        self._new_client(frame, refID)
-      
-      # Handle MULTIPLEXER_INIT_STATUS
-      elif frameType == MULTIPLEXER_INIT_STATUS:
-        self._pending_client(frame, refID)
-        
-      # Handle MULTIPLEXER_CONN_TERM
-      elif frameType == MULTIPLEXER_CONN_TERM:
-        # If the socket is none, that means this client is already terminated
-        if socket != None: 
-          self._closeCONN(socket, refID)
-      
-      # Handle MULTIPLEXER_CONN_BUF_SIZE
-      elif socket != None and frameType == MULTIPLEXER_CONN_BUF_SIZE:
-        self. _conn_buf_size(socket, int(frame.content))
-          
-      # Handle MULTIPLEXER_DATA_FORWARD
-      elif frameType == MULTIPLEXER_DATA_FORWARD:
-        # Does this client socket exists? If so, append to their buffer
-        # This is a new client, we need to call the user callback function
-        if socket == None:
+        # Handle MULTIPLEXER_INIT_CLIENT
+        if frameType == MULTIPLEXER_INIT_CLIENT:
           self._new_client(frame, refID)
-        else:
-          self._incoming_client_data(frame,socket)
       
-      # We don't know what this is, so panic    
-      else:
-        raise Exception, "Unhandled Frame type: "+ str(frame)
+        # Handle MULTIPLEXER_INIT_STATUS
+        elif frameType == MULTIPLEXER_INIT_STATUS:
+          self._pending_client(frame, refID)
+        
+        # Handle MULTIPLEXER_CONN_TERM
+        elif frameType == MULTIPLEXER_CONN_TERM:
+          # If the socket is none, that means this client is already terminated
+          if socket != None: 
+            self._closeCONN(socket, refID)
+      
+        # Handle MULTIPLEXER_CONN_BUF_SIZE
+        elif socket != None and frameType == MULTIPLEXER_CONN_BUF_SIZE:
+          self. _conn_buf_size(socket, int(frame.content))
+          
+        # Handle MULTIPLEXER_DATA_FORWARD
+        elif frameType == MULTIPLEXER_DATA_FORWARD:
+          # Does this client socket exists? If so, append to their buffer
+          # This is a new client, we need to call the user callback function
+          if socket == None:
+            self._new_client(frame, refID)
+          else:
+            self._incoming_client_data(frame,socket)
+      
+        # We don't know what this is, so panic    
+        else:
+          raise Exception, "Unhandled Frame type: "+ str(frame)
+    
+    # We caught an exception, close the multiplexer and exit
+    except Exception, err:
+      # Close
+      self.close()
+      
 
 # A socket like object with an understanding that it is part of a Multiplexer
 # Has the same functions as the socket like object in repy
@@ -1021,8 +1025,13 @@ class MultiplexerSocket():
       
       # If we can, just send it all at once
       if len(data) < outgoingAvailable:
-        # Instruct the multiplexer object to send our data
-        self.mux._send(self.id, data)
+        try:
+          # Instruct the multiplexer object to send our data
+          self.mux._send(self.id, data)
+        except AttributeError:
+          # The multiplexer may be closed
+          # Check if the socket is closed
+          self._handleClosed()
         
         # Reduce the size of outgoing avail
         self.bufferInfo["outgoing"] -= len(data)
@@ -1037,7 +1046,13 @@ class MultiplexerSocket():
       else:
         # Get a chunk of data, and send it
         chunk = data[:outgoingAvailable]
-        self.mux._send(self.id, chunk)
+        try:
+          # Instruct the multiplexer object to send our data
+          self.mux._send(self.id, chunk)
+        except AttributeError:
+          # The multiplexer may be closed
+          # Check if the socket is closed
+          self._handleClosed()
       
         # Reduce the size of outgoing avail
         self.bufferInfo["outgoing"] = 0
@@ -1061,17 +1076,19 @@ class MultiplexerSocket():
 # This dictionary object links IP's to their respective multiplexer
 MULTIPLEXER_OBJECTS = {}
 
-# This dictionary has data about the various multiplexers, and our state
-MULTIPLEXER_STATE_DATA = {}
+# This dictionary has data about the underlying waitforconn operations
+MULTIPLEXER_WAIT_HANDLES = {}
 
-# Setup key entries
+# This function has the underlying function calls
+MULTIPLEXER_FUNCTIONS = {}
+
 # Setup function pointers to be used by the multiplexer wrappers
-MULTIPLEXER_STATE_DATA["waitforconn"] = waitforconn
-MULTIPLEXER_STATE_DATA["openconn"] = openconn
-MULTIPLEXER_STATE_DATA["stopcomm"] = stopcomm
+MULTIPLEXER_FUNCTIONS["waitforconn"] = waitforconn
+MULTIPLEXER_FUNCTIONS["openconn"] = openconn
+MULTIPLEXER_FUNCTIONS["stopcomm"] = stopcomm
 
-# This dictionary has all of the listener functions to propagate waitforconn to new muxes
-# E.g. if a new client connects, it inherits all of the waitforconns on the existing muxes
+# This dictionary has all of the virtual waitforconn functions to propagate waitforconn to new muxes
+# E.g. if a new host connects, it inherits all of the waitforconns on the existing muxes
 MULTIPLEXER_WAIT_FUNCTIONS = {}
 
 # Openconn that uses Multiplexers
@@ -1136,7 +1153,7 @@ def mux_openconn(desthost, destport, localip=None,localport=None,timeout=15,virt
     # We need to establish a new multiplexer with this host
   else:
     # Get the correct function
-    openconn_func = MULTIPLEXER_STATE_DATA["openconn"]
+    openconn_func = MULTIPLEXER_FUNCTIONS["openconn"]
 
     # Try to get a real socket
     if localport != None and localip != None:
@@ -1235,12 +1252,12 @@ def mux_waitforconn(localip, localport, function):
   key = "LISTEN:"+localip+":"+str(localport) 
   
   # Does this key already exist?
-  if key in MULTIPLEXER_STATE_DATA:
+  if key in MULTIPLEXER_WAIT_HANDLES:
     # Stop the last waitforconn, then make a new one
     mux_stopcomm(key)
     
   # Get the correct function
-  waitforconn_func = MULTIPLEXER_STATE_DATA["waitforconn"]
+  waitforconn_func = MULTIPLEXER_FUNCTIONS["waitforconn"]
   
   # This adds ip and port and function information to help with multiplex waitforconns
   def _add_ip_port_func(remoteip, remoteport, socket, thiscommhandle, listencommhandle):
@@ -1250,7 +1267,7 @@ def mux_waitforconn(localip, localport, function):
   handle = waitforconn_func(localip, localport, _add_ip_port_func)
   
   # Register the handle
-  MULTIPLEXER_STATE_DATA[key] = handle
+  MULTIPLEXER_WAIT_HANDLES[key] = handle
   
   # Do a virtual waitforconn as well as the real one
   mux_virtual_waitforconn(localip, localport, function)
@@ -1276,15 +1293,18 @@ def mux_stopcomm(key):
     None
   """
   # Is this a real handle?
-  if key in MULTIPLEXER_STATE_DATA:
+  if key in MULTIPLEXER_WAIT_HANDLES:
     # Retrieve the handle
-    handle = MULTIPLEXER_STATE_DATA[key]
+    handle = MULTIPLEXER_WAIT_HANDLES[key]
     
     # Call stopcomm on it
-    stopcomm_func = MULTIPLEXER_STATE_DATA["stopcomm"]
+    stopcomm_func = MULTIPLEXER_FUNCTIONS["stopcomm"]
     
     # Stopcomm
     stopcomm_func(handle)
+    
+    # Delete the handle
+    del MULTIPLEXER_WAIT_HANDLES[key]
 
     # Get the values by spliting on colon
     arr = key.split(":")
@@ -1314,9 +1334,9 @@ def mux_remap(wait, open, stop):
   <Returns>
     None
   """
-  MULTIPLEXER_STATE_DATA["waitforconn"] = wait
-  MULTIPLEXER_STATE_DATA["openconn"] = open
-  MULTIPLEXER_STATE_DATA["stopcomm"] = stop
+  MULTIPLEXER_FUNCTIONS["waitforconn"] = wait
+  MULTIPLEXER_FUNCTIONS["openconn"] = open
+  MULTIPLEXER_FUNCTIONS["stopcomm"] = stop
 
 
 # This function will only do a virtual opeconn, and will not attempt to establish a new connection
@@ -1424,4 +1444,34 @@ def mux_virtual_stopcomm(key):
   # Map this stopcomm to all existing multiplexers
   for (key, mux) in MULTIPLEXER_OBJECTS.items():
     mux.stopcomm(port)
+
+# This functions stops and closes all multiplexer objects
+def mux_stopall():
+  """
+  <Purpose>
+    This is a general purpose cleanup routine for the multiplexer library.
+    It will stop all multiplexers, remove any virtual and real waitforconn's,
+    and close and delete all multiplexers. This will close all virtual sockets in the process.
+
+  <Side effects>
+    All multiplexers will stop and be destroyed.
+
+  """ 
+  # Remove all the wait functions
+  MULTIPLEXER_WAIT_FUNCTIONS = {}
+  
+  # Map this close to all existing multiplexers
+  for (key, mux) in MULTIPLEXER_OBJECTS.items():
+    mux.close()
+  
+  # Purge the dictionary
+  MULTIPLEXER_OBJECTS = {}
+  
+  # Stop all underlying waitforconns
+  for key in MULTIPLEXER_WAIT_HANDLES:
+    # Map stopcomm to each key
+    mux_stopcomm(key)
+  
+  # Purge the state data  
+  MULTIPLEXER_WAIT_HANDLES = {}  
   
