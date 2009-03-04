@@ -306,10 +306,7 @@ class Multiplexer():
 
       # A dictionary that associates reference ID's to their MultiplexerSocket objects
       self.virtualSockets = {}
-      self.virtualSocketsLock = getlock()
-
-      # Signals that the _socketReader should terminate if true
-      self.stopSocketReader = False      
+      self.virtualSocketsLock = getlock()  
       
       # Inject or override socket info given to use
       for key, value in info.items():
@@ -359,9 +356,6 @@ class Multiplexer():
     
     # The Mux is no longer initialized
     self.connectionInit = False
-    
-    # Get the buffer lock, and close everything if it exists
-    self.stopSocketReader = True # Tell the socket reader to quit
      
     # Close each individual socket
     for refID, sock in self.virtualSockets.items():
@@ -776,7 +770,7 @@ class Multiplexer():
       # and handles all administrative frames
       while True:
         # Should we quit?
-        if self.stopSocketReader or not self.connectionInit:
+        if not self.connectionInit:
           break
       
         # Read in a frame
@@ -788,8 +782,8 @@ class Multiplexer():
           # This is probably because the socket is now closed, so lets loop around and see
           continue
       
-        # It is possible we recieved a stopcomm while doing recv, so lets check again and handle this
-        if self.stopSocketReader or not self.connectionInit:
+        # It is possible we recieved a close command while doing recv, so lets check again and handle this
+        if not self.connectionInit:
           break 
       
         # Get the virtual socket if it exists
