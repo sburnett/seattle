@@ -67,13 +67,8 @@ body {
     font-size: 10pt;
 }
 
-#header #linktohome {
-	float: right;
-	margin-top: 5px;
-}
-
-#header #linktohome a {
-	font-size: 10pt;
+#header #caption a {
+	color: #0066FF;
 }
 
 #navigator {
