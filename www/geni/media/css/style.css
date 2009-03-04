@@ -69,11 +69,12 @@ body {
 
 #header #linktohome {
 	float: right;
+	margin-top: 5px;
 }
 
 #header #linktohome a {
 	font-size: 10pt;
-	color: #0066FF;
+	color: blue;
 }
 
 #navigator {
