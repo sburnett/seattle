@@ -1391,7 +1391,15 @@ def mux_virtual_openconn(desthost, destport, virtualport, localip=None,localport
     # Since a multiplexer already exists, lets just use that objects builtin method
     mux = MULTIPLEXER_OBJECTS[key]
 
-    return mux.openconn(desthost, virtualport, localip,localport,timeout)
+    try:
+      return mux.openconn(desthost, virtualport, localip,localport,timeout)
+    except AttributeError, err:
+      if str(err) == "Multiplexer is not yet initialized or is closed!":
+        # There has been a fatal error in this multiplexer, delete it
+        del MULTIPLEXER_OBJECTS[key]
+        
+      raise EnvironmentError, "Connection Refused!"
+      
   else:
     raise ValueError, "There is no pre-existing connection to the requested host!"
     
@@ -1426,8 +1434,16 @@ def mux_virtual_waitforconn(localip, localport, function):
   
   # Map this waitforconn to all existing multiplexers
   for (key, mux) in MULTIPLEXER_OBJECTS.items():
-    mux.waitforconn(localip, localport, function)
-  
+    try:
+      mux.waitforconn(localip, localport, function)
+    except AttributeError, err:
+      if str(err) == "Multiplexer is not yet initialized or is closed!":
+        # There has been a fatal error in this multiplexer, delete it
+        del MULTIPLEXER_OBJECTS[key]
+      else:
+        # Otherwise, it is something else
+        raise err
+
   return key
   
 
