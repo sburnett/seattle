@@ -371,6 +371,21 @@ class Multiplexer():
     if closeSocket and self.socket != None:
       self.socket.close()
       self.socket = None
+    
+    # Cancel all pending sockets, this is so they get
+    # connection refused instead of timed out
+    for refID, info in self.pendingSockets.items():
+      # Cancel the timeout timer
+      canceltimer(info[2])
+    
+      # Set the handle to None, so that Connection Refused is infered
+      info[2] = None
+    
+      # Unblock openconn
+      try:
+        info[1].release()
+      except:
+        pass
 
       
   # Stops additional listener threads
@@ -1104,8 +1119,19 @@ def mux_openconn(desthost, destport, localip=None,localport=None,timeout=15,virt
   # Check if we already have a real multiplexer
   key = "IP:"+desthost+":"+str(destport)
   if key in MULTIPLEXER_OBJECTS:
+    # Check if the multiplexer is still initialized
+    status = MULTIPLEXER_OBJECTS[key].connectionInit
+    
+    # If the mux is not still initialized, then remove it and call ourselves again
+    if not status:
+      del MULTIPLEXER_OBJECTS[key]
+      
+      # Recursive call will re-initialize the mux
+      return mux_openconn(desthost, destport, localip,localport,timeout,virtualport)
+    
     # Since a connection already exists, do a virtual openconn
-    return mux_virtual_openconn(desthost, destport, virtualport, localip,localport,timeout)
+    else:
+      return mux_virtual_openconn(desthost, destport, virtualport, localip,localport,timeout)
 
     # We need to establish a new multiplexer with this host
   else:
