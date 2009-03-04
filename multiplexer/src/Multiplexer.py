@@ -8,6 +8,26 @@ Description:
 Provides a means of multiplexing any stream-like connection into a multiple
 socket-like connections.
 
+Details:
+There are 3 main objects in the Multiplexer
+++ MultiplexerFrame
+-- This objects is like a meta-"packet" in that it encapsulates a some data with a header
+-- The header allows the Multiplexer to route the data to the correct destination
+
+++ Multiplexer
+-- This object is takes a single stream-like object that has the properties of being
+-- in-order and lossless and multiplexes that single connection into any number of virtual connections.
+-- At its heart, there is one thread the socketReader which reads all incoming data and either evaluates control messages
+-- or buffers data for clients
+
+++ MultiplexerSocket
+-- When the multiplexer creates virtual sockets, a MultiplexerSocket is returned. This socket is tied to its parent multiplexer
+-- since that parent buffers all of the incoming data for this socket. 
+
+These three objects are wrapped in several mux_* functions, which abstract the details of the Multiplexer
+and provide a repy like interface for easily multiplexing a normal TCP connection. mux_remap can be used to
+multiplex any type of connection.
+
 """
 
 # This is to help send dictionaries as strings
@@ -629,7 +649,7 @@ class Multiplexer():
   # Increases the amount we can send out
   def _conn_buf_size(self,socket, num):
     # Acquire a lock for the socket
-    socket.socketLocks["main"].acquire()
+    socket.socketLocks["send"].acquire()
     
     # Increase the buffer size
     socket.bufferInfo["outgoing"] = num
@@ -642,7 +662,7 @@ class Multiplexer():
       pass
     
     # Release the socket
-    socket.socketLocks["main"].release()
+    socket.socketLocks["send"].release()
     
   # Handles a new client connecting
   def _new_client(self, frame, refID):
@@ -707,7 +727,7 @@ class Multiplexer():
   # Handles incoming data for an existing client
   def _incoming_client_data(self, frame, socket):
     # Acquire a lock for the socket
-    socket.socketLocks["main"].acquire()
+    socket.socketLocks["recv"].acquire()
     
     # Increase the buffer size
     socket.buffer += frame.content
@@ -720,7 +740,7 @@ class Multiplexer():
       pass
     
     # Release the socket
-    socket.socketLocks["main"].release()
+    socket.socketLocks["recv"].release()
     
   
   # Handles MULTIPLEXER_INIT_STATUS messages for a pending client
@@ -849,7 +869,7 @@ class MultiplexerSocket():
     self.bufferInfo = {"incoming":buf,"outgoing":buf}
 
     # Various locks used in the socket
-    self.socketLocks = {"main":getlock(),"nodata":getlock(),"outgoing":getlock()}
+    self.socketLocks = {"recv":getlock(),"send":getlock(),"nodata":getlock(),"outgoing":getlock()}
     
     # Inject or override socket info given to use
     for key, value in info.items():
@@ -931,7 +951,7 @@ class MultiplexerSocket():
     self._handleClosed()
             
     # Get our own lock
-    self.socketLocks["main"].acquire()
+    self.socketLocks["recv"].acquire()
   
     # Read up to bytes
     data = self.buffer[:bytes] 
@@ -961,7 +981,7 @@ class MultiplexerSocket():
       self.socketLocks["nodata"].acquire()
       
     # Release the lock
-    self.socketLocks["main"].release() 
+    self.socketLocks["recv"].release() 
     
     # Are we supposed to block?
     if blocking and amountIn < bytes:
@@ -1012,7 +1032,7 @@ class MultiplexerSocket():
       self._handleClosed()
         
       # Get our own lock
-      self.socketLocks["main"].acquire()
+      self.socketLocks["send"].acquire()
       
       # How much outgoing traffic is available?
       outgoingAvailable = self.bufferInfo["outgoing"]
@@ -1031,7 +1051,7 @@ class MultiplexerSocket():
         self.bufferInfo["outgoing"] -= len(data)
         
         # Release the lock
-        self.socketLocks["main"].release()
+        self.socketLocks["send"].release()
           
         # We need to explicitly leave the loop
         break
@@ -1058,7 +1078,7 @@ class MultiplexerSocket():
         data = data[outgoingAvailable:]
     
         # Release the lock
-        self.socketLocks["main"].release()
+        self.socketLocks["send"].release()
         
         # If there is no data left to send, then break
         if len(data) == 0:
