@@ -18,7 +18,6 @@ Login - GENI
 	<div id="main">
 		<div id="middle">
 		  <form method="post" action="{% url login %}">
-		  <noscript><p class="warning">JavaScript is NOT enabled! Please enable JavaScript on your browser to login.</p></noscript>
 		  {% if err %}
 		  <p class="warning">{{ err }}</p><br>
 		  {% endif %}
