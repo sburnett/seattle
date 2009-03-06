@@ -149,8 +149,8 @@ def login(request, simplelogin=False, msg=""):
             request.session.set_test_cookie()
             return show_login(request, ltemplate, {'err' : "Please enable your cookies and try again."}, form)
 
-        if not request.POST.has_key('jsenabled'):
-            return show_login(request, ltemplate, {'err' : "Please enable javascript and try again."}, form)            
+        if request.POST.has_key('jsenabled') and request.POST['jsenabled'] == 'false':
+            return show_login(request, ltemplate, {'err' : "Please enable javascript and try again."}, form)
 
         user = authenticate(username=request.POST['username'], password=request.POST['password'])
         if user is not None:
