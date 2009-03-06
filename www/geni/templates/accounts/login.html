@@ -4,6 +4,11 @@
 Login - GENI
 {% endblock title %}
 
+{% block script %}
+{{ block.super }}
+<script type="text/javascript" src="{{ MEDIA_URL}}scripts/login.js" charset="utf-8"></script>
+{% endblock script %}
+
 {% block nav_login %}
 <td class="active">Login</td>
 {% endblock nav_login %}
@@ -13,6 +18,7 @@ Login - GENI
 	<div id="main">
 		<div id="middle">
 		  <form method="post" action="{% url login %}">
+		  <noscript><p class="warning">JavaScript is NOT enabled! Please enable JavaScript on your browser to login.</p></noscript>
 		  {% if err %}
 		  <p class="warning">{{ err }}</p><br>
 		  {% endif %}
@@ -33,6 +39,7 @@ Login - GENI
 		      <td class="key"></td>
 		      <td class="value"><input type="submit" value="Login" /></td>
 		      <input type="hidden" name="next" value="{{ next }}" />
+		      <input type="hidden" name="jsenabled" value="false" id="jsenabled" />
 		    </tr>
 		  </table>    
 		  </form>
