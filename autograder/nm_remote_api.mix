@@ -239,7 +239,7 @@ def run_target(longname, filename, filedata, argstring, timeout=240):
     except NMClientException, e:
         return (False, str(e))
     
-    print "Successfully added ", filename, " to vessel"
+    #print "Successfully added ", filename, " to vessel"
     
     try:
         nmclient_signedsay(vesselinfo[longname]['handle'], "StartVessel", 
@@ -247,7 +247,7 @@ def run_target(longname, filename, filedata, argstring, timeout=240):
     except NMClientException, e:
         return (False, str(e))
     else:
-        print "Successfully started vessel with repy file"
+        #print "Successfully started vessel with repy file"
         # return (True,)
 
 
@@ -261,7 +261,7 @@ def run_target(longname, filename, filedata, argstring, timeout=240):
             sleep_time = timeout/num_checks
 
         sleep(sleep_time)
-        print "slept for ", str(sleep_time), " seconds"
+        #print "slept for ", str(sleep_time), " seconds"
         
         if is_vessel_finished(longname):
             print "noticed that execution is done before timeout hit"
@@ -384,7 +384,7 @@ def reset_targets(longname_list):
 
     failed_hosts = {}
     for (vessel, (success, msg)) in resultdict['returned']:
-        print vessel, success, msg
+        #print vessel, success, msg
         if not success:
             failed_hosts[vessel] = msg
     
@@ -568,6 +568,8 @@ def is_vessel_finished(longname):
     
     retdict = nmclient_getvesseldict(vesselinfo[longname]['handle'])
     status = retdict['vessels'][vesselinfo[longname]['vesselname']]['status']
+
+    print "current status of", longname, "=>", status
 
     if status == 'Started':
         return False
