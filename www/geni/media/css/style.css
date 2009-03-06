@@ -501,6 +501,12 @@ table.vessels tr.even {
     background-color: #fff;
 }
 
+table#downloads caption {
+	color: #333;
+	text-align: left;
+	margin-top: 20px;
+}
+
 table#downloads {
     margin: 10px auto 80px auto;
 	border-spacing: 0;
