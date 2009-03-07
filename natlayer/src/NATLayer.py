@@ -136,7 +136,7 @@ def nat_waitforconn(localmac, localport, function, forwarderIP=None, forwarderPo
     forwarderPort = 12345 
   
   # Do we already have a mux? If not create a new one
-  if NAT_STATE_DATA["mux"] != None:
+  if NAT_STATE_DATA["mux"] == None:
     # Create a real connection to the forwarder
     socket = openconn(forwarderIP, forwarderPort)
   
