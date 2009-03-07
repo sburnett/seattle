@@ -171,7 +171,7 @@ table.login tr td.value {
 }
 
 table.login tr td.value input {
-    width: 100px;
+    width: 160px;
     padding: 1px;
     font-size: 14pt;
 }
