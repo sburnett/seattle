@@ -515,17 +515,13 @@ table.vessels tr.even {
 
 #downloadlink p {
     margin: 8px;
+    color: #333;
 }
 
 #downloadlink a {
     color: #0066ff;
     padding: 5px;
     background-color: #fff;
-}
-
-table#downloads caption {
-	color: #444;
-	margin-top: 20px;
 }
 
 table#downloads {
