@@ -148,12 +148,8 @@ body {
 	z-index:100;
 }
 
-ul.errorlist {
-    width: 360px;
-	padding: 5px 10px;
+ul.errorlist li {
 	color: red;
-	background-color: #f2dbdb;
-	text-align: center;
 }
 
 

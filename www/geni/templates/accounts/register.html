@@ -27,23 +27,28 @@ Profile - GENI
 		  <table class="login">
 		    <tr>
 		      <td class="key"> {{ form.username.label_tag }}</td>
-		      <td class="value">{{ form.username }} {{ form.username.errors }}</td>
+		      <td class="value">{{ form.username }}</td>
+		      <td class="notice">{{ form.username.errors }}</td>
 		    </tr>
 		    <tr>
 		      <td class="key">{{ form.password1.label_tag }}</td>
-		      <td class="value">{{ form.password1 }} {{ form.password1.errors }}</td>
+		      <td class="value">{{ form.password1 }}</td>
+		      <td class="notice">{{ form.password1.errors }}</td>
 		    </tr>
 		    <tr>
 		      <td class="key">{{ form.password2.label_tag }}</td>
-		      <td class="value">{{ form.password2 }} {{ form.password2.errors }}</td>
+		      <td class="value">{{ form.password2 }}</td>
+		      <td class="notice">{{ form.password2.errors }}</td>
 		    </tr>
 		    <tr>
 		      <td class="key">{{ form.affiliation.label_tag }}</td>
-		      <td class="value">{{ form.affiliation }} {{ form.affiliation.errors }}</td>
+		      <td class="value">{{ form.affiliation }}</td>
+		      <td class="notice">{{ form.affiliation.errors }}
 		    </tr>
 		    <tr>
 		      <td class="key">{{ form.pubkey.label_tag }}</td>
-		      <td class="value">{{ form.gen_upload_choice }} {{ form.pubkey.errors }}</td>
+		      <td class="value">{{ form.gen_upload_choice }}</td>
+		      <td class="notice">{{ form.pubkey.errors }}</td>
 		    </tr>
 			  <tr id="uploadkey">
 			    <td class="key"></td>
