@@ -2,6 +2,7 @@
 $(document).ready(function() {
 	update_credits();
 	update_shares();
+	keystroke();
 });
 
 
@@ -249,6 +250,16 @@ function close_dialog() {
 	$(this).parent().hide();
 	$("#dialogframe").hide();
 	$("#overlay").hide();
+}
+
+function keystroke() {
+	$("#dialogframe").keypress(function (e) {
+		if (e.which == 110) {
+			$("#dialogframe").children().hide();
+			$("#dialogframe").hide();
+			$("#overlay").hide();
+		}
+	}
 }
 
 
