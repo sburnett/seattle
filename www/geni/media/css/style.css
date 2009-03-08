@@ -171,6 +171,10 @@ table.login tr td.key {
     width: 160px;
 }
 
+table.login tr td.notice {
+    height: 40px;
+}
+
 table.login tr td.value {
     padding-left: 15px;
 }
