@@ -109,7 +109,7 @@ function add_other(type, username, percent) {
 		edit.text("Edit");
 		edit.click(function() {
 			change_percent(username, percent);
-			if ($("#usageotherstable tr.even").length > 0) {
+			if ($("#usageotherstable tr.even").length <= 0) {
 				toggle_table(true);
 			}
 		});
@@ -127,7 +127,7 @@ function add_other(type, username, percent) {
 						}
 					});
 			tr.remove();
-			if ($("#usageotherstable tr.even").length > 0) {
+			if ($("#usageotherstable tr.even").length <= 0) {
 				toggle_table(true);
 			}
 		});
