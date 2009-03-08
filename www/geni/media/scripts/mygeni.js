@@ -237,6 +237,7 @@ function share_resources_dialog() {
 	}
 	$("#shareresources").click(function () {
 		if (validate(0, percent)) {
+			alert("percent");
 			share_resources(username, percent);
 		}
 	});
