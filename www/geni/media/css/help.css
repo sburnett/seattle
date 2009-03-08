@@ -23,7 +23,7 @@ h3 {
 	margin: 10px 0;
 }
 
-a {
+#toc a {
 	color: #0066FF;
 }
 
@@ -50,6 +50,10 @@ p {
 	font-size: 11pt;
 	text-align: justify;
 	line-height: 16pt;
+}
+
+p a, ul li a {
+	color: #0066FF;
 }
 
 p.footnote {
