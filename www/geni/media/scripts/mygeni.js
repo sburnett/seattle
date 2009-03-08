@@ -235,7 +235,7 @@ function share_resources_dialog() {
 	    $("#shareresourcesdialog .warning").remove();
 	}
 	$("#shareresourcesdialog #username").keypress(function (e) {
-		$(this).val(e.which);
+		$(this).val(String.fromCharCode(e.which));
 	});
 	$("#shareresources").click(function () {
 		var username = $("#shareresourcesdialog #username").val();
