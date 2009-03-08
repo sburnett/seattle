@@ -238,7 +238,7 @@ function share_resources_dialog() {
 	    $("#shareresourcesdialog .warning").remove();
 	}
 	$("#shareresources").click(function () {
-		alert($("#shareresourcesdialog #username").val());
+		alert($("#shareresourcesdialog #percent").val());
 		if (validate(0, percent)) {
 			share_resources(username, percent);
 		}
