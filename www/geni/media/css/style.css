@@ -149,11 +149,8 @@ body {
 }
 
 ul.errorlist li {
-    border: 1px solid red;
-	margin: 20px 60px;
-	padding: 10px 20px;
+	padding: 5px 10px;
 	color: red;
-	font-weight: bold;
 	background-color: #f2dbdb;
 	text-align: center;
 }
