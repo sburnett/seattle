@@ -152,8 +152,9 @@ ul.errorlist li {
 	color: red;
 	font-weight: normal;
 	font-size: 10pt;
-	background-color: #CCFFCC;
+	background-color: #f2dbdb;
     padding: 3px;
+    list-style-position: inside;
 }
 
 
