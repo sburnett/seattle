@@ -385,7 +385,7 @@ function update_shares() {
 				if (total_others > 0) {
 					add_cell("shares", "Others", total_others);
 				} else {
-					$("#usageotherstable").toggle();
+					$("#usageotherstable").hide();
 				}
 				add_cell("shares", json[2][0].username, json[2][0].percent);
 				add_cell("shares", "Free", 100 - total_percent);
