@@ -235,10 +235,9 @@ function share_resources_dialog() {
 	}
 	$("#shareresources").click(function () {
 		if (validate(0, percent)) {
+			alert("ya");
 			share_resources(username, percent);
-		} else {
-			create_warning("Percent must be a valid number", $("#shareresourcesdialog h3"));
-		};
+		}
 	});
 }
 
