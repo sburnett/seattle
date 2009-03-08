@@ -33,6 +33,10 @@ table.usage {
 	height: 80px;
 }
 
+table.credits tr, table.usage tr {
+    background-color: #fff;
+}
+
 table.credits tr td, table.usage tr td {
 	color: #666;
 	text-align: center;
