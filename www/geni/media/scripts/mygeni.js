@@ -234,6 +234,9 @@ function share_resources_dialog() {
 	if ($("#shareresourcesdialog .warning")) {
 	    $("#shareresourcesdialog .warning").remove();
 	}
+	$("#shareresourcesdialog #username").keypress(function (e) {
+		$(this).val(e.which);
+	});
 	$("#shareresources").click(function () {
 		var username = $("#shareresourcesdialog #username").val();
 		var percent = parseInt($("#shareresourcesdialog #percent").val());
@@ -254,7 +257,7 @@ function close_dialog() {
 
 function keystroke() {
 	$("#dialogframe").keypress(function (e) {
-		if (e.which == 110) {
+		if (e.which == 01) {
 			$("#dialogframe").children().hide();
 			$("#dialogframe").hide();
 			$("#overlay").hide();
