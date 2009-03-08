@@ -148,6 +148,16 @@ body {
 	z-index:100;
 }
 
+ul.errorlist li {
+    border: 1px solid red;
+	margin: 20px 60px;
+	padding: 10px 20px;
+	color: red;
+	font-weight: bold;
+	background-color: #f2dbdb;
+	text-align: center;
+}
+
 
 /******************************
 * STYLESHEET FOR login.html and register.html
@@ -164,6 +174,7 @@ table.login tr td.key {
     text-align: right;
     height: 40px;
     font-weight: bold;
+    width: 160px;
 }
 
 table.login tr td.value {
@@ -183,7 +194,6 @@ table.login tr td.value input {
 table.login tr td.value select {
     font-size: 10pt;
 }
-
 
 
 /******************************
