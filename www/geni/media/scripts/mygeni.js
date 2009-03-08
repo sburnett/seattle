@@ -56,6 +56,7 @@ function create_block(username, width, isShare) {
 			percent.attr("title", "Click to change percent");
 			percent.tooltip({cssClass:"tooltip"});
 			percent.css("cursor", "pointer");
+			percent.css("text-decoration", "underline");
 			percent.click(function() {
 				change_percent(username, width);
 			});
@@ -66,6 +67,7 @@ function create_block(username, width, isShare) {
 		percent.attr("title", "Click to reveal");
 		percent.tooltip({cssClass:"tooltip"});
 		percent.css("cursor", "pointer");
+		percent.css("text-decoration", "underline");
 		percent.click(function () { show_table(isShare) });
 		// block.attr("id", "creditOthers");
 	}
