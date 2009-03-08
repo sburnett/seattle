@@ -135,13 +135,13 @@ function add_other(type, username, percent) {
 /*
 	Display the change percent dialog box
 */
-function change_percent(username, percent) {
+function change_percent(username, current_percent) {
 	var dialog = $(document.createElement("div"));
 	dialog.attr("id", "changepercentdialog");
 	dialog.html('<h3>Change Percent</h3>');
 	var input = $(document.createElement("input"));
 	input.attr("type", "text");
-	input.val(percent);
+	input.val(current_percent);
 	input.click(function () { $(this).val("") });
 	var symbol = $(document.createElement("span"));
 	symbol.html(" %<br />");
@@ -154,8 +154,10 @@ function change_percent(username, percent) {
 		$(this).parent().remove();
 	});
 	save.click(function() {
-		validate();
-		save_percent(username, parseInt(input.val()));
+		new_percent = parseInt(input.val());
+		if (validate(current_percent, new_percent)) {		
+			save_percent(username, new_percent));
+		}
 	});
 	dialog.append(input);
 	dialog.append(symbol);
@@ -189,10 +191,12 @@ function save_percent(username, percent) {
 			"json");
 }
 
-
-function validate() {
+/*
+	make sure the new percent is within range of validity
+*/
+function validate(current_percent, new_percent) {
 	var free = parseInt($("#usageFree span").text());
-	alert(free);
+	return (new_percent - current_percent > free) && (new_percent >= 0);
 }
 
 
@@ -222,7 +226,16 @@ function share_resources_dialog() {
 	$("#overlay").fadeIn("fast");
 	$("#shareresourcesdialog").fadeIn("fast");
 	$(".cancel").click(close_dialog);
-	$("#shareresources").click(share_resources);
+	var username = $("#shareresourcesdialog #username").val();
+	var percent = parseInt($("#shareresourcesdialog #percent").val());
+	if ($("#shareresourcesdialog .warning")) {
+	    $("#shareresourcesdialog .warning").remove();
+	}
+	if (validate(0, percent)) {
+		$("#shareresources").click(share_resources);
+	} else {
+		create_warning("Percent must be a valid number", $("#shareresourcesdialog h3"));
+	}
 }
 
 function close_dialog() {
@@ -247,28 +260,19 @@ function post_ajax(url, args, func) {
 
 
 function share_resources() {
-	var username = $("#shareresourcesdialog #username").val();
-	var percent = parseInt($("#shareresourcesdialog #percent").val());
-	if ($("#shareresourcesdialog .warning")) {
-	    $("#shareresourcesdialog .warning").remove();
-	}
-	if (percent > 0) {
-		post_ajax("../control/ajax_createshare",
-				{ username: username, percent: percent },
-				function(data) {
-					var json = eval('(' + data + ')');
-					if (json.success) {
-						$("#shareresourcesdialog").hide();
-						$("#dialogframe").hide();
-						$("#overlay").hide();
-						update_shares();
-					} else {
-						create_warning(json.error, $("#shareresourcesdialog h3"));
-					}
-				});
-	} else {
-		create_warning("Percent must greater than 0", $("#shareresourcesdialog h3"));
-	}
+	post_ajax("../control/ajax_createshare",
+			{ username: username, percent: percent },
+			function(data) {
+				var json = eval('(' + data + ')');
+				if (json.success) {
+					$("#shareresourcesdialog").hide();
+					$("#dialogframe").hide();
+					$("#overlay").hide();
+					update_shares();
+				} else {
+					create_warning(json.error, $("#shareresourcesdialog h3"));
+				}
+			});
 }
 
 
