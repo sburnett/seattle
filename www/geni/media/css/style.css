@@ -150,6 +150,10 @@ body {
 
 ul.errorlist li {
 	color: red;
+	font-weight: normal;
+	font-size: 10pt;
+	background-color: #CCFFCC;
+    padding: 3px;
 }
 
 
