@@ -124,9 +124,6 @@ function add_other(type, username, percent) {
 						}
 					});
 			tr.remove();
-			if ($("#usageotherstable tr.even").length <= 0) {
-				toggle_table(true);
-			}
 		});
 		control.append(edit);
 		control.append(close);
@@ -162,9 +159,6 @@ function change_percent(username, current_percent) {
 		var new_percent = parseInt(input.val());
 		if (validate(current_percent, new_percent)) {		
 			save_percent(username, new_percent);
-			if ($("#usageotherstable tr.even").length <= 0) {
-				toggle_table(true);
-			}
 		}
 	});
 	dialog.append(input);
@@ -213,9 +207,9 @@ function validate(current_percent, new_percent) {
 */
 function toggle_table(isShare) {
 	if (isShare) {
-		$("#usageotherstable").toggle();
+		$("#usageotherstable").slideToggle("fast");
 	} else {
-		$("#creditotherstable").toggle();
+		$("#creditotherstable").slideToggle("fast");
 	}
 }
 
@@ -390,6 +384,8 @@ function update_shares() {
 				total_percent += total_others + json[2][0].percent;
 				if (total_others > 0) {
 					add_cell("shares", "Others", total_others);
+				} else {
+					$("#usageotherstable").slideUp("fast");
 				}
 				add_cell("shares", json[2][0].username, json[2][0].percent);
 				add_cell("shares", "Free", 100 - total_percent);
