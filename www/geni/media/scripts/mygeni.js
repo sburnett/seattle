@@ -154,9 +154,9 @@ function change_percent(username, current_percent) {
 		$(this).parent().remove();
 	});
 	save.click(function() {
-		new_percent = parseInt(input.val());
+		var new_percent = parseInt(input.val());
 		if (validate(current_percent, new_percent)) {		
-			save_percent(username, new_percent));
+			save_percent(username, new_percent);
 		}
 	});
 	dialog.append(input);
@@ -232,7 +232,9 @@ function share_resources_dialog() {
 	    $("#shareresourcesdialog .warning").remove();
 	}
 	if (validate(0, percent)) {
-		$("#shareresources").click(share_resources);
+		$("#shareresources").click(function () {
+			share_resources(username, percent);
+		});
 	} else {
 		create_warning("Percent must be a valid number", $("#shareresourcesdialog h3"));
 	}
@@ -259,7 +261,7 @@ function post_ajax(url, args, func) {
 }
 
 
-function share_resources() {
+function share_resources(username, percent) {
 	post_ajax("../control/ajax_createshare",
 			{ username: username, percent: percent },
 			function(data) {
