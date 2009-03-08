@@ -1,5 +1,10 @@
 {% extends "download/download_base.html" %}
 
+{% block style %}
+{{ block.super }}
+<link href="{{ MEDIA_URL }}css/download.css" rel="stylesheet" type="text/css" />
+{% endblock style %}
+
 {% block title %}
 Get Donations - GENI
 {% endblock title %}

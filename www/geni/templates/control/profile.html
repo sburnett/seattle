@@ -1,5 +1,10 @@
 {% extends "control/control_base.html" %}
 
+{% block style %}
+{{ block.super }}
+<link href="{{ MEDIA_URL }}css/profile.css" rel="stylesheet" type="text/css" />
+{% endblock style %}
+
 {% block title %}
 Profile - GENI
 {% endblock title %}

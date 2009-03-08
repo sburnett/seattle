@@ -4,21 +4,21 @@
 	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
 	<title>{% block title %}GENI - Global Environment for Network Innovations using Seattle{% endblock title%}</title>
 
-        {% block style %}	
-	<link href="{{ MEDIA_URL }}css/style.css" rel="stylesheet" type="text/css" />
-        {% endblock style %}
+  {% block style %}	
+	  <link href="{{ MEDIA_URL }}css/common.css" rel="stylesheet" type="text/css" />
+  {% endblock style %}
 
-        {% block script %}	
-        {% endblock script %}	
+  {% block script %}
+  {% endblock script %}
 	
 </head>
 
 <body>
-        {% block header %}	
-	<div id="header">
-		<span id="logo"><a href="{% url profile %}">GENI</a></span>
-		<span id="caption">Global Environment for Network Innovations using <a href="https://seattle.cs.washington.edu">Seattle</a></span>	
-	</div>
+  {% block header %}	
+	  <div id="header">
+  		<span id="logo"><a href="{% url profile %}">GENI</a></span>
+  		<span id="caption">Global Environment for Network Innovations using <a href="https://seattle.cs.washington.edu">Seattle</a></span>	
+  	</div>
 	{% endblock header%}	
 
 	{% block navigation %}{% endblock navigation %}

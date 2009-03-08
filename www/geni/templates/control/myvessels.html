@@ -4,6 +4,11 @@
 My Vessels - GENI
 {% endblock title %}
 
+{% block style %}
+{{ block.super }}
+<link href="{{ MEDIA_URL }}css/myvessels.css" rel="stylesheet" type="text/css" />
+{% endblock style %}
+
 {% block nav_myvessels %}
 <td class="active">My Vessels</td>
 {% endblock nav_myvessels %}

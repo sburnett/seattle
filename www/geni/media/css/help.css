@@ -1,13 +1,6 @@
-
-
-h2 {
-	margin: 50px auto 5px 0;
+h2 a {
+    color: #000;
 }
-
-h3 {
-	margin: 40px auto 5px 0;
-}
-
 
 #toc {
     float: right;
@@ -21,10 +14,6 @@ h3 {
 
 #toc h3 {
 	margin: 10px 0;
-}
-
-#toc a {
-	color: #0066FF;
 }
 
 #toc ul {
@@ -50,10 +39,6 @@ p {
 	font-size: 11pt;
 	text-align: justify;
 	line-height: 16pt;
-}
-
-p a, ul li a {
-	color: #0066FF;
 }
 
 p.footnote {
