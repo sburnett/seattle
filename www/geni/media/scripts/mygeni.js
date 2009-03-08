@@ -369,7 +369,7 @@ function update_credits() {
 
 function update_shares() {
 	setTimeout(function () {
-		$("#usage").html("<tr><td><img src='../media/images/loadingbar.gif' alt='loading' /></td></tr>");
+		$("#usage").html("<tr><td class='load'><img src='../media/images/loadingbar.gif' alt='loading' /></td></tr>");
 	}, 0);
 	$.post("../control/ajax_getshares",
 			function (data) {
