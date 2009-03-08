@@ -135,10 +135,16 @@ h3 {
    border-left: 2px solid #222;
 }
 
+#tabs table tr td a {
+    color: #000;
+}
+
 #tabs table tr td.active {
     background-color: #222;
     color: #fff;
 }
+
+
 
 
 /***** Main *****/
