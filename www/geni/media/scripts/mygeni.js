@@ -154,7 +154,8 @@ function change_percent(username, percent) {
 		$(this).parent().remove();
 	});
 	save.click(function() {
-		 save_percent(username, parseInt(input.val()));
+		validate();
+		save_percent(username, parseInt(input.val()));
 	});
 	dialog.append(input);
 	dialog.append(symbol);
@@ -188,6 +189,11 @@ function save_percent(username, percent) {
 			"json");
 }
 
+
+function validate() {
+	var free = parseInt($("#usageFree span").val());
+	alert(percent);
+}
 
 
 /*
