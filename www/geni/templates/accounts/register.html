@@ -22,34 +22,28 @@ Profile - GENI
 		  {% if form.username.errors or form.password1.errors or form.password2.errors or form.affiliation.errors or form.pubkey.errors %}
 		  <p class="warning">
 		  Please correct the following:</p>
-		  {{ form.username.errors }}
-		  {{ form.password1.errors }}
-		  {{ form.password2.errors }}
-		  {{ form.affiliation.errors }}
-		  {{ form.pubkey.errors }}
-		  <br>
 		  {% endif %}
 
 		  <table class="login">
 		    <tr>
 		      <td class="key"> {{ form.username.label_tag }}</td>
-		      <td class="value">{{ form.username }}</td>
+		      <td class="value">{{ form.username }} {{ form.username.errors }}</td>
 		    </tr>
 		    <tr>
 		      <td class="key">{{ form.password1.label_tag }}</td>
-		      <td class="value">{{ form.password1 }}</td>
+		      <td class="value">{{ form.password1 }} {{ form.password1.errors }}</td>
 		    </tr>
 		    <tr>
 		      <td class="key">{{ form.password2.label_tag }}</td>
-		      <td class="value">{{ form.password2 }}</td>
+		      <td class="value">{{ form.password2 }} {{ form.password2.errors }}</td>
 		    </tr>
 		    <tr>
 		      <td class="key">{{ form.affiliation.label_tag }}</td>
-		      <td class="value">{{ form.affiliation }}</td>
+		      <td class="value">{{ form.affiliation }} {{ form.affiliation.errors }}</td>
 		    </tr>
 		    <tr>
 		      <td class="key">{{ form.pubkey.label_tag }}</td>
-		      <td class="value">{{ form.gen_upload_choice }}</td>
+		      <td class="value">{{ form.gen_upload_choice }} {{ form.pubkey.errors }}</td>
 		    </tr>
 			  <tr id="uploadkey">
 			    <td class="key"></td>
