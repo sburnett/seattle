@@ -68,7 +68,7 @@ function create_block(username, width, isShare) {
 		percent.tooltip({cssClass:"tooltip"});
 		percent.css("cursor", "pointer");
 		percent.css("text-decoration", "underline");
-		percent.click(function () { show_table(isShare) });
+		percent.click(function () { toggle_table(isShare) });
 		// block.attr("id", "creditOthers");
 	}
 	block.append(percent);
@@ -109,6 +109,9 @@ function add_other(type, username, percent) {
 		edit.text("Edit");
 		edit.click(function() {
 			change_percent(username, percent);
+			if ($("#usageotherstable tr.even").length > 0) {
+				toggle_table(true);
+			}
 		});
 		var close = $(document.createElement("button"));
 		close.text("Delete");
@@ -124,6 +127,9 @@ function add_other(type, username, percent) {
 						}
 					});
 			tr.remove();
+			if ($("#usageotherstable tr.even").length > 0) {
+				toggle_table(true);
+			}
 		});
 		control.append(edit);
 		control.append(close);
@@ -205,7 +211,7 @@ function validate(current_percent, new_percent) {
 /*
 	Toggle display the tables for small percent users
 */
-function show_table(isShare) {
+function toggle_table(isShare) {
 	if (isShare) {
 		$("#usageotherstable").toggle();
 	} else {
