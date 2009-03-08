@@ -107,7 +107,8 @@ table.users tr th {
     height: 100%;
     background-color: #ccc;
     opacity: 0.3;
-    display: none;
+    display: none;    
+    filter: alpha(opacity=30);
 }
 
 #dialogframe {
