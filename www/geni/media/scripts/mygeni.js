@@ -232,13 +232,12 @@ function share_resources_dialog() {
 	$("#overlay").fadeIn("fast");
 	$("#shareresourcesdialog").fadeIn("fast");
 	$(".cancel").click(close_dialog);
-	var username = $("#shareresourcesdialog #username").val();
-	var percent = parseInt($("#shareresourcesdialog #percent").val());
 	if ($("#shareresourcesdialog .warning")) {
 	    $("#shareresourcesdialog .warning").remove();
 	}
 	$("#shareresources").click(function () {
-		alert($("#shareresourcesdialog #percent").val());
+		var username = $("#shareresourcesdialog #username").val();
+		var percent = parseInt($("#shareresourcesdialog #percent").val());
 		if (validate(0, percent)) {
 			share_resources(username, percent);
 		}
