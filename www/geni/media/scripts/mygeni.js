@@ -259,8 +259,8 @@ function keystroke() {
 			$("#dialogframe").hide();
 			$("#overlay").hide();
 		}
-	}
-}
+	});
+}	
 
 
 function post_ajax(url, args, func) {
