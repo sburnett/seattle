@@ -343,12 +343,12 @@ function update_credits() {
 		if (loading) {
 			$("#credits").html("<td><img src='../media/images/loadingbar.gif' alt='loading' /></td>");
 		}
-	}, 2000);
+	}, 3000);
 	setTimeout(function () {
 		if (loading) {
 			$("#credits").html("<td>It seems like it takes too long to load. Please refresh the page.</td>");
 		}
-	}, 12000);
+	}, 15000);
 	$.post("../control/ajax_getcredits",
 			function (data) {
 				loading = false;
@@ -381,12 +381,12 @@ function update_shares() {
 		if (loading) {
 			$("#usage").html("<td><img src='../media/images/loadingbar.gif' alt='loading' /></td>");
 		}
-	}, 2000);
+	}, 3000);
 	setTimeout(function () {
 		if (loading) {
 			$("#usage").html("<td>It seems like it takes too long to load. Please refresh the page.</td>");
 		}
-	}, 12000);
+	}, 15000);
 	$.post("../control/ajax_getshares",
 			function (data) {
 				loading = false;
