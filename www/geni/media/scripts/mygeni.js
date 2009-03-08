@@ -234,9 +234,6 @@ function share_resources_dialog() {
 	if ($("#shareresourcesdialog .warning")) {
 	    $("#shareresourcesdialog .warning").remove();
 	}
-	$("#shareresourcesdialog #username").keypress(function (e) {
-		$(this).val(String.fromCharCode(e.which));
-	});
 	$("#shareresources").click(function () {
 		var username = $("#shareresourcesdialog #username").val();
 		var percent = parseInt($("#shareresourcesdialog #percent").val());
@@ -254,17 +251,6 @@ function close_dialog() {
 	$("#dialogframe").hide();
 	$("#overlay").hide();
 }
-
-function keystroke() {
-	$("#dialogframe").keypress(function (e) {
-		if (e.which == 01) {
-			$("#dialogframe").children().hide();
-			$("#dialogframe").hide();
-			$("#overlay").hide();
-		}
-	});
-}	
-
 
 function post_ajax(url, args, func) {
 	$.post(url, args, function(data) {
