@@ -192,7 +192,7 @@ function save_percent(username, percent) {
 
 function validate() {
 	var free = parseInt($("#usageFree span").val());
-	alert(percent);
+	alert(free);
 }
 
 
