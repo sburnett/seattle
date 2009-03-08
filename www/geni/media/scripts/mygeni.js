@@ -346,10 +346,10 @@ function update_credits() {
 	}, 2000);
 	setTimeout(function () {
 		if (loading) {
-			$("#credits").html("<td>It seems like it takes too long to load. Please refresh the page.<td>");
+			$("#credits").html("<td>It seems like it takes too long to load. Please refresh the page.</td>");
 		}
 	}, 12000);
-	$.post("../control/ajax_getcreditsx",
+	$.post("../control/ajax_getcredits",
 			function (data) {
 				loading = false;
 				$("#credits").empty();
@@ -384,10 +384,10 @@ function update_shares() {
 	}, 2000);
 	setTimeout(function () {
 		if (loading) {
-			$("#usage").html("<td>It seems like it takes too long to load. Please refresh the page.<td>");
+			$("#usage").html("<td>It seems like it takes too long to load. Please refresh the page.</td>");
 		}
 	}, 12000);
-	$.post("../control/ajax_getsharesx",
+	$.post("../control/ajax_getshares",
 			function (data) {
 				loading = false;
 				$("#usage").empty();
