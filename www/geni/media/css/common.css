@@ -58,14 +58,6 @@ code {
     font-family: "Consolas", "Lucida Console", "Monaco", "Courier New";
 }
 
-h2 {
-	margin: 50px auto 5px 0;
-}
-
-h3 {
-	margin: 40px auto 5px 0;
-}
-
 .odd {
     background-color: #fff;
 }
