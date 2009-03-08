@@ -198,7 +198,6 @@ function save_percent(username, percent) {
 */
 function validate(current_percent, new_percent) {
 	var free = parseInt($("#usageFree span").text());
-	alert(current_percent + " " + new_percent);
 	return (new_percent - current_percent < free) && (new_percent >= 0);
 }
 
@@ -225,6 +224,8 @@ function get_resources_dialog() {
 
 
 function share_resources_dialog() {
+	$("#shareresourcesdialog #username").val("");
+	$("#shareresourcesdialog #percent").val("");
 	$("#dialogframe").fadeIn("fast");
 	$("#overlay").fadeIn("fast");
 	$("#shareresourcesdialog").fadeIn("fast");
