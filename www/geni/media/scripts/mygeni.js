@@ -2,7 +2,6 @@
 $(document).ready(function() {
 	update_credits();
 	update_shares();
-	keystroke();
 });
 
 
