@@ -109,9 +109,6 @@ function add_other(type, username, percent) {
 		edit.text("Edit");
 		edit.click(function() {
 			change_percent(username, percent);
-			if ($("#usageotherstable tr.even").length <= 0) {
-				toggle_table(true);
-			}
 		});
 		var close = $(document.createElement("button"));
 		close.text("Delete");
@@ -165,6 +162,9 @@ function change_percent(username, current_percent) {
 		var new_percent = parseInt(input.val());
 		if (validate(current_percent, new_percent)) {		
 			save_percent(username, new_percent);
+			if ($("#usageotherstable tr.even").length <= 0) {
+				toggle_table(true);
+			}
 		}
 	});
 	dialog.append(input);
