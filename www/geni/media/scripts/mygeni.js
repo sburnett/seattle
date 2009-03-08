@@ -349,7 +349,7 @@ function update_credits() {
 			$("#credits").html("<td>It seems like it takes too long to load. Please refresh the page.<td>");
 		}
 	}, 12000);
-	$.post("../control/ajax_getcredits",
+	$.post("../control/ajax_getcreditsx",
 			function (data) {
 				loading = false;
 				$("#credits").empty();
@@ -387,7 +387,7 @@ function update_shares() {
 			$("#usage").html("<td>It seems like it takes too long to load. Please refresh the page.<td>");
 		}
 	}, 12000);
-	$.post("../control/ajax_getshares",
+	$.post("../control/ajax_getsharesx",
 			function (data) {
 				loading = false;
 				$("#usage").empty();
