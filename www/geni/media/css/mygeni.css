@@ -43,7 +43,7 @@ table.credits tr td.load, table.usage tr td.load {
     width: 100%;
 }
 
-table.credits tr td img, table.usage tr td img {
+table.credits tr td.load img, table.usage tr td.load img {
     text-align: center;
     vertical-align: middle;
     margin: auto;
