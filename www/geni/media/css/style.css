@@ -169,6 +169,10 @@ table.login{
 	font-size: 14pt;
 }
 
+table.login tr td {
+    height: 50px;
+}
+
 table.login tr td.key {
     text-align: right;
     height: 40px;
