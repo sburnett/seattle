@@ -370,7 +370,7 @@ function update_credits() {
 function update_shares() {
 	setTimeout(function () {
 		$("#usage").html("<td><img src='../media/images/loadingbar.gif' alt='loading' /></td>");
-	}, 2000);
+	}, 0);
 	$.post("../control/ajax_getshares",
 			function (data) {
 				$("#usage").empty();
