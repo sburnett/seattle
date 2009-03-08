@@ -39,14 +39,14 @@ table.credits tr td, table.usage tr td {
 	padding: 8px;
 }
 
-table.credits tr td.load, table.usage tr td.load {
+table.credits tr.load td, table.usage tr.load td {
     width: 100%;
+    height: 100%;
 }
 
-table.credits tr td.load img, table.usage tr td.load img {
+table.credits tr.load td img, table.usage tr.load td img {
     text-align: center;
     vertical-align: middle;
-    margin: auto;
 }
 
 table.credits tr td span, table.usage tr td span {
