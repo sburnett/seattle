@@ -22,11 +22,11 @@ My Vessels - GENI
 				  <span id="caption">Get more resources</span>
 					<font color="red">	{{ get_form.num.errors }}</font>
 					<font color="red">	{{ get_form.env.errors }}</font>
-					  <span>Number of vessels</span>
-					  {{ get_form.num }}
-					  <span>Environment</span>
-					  {{ get_form.env }}
-					  <input type="submit" value="Get"/>
+					<span>Number of vessels</span>
+					{{ get_form.num }}
+					<span>Environment</span>
+					{{ get_form.env }}
+					<input type="submit" value="Get"/>
 				</form>
 				{% ifnotequal action_summary "" %}
 					<font color="red">	{{ action_summary }} </font>
@@ -41,7 +41,6 @@ My Vessels - GENI
 			<table class="vessels">
 				<tr class="odd">
 						<th>
-					  
 					  {% ifnotequal num_vessels 0 %}
 					  <form method="POST" action="{% url del_all_resources %}">
 						<input type="submit" value="remove all"> </input>
@@ -68,7 +67,7 @@ My Vessels - GENI
   				</tr>
   				{% endfor %}
   			{% else %}
-  			  <tr class="odd"><td colspan="4">You have no acquired resources<td></tr>
+  			  <tr class="even"><td colspan="4">You have no acquired resources<td></tr>
   			{% endif %}
 				
 			</table>

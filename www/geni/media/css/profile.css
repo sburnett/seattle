@@ -21,14 +21,6 @@ table.profile tr td.value {
     padding-left: 15px;   
 }
 
-table.profile tr.odd {
-    background-color: #fff;
-}
-
-table.profile tr.even {
-    background-color: #eee;
-}
-
 #download {
     float: right;
     border: 2px solid #666;
@@ -38,5 +30,9 @@ table.profile tr.even {
     margin-right: 0px;
     text-align: center;
     font-weight: bold;
+}
+
+#download a img {
+    width: 150px;
 }
 

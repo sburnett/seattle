@@ -44,7 +44,6 @@ body {
 	font-size: 12pt;
 }
 
-
 ol {
     list-style-position: inside;
 }
@@ -96,6 +95,7 @@ code {
 	color: #0066FF;
 }
 
+
 /***** Navigator *****/
 
 #navigator {
@@ -112,6 +112,10 @@ code {
     float: right;
     font-size: 13pt;
     margin: 5px 0;
+}
+
+#meta a.logout {
+    color: red;
 }
 
 #tabs table {
@@ -135,8 +139,6 @@ code {
     background-color: #222;
     color: #fff;
 }
-
-
 
 
 /***** Main *****/

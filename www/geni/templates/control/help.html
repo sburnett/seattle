@@ -1,14 +1,13 @@
 {% extends "control/control_base.html" %}
 
-{% block style %}
-{{ block.super }}
-<link href="{{ MEDIA_URL }}css/help.css" rel="stylesheet" type="text/css" />
-{% endblock style %}	
-
-
 {% block title %}
 Help - GENI
 {% endblock title %}
+
+{% block style %}
+{{ block.super }}
+<link href="{{ MEDIA_URL }}css/help.css" rel="stylesheet" type="text/css" />
+{% endblock style %}
 
 {% block nav_help %}
 <td class="active">Help</td>

@@ -1,14 +1,13 @@
 {% extends "download/download_base.html" %}
 
+{% block title %}
+Help - SeattleGENI
+{% endblock title %}
+
 {% block style %}
 {{ block.super }}
 <link href="{{ MEDIA_URL }}css/help.css" rel="stylesheet" type="text/css" />
 {% endblock style %}	
-
-
-{% block title %}
-Help - SeattleGENI
-{% endblock title %}
 
 {% block nav_help %}
 <td class="active">Help</td>
@@ -20,16 +19,11 @@ Help - SeattleGENI
     <div id="toc">
       <h3>Table of Contents</h3>
       <ul>
-	<li><a href="#intro" title="Donation
-	       Introduction">Introduction to Seattle Donations</a></li>   
-	<li><a href="#install" title="Installing Seattle">Installing
-	    Seattle</a></li>
-	<li><a href="#pause" title="Pausing Seattle">Pausing
-	    Seattle</a></li> 
-	<li><a href="#uninstall" title="Uninstalling
-					Seattle">
-	    Uninstalling Seattle</a></li>
-	<li><a href="#contact">Who to contact for more help</a></li>
+	      <li><a href="#intro" title="Donation Introduction">Introduction to Seattle Donations</a></li>   
+	      <li><a href="#install" title="Installing Seattle">Installing Seattle</a></li>
+	      <li><a href="#pause" title="Pausing Seattle">Pausing Seattle</a></li> 
+        <li><a href="#uninstall" title="Uninstalling Seattle">Uninstalling Seattle</a></li>
+	      <li><a href="#contact">Who to contact for more help</a></li>
       </ul>
     </div>
 
