@@ -339,9 +339,15 @@ function color_generator(username) {
 
 
 function update_credits() {
-	$("#credits").html("<td><img src='../media/images/loadingbar.gif' alt='loading' /></td>");
+	var loading = true;
+	setTimeout(function () {
+		if (loading) {
+			$("#credits").html("<td><img src='../media/images/loadingbar.gif' alt='loading' /></td>");
+		}
+	}, 2000);
 	$.post("../control/ajax_getcredits",
 			function (data) {
+				loading = false;
 				$("#credits").empty();
 				$("#creditnames").empty();
 				$("#creditotherstable tr:gt(0)").empty();
@@ -366,9 +372,15 @@ function update_credits() {
 }
 
 function update_shares() {
-	$("#usage").html("<td><img src='../media/images/loadingbar.gif' alt='loading' /></td>");
+	loading = true;
+	setTimeout(function () {
+		if (loading) {
+			$("#usage").html("<td><img src='../media/images/loadingbar.gif' alt='loading' /></td>");
+		}
+	}, 2000);
 	$.post("../control/ajax_getshares",
 			function (data) {
+				loading = false;
 				$("#usage").empty();
 				$("#usagenames").empty();
 				$("#usageotherstable tr:gt(0)").empty();
