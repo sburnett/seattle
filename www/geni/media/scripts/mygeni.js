@@ -342,7 +342,6 @@ function update_credits() {
 	setTimeout(function () {
 		$("#credits").html("<td><img src='../media/images/loadingbar.gif' alt='loading' /></td>");
 	}, 0);
-	/*
 	$.post("../control/ajax_getcredits",
 			function (data) {
 				$("#credits").empty();
@@ -366,14 +365,12 @@ function update_credits() {
 				$("#creditotherstable tr:even").addClass("even");
 			}, 
 			"json");
-			*/
 }
 
 function update_shares() {
 	setTimeout(function () {
 		$("#usage").html("<td><img src='../media/images/loadingbar.gif' alt='loading' /></td>");
 	}, 0);
-	/*
 	$.post("../control/ajax_getshares",
 			function (data) {
 				$("#usage").empty();
@@ -404,7 +401,6 @@ function update_shares() {
 				$("#usageotherstable tr:even").addClass("even");
 			},
 			"json");
-			*/
 }
 
 
