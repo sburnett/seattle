@@ -231,13 +231,13 @@ function share_resources_dialog() {
 	if ($("#shareresourcesdialog .warning")) {
 	    $("#shareresourcesdialog .warning").remove();
 	}
-	if (validate(0, percent)) {
-		$("#shareresources").click(function () {
+	$("#shareresources").click(function () {
+		if (validate(0, percent)) {
 			share_resources(username, percent);
-		});
-	} else {
-		create_warning("Percent must be a valid number", $("#shareresourcesdialog h3"));
-	}
+		} else {
+			create_warning("Percent must be a valid number", $("#shareresourcesdialog h3"));
+		};
+	});
 }
 
 function close_dialog() {
