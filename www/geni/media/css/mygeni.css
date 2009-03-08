@@ -45,6 +45,7 @@ table.credits tr td.load, table.usage tr td.load {
 
 table.credits tr td img, table.usage tr td img {
     text-align: center;
+    vertical-align: middle;
     margin: auto;
 }
 
