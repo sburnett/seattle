@@ -339,6 +339,9 @@ function color_generator(username) {
 
 
 function update_credits() {
+	setTimeout(function () {
+		$("#credits").html("<tr><td><img src='../media/images/loadingbar.gif' alt='loading' /></td></tr>");
+	}, 0);
 	$.post("../control/ajax_getcredits",
 			function (data) {
 				$("#credits").empty();
@@ -365,6 +368,9 @@ function update_credits() {
 }
 
 function update_shares() {
+	setTimeout(function () {
+		$("#usage").html("<tr><td><img src='../media/images/loadingbar.gif' alt='loading' /></td></tr>");
+	}, 0);
 	$.post("../control/ajax_getshares",
 			function (data) {
 				$("#usage").empty();

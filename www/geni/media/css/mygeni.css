@@ -39,6 +39,11 @@ table.credits tr td, table.usage tr td {
 	padding: 8px;
 }
 
+table.credits tr td img, table.usage tr td img {
+    text-align: center;
+    margin: auto;
+}
+
 table.credits tr td span, table.usage tr td span {
     font-size: 14pt;
     font-weight: bold;
@@ -82,7 +87,7 @@ table.users caption {
 	padding: 20px auto 10px auto;
 }
 
-table.users tr td{
+table.users tr td {
     height: 25px;
     text-align: center;
 }
