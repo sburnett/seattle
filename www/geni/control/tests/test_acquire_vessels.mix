@@ -1,15 +1,18 @@
-from geni.control.resource_operations import release_resources
-from geni.control.repy_dist.vessel_operations import acquire_lan_vessels, acquire_wan_vessels, acquire_rand_vessels
 
-include nmclient.py
+from repyportability import *
+include nmclient.repy
+
+from django.contrib.auth.models import User as DjangoUser
+from geni.control.models import User, VesselMap
+
+from geni.control.resource_operations import acquire_resources, release_resources
 
 
 def acquire_node(geni_user):
-
-    success, blob = acquire_rand_vessels(geni_user, 1)
-    
-    if not success:
-        summary, explanation = blob
+    #                                 user, num, type  
+    success, blob = acquire_resources(geni_user, 1, 3)
+    num, summary, explanation = blob
+    if not success or not num == 1:
         print "Failed to acquire node."
         print "Summary:", summary
         print "Details:", explanation
@@ -17,44 +20,52 @@ def acquire_node(geni_user):
         return
 
     else: 
-        summary, explanation, acquired = blob
-        new_node = acquired[0]
-        print "Successfull acquired node (" + str(new_node) + ")"
+        new_node = VesselMap.objects.filter(user = geni_user).order_by('expiration')
+        print "Vessel obj:", new_node
         
-        parts = new_node.partition(":")
-        hostname = parts[0]
-        port = int(parts[2])
+        v_hostname = new_node[0].vessel_port.vessel.donation.ip
+        v_port = int(new_node[0].vessel_port.port)
+        v_name = new_node[0].vessel_port.vessel.name
+
+        print "Successfully acquired node (" + str(new_node[0]) + ")"
+        print "hostname", v_hostname
+        print "port", v_port
+        print "Vessel obj:", new_node
+
+        nmhandle = nmclient_createhandle(v_hostname, v_port)
+        filedata = nmclient_signedsay(nmhandle, "ListFilesInVessel", 
+                                      publickey = geni_user.pubkey, 
+                                      vesselid = v_name)
+        print "files on vessel: ", filedata
         
-        nmhandle = nmclient_createhandle(hostname, port)
-        nmclient_rawsay(nmhandle, "GetVessels")
-        nmclient_getvesseldict(nmhandle)
-
-        return hostname, port
+        return nmhandle, v_name
 
 
-def release_node(geni_user, hostname, port):
-    success, blob = release_resources(geni_user, 0, True)
+def release_node(geni_user, nmhandle, v_name):
+    ret = release_resources(geni_user, 0, True)
+    # ret = release_vessel([vess])
+    print ret
     
     # vessel should be released now, check
     
-    wait(10)
+    sleep(10)
 
     try:
-        nmhandle = nmclient_createhandle(hostname, port)
-        nmclient_rawsay(nmhandle, "GetVessels")
-        nmclient_getvesseldict(nmhandle)
+        filedata = nmclient_signedsay(nmhandle, "ListFilesInVessel", 
+                                      publickey = geni_user.pubkey, 
+                                      vesselid = v_name)
     except NMClientException:
         print "successfully unreachable"
     else:
         print "node still contactable"
-    
+        print "files on vessel: ", filedata
 
-if __init__ == "__main__":
+if __name__ == "__main__":
     user = DjangoUser.objects.get(username="test_geni")
     print "django user:", user
     
     geni_user = User.objects.get(www_user = user)
     print "geni user:", geni_user
 
-    hostname, port = acquire_node(geni_user)
-    release_node(geni_user, hostname, port)
+    nmhandle, v_name = acquire_node(geni_user)
+    release_node(nmhandle, v_name)

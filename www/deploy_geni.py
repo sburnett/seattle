@@ -39,12 +39,18 @@ except ImportError:
 
 def main():
     
-    if not len(sys.argv) == 3:
-        print "python deploy_geni <loc/of/geni_root> <loc/of/svn_trunk>"
+    if not len(sys.argv) == 3 and not len(sys.argv) == 4:
+        print "python deploy_geni [-t] <loc/of/geni_root> <loc/of/svn_trunk>"
         return
     
-    geni_root = sys.argv[1]
-    svn_trunk = sys.argv[2]
+    start_arg = 1
+    do_tests = False
+    if sys.argv[1] == '-t':
+        do_tests = True
+        start_arg = start_arg + 1
+
+    geni_root = sys.argv[start_arg]
+    svn_trunk = sys.argv[start_arg + 1]
     
     # check for existence of svn trunk
     if not os.path.isdir(svn_trunk):
@@ -112,6 +118,10 @@ def main():
     print "changeusers_path:", changeusers_path
     preparetest.copy_to_target(changeusers_path, target_dir)
     
+    # if do_tests is true, let's copy over tests too..
+    if do_tests:
+        preparetest.copy_to_target(target_dir + "/../tests/*.mix", target_dir)
+
     # set working dir to target
     os.chdir(target_dir)
   
