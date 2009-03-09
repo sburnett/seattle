@@ -74,8 +74,13 @@ def test_rsync(testtype, softwareurl, chgFile=[]):
   # Here we get the times before the update.
   if testtype == '-x' or testtype == '-u' or testtype == '-e':
     # We may want to refine this to only include relavent files.
-    # for now it checks against all files in the current directory.
+    # for now it checks against all files (but not directories) in
+    # the current directory.
     for upfile in glob.glob('*'):
+      # ignore directories...
+      if os.path.isdir(upfile):
+        continue
+
       # put the last modification time into the proper place in
       # the chgTime list
       chgTime[upfile] = os.stat(upfile).st_mtime
@@ -110,6 +115,10 @@ def test_rsync(testtype, softwareurl, chgFile=[]):
     # First run through the updated list and make sure all the
     # right files are there.
     for upfile in chgFile:
+      # ignore directories...
+      if os.path.isdir(upfile):
+        continue
+
       if updatedlist and upfile in updatedlist:
         updatedlist.remove(upfile)
       else:
@@ -121,8 +130,13 @@ def test_rsync(testtype, softwareurl, chgFile=[]):
         success = success + 'Some files were unexpectedly put on the updated list ' + str(updatedlist) + '\n'
 
     # We may want to refine this to only include relavent files.
-    # for now it checks against all files in the current directory.
+    # for now it checks against all files in the current directory (but not
+    # directories).
     for upfile in glob.glob('*'):
+      # ignore directories...
+      if os.path.isdir(upfile):
+        continue
+
       if upfile in chgFile:
         # If it should have been updated, then its last mod time should
         # also be updated
@@ -142,8 +156,13 @@ def test_rsync(testtype, softwareurl, chgFile=[]):
   # No updates should have happened
   if testtype == '-x' or testtype == '-e':
     # We may want to refine this to only include relavent files.
-    # for now it checks against all files in the current directory.
+    # for now it checks against all files in the current directory (but not
+    # directories).
     for upfile in glob.glob('*'):
+      # ignore directories...
+      if os.path.isdir(upfile):
+        continue
+
       # make sure the modification time is unchanged
       if chgTime[upfile] != os.stat(upfile).st_mtime:
         success = success + upfile + ' was unexpectedly updated!\n'

@@ -14,6 +14,7 @@ Usage:  ./writemetainfo.py
 
 import sys
 import os  
+import os.path
 import time
 import random
 
@@ -75,6 +76,10 @@ def create_metainfo_file(privatekeyfilename, publickeyfilename, new=False):
 
     # ignore swp files...
     if filename.endswith('.swp'):
+      continue
+    
+    # ignore directories... -Brent
+    if os.path.isdir(filename):
       continue
 
     # ignore the metainfo file

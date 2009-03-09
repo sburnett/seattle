@@ -31,7 +31,6 @@ To have the tests update from a remote site, do the following:
   If not, email Brent Couvrette with questions at couvb@cs.washington.edu
 """
 
-import ftplib
 import glob
 import os
 import writemetainfo
