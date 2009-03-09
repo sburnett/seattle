@@ -331,6 +331,10 @@ def acquire_wan_vessels(geni_user, num):
         explanation = summary
         return False, (summary, explanation)
 
+    # randomize data!
+    rows = list(rows)
+    random.shuffle(rows)
+
     # alpers - this is the start of parallelized acquisition
     acquired = []
     cnt = 0
@@ -358,7 +362,7 @@ def acquire_wan_vessels(geni_user, num):
         # hardly use. This line is super-suspect, although this saves the time
         # of aggregating a list, it *can* be possible that 4x the number of 
         # vessels requested can all fail.
-        if len(vessel_subnets.keys()) > (num * 4):
+        if len(vessel_subnets.keys()) > (num * 8):
             break
 
     # we've collected our collection of vessels, let's try to acquire some 
