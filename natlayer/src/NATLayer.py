@@ -19,8 +19,15 @@ include Multiplexer.py
 # Fixed length mac address for initialization
 NAT_MAC_LENGTH = 32
 
+# Fixed length port for client initialization
+NAT_PORT_LENGTH = 5
+
 # Pad character for forwarder response and mac addresses
 NAT_PAD_CHAR = "_"
+
+# Character to split for server mac + server port
+# during client init
+NAT_SPLIT_CHAR = ";"
 
 # Valid Forwarder responses to init
 NAT_STATUS_NO_SERVER = "NO_SERVER"
@@ -82,9 +89,12 @@ def nat_openconn(destmac, destport, localport=None, timeout = 5, forwarderIP=Non
   # Create a real connection to the forwarder
   socket = openconn(forwarderIP, forwarderPort)
 
-  # Transmit our desired MAC address
+  # Transmit our desired MAC address and port
   destmac = destmac.rjust(NAT_MAC_LENGTH,NAT_PAD_CHAR) # Pad the mac
-  socket.send(destmac) # Send it
+  destport = str(destport).rjust(NAT_PORT_LENGTH,NAT_PAD_CHAR) # Pad the port
+  init_str = destmac + NAT_SPLIT_CHAR + destport # Combine the mac and port using a split character
+
+  socket.send(init_str) # Send it
 
   response = socket.recv(NAT_STATUS_LENGTH)
   response = response.lstrip(NAT_PAD_CHAR) # Strip the pad character
