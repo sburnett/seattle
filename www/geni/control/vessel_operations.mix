@@ -56,6 +56,7 @@ def acquire_vessel(vessel, pubkey_list):
     vesselname = vessel.name
     nodepubkey = vessel.donation.owner_pubkey
     nodeprivkey = vessel.donation.owner_privkey
+    # alpers - too much explanation?
     # explanation += " %s:%s:%s - \n\n"%(nmip,nmport,vesselname)
     # explanation += "nodepubkey : %s<br>nodeprivkey: %s<br>"%(nodepubkey,nodeprivkey)
     # explanation += "calling changeusers with: \npubkeystrlist %s\nnmip %s\nnmport %s\nvesselname %s\nnodepubkey %s\nnodeprivkey %s\n"%(userpubkeystringlist, nmip, nmport, vesselname, nodepubkey, nodeprivkey)
@@ -275,9 +276,10 @@ def acquire_lan_vessels(geni_user, num):
             if len(acquired) == num:
                 return True, (summary, explanation, acquired)
             
-            # otherwise, increase the lan_vessel index parameters based on the number of vessels
-            # that were able to be acquired (start_index - end_index will be the number of vessels
-            # attempted to be acquired on the next iteration)
+            # otherwise, increase the lan_vessel index parameters based on the
+            # number of vessels that were able to be acquired 
+            # (start_index - end_index will be the number of vessels attempted
+            # to be acquired on the next iteration)
             start_index += len(subset)
             end_index = start_index + num - len(acquired)
                 
@@ -352,9 +354,10 @@ def acquire_wan_vessels(geni_user, num):
             else:
                 vessel_subnets[subnet].extend(subnet_vessels)
             
-        # Attempts to prevent function from populating a huge list that it will hardly use.
-        # This line is super-suspect, although this saves the time of aggregating a list, it
-        # *can* be possible that 2x the number of vessels requested can all fail.
+        # Attempts to prevent function from populating a huge list that it will
+        # hardly use. This line is super-suspect, although this saves the time
+        # of aggregating a list, it *can* be possible that 4x the number of 
+        # vessels requested can all fail.
         if len(vessel_subnets.keys()) > (num * 4):
             break
 
@@ -363,22 +366,24 @@ def acquire_wan_vessels(geni_user, num):
         print "starting acquisition loop"
         vessels_to_submit = {}
         subnets_to_delete = []
-        # populate our vessel subset, make another hash so we know which subnet each came from
+        # populate our vessel subset, make another hash so we know which subnet
+        # each came from
         for k, v in vessel_subnets.iteritems():
             if len(vessels_to_submit.keys()) < (num - len(acquired)):
-                # if a subnet has been exhausted of available vessels, remove it from the 
-                # potential vessel source list
+                # if a subnet has been exhausted of available vessels, remove 
+                # it from the potential vessel source list
                 if len(v) == 0:
                     subnets_to_delete.append(k)
 
-                # otherwise, remove the specific vessel from the subnet and save it in the submission queue
+                # otherwise, remove the specific vessel from the subnet and
+                # save it in the submission queue
                 else:
                     vessels_to_submit[v.pop(0)] = k
             else:
                 break
 
-        # iteritems() doesn't like when keys are deleted in the middle of a loop, 
-        # so vessel_subnets is clean up here
+        # iteritems() doesn't like when keys are deleted in the middle of a 
+        # loop, so vessel_subnets is clean up here
         for key in subnets_to_delete:
             del vessel_subnets[key]
 
@@ -392,7 +397,8 @@ def acquire_wan_vessels(geni_user, num):
 
         print "didn't find enough nodes (only " + str(len(acquired)) + "), retrying loop"
         
-        # very important to ensure WAN case - remove the subnet from the list of available vessels
+        # very important to ensure WAN case - remove the subnet from the list
+        # of available vessels
         for vessel in new_acquired:
             subnet = vessels_to_submit[vessel]
             del vessel_subnets[subnet]
@@ -456,8 +462,8 @@ def acquire_rand_vessels(geni_user, num):
             summary = "Acquired all the nodes."
             return True, (summary, explanation, acquired)
     
-        # otherwise, increase the vessel index parameters based on the number of vessels
-        # that were able to be acquired and retry
+        # otherwise, increase the vessel index parameters based on the number
+        # of vessels that were able to be acquired and retry
         start_index += len(subset)
         end_index = start_index + num - len(acquired)
 
@@ -465,76 +471,4 @@ def acquire_rand_vessels(geni_user, num):
     explanation = str(len(vessels)) + " vessels available. In these, failed to acquire " + str(num) + " vessels."
     summary = "Failed to acquire nodes."
     return False, (summary, explanation)
-
-
-# def test_acquire(username, num_nodes):
-#     """
-#     <Purpose>
-
-#     <Arguments>
-#         request:
-            
-#         share_form:
-            
-
-#     <Exceptions>
-        
-
-#     <Side Effects>
-        
-
-#     <Returns>
-        
-#     """
-
-#     user = DjangoUser.objects.get(username=username)
-#     print "django user: ", user
-#     geni_user = User.objects.get(www_user = user)
-#     print "geni user: ", geni_user
-#     ret = acquire_resources(geni_user, num_nodes, "LAN")
-#     print "acquire returned: ", ret
-#     if ret[0] == False:
-#         print ret[1]
-
-# def test_acquire_node(username,nodeip,vesselname):
-#     """
-#     <Purpose>
-        
-
-#     <Arguments>
-#         request:
-            
-#         share_form:
-            
-
-#     <Exceptions>
-        
-
-#     <Side Effects>
-        
-
-#     <Returns>
-        
-#     """
-
-#     user = DjangoUser.objects.get(username=username)
-#     print "django user: ", user
-#     geni_user = User.objects.get(www_user = user)
-#     print "geni user: ", geni_user
-
-#     d = Donation.objects.get(ip = nodeip)
-#     print "donation: " , d
-#     v = Vessel.objects.get(donation = d, name = vesselname)
-#     print "vessel: ", v
-    
-#     # issue the command to remote nodemanager
-#     userpubkeystringlist = [geni_user.pubkey]
-#     nmip = v.donation.ip
-#     nmport = int(v.donation.port)
-#     vesselname = v.name
-#     nodepubkey = v.donation.owner_pubkey
-#     nodeprivkey = v.donation.owner_privkey
-#     print "calling changeusers with: \npubkeystrlist %s\nnmip %s\nnmport %s\nvesselname %s\nnodepubkey %s\nnodeprivkey %s\n"%(userpubkeystringlist, nmip, nmport, vesselname, nodepubkey, nodeprivkey)
-#     success,msg = changeusers(userpubkeystringlist, nmip, nmport, vesselname, nodepubkey, nodeprivkey)
-#     print "returned: ", success, msg
 
