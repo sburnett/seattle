@@ -372,8 +372,8 @@ def reset_targets(longname_list):
       failed_hosts dictionary (including longname KeyErrors).
 
     <Side Effects>
-      Clears the log state of this module IFF resetting all vessels was 
-      successful.
+      Clears the (global) logs state of this module for each vessel that
+      successfully reset.
 
     <Returns>
       A tuple consisting of (success?, failed_dict).  A success is determined
@@ -402,7 +402,6 @@ def reset_targets(longname_list):
         failed_hosts[vessel] = msg
 
     if len(failed_hosts.keys()) == 0:
-        logs = {}
         return (True, "")
     else:
         return (False, failed_hosts)
@@ -424,7 +423,7 @@ def reset_target(longname):
       state or if the module has not been initialized.
 
     <Side Effects>
-      Will NOT clear the local logs unless reset_targets() is called.
+      Will clear the (global) logs entry for this specific vessel.
 
     <Returns>
       A tuple consisting of (success?, info).  A successful reset have no info,
@@ -441,6 +440,10 @@ def reset_target(longname):
     except NMClientException, e:
         return (False, str(e))
     else:
+        # delete the logs relating to this vessel
+        global logs
+        del logs[longname]
+        
         return (True, "")
 
 
