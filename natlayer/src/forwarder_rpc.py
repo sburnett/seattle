@@ -2,11 +2,12 @@
 # Get the NATLayer
 include NATLayer.py
 
+# Get the RPC constants
+include RPC_Constants.py
+
 FORWARDER_STATE = {"ip":"127.0.0.1","Next_Conn_ID":0}
 SERVER_PORT = 12345  # What real port to listen on for servers
 CLIENT_PORT = 23456  # What real port to listen on for clients
-RPC_VIRTUAL_PORT = 0 # What virtual port to listen on for Remote Procedure Calls
-RPC_FIXED_SIZE = 4   # Tells us the size RPC dictionary
 MAX_CLIENTS_PER_SERV = 8*2 # How many clients per server, the real number is this divided by 2
 WAIT_INTERVAL = 3    # How long to wait after sending a status message before closing the socket
 RECV_SIZE = 1024 # Size of chunks to exchange
@@ -71,10 +72,8 @@ def deregister_server(conn_id,value):
   # Close the multiplexer
   if "mux" in serverinfo:
     mux = serverinfo["mux"]
-    try:
-      mux.close()
-    except:
-      pass
+    _safe_close(mux)
+    
       
   # Delete the server entry
   del CONNECTED_SERVERS[conn_id]
@@ -116,25 +115,32 @@ def new_rpc(conn_id, remoteip, remoteport, sock):
     # Get the server info
     serverinfo = CONNECTED_SERVERS[conn_id]
   
-    # What is the size of the RPC dictionary?
-    requestSize = int(sock.recv(RPC_FIXED_SIZE))
-  
-    # Get the actual RPC dictionary, block until we get everything
-    rpc_dict = sock.recv(requestSize, blocking=True)
-  
-    # Convert the string to the actual dict
-    rpc_dict = deserialize(rpc_dict)
+    # Get the RPC object
+    rpc_dict = RPC_decode(sock)
+    
     # DEBUG
     print "RPC Request:",rpc_dict
     
     # Get the RPC call id
-    callID = rpc_dict["id"]
+    callID = rpc_dict[RPC_REQUEST_ID]
+    
     # Get the requested function
-    request = rpc_dict["request"]
+    if RPC_FUNCTION in rpc_dict:
+      request = rpc_dict[RPC_FUNCTION]
+    else:
+      request = None
+    
     # Get the value, this is the parameter to the function
-    value = rpc_dict["value"]
+    if RPC_PARAM in rpc_dict:
+      value = rpc_dict[RPC_PARAM]
+    else:
+      value = None
+    
     # Determine if there are remaining RPC requests
-    additional = rpc_dict["additional"]
+    if RPC_ADDI_REQ in rpc_dict:
+      additional = rpc_dict[RPC_ADDI_REQ]
+    else:
+      additional = False
   
     # If the request exists, call the function
     if request in RPC_FUNCTIONS:
@@ -150,12 +156,10 @@ def new_rpc(conn_id, remoteip, remoteport, sock):
       retvalue = None
     
     # Send the status of the request
-    statusdict = {"id":callID,"status":status,"value":retvalue}
-    statusdict_str = str(statusdict)
-    length = len(statusdict_str)
+    statusdict = {RPC_REQUEST_ID:callID,RPC_REQUEST_STATUS:status,RPC_RESULT:retvalue}
   
-    # Concatenate the length string with the status dictionary
-    response = str(length) + statusdict_str  
+    # Encode the RPC response dictionary
+    response = RPC_encode(statusdict) 
   
     # Send the response
     sock.send(response)
@@ -299,11 +303,11 @@ def main():
 
 
 # Dictionary maps valid RPC calls to internal functions
-RPC_FUNCTIONS = {"externaladdr":server_info, # This allows the server to query its ip/port
-                  "reg_serv":register_server,  # This is for server registration
-                  "dereg_serv":deregister_server,  # This is for server de-registration, shutdown
-                  "reg_port":reg_waitport, # This informs the forwarder what port the server is waiting on
-                  "dereg_port":dereg_waitport} # This informs the forwarder that the server is no longer listening on a port
+RPC_FUNCTIONS = {RPC_EXTERNAL_ADDR:server_info, 
+                  RPC_REGISTER_SERVER:register_server,
+                  RPC_DEREGISTER_SERVER:deregister_server,
+                  RPC_REGISTER_PORT:reg_waitport,
+                  RPC_DEREGISTER_PORT:dereg_waitport}
 
 # Check if we are suppose to run
 if callfunc == "initialize":
