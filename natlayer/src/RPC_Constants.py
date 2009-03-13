@@ -47,6 +47,11 @@ RPC_DEREGISTER_SERVER = "dereg_serv"# This allows a server to de-register from a
 RPC_REGISTER_PORT = "reg_port"      # THis allows the server to register a wait port
 RPC_DEREGISTER_PORT = "dereg_port"  # This allows the server to de-register a wait port
 
+# This instructs the forwarder to begin forwarding data from this socket to a server
+# It expects the RPC_PARAM to be a dictionary:
+# {"server":"__MAC__","port":50}
+RPC_CLIENT_INIT = "client_init"
+
 # Helper Functions
 def RPC_encode(rpc_dict):
   """

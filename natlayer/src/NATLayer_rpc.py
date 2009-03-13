@@ -15,29 +15,11 @@ include server_advertise.py
 include Multiplexer.py
 include RPC_Constants.py
 
-# MAC Address length
-
-# Fixed length mac address for initialization
-NAT_MAC_LENGTH = 32
-
-# Fixed length port for client initialization
-NAT_PORT_LENGTH = 5
-
-# Pad character for forwarder response and mac addresses
-NAT_PAD_CHAR = "_"
-
-# Character to split for server mac + server port
-# during client init
-NAT_SPLIT_CHAR = ";"
-
-# Valid Forwarder responses to init
-NAT_STATUS_LENGTH = 12
-
-# Set the messages, justified to the proper length
-NAT_STATUS_NO_SERVER = "NO_SERVER".rjust(NAT_STATUS_LENGTH, NAT_PAD_CHAR)
-NAT_STATUS_BSY_SERVER = "BSY_SERVER".rjust(NAT_STATUS_LENGTH, NAT_PAD_CHAR)
-NAT_STATUS_CONFIRMED = "CONFIRMED".rjust(NAT_STATUS_LENGTH, NAT_PAD_CHAR)
-NAT_STATUS_FAILED = "FAILED".rjust(NAT_STATUS_LENGTH, NAT_PAD_CHAR)
+# Set the messages
+NAT_STATUS_NO_SERVER = "NO_SERVER"
+NAT_STATUS_BSY_SERVER = "BSY_SERVER"
+NAT_STATUS_CONFIRMED = "CONFIRMED"
+NAT_STATUS_FAILED = "FAILED"
 
 
 # Dictionary holds NAT_Connection state
@@ -94,27 +76,26 @@ def nat_openconn(destmac, destport, localport=None, timeout = 5, forwarderIP=Non
   # Create a real connection to the forwarder
   socket = openconn(forwarderIP, forwarderPort)
 
-  # Transmit our desired MAC address and port
-  destmac = destmac.rjust(NAT_MAC_LENGTH,NAT_PAD_CHAR) # Pad the mac
-  destport = str(destport).rjust(NAT_PORT_LENGTH,NAT_PAD_CHAR) # Pad the port
-  init_str = destmac + NAT_SPLIT_CHAR + destport # Combine the mac and port using a split character
+  # Create an RPC request
+  rpc_dict = {RPC_FUNCTION:RPC_CLIENT_INIT,RPC_PARAM:{"server":destmac,"port":destport}}
 
-  socket.send(init_str) # Send it
+  # Send the RPC request
+  socket.send(RPC_encode(rpc_dict)) 
 
   # Get the response
-  response = socket.recv(NAT_STATUS_LENGTH)
+  response = RPC_decode(socket)
   
   # Check the response 
-  if response == NAT_STATUS_CONFIRMED:
+  if response[RPC_RESULT] == NAT_STATUS_CONFIRMED:
     # Everything is good to go
     return socket
   
   # Handle no server at the forwarder  
-  elif response == NAT_STATUS_NO_SERVER:
+  elif response[RPC_RESULT] == NAT_STATUS_NO_SERVER:
     raise EnvironmentError, "Connection Refused! No server at the forwarder!"
     
   # Handle busy forwarder
-  elif response == NAT_STATUS_BSY_SERVER:
+  elif response[RPC_RESULT] == NAT_STATUS_BSY_SERVER:
     raise EnvironmentError, "Connection Refused! Forwarder Busy."
   
   # General error    

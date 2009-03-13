@@ -26,6 +26,7 @@ def new_client(remoteip, remoteport, socketlikeobj, commhandle, thisnatcon):
     while True:
       # Check the client message
       mesg = socketlikeobj.recv(1024)
+
       if int(mesg) != num:
         raise Exception, "Unexpected Message! Expected: " + str(num) + " Received: " + mesg
       else:
