@@ -16,8 +16,16 @@ CHECK_INTERVAL = 60  # How often to cleanup our state, e.g. remove dead multiple
 # Dictionary that maps Connection ID -> Dictionary of data about the connection
 CONNECTIONS = {}
 
+# Enumeration of Connection types
+TYPE_MUX = 1    # Server type, or multiplexed connections
+TYPE_SOCK = 2   # Single socket, client or RPC type
+
 # Allows a reverse lookup of MAC to Connection ID
 MAC_ID_LOOKUP = {}
+
+# Controls Debug messages
+DEBUG1 = False # Prints general debug messages
+DEBUG2 = False # Prints extra debug messages
 
 # Safely closes a socket
 def _safe_close(sock):
@@ -46,10 +54,6 @@ def register_server(conn_id, value):
     # Get the server info, assign the MAC
     serverinfo = CONNECTIONS[conn_id]
     serverinfo["mac"] = value
-    
-    # Make sure this is a server typed connection
-    if serverinfo["type"] != "server":
-      return (False,None)
       
     # Setup the reverse mapping, this allows clients to find the server
     MAC_ID_LOOKUP[value] = conn_id
@@ -75,10 +79,6 @@ def _timed_dereg_server(id,mux):
 def deregister_server(conn_id,value=None):
   # Get the server info
   serverinfo = CONNECTIONS[conn_id]
-  
-  # Make sure this is a server typed connection
-  if serverinfo["type"] != "server":
-    return (False,None)
     
   # Remove the MAC address reverse lookup
   if "mac" in serverinfo:
@@ -104,10 +104,6 @@ def reg_waitport(conn_id,value):
   # Get the server info
   serverinfo = CONNECTIONS[conn_id]
   
-  # Make sure this is a server typed connection
-  if serverinfo["type"] != "server":
-    return (False,None)
-  
   # Get the server ports
   ports = serverinfo["ports"]
   
@@ -121,10 +117,6 @@ def reg_waitport(conn_id,value):
 def dereg_waitport(conn_id,value):
   # Get the server info
   serverinfo = CONNECTIONS[conn_id]
-  
-  # Make sure this is a server typed connection
-  if serverinfo["type"] != "server":
-    return (False,None)
   
   # Get the server ports
   ports = serverinfo["ports"]
@@ -157,10 +149,6 @@ def new_client(conn_id, value):
   servermac = value["server"]
   port = value["port"]
   
-  # Make sure this is a client typed connection
-  if conninfo["type"] != "client":
-    return (False,None)
-  
   # Has the server connected to this forwarder?
   if servermac not in MAC_ID_LOOKUP:
     return (False,NAT_STATUS_NO_SERVER)
@@ -182,6 +170,10 @@ def new_client(conn_id, value):
     
     # Manually send the confirmation RPC dict, since we will not return to the new_rpc function
     rpc_response = {RPC_REQUEST_STATUS:True,RPC_RESULT:NAT_STATUS_CONFIRMED}
+    
+    # DEBUG
+    if DEBUG2: print getruntime(),"Client Conn. Successful",rpc_response
+    
     conninfo["sock"].send(RPC_encode(rpc_response))
     
     # Add 2 client connections (really just 1)
@@ -211,13 +203,13 @@ def new_rpc(conn_id, sock):
     rpc_dict = RPC_decode(sock)
     
     # DEBUG
-    print getruntime(),"RPC Request:",rpc_dict
+    if DEBUG1: print getruntime(),"RPC Request:",rpc_dict
     
     # Get the RPC call id
     if RPC_REQUEST_ID in rpc_dict:
       callID = rpc_dict[RPC_REQUEST_ID]
     else:
-      callID = 0
+      callID = None
     
     # Get the requested function
     if RPC_FUNCTION in rpc_dict:
@@ -239,11 +231,25 @@ def new_rpc(conn_id, sock):
   
     # If the request exists, call the function
     if request in RPC_FUNCTIONS:
-      func = RPC_FUNCTIONS[request]
+      # What type of connection is this?
+      conn_type = CONNECTIONS[conn_id]["type"]
+      
+      # Check the security requirements of this function,
+      # Is this connection type allowed to call the function
+      allowed = conn_type in RPC_FUNCTION_SECURITY[request]
+      
+      if allowed:
+        # Get the function
+        func = RPC_FUNCTIONS[request]
     
-      # Give the function the conn_id, and the value to the request
-      # Store the status, and the return value
-      status,retvalue = func(conn_id,value)
+        # Give the function the conn_id, and the value to the request
+        # Store the status, and the return value
+        status,retvalue = func(conn_id,value)
+      
+      else:
+        # The request has failed, not allowed
+        status = False
+        retvalue = None
   
     # No request made, it has failed
     else:
@@ -251,10 +257,14 @@ def new_rpc(conn_id, sock):
       retvalue = None
     
     # Send the status of the request
-    statusdict = {RPC_REQUEST_ID:callID,RPC_REQUEST_STATUS:status,RPC_RESULT:retvalue}
+    statusdict = {RPC_REQUEST_STATUS:status,RPC_RESULT:retvalue}
     
+    # Add identifier if one was specified
+    if callID != None:
+      statusdict[RPC_REQUEST_ID] = callID
+          
     # DEBUG
-    # print "RPC Response:",statusdict  
+    if DEBUG2: print getruntime(), "RPC Response:",statusdict  
     
     # Encode the RPC response dictionary
     response = RPC_encode(statusdict) 
@@ -274,7 +284,8 @@ def new_rpc(conn_id, sock):
       _safe_close(sock)
       
   except Exception, e:
-    print "Exception in RPC Layer:",str(e)
+    # DEBUG
+    if DEBUG1: print getruntime(), "Exception in RPC Layer:",str(e)
     # Something went wrong...
     _safe_close(sock)
 
@@ -287,7 +298,7 @@ def _connection_entry(id,sock,mux,remoteip,remoteport,type):
   info = {"ip":remoteip,"port":remoteport,"sock":sock,"type":type}
   
   # Add type specific data
-  if type == "server":
+  if type == TYPE_MUX:
     info["mux"] = mux
     info["num_clients"] = 0
     info["ports"] = set()
@@ -299,7 +310,7 @@ def _connection_entry(id,sock,mux,remoteip,remoteport,type):
 # Handle new servers
 def new_server(remoteip, remoteport, sock, thiscommhandle, listencommhandle):
   # DEBUG
-  print getruntime(),"Server Conn.",remoteip,remoteport
+  if DEBUG2: print getruntime(),"Server Conn.",remoteip,remoteport
   
   # Get the connection ID
   id = FORWARDER_STATE["Next_Conn_ID"]
@@ -321,7 +332,7 @@ def new_server(remoteip, remoteport, sock, thiscommhandle, listencommhandle):
   mux.waitforconn(RPC_VIRTUAL_IP, RPC_VIRTUAL_PORT, rpc_wrapper)
   
   # Create an entry for the server
-  _connection_entry(id,sock,mux,remoteip,remoteport,"server")
+  _connection_entry(id,sock,mux,remoteip,remoteport,TYPE_MUX)
 
 
 
@@ -329,7 +340,7 @@ def new_server(remoteip, remoteport, sock, thiscommhandle, listencommhandle):
 # This is for RPC calls and new clients
 def inbound_connection(remoteip, remoteport, sock, thiscommhandle, listencommhandle):
   # DEBUG
-  # print getruntime(),"Inbound Conn.",remoteip,remoteport
+  if DEBUG2: print getruntime(),"Inbound Conn.",remoteip,remoteport
   
   # Get the connection ID
   id = FORWARDER_STATE["Next_Conn_ID"]
@@ -338,7 +349,7 @@ def inbound_connection(remoteip, remoteport, sock, thiscommhandle, listencommhan
   FORWARDER_STATE["Next_Conn_ID"] += 1
   
   # Create an entry for the connection
-  _connection_entry(id,sock,None,remoteip,remoteport,"client")
+  _connection_entry(id,sock,None,remoteip,remoteport,TYPE_SOCK)
   
   # Trigger a new RPC call
   new_rpc(id, sock)
@@ -361,23 +372,27 @@ def main():
   client_wait_handle = waitforconn(ip, CLIENT_PORT, inbound_connection)
   
   # DEBUG
-  print getruntime(),"Forwarder Started on",ip
+  if DEBUG1: print getruntime(),"Forwarder Started on",ip
   
   # Periodically check the multiplexers, see if they are alive
   while True:
     sleep(CHECK_INTERVAL)
-    print getruntime(), "Polling for dead connections."
+    
+    # DEBUG
+    if DEBUG2: print getruntime(), "Polling for dead connections."
     
     # Check each multiplexer
     for (id, info) in CONNECTIONS.items():
       # Check server type connections for their status
-      if info["type"] == "server":
+      if info["type"] == TYPE_MUX:
         mux = info["mux"]
         status = mux.connectionInit
       
         # Check if the mux is no longer initialized
         if not status:
-          print "Connection #",id,"dead. Removing..."
+          # DEBUG
+          if DEBUG1: print "Connection #",id,"dead. Removing..."
+          
           # De-register this server
           deregister_server(id, None)
 
@@ -390,6 +405,15 @@ RPC_FUNCTIONS = {RPC_EXTERNAL_ADDR:connection_info,
                   RPC_REGISTER_PORT:reg_waitport,
                   RPC_DEREGISTER_PORT:dereg_waitport,
                   RPC_CLIENT_INIT:new_client}
+                  
+# This dictionary defines the security requirements for a function
+# So that it is handled in new_rpc rather than in every RPC function
+RPC_FUNCTION_SECURITY = {RPC_EXTERNAL_ADDR:set([TYPE_MUX, TYPE_SOCK]), # Both types of connections can use this function
+                  RPC_REGISTER_SERVER:set([TYPE_MUX]), # The registration/deregistration functions are only for servers
+                  RPC_DEREGISTER_SERVER:set([TYPE_MUX]),
+                  RPC_REGISTER_PORT:set([TYPE_MUX]),
+                  RPC_DEREGISTER_PORT:set([TYPE_MUX]),
+                  RPC_CLIENT_INIT:set([TYPE_SOCK])}  # Only a client socket can call this
 
 
 # Check if we are suppose to run
