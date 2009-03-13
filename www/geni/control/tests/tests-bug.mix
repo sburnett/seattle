@@ -1,0 +1,53 @@
+import traceback
+
+from repyportability import *
+include nmclient.repy
+
+from django.contrib.auth.models import User as DjangoUser
+from geni.control.models import User, VesselMap
+
+from geni.control.resource_operations import acquire_resources, release_resources
+
+
+def acquire_node(geni_user, type):
+    #                                    user, num, type  
+    success, blob = acquire_resources(geni_user, 10, type)
+    num, summary, explanation = blob
+    if not success or not num == 8:
+        print "Failed to acquire node."
+        print "Summary:", summary
+        print "Details:", explanation
+        
+        return
+
+    else: 
+        print "Successfully acquired nodes."
+        print "Summary:", summary
+        print "Details:", explanation
+
+
+def release_node(geni_user):
+    ret = release_resources(geni_user, 0, True)
+    # ret = release_vessel([vess])
+    print "ret:", ret
+    return 
+    
+if __name__ == "__main__":
+    user = DjangoUser.objects.get(username="test_geni")
+    print "django user:", user
+    
+    geni_user = User.objects.get(www_user = user)
+    print "geni user:", geni_user
+
+    try:
+        for i in range(30):
+            acquire_node(geni_user, (i % 3) + 1)
+            release_node(geni_user)
+    except KeyboardInterrupt:
+        traceback.print_exc()
+        raise
+
+#         ans = raw_input("Continue?  Otherwise, press 'n'")
+#         ans = str.lower(ans)
+#         if ans == "n":
+#             exit()
