@@ -6,6 +6,10 @@ def probe_neighbors(port):
     sendmess(neighborip, port, 'ping',getmyip(),port)
 
     sendmess(neighborip, port,'share'+encode_row(getmyip(), mycontext["neighborlist"], mycontext['latency'].copy()))
+    # sleep in between messages to prevent us from getting a huge number of 
+    # responses all at once...
+    sleep(.5)
+
   # Call me again in 10 seconds
   while True:
     try:
