@@ -22,6 +22,7 @@ rpc_mesg = decode_rpc(sock)
 include deserialize.py
 
 # General Protocal Constants
+RPC_VIRTUAL_IP = "0.0.0.0" # What IP is used for the virtual waitforconn / openconn
 RPC_VIRTUAL_PORT = 0 # What virtual port to listen on for Remote Procedure Calls
 RPC_FIXED_SIZE = 4   # Size of the RPC dictionary
 
@@ -35,8 +36,14 @@ RPC_RESULT = "value"     # The result value if the RPC request
 
 # Function Names
 RPC_EXTERNAL_ADDR = "externaladdr"  # This allows the server to query its ip/port
-RPC_REGISTER_SERVER = "reg_serv"    # This allows a server to register with a forwarder
+
+# This allows a server to register with a forwarder
+# This expects a MAC address as a parameter
+RPC_REGISTER_SERVER = "reg_serv"    
+
 RPC_DEREGISTER_SERVER = "dereg_serv"# This allows a server to de-register from a forwarder
+
+# The following two functions require an integer port
 RPC_REGISTER_PORT = "reg_port"      # THis allows the server to register a wait port
 RPC_DEREGISTER_PORT = "dereg_port"  # This allows the server to de-register a wait port
 

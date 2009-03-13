@@ -58,8 +58,13 @@ def register_server(conn_id, value):
   else:
     return (False,None)
     
+def _timed_dereg_server(id,mux):
+  _safe_close(mux)
+  # Delete the server entry
+  del CONNECTED_SERVERS[id]
+  
 # De-registers a server
-def deregister_server(conn_id,value):
+def deregister_server(conn_id,value=None):
   # Get the server info
   serverinfo = CONNECTED_SERVERS[conn_id]
 
@@ -72,12 +77,13 @@ def deregister_server(conn_id,value):
   # Close the multiplexer
   if "mux" in serverinfo:
     mux = serverinfo["mux"]
-    _safe_close(mux)
-    
+  else:
+    mux = None
+  
+  # Set timer to close the multiplexer in WAIT_INTERVAL(3) second
+  # This is because we cannot close the connection immediately or the RPC call would fail
+  settimer(WAIT_INTERVAL,_timed_dereg_server, [conn_id,mux])    
       
-  # Delete the server entry
-  del CONNECTED_SERVERS[conn_id]
-
   return (True, None)
 
 # Registers a new wait port
@@ -89,8 +95,7 @@ def reg_waitport(conn_id,value):
   ports = serverinfo["ports"]
   
   # Convert value to int, and append to ports
-  new_port = int(value)
-  ports.add(new_port)
+  ports.add(value)
   
   return (True,None)
 
@@ -103,13 +108,12 @@ def dereg_waitport(conn_id,value):
   ports = serverinfo["ports"]
   
   # Convert value to int, and append to ports
-  old_port = int(value)
-  ports.discard(old_port)
+  ports.discard(value)
   
   return (True,None)
 
 # Handle a remote procedure call
-def new_rpc(conn_id, remoteip, remoteport, sock):
+def new_rpc(conn_id, sock):
   # If anything fails, close the socket
   try:
     # Get the server info
@@ -119,10 +123,13 @@ def new_rpc(conn_id, remoteip, remoteport, sock):
     rpc_dict = RPC_decode(sock)
     
     # DEBUG
-    print "RPC Request:",rpc_dict
+    print getruntime(),"RPC Request:",rpc_dict
     
     # Get the RPC call id
-    callID = rpc_dict[RPC_REQUEST_ID]
+    if RPC_REQUEST_ID in rpc_dict:
+      callID = rpc_dict[RPC_REQUEST_ID]
+    else:
+      callID = 0
     
     # Get the requested function
     if RPC_FUNCTION in rpc_dict:
@@ -167,7 +174,7 @@ def new_rpc(conn_id, remoteip, remoteport, sock):
     # Check if there is more RPC calls
     if additional:
       # Recurse
-      new_rpc(conn_id, remoteip, remoteport, sock)
+      new_rpc(conn_id, sock)
     else:
       # Wait for the client to receive the response
       sleep(WAIT_INTERVAL)
@@ -179,9 +186,19 @@ def new_rpc(conn_id, remoteip, remoteport, sock):
     print "Exception in RPC Layer:",str(e)
     # Something went wrong...
     _safe_close(sock)
+
+# Setup a new server entry
+def _server_entry(id,mux,remoteip,remoteport):
+  # Register this server/multiplexer
+  # Store the ip,port, and set the port set
+  info = {"mux":mux,"num_clients":0,"ports":set(),"ip":remoteip,"port":remoteport}
+  CONNECTED_SERVERS[id] = info
   
 # Handle new servers
 def new_server(remoteip, remoteport, sock, thiscommhandle, listencommhandle):
+  # DEBUG
+  print getruntime(),"Server Conn.",remoteip,remoteport
+  
   # Get the connection ID
   id = FORWARDER_STATE["Next_Conn_ID"]
   
@@ -196,15 +213,13 @@ def new_server(remoteip, remoteport, sock, thiscommhandle, listencommhandle):
   
   # Helper wrapper function
   def rpc_wrapper(remoteip, remoteport, client_sock, thiscommhandle, listencommhandle):
-    new_rpc(id, remoteip, remoteport, client_sock)
+    new_rpc(id, client_sock)
   
   # Set the RPC waitforconn
-  mux.waitforconn(FORWARDER_STATE["ip"], RPC_VIRTUAL_PORT, rpc_wrapper)
+  mux.waitforconn(RPC_VIRTUAL_IP, RPC_VIRTUAL_PORT, rpc_wrapper)
   
-  # Register this server/multiplexer
-  # Store the ip,port, and set the port set
-  info = {"mux":mux,"num_clients":0,"ports":set(),"ip":remoteip,"port":remoteport}
-  CONNECTED_SERVERS[id] = info
+  # Create an entry for the server
+  _server_entry(id,mux,remoteip,remoteport)
 
 # Sends a message, waits, then closes socket
 def _send_wait_close(sock, mesg):
@@ -214,12 +229,16 @@ def _send_wait_close(sock, mesg):
   
 # Handle new clients
 def new_client(remoteip, remoteport, sock, thiscommhandle, listencommhandle):
+  # DEBUG
+  print getruntime(),"Client Conn.",remoteip,remoteport
+  
   # Get the key info
   try:
     # Get the client init message
     mesg = sock.recv(CLIENT_INIT_LENGTH)
     (servermac, port) = mesg.split(NAT_SPLIT_CHAR)
-    port = int(port)
+    servermac = servermac.lstrip(NAT_PAD_CHAR)
+    port = int(port.lstrip(NAT_PAD_CHAR))
   except:
     # On failure, send the failed message
     _send_wait_close(sock,NAT_STATUS_FAILED)
@@ -259,7 +278,7 @@ def new_client(remoteip, remoteport, sock, thiscommhandle, listencommhandle):
       while True:
         mesg = fromsock.recv(RECV_SIZE)
         tosock.send(mesg)
-    except:
+    except Exception, exp:
       # Something went wrong, close both sockets
       _safe_close(fromsock)
       _safe_close(tosock)
@@ -287,9 +306,13 @@ def main():
   # Setup a port for clients to connect
   client_wait_handle = waitforconn(ip, CLIENT_PORT, new_client)
   
+  # DEBUG
+  print getruntime(),"Forwarder Started"
+  
   # Periodically check the multiplexers, see if they are alive
   while True:
     sleep(CHECK_INTERVAL)
+    print getruntime(), "Polling for dead connections."
     
     # Check each multiplexer
     for (id, info) in CONNECTED_SERVERS.items():
@@ -298,6 +321,7 @@ def main():
       
       # Check if the mux is no longer initialized
       if not status:
+        print "Connection #",id,"dead. Removing..."
         # De-register this server
         deregister_server(id, None)
 
