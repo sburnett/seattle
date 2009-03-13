@@ -35,7 +35,6 @@ def connection_info(conn_id, value):
   # Package the requested info
   info = {"ip":serverinfo["ip"],"port":serverinfo["port"]}
   
-  # Convert the dictionary to a string
   return (True, info)
 
 
