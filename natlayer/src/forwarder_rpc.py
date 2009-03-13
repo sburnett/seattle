@@ -36,7 +36,7 @@ def connection_info(conn_id, value):
   info = {"ip":serverinfo["ip"],"port":serverinfo["port"]}
   
   # Convert the dictionary to a string
-  return (True, str(info))
+  return (True, info)
 
 
 # Registers a new server
@@ -362,7 +362,7 @@ def main():
   client_wait_handle = waitforconn(ip, CLIENT_PORT, inbound_connection)
   
   # DEBUG
-  print getruntime(),"Forwarder Started"
+  print getruntime(),"Forwarder Started on",ip
   
   # Periodically check the multiplexers, see if they are alive
   while True:

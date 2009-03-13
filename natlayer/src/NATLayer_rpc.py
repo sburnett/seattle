@@ -257,3 +257,28 @@ def nat_stopcomm(port):
         mux.close()
         NAT_STATE_DATA["mux"] = None
   
+# Determines if you are behind a NAT (Network-Address-Translation)
+def behind_nat(forwarderIP=None,forwarderPort=None):
+  # Get "normal" ip
+  ip = getmyip()
+  
+  # TODO: Dennis you need to tie in here to get a real forwarder IP and port
+  if forwarderIP == None or forwarderPort == None:
+    server_lookup(localmac)
+    forwarderIP = mycontext['currforwarder'][0]
+    forwarderPort = 12345
+
+  # Create a real connection to the forwarder
+  rpcsocket = openconn(forwarderIP, forwarderPort)
+  
+  # Now connect to a forwarder, and get our external ip/port
+  # Create a RPC dictionary
+  rpc_request = {RPC_REQUEST_ID:5,RPC_FUNCTION:RPC_EXTERNAL_ADDR}
+  rpc_mesg = RPC_encode(rpc_request)
+  
+  # Request, get the response
+  rpcsocket.send(rpc_mesg)
+  response = RPC_decode(rpcsocket)
+  
+  return (ip != response[RPC_RESULT]["ip"])
+  
