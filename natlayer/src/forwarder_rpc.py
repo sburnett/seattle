@@ -13,6 +13,9 @@ WAIT_INTERVAL = 3    # How long to wait after sending a status message before cl
 RECV_SIZE = 1024 # Size of chunks to exchange
 CHECK_INTERVAL = 60  # How often to cleanup our state, e.g. remove dead multiplexers
 
+# Lock for CONNECTIONS dictionary
+CONNECTIONS_LOCK = getlock()
+
 # Dictionary that maps Connection ID -> Dictionary of data about the connection
 CONNECTIONS = {}
 
@@ -20,11 +23,14 @@ CONNECTIONS = {}
 TYPE_MUX = 1    # Server type, or multiplexed connections
 TYPE_SOCK = 2   # Single socket, client or RPC type
 
+# Lock for MAC_ID_LOOKUP dictionary
+MAC_ID_LOCK = getlock()
+
 # Allows a reverse lookup of MAC to Connection ID
 MAC_ID_LOOKUP = {}
 
 # Controls Debug messages
-DEBUG1 = False  # Prints general debug messages
+DEBUG1 = True  # Prints general debug messages
 DEBUG2 = False  # Prints verbose debug messages
 DEBUG3 = False  # Prints Ultra verbose debug messages
 
@@ -55,9 +61,11 @@ def register_server(conn_id, value):
     # Get the server info, assign the MAC
     serverinfo = CONNECTIONS[conn_id]
     serverinfo["mac"] = value
-      
+    
     # Setup the reverse mapping, this allows clients to find the server
+    MAC_ID_LOCK.acquire()  
     MAC_ID_LOOKUP[value] = conn_id
+    MAC_ID_LOCK.release()
     
     return (True,None)
   
@@ -71,12 +79,15 @@ def _timed_dereg_server(id,mux):
   if DEBUG3: print getruntime(), "De-registering server ID#",id
   
   _safe_close(mux)
+  
+  CONNECTIONS_LOCK.acquire()
   try:
     # Delete the server entry
     del CONNECTIONS[id]
   except KeyError:
     # The mux may have already been cleaned up by the main thread
     pass
+  CONNECTIONS_LOCK.release()
 
 
 # De-registers a server
@@ -88,7 +99,9 @@ def deregister_server(conn_id,value=None):
   if "mac" in serverinfo:
     mac = serverinfo["mac"]
     if mac in MAC_ID_LOOKUP:
+      MAC_ID_LOCK.acquire()  
       del MAC_ID_LOOKUP[mac]
+      MAC_ID_LOCK.release()
   
   # Close the multiplexer
   if "mux" in serverinfo:
@@ -216,7 +229,7 @@ def new_rpc(conn_id, sock):
     rpc_dict = RPC_decode(sock)
     
     # DEBUG
-    if DEBUG1: print getruntime(),"RPC Request:",rpc_dict
+    if DEBUG1: print getruntime(),"#"+str(conn_id),"RPC Request:",rpc_dict
     
     # Get the RPC call id
     if RPC_REQUEST_ID in rpc_dict:
@@ -277,7 +290,7 @@ def new_rpc(conn_id, sock):
       statusdict[RPC_REQUEST_ID] = callID
           
     # DEBUG
-    if DEBUG2: print getruntime(), "RPC Response:",statusdict  
+    if DEBUG2: print getruntime(),"#"+str(conn_id),"RPC Response:",statusdict  
     
     # Encode the RPC response dictionary
     response = RPC_encode(statusdict) 
@@ -298,7 +311,7 @@ def new_rpc(conn_id, sock):
       
   except Exception, e:
     # DEBUG
-    if DEBUG1: print getruntime(), "Exception in RPC Layer:",str(e)
+    if DEBUG1: print getruntime(),"#"+str(conn_id),"Exception in RPC Layer:",str(e)
     # Something went wrong...
     _safe_close(sock)
 
@@ -306,6 +319,9 @@ def new_rpc(conn_id, sock):
 
 # Setup a new server entry
 def _connection_entry(id,sock,mux,remoteip,remoteport,type):
+  # Get the lock
+  CONNECTIONS_LOCK.acquire()
+  
   # Register this server/multiplexer
   # Store the ip,port, and set the port set
   info = {"ip":remoteip,"port":remoteport,"sock":sock,"type":type}
@@ -320,7 +336,29 @@ def _connection_entry(id,sock,mux,remoteip,remoteport,type):
     info["ports"] = set()
     
   CONNECTIONS[id] = info
+  
+  # Release the lock
+  CONNECTIONS_LOCK.release()
 
+
+# Lock for get_conn_id
+_CONN_ID_LOCK = getlock()
+
+# Returns a connection ID, calls are serialized to prevent races
+def _get_conn_id():
+  # Get the lock
+  _CONN_ID_LOCK.acquire()
+  
+  # Get the connection ID
+  id = FORWARDER_STATE["Next_Conn_ID"]
+  
+  # Increment the global ID counter
+  FORWARDER_STATE["Next_Conn_ID"] += 1
+  
+  # Release the lock
+  _CONN_ID_LOCK.release()
+  
+  return id
 
 
 # Handle new servers
@@ -329,10 +367,7 @@ def new_server(remoteip, remoteport, sock, thiscommhandle, listencommhandle):
   if DEBUG2: print getruntime(),"Server Conn.",remoteip,remoteport
   
   # Get the connection ID
-  id = FORWARDER_STATE["Next_Conn_ID"]
-  
-  # Increment the global ID counter
-  FORWARDER_STATE["Next_Conn_ID"] += 1
+  id = _get_conn_id()
   
   # Initialize the multiplexing socket with this socket
   mux = Multiplexer(sock, {"localip":FORWARDER_STATE["ip"], 
@@ -359,10 +394,7 @@ def inbound_connection(remoteip, remoteport, sock, thiscommhandle, listencommhan
   if DEBUG2: print getruntime(),"Inbound Conn.",remoteip,remoteport
   
   # Get the connection ID
-  id = FORWARDER_STATE["Next_Conn_ID"]
-  
-  # Increment the global ID counter
-  FORWARDER_STATE["Next_Conn_ID"] += 1
+  id = _get_conn_id()
   
   # Create an entry for the connection
   _connection_entry(id,sock,None,remoteip,remoteport,TYPE_SOCK)
@@ -371,7 +403,9 @@ def inbound_connection(remoteip, remoteport, sock, thiscommhandle, listencommhan
   new_rpc(id, sock)
   
   # Cleanup the connection
+  CONNECTIONS_LOCK.acquire()
   del CONNECTIONS[id]
+  CONNECTIONS_LOCK.release()
   
   # DEBUG
   if DEBUG3: print getruntime(), "Closed inbound connection #",id
@@ -410,7 +444,7 @@ def main():
         # Check if the mux is no longer initialized
         if not status:
           # DEBUG
-          if DEBUG1: print "Connection #",id,"dead. Removing..."
+          if DEBUG1: print getruntime(),"Connection #",id,"dead. Removing..."
           
           # De-register this server
           deregister_server(id, None)
