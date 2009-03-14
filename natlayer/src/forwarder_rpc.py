@@ -24,8 +24,9 @@ TYPE_SOCK = 2   # Single socket, client or RPC type
 MAC_ID_LOOKUP = {}
 
 # Controls Debug messages
-DEBUG1 = False # Prints general debug messages
-DEBUG2 = False # Prints extra debug messages
+DEBUG1 = False  # Prints general debug messages
+DEBUG2 = False  # Prints verbose debug messages
+DEBUG3 = False  # Prints Ultra verbose debug messages
 
 # Safely closes a socket
 def _safe_close(sock):
@@ -66,6 +67,9 @@ def register_server(conn_id, value):
 
 
 def _timed_dereg_server(id,mux):
+  # DEBUG
+  if DEBUG3: print getruntime(), "De-registering server ID#",id
+  
   _safe_close(mux)
   try:
     # Delete the server entry
@@ -94,7 +98,10 @@ def deregister_server(conn_id,value=None):
   
   # Set timer to close the multiplexer in WAIT_INTERVAL(3) second
   # This is because we cannot close the connection immediately or the RPC call would fail
-  settimer(WAIT_INTERVAL,_timed_dereg_server, [conn_id,mux])    
+  settimer(WAIT_INTERVAL,_timed_dereg_server, [conn_id,mux])
+  
+  # DEBUG    
+  if DEBUG3: print getruntime(), "Set timer to de-register server ID#",conn_id,"Time:",WAIT_INTERVAL
       
   return (True, None)
 
@@ -129,14 +136,17 @@ def dereg_waitport(conn_id,value):
 
 # Exchanges messages between two sockets  
 def exchange_mesg(serverinfo, fromsock, tosock):
+  # DEBUG
+  if DEBUG3: print getruntime(), "Exchanging messages between",fromsock,"and",tosock,"for server",serverinfo
   try:
     while True:
       mesg = fromsock.recv(RECV_SIZE)
       tosock.send(mesg)
   except Exception, exp:
-    # Something went wrong, close both sockets
+    # DEBUG
+    if DEBUG3: print getruntime(), "Error exchanging messages between",fromsock,"and",tosock,"Error:",str(exp)
+    # Something went wrong, close the read socket
     _safe_close(fromsock)
-    _safe_close(tosock)
     # Decrement the connected client count
     serverinfo["num_clients"] -= 1
 
@@ -185,12 +195,15 @@ def new_client(conn_id, value):
     settimer(.2, exchange_mesg,[serverinfo,virtualsock,conninfo["sock"]])
     
     # Call exchange message to do sent the messages between the client and the server
-    exchange_mesg(serverinfo,conninfo["sock"],virtualsock)
-  
+    exchange_mesg(serverinfo,conninfo["sock"],virtualsock) 
+    
     # We will only reach this point after exchange_mesg terminated, so the socket is closed
     # However, we will return normally, and new_rpc will catch an exceptiton
     return (True,NAT_STATUS_CONFIRMED)
-  except:
+  except Exception, exp:
+    # DEBUG
+    if DEBUG3: print getruntime(), "Error while opening virtual socket to ",servermac,"Error:",str(exp)
+    
     return (False,NAT_STATUS_FAILED)
 
 
@@ -297,6 +310,9 @@ def _connection_entry(id,sock,mux,remoteip,remoteport,type):
   # Store the ip,port, and set the port set
   info = {"ip":remoteip,"port":remoteport,"sock":sock,"type":type}
   
+  # DEBUG
+  if DEBUG3: print getruntime(), "Adding Connection #",id,info
+  
   # Add type specific data
   if type == TYPE_MUX:
     info["mux"] = mux
@@ -356,6 +372,9 @@ def inbound_connection(remoteip, remoteport, sock, thiscommhandle, listencommhan
   
   # Cleanup the connection
   del CONNECTIONS[id]
+  
+  # DEBUG
+  if DEBUG3: print getruntime(), "Closed inbound connection #",id
   
 
 
