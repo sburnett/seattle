@@ -34,13 +34,13 @@ My Vessels - GENI
 					<input type="submit" value="Get" />
 				</form>
 				{% ifnotequal action_summary "" %}
-					<span id="action_summary"> {{ action_summary }} </span><a id="expand" href="#">[+]</a>
+					<div id="action_summary"> {{ action_summary }} </div><a id="expand" href="#">[+]</a>
 				{% endifnotequal %}
 				{% ifnotequal action_explanation "" %}
-					<span id="action_detail"> Details: {{ action_explanation }} </span>
+					<div id="action_detail"> Details: {{ action_explanation }} </div>
 				{% endifnotequal %}
 				{% else %}
-					<span id="action_other"> Donate more nodes to acquire more resources. </span><br>
+					<div id="action_other"> Donate more nodes to acquire more resources. </div><br>
 				{% endifnotequal %}
 			</div>
 			<table class="vessels">
