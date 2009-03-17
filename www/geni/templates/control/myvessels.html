@@ -34,7 +34,7 @@ My Vessels - GENI
 					<input type="submit" value="Get" />
 				</form>
 				{% ifnotequal action_summary "" %}
-					<div id="action_summary"> {{ action_summary }} </div><a id="expand" href="#">[+]</a>
+					<div id="action_summary"> {{ action_summary }} <a id="expand" href="#">[+]</a></div>
 				{% endifnotequal %}
 				{% ifnotequal action_explanation "" %}
 					<div id="action_detail"> Details: {{ action_explanation }} </div>
