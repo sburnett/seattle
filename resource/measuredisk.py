@@ -16,10 +16,8 @@
 """
 
 import os
-import time
-import platform
 
-# Used to determine the os type.
+# Used to determine the os type and for getruntime.
 import nonportable
 
 # Get the ctypes stuff so we can call libc.sync() instead of using subprocces.
@@ -32,7 +30,7 @@ if nonportable.osrealtype == 'Linux':
   libc = ctypes.CDLL(ctypes.util.find_library("c"))
 
 
-def measure_write(write_file, num_bytes, use_sync=False):
+def measure_write(write_file_obj, num_bytes, use_sync=False):
   """
   <Purpose>
     Attempts to measure the disk write rate by writing num_bytes bytes to a
@@ -61,31 +59,22 @@ def measure_write(write_file, num_bytes, use_sync=False):
     useful in doing the read rate measurments.
   """
   
-  # This trickery is because on Windows time.clock is most accurate, but
-  # elsewhere time.time is most accurate.  To make sure if statements don't
-  # muck with the timing, I just abstract away which function is being called.
-  if nonportable.ostype.startswith('Windows'):
-    get_time = time.clock
-  else:
-    get_time = time.time
-  
-
   # Time how long it takes to write out num_bytes.  Does writing all of one
   # character affect the time?  Does flush make sure all disk writing happens
   # before it returns?
-  start_time = get_time()
-  write_file.write(' ' * num_bytes)
-  write_file.flush()
+  start_time = nonportable.getruntime()
+  write_file_obj.write(' ' * num_bytes)
+  write_file_obj.flush()
   if use_sync:
     # Only use sync if it is requested.
     libc.sync()
 
-  end_time = get_time()
+  end_time = nonportable.getruntime()
 
   return num_bytes/(end_time - start_time)
 
 
-def measure_read(num_bytes, junk_fn):
+def measure_read(read_file_obj, num_bytes):
   """
   <Purpose>
     Attempts to measure the disk read rate by reading num_bytes bytes from a
@@ -95,6 +84,8 @@ def measure_read(num_bytes, junk_fn):
     value given by the write test and use it for both read and write rate.
 
   <Arguments>
+    read_file_obj - The file object that is to be read from for the read test.
+                    This file object is not closed by this function.
     num_bytes - The number of bytes that should be read to determine the
                 read rate.
 
@@ -111,13 +102,11 @@ def measure_read(num_bytes, junk_fn):
     too short.  The read rate will have been calculated using the returned
     num_bytes.
   """
-  junk_file = open(junk_fn, 'r')
 
   # Time how long it takes to read in num_bytes.
-  start_time = time.time()
-  junk_data = junk_file.read(num_bytes)
-  end_time = time.time()
-  junk_file.close()
+  start_time = nonportable.getruntime()
+  junk_data = read_file_obj.read(num_bytes)
+  end_time = nonportable.getruntime()
 
   num_bytes = len(junk_data)
 
@@ -129,17 +118,19 @@ def main():
   # overwrite something.  I don't use mkstemp because I'm not sure those
   # files are necesarily written to disk.
   pid = os.getpid()
-  writefile = open('rate_measure.'+str(pid), 'w')
+  write_file_obj = open('rate_measure.'+str(pid), 'w')
+  try:
+    # On linux sync needs to be run, otherwise it returns values an order of
+    # magnitude too large.
+    if nonportable.osrealtype == 'Linux':
+      write_rate = measure_write(write_file_obj, 16*1024*1024, True)
+    else:
+      write_rate = measure_write(write_file_obj, 16*1024)
 
-  # On linux sync needs to be run, otherwise it returns values an order of
-  # magnitude too large.
-  if nonportable.osrealtype == 'Linux':
-    write_rate = measure_write(writefile, 16*1024*1024, True)
-  else:
-    write_rate = measure_write(writefile, 16*1024)
+    write_file_obj.close()
+  finally:
+    os.remove(write_file_obj.name)
 
-  writefile.close()
-  os.remove(writefile.name)
   print 'resource filewrite ' + str(int(write_rate))
   # Currently the read rate measurement is ridiculusly high, likely because
   # we are reading something that we just wrote.  Because it would be 
