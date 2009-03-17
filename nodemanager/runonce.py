@@ -222,7 +222,7 @@ def getprocesslockmutex(lockname):
   # I'll return once there are no more values or I've found the key...
   try:
     val, datatype = _winreg.QueryValueEx(thekey, regkeyname)
-    return val
+    return int(val)
   except EnvironmentError, e:                                          
     # not found...   This is odd.   The registry path is there, but no key...
     return False
