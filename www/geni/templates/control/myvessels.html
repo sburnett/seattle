@@ -9,6 +9,11 @@ My Vessels - GENI
 <link href="{{ MEDIA_URL }}css/myvessels.css" rel="stylesheet" type="text/css" />
 {% endblock style %}
 
+{% block script %}
+{{ block.super }}
+<script type="text/javascript" src="{{ MEDIA_URL}}scripts/myvessels.js" charset="utf-8"></script>
+{% endblock script %}
+
 {% block nav_myvessels %}
 <td class="active">My Vessels</td>
 {% endblock nav_myvessels %}
@@ -29,13 +34,13 @@ My Vessels - GENI
 					<input type="submit" value="Get" />
 				</form>
 				{% ifnotequal action_summary "" %}
-					<span class="action_summary"> {{ action_summary }} </span><a id="expand" href="#">[+]</a>
+					<span id="action_summary"> {{ action_summary }} </span><a id="expand" href="#">[+]</a>
 				{% endifnotequal %}
 				{% ifnotequal action_explanation "" %}
-					<span class="action_detail"> Details: {{ action_explanation }} </span>
+					<span id="action_detail"> Details: {{ action_explanation }} </span>
 				{% endifnotequal %}
 				{% else %}
-					<span class="action_other"> Donate more nodes to acquire more resources. </span><br>
+					<span id="action_other"> Donate more nodes to acquire more resources. </span><br>
 				{% endifnotequal %}
 			</div>
 			<table class="vessels">
