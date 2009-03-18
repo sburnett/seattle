@@ -20,7 +20,7 @@ The node manager has several different threads.
 that users and owners can locate their vessels.
    A status thread (nmstatusmonitor) that checks the status of vessels and 
 updates statuses in the table used by the API.
-   An accept thread (nmconnectionmanager) listens for connections (preventing
+   An accepter (nmconnectionmanager) listens for connections (preventing
 simple attacks) and puts them into a list.
    A worker thread (used in the nmconnectionmanager, nmrequesthandler, nmAPI)
 handles enacting the appropriate actions given requests from the user.
@@ -33,6 +33,7 @@ they do not terminate prematurely (restarting them as necessary).
 import checkpythonversion
 checkpythonversion.ensure_python_version_is_supported()
 
+from repyportability import *
 
 import time
 
@@ -64,7 +65,7 @@ import servicelogger
 
 # One problem we need to tackle is should we wait to restart a failed service
 # or should we constantly restart it.   For advertisement and status threads, 
-# I've chosen to wait before restarting...   For worker and accept, I think
+# I've chosen to wait before restarting...   For worker and accepter, I think
 # it's essential to keep restarting them as often as we can...
 #
 # these variables help us to track when we've started and whether or not we
@@ -131,35 +132,34 @@ def started_waitable_thread(threadid):
 
 
 # has the thread started?
-def is_accept_thread_started():
+def is_accepter_started():
   for thread in threading.enumerate():
-    if 'AcceptThread' in str(thread):
+    if 'SocketSelector' in str(thread):
       return True
   else:
     return False
 
 
-def start_accept_thread():
-  # do this until we get the AcceptThread started...
+def start_accepter():
+  # do this until we get the accepter started...
   while True:
 
-    if is_accept_thread_started():
-      # if it has chosen a port, 
-      if nmconnectionmanager.portused != None: 
-          # what is my name (for advertisements)
-          myname = str(misc.getmyip()) + ":" + str(nmconnectionmanager.portused)
-
-          # we're done, return the name!
-          return myname
+    if is_accepter_started():
+      # we're done, return the name!
+      return myname
 
     else:
-      # start the AcceptThread and set it to a daemon.   I think the daemon 
-      # setting is unnecessary since I'll clobber on restart...
-      acceptthread = nmconnectionmanager.AcceptThread(misc.getmyip(), 
-          configuration['ports'])
-      acceptthread.setDaemon(True)
-      acceptthread.start()
+      for possibleport in configuration['ports']:
+        try:
+          waitforconn(misc.getmyip(), possibleport, nmconnectionmanager.connection_handler)
+        except Exception, e:
+          servicelogger.log("[ERROR]: when calling recvmess for the connection_handler: " + str(e))
+        else:
+          myname = str(misc.getmyip()) + ":" + str(possibleport)
+          break
 
+      else:
+        servicelogger.log("[ERROR]: cannot find a port for recvmess")
 
     # check infrequently
     time.sleep(configuration['pollfrequency'])
@@ -265,8 +265,8 @@ def main():
   
   vesseldict = nmrequesthandler.initialize(misc.getmyip(),configuration['publickey'],version)
 
-  # Start accept thread...
-  myname = start_accept_thread()
+  # Start accepter...
+  myname = start_accepter()
 
   # Start worker thread...
   start_worker_thread(configuration['pollfrequency'])
@@ -284,9 +284,9 @@ def main():
   # BUG: Need to exit all when we're being upgraded
   while True:
 
-    if not is_accept_thread_started():
-      servicelogger.log("[WARN]:At " + str(time.time()) + " restarting accept...")
-      newname = start_accept_thread(vesseldict)
+    if not is_accepter_started():
+      servicelogger.log("[WARN]:At " + str(time.time()) + " restarting accepter...")
+      newname = start_accepter(vesseldict)
       # I have just updated the name for the advert thread...
       nmadvertise.myname = newname
         

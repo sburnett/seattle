@@ -13,12 +13,12 @@ assigned to users and users can manipulate those sandboxes safely.
 The design goals of this version are to be secure, simple, and reliable (in 
 that order).   
 
-The basic design of the node manager is that the "accept thread" (implemented
+The basic design of the node manager is that the accept portion (implemented
 using waitforconn) accepts 
 connections and checks basic things about them such as there aren't too many 
-connections from a single source.   This thread places valid connections into
-an ordered list.   This thread handles meta information like sceduling requests
-and preventing DOS attacks that target admission.
+connections from a single source.   This callback places valid connections into
+an ordered list.   This callback handles meta information like sceduling 
+requests and preventing DOS attacks that target admission.
 
 Another thread (the worker thread) processes the first element in the list.  
 The worker thread is responsible for handling an individual request.   This
@@ -36,7 +36,7 @@ I'm going to use "polling" by the worker thread.   I'll sleep when the
 list is empty and periodically look to see if a new element was added.
 """
 
-# needed to have separate threads for accept / the worker
+# needed to have a separate thread for the worker
 import threading
 
 # need to get connections, etc.
@@ -59,103 +59,18 @@ import servicelogger
 # each item is a tuple of (socketobj, IP)
 connection_list = []
 
-portused = None
-
-
-
-
-
-
-
-
-
-# Accept thread
-# some of this code is adapted from emulcomm, so if a bug exists here, check 
-# there as well...
-class AcceptThread(threading.Thread):
-  listeningsocket = None
   
-  def __init__(self, myip, possiblelistenports):
-    global portused
-    # get the socket
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+def connection_handler(IP, port, socketobject, thiscommhandle, maincommhandle):
+  # we're rejecting lots of connections from the same IP to limit DOS by 
+  # grabbing lots of connections
+  try:
+    if len(connection_dict[IP]) > 3:
+      return
+  except KeyError:
+    # It's okay, they aren't added yet...
+    pass
 
-    # reuse the socket if it's "pseudo-availible"  
-    s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-
-    # try the ports in the list...
-    for listenport in possiblelistenports:
-   
-      try:
-        # bind it to the port
-        s.bind((myip, listenport))
-      except socket.error:
-        continue
-
-      portused = listenport
-      break
-
-    else:
-      # This only happens when we can't use any port.   The main thread will 
-      # restart us and hopefully we will have a free port by then.
-      raise socket.error, "Cannot find a port to use"
-
-    # listen for connections (allow 5 pending)
-    # BUG: is it okay to leave this small since I'm going to be doing accept in
-    # a small loop?   The concern is that someone could flood me with
-    # connection requests and block legitimate users.
-    s.listen(5)
-
-    self.listeningsocket = s
-    threading.Thread.__init__(self, name="AcceptThread")
-
-  def run(self):
-    try:
-      while True:
-        # get the connection.   I'm not catching errors because I believe they
-        # should not occur
-        connection,addr = self.listeningsocket.accept()
-  
-        # okay, I have the connection.   I want to insert it if there aren't 3
-        # already from this IP.
-        # I might have a race here where while I check a connection is removed.
-        # it's benign and only prevents me from handling a connection from a
-        # client with many connections
-
-        # first count the connections in the connection_list
-        connectioncount = 0
-        for junksocket, IP in connection_list[:]:
-          # I don't care about the port, only the IP.
-          if IP == addr[0]:
-            connectioncount = connectioncount + 1
-  
-        # Now add the connections that have been removed by the worker
-        # I use a try, except block here to prevent a race condition on checking
-        # the key is in the dict and looking at the list (i.e. the worker might 
-        # delete the list in the meantime)
-        try:
-          # the IP is the only thing we care about
-          connectioncount = connectioncount + len(connection_dict[addr[0]])
-  
-        except KeyError:
-          # this means there are no connections from this IP.   That's fine.
-          pass
-  
-        if connectioncount > 3:
-          # we're rejecting to prevent DOS by grabbing lots of connections
-          connection.close()
-          continue
-  
-        # All is well!   add the socket and IP to the list
-        connection_list.append((connection,addr[0]))
-    except:
-      exceptionstring = "[ERROR]:"
-      for line in traceback.format_tb(sys.last_traceback):
-        exceptionstring = exceptionstring + line
-
-      servicelogger.log(exceptionstring)
-      raise e
-
+  connection_list.append((socketobject,IP))
   
   
 ##### ORDER IN WHICH CONNECTIONS ARE HANDLED
