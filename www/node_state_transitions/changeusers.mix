@@ -13,11 +13,23 @@ def initialize_time_if_needed():
   initialized_time = True
   time_updatetime(34612)
 
+def stop_announce():
+  print "30 seconds elapsed, killing do_announce()"
+  exitall()
+
+
 def do_announce(pubkey,value,valuelifetime):
+  # set a timer to kill announce if it doesn't work - fixes bug #232
+  thandle = settimer(30, stop_announce, ())
   try:
     advertise.announce(pubkey, value, valuelifetime)
   except Exception, e:
+    # it won't let me put a finally clause here, so put it in both places..
+    canceltimer(thandle)
     print time.ctime(),e
+  else:
+    canceltimer(thandle)
+  
 
 def changeusers(userpubkeystringlist, nmip, nmport, vesselname, nodepubkeystring, nodeprivkeystring):
   import time
