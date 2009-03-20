@@ -10,7 +10,7 @@ Start date: October 18th, 2008
 """
 
 include pollinglib.py
-
+from django.db import transaction
 
 
 # BUG: What about the advertise flag?
@@ -35,6 +35,12 @@ def combineandflushdatabase(nmhandle, nodename, vesseldict, keepthisstate):
   # and other information
   genidb.clear_node_vessels(dbnode)
 
+  
+  # hack to make changes reflect in the db  
+  try:
+    transaction.commit()
+  except transaction.TransactionManagementError:
+    pass
 
 
 def main():

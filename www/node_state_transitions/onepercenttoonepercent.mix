@@ -34,27 +34,15 @@ def updatedb(nmhandle, node, retdict, *args):
   return
 
 
-def nodeerrorfun(node):
-    print "nodeerrorfun called with node: ", node
-    nodeip = node.split(":")[0]
-    donations = genidb.lookup_donations_by_ip(nodeip)
-    print "lookedup donations: ", donations
-    for donation in donations:
-      genidb.handle_inactive_donation(donation)
-      
-    # hack to make changes reflect in the db  
-    try:
-      transaction.commit()
-    except transaction.TransactionManagementError:
-      pass
-      
-    return
+def noop(*args):
+  # in some cases I don't want to do anything
+  pass
 
-  
+
 def main():
 
   # The format is: (startstate, endstate, function, args...)
-  statefunctionargtuplelist = [(onepercent2publickey, onepercent2publickey, nodeerrorfun, updatedb)]
+  statefunctionargtuplelist = [(onepercent2publickey, onepercent2publickey, noop, updatedb)]
 
   # sleep for 10 seconds between each iteration of processing vessels
   locateandprocessvessels(statefunctionargtuplelist, 'onepercenttoonepercent', 10, acceptnewnode=False, parallelinstances=10)
