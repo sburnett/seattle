@@ -9,8 +9,9 @@ Writes the metainfo files used by the software updater.
 Usage:  ./writemetainfo.py
 
 """
-
-
+# Armon: we use NTP, which uses some repy calls
+# This way they have the functions they need
+from repyportability import *
 
 import sys
 import os  
@@ -22,12 +23,10 @@ import random
 include rsa.repy
 include signeddata.repy
 
-# fix the fact that I don't have (or need) the getruntime() call...
-def time_gettime():
-  return time_seconds_from_1900_to_1970 + time.time()
-
 randomfloat = random.random
 
+# Armon: The port that should be used to update our time using NTP
+TIME_PORT = 51345
 
 def get_file_hash(filename):
   fileobj = file(filename, 'rb')
@@ -107,6 +106,9 @@ def create_metainfo_file(privatekeyfilename, publickeyfilename, new=False):
   # and report what we're doing
   if not new:
     print "Writing a metafile with updates to:"+ ' '.join(updatedlist)
+    
+  # Armon: Update our time via NTP
+  time_updatetime(TIME_PORT)  
 
   # timestamp now, expire in 30 days...
   outsigneddata = signeddata_signdata(outstring, rsa_file_to_privatekey(privatekeyfilename), rsa_file_to_publickey(publickeyfilename), time_gettime(), time_gettime()+60*60*24*30)   

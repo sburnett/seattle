@@ -23,7 +23,6 @@ import sys
 import urllib      # to retrieve updates
 import os   # needed for remove and path.exists
 import subprocess   # used to start an experiment
-import time  # used to sleep after a stop so that we don't lie about stopping
 import random
 import shutil
 import socket   # we'll make it so we don't hang...
@@ -34,13 +33,15 @@ import nonportable  # Used for sys.exit
 # Import servicelogger to do logging
 import servicelogger
 
+# This gives us do_sleep
+import misc
+
 include signeddata.repy
 include sha.repy
 
-# MIX: fix the fact that I don't have or need the getruntime() call...
-def time_gettime():
-  return time_seconds_from_1900_to_1970 + time.time()
-
+# Armon: The port that should be used to update our time using NTP
+TIME_PORT = 51234
+TIME_PORT_2 = 42345
 
 softwareurl = "http://seattle.cs.washington.edu/couvb/updatesite/test/"
 
@@ -133,6 +134,12 @@ def do_rsync(serverpath, destdir, tempdir):
     pass
 
   else:
+    try:
+      # Armon: Update our time via NTP, before we check the meta info
+      time_updatetime(TIME_PORT)
+    except:
+      time_updatetime(TIME_PORT_2)
+    
     # they're both good.   Let's compare them...
     shoulduse, reasons = signeddata_shouldtrust(oldmetafiledata,newmetafiledata,softwareupdatepublickey)
 
@@ -428,7 +435,7 @@ def restart_software_updater():
 
   # wait for some time (1 minute) for them to init and stop them if they don't
   for junkcount in range(30):
-    do_sleep(2.0)
+    misc.do_sleep(2.0)
 
     # if "OK" file exists, release softwareupdater.old, remove OK file and exit
     if os.path.exists("softwareupdater.OK."+thismutex):
@@ -467,18 +474,6 @@ def restart_client(filenamelist):
   # I don't do anything with the processobject.  The process will run for some 
   # time, perhaps outliving me (if I'm updated first)
 
-# sleep for a specified time.  Don't return early (no matter what)
-def do_sleep(waittime):
-
-  # there might be a race here
-  endtime = time.time() + waittime
-  sleeptime = endtime - time.time()
-  while sleeptime>0:
-    time.sleep(sleeptime)
-    sleeptime = endtime - time.time()
-
-      
-
 
 def main():
 
@@ -500,7 +495,7 @@ def main():
       # We need to wake up every 30 seconds otherwise we will take
       # the full 5-55 minutes before we die when someone tries to
       # kill us nicely.
-      do_sleep(30)
+      misc.do_sleep(30)
       # Make sure we still have the process lock.
       # If not, we should exit
       if not runonce.stillhaveprocesslock('softwareupdater.old'):
@@ -555,7 +550,11 @@ def main():
 
 if __name__ == '__main__':
   # problems here are fatal.   If they occur, the old updater won't stop...
-  init()
+  try:
+    init()
+  except Exception, e:
+    servicelogger.log(str(e))
+    raise e
 
   # in case there is an unexpected exception, continue (we'll sleep first thing
   # in main)
@@ -565,6 +564,7 @@ if __name__ == '__main__':
     except SystemExit:
       # If there is a SystemExit exception, we should probably actually exit...
       raise
-    except:
+    except Exception, e:
+      servicelogger.log(str(e))
       # Otherwise we will keep on trucking
       pass
