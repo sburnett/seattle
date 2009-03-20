@@ -21,23 +21,28 @@ checkpythonversion.ensure_python_version_is_supported()
 import os
 import shutil
 import platform
-import subprocess
 import sys
 import getopt
 import tempfile
 import re
+import time
 
 # Python should do this by default, but doesn't on Windows CE
 sys.path.append(os.getcwd())
 import nonportable
 import createnodekeys
 import repy_constants
+import windows_api
 
 
 SILENT_MODE = False
 OS = nonportable.ostype
 SUPPORTED_OSES = ["Windows", "WindowsCE", "Linux", "Darwin"]
 
+# Import subprocess if not WindowsCE
+subprocess = None
+if OS != "WindowsCE":
+  import subprocess
 
 class UnsupportedOSError(Exception):
   pass
@@ -383,12 +388,15 @@ def setup_sitecustomize(prog_path):
   if not OS == "WindowsCE":
     raise UnsupportedOSError
   if not os.path.exists(original_fn):
-    raise IOError("Could not find sitecustomize.py under prog_path")
-  if not os.isdir(repy_constants.PYTHON_PATH):
-    raise IOError("Could not find repy_constants.PYTHON_PATH")
+    raise IOError("Could not find sitecustomize.py under " + prog_path)
+  python_dir = os.path.dirname(repy_constants.PATH_PYTHON_INSTALL)
+  if not os.path.isdir(python_dir):
+    raise IOError("Could not find repy_constants.PATH_PYTHON_INSTALL")
+  if os.path.exists(python_dir + os.sep + "sitecustomize.py"):
+    raise IOError("sitecustomize.py already existed in python directory")
   preprocess_file(original_fn,
                   {"%PROG_PATH%": prog_path})
-  shutil.move(original_fn, repy_constants.PYTHON_PATH + os.sep + 
+  shutil.copy(original_fn, python_dir + os.sep + 
               "sitecustomize.py")
 
 
@@ -528,6 +536,8 @@ def install(prog_path):
     raise UnsupportedPythonError(version[0] + "." + version[1])
 
   prog_path = os.path.realpath(prog_path)
+  print prog_path
+  time.sleep(2)
 
   # First, setup seattle to run at startup
   output("Preparing seattle to run at startup...")
@@ -546,7 +556,7 @@ def install(prog_path):
 
   # Next, setup the sitecustomize.py file, if running on WindowsCE
   if OS == "WindowsCE":
-    ouput("Configuring python...")
+    output("Configuring python...")
     setup_sitecustomize(prog_path)
     output("Done!")
   
@@ -640,3 +650,4 @@ def main():
 
 if __name__ == "__main__":
   main()
+  time.sleep(5)
