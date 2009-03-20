@@ -536,9 +536,7 @@ def install(prog_path):
     raise UnsupportedPythonError(version[0] + "." + version[1])
 
   prog_path = os.path.realpath(prog_path)
-  print prog_path
-  time.sleep(2)
-
+  
   # First, setup seattle to run at startup
   output("Preparing seattle to run at startup...")
   startup_retval = setup_startup(prog_path)
@@ -650,4 +648,4 @@ def main():
 
 if __name__ == "__main__":
   main()
-  time.sleep(5)
+  
