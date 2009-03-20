@@ -206,130 +206,137 @@ def main():
   # Create a temp directory to serve the updates from that we can 
   # automatically clean up when we are done.
   tmpserver = tempfile.mkdtemp()
-
-  test_updater.create_folders(tmpserver)
+  try:
+    test_updater.create_folders(tmpserver)
   
   ############################
   # Run the rsync only tests #
   ############################
 
-  # Run the noup test (Nothing should fail, nothing should be updated)
-  runRsyncTest('-x', tmpserver + '/noup/')
+    # Run the noup test (Nothing should fail, nothing should be updated)
+    runRsyncTest('-x', tmpserver + '/noup/')
 
-  # Run the wronghash test(There should be an RsyncError, and no updates)
-  runRsyncTest('-e', tmpserver + '/wronghash/')
+    # Run the wronghash test(There should be an RsyncError, and no updates)
+    runRsyncTest('-e', tmpserver + '/wronghash/')
   
-  # Run the badkeysig test (There should be no updates)
-  runRsyncTest('-x', tmpserver + '/badkeysig/')
+    # Run the badkeysig test (There should be no updates)
+    runRsyncTest('-x', tmpserver + '/badkeysig/')
 
-  # Run the corruptmeta test (there should be an RsyncError, and no updates)
-  runRsyncTest('-e', tmpserver + '/corruptmeta/')
+    # Run the corruptmeta test (there should be an RsyncError, and no updates)
+    runRsyncTest('-e', tmpserver + '/corruptmeta/')
 
-  # Run the updatenmmain test (only nmmain should get updated)
-  runRsyncTest('-u', tmpserver + '/updatenmmain/', ['nmmain.py', 'metainfo'])
+    # Run the updatenmmain test (only nmmain should get updated)
+    runRsyncTest('-u', tmpserver + '/updatenmmain/', ['nmmain.py', 'metainfo'])
   
-  # Run an update that should get us into a state where the softwareupdater has
-  # a different key than what the metainfo is signed with.  The next test will
-  # ensure that our method of dealing with this situation works.
-  runRsyncTest('-u', tmpserver + '/updater/', ['softwareupdater.py', 'metainfo'])
+    # Run an update that should get us into a state where the softwareupdater has
+    # a different key than what the metainfo is signed with.  The next test will
+    # ensure that our method of dealing with this situation works.
+    runRsyncTest('-u', tmpserver + '/updater/', ['softwareupdater.py', 'metainfo'])
   
-  # Run an update that should successfully update from the strange state from
-  # the previous test.
-  runRsyncTest('-u', tmpserver + '/updater_new/', ['nmmain.py', 'metainfo'])
+    # Run an update that should successfully update from the strange state from
+    # the previous test.
+    runRsyncTest('-u', tmpserver + '/updater_new/', ['nmmain.py', 'metainfo'])
 
   #####################################
   # Finished running rsync only tests #
   #####################################
 
-  # Copy back everything from noup so the restart tests start with a 
-  # clean slate.
-  for originalfile in glob.glob(tmpserver + '/noup/*'):
-    shutil.copy(originalfile, os.path.basename(originalfile))
-   
-    
+    # Copy back everything from noup so the restart tests start with a 
+    # clean slate.
+    for originalfile in glob.glob(tmpserver + '/noup/*'):
+      shutil.copy(originalfile, os.path.basename(originalfile))
+     
+      
   ##################################
   # Software updater restart tests #
   ##################################
-  # Start the web server for the first update
-  webserver = run_webserver(tmpserver + '/updater/')
+    # Start the web server for the first update
+    webserver = run_webserver(tmpserver + '/updater/')
 
-  # Keep track of whether ps is there (it isn't on Windows)
-  no_ps = False
+    # Keep track of whether ps is there (it isn't on Windows)
+    no_ps = False
   
-  if nonportable.ostype == 'Windows':
-    # If we are running on windows, disable the ps calls.
-    no_ps = True
+    if nonportable.ostype == 'Windows':
+      # If we are running on windows, disable the ps calls.
+      no_ps = True
    
-  # ps works different on a mac, where we need to use 'ps -aww' instead of
-  # 'ps -ef'.
-  if nonportable.ostype == 'Darwin':
-    pscommand = 'ps -aww'
-  else:
-    pscommand = 'ps -ef'
+    # ps works different on a mac, where we need to use 'ps -aww' instead of
+    # 'ps -ef'.
+    if nonportable.ostype == 'Darwin':
+      pscommand = 'ps -aww'
+    else:
+      pscommand = 'ps -ef'
 
  
-  updateprocess = subprocess.Popen(['python', 'softwareupdater.py'])
-  if not no_ps:
-    # Only do the ps check if ps is available
-    ps = subprocess.Popen(pscommand + ' | grep "softwareupdater.py" | grep -v grep', shell=True, stdout=subprocess.PIPE)
-    psout = ps.stdout.read()
-    print 'Initial ps out:'
-    print psout
-    if psout == '':
-      print 'Failure to start initially'
-
-  # Wait for 2 minutes for the update to happen and the
-  # process to die.
-  for junk in range(60):
-    if updateprocess.poll() != None:
-      break
-    time.sleep(2)
-
-  ret = updateprocess.returncode
-  print 'Return code is: '+str(ret)
-  if ret != 10:
-    print 'Wrong return code! '+str(ret)
-  else:
-    pass
+    updateprocess = subprocess.Popen(['python', 'softwareupdater.py'])
     if not no_ps:
       # Only do the ps check if ps is available
       ps = subprocess.Popen(pscommand + ' | grep "softwareupdater.py" | grep -v grep', shell=True, stdout=subprocess.PIPE)
       psout = ps.stdout.read()
-      psout.strip()
-      print 'After ps out:'
+      print 'Initial ps out:'
       print psout
       if psout == '':
-        print 'New updater failed to start!'
+        print 'Failure to start initially'
+
+    # Wait for 2 minutes for the update to happen and the
+    # process to die.
+    for junk in range(60):
+      if updateprocess.poll() != None:
+        break
+      time.sleep(2)
+
+    ret = updateprocess.returncode
+    if ret != 10:
+      if ret == 55:
+        raise Exception("Software updater failed to get the process lock.")
+      elif ret == 1:
+        raise Exception("Softwareupdater failed with an uncaught exception. \n\
+            See end of softwareupdater.old in v2 for details.")
       else:
-        print 'softwareupdater restart success!'
+        raise Exception("Unknown return code from the software updater (" + 
+            str(ret) + ")")
+    else:
+      print "Old softwareupdater returned correctly"
+      if not no_ps:
+        # Only do the ps check if ps is available
+        ps = subprocess.Popen(pscommand + ' | grep "softwareupdater.py" | grep -v grep', shell=True, stdout=subprocess.PIPE)
+        psout = ps.stdout.read()
+        psout.strip()
+        print 'After ps out:'
+        print psout
+        if psout == '':
+          print 'New updater failed to start!'
+        else:
+          print 'softwareupdater restart success!'
 
-  # We need to kill the webserver serving from /updater, and start one serving
-  # from updater_new
-  kill_webserver(webserver.pid, updateurl)
-  webserver = run_webserver(tmpserver + '/updater_new/')
+    # We need to kill the webserver serving from /updater, and start one serving
+    # from updater_new
+    kill_webserver(webserver.pid, updateurl)
+    webserver = run_webserver(tmpserver + '/updater_new/')
 
-  # Wait 2 minutes for the second update to happen.
-  # Is there a way to get a handle for the new softwareupdater?
-  time.sleep(120)
+    print "Waiting 2 minutes for the second update to happen"
+    # Wait 2 minutes for the second update to happen.
+    # Is there a way to get a handle for the new softwareupdater?
+    time.sleep(120)
 
-  # If nmmain's version has been updated, the second update was a success!
-  nmmainfile = file('nmmain.py', 'r')
-  nmmaindata = nmmainfile.read()
-  nmmainfile.close()
-  if 'version = "0.5a"' in nmmaindata:
-    print 'Second update a success!'
-  else:
-    print 'Second update failed to happen within 2 minutes'
+    # If nmmain's version has been updated, the second update was a success!
+    nmmainfile = file('nmmain.py', 'r')
+    nmmaindata = nmmainfile.read()
+    nmmainfile.close()
+    if 'version = "0.5a"' in nmmaindata:
+      print 'Second update a success!'
+    else:
+      print 'Second update failed to happen within 2 minutes'
   
-  # Kill the webserver again now that we are all done with it.
-  kill_webserver(webserver.pid, updateurl)
+    # Kill the webserver again now that we are all done with it.
+    kill_webserver(webserver.pid, updateurl)
 
   ######################################
   # End Software updater restart tests #
   ######################################
- 
-  # Clean up the temporary server directory.
-  shutil.rmtree(tmpserver) 
+  finally:
+    # Clean up the temporary server directory.
+    shutil.rmtree(tmpserver) 
   
 
 if __name__ == "__main__":
