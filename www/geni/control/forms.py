@@ -300,6 +300,7 @@ class EditShareForm(forms.Form):
         <ToDo>
             Come up with sensical Exception classes
         """
+        self.shared_with_guser = None
 
         value = self.cleaned_data['username']
         try:
@@ -389,6 +390,14 @@ class EditShareForm(forms.Form):
     def clean(self):
         cleaned_data = self.cleaned_data
         percent = cleaned_data.get("percent")
+
+        if percent == None:
+            # percent cleaning raised a ValidationError
+            return cleaned_data
+
+        if self.shared_with_guser == None:
+            # error in finding the user to share with in the genidb
+            return cleaned_data
         
         if percent == 0:
             # no need to check for sum being < 100

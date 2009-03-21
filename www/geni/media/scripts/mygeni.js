@@ -36,7 +36,8 @@ function create_block(username, width, isShare) {
 			share.click(share_resources_dialog);
 			block.append(share);
 			
-		} else if (username != "Me" && username != "Others" ) {
+		} else if (username != "Me" && username != "Others" && username != "Free") {
+			/* we only want to end up here if the block is a share with another user */
 			var close = $(document.createElement('a'));
 			close.attr('href','#');
 			close.text('x');
