@@ -64,6 +64,8 @@ def gen_get_form(geni_user,req_post=None):
     """
     # the total number of vessels a user may acquire
     max_num = geni_user.vessel_credit_remaining()
+    if max_num == 0:
+        return None
 
     # dynamically generate the get vessels form
     get_vessel_choices = zip(range(1,max_num+1),range(1,max_num+1))

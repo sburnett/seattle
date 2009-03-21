@@ -791,11 +791,39 @@ def getdonations(request):
 #### Ajax helper functions
 
 def __jsonify(data):
+    """
+    <Purpose>
+
+    <Arguments>
+
+    <Exceptions>
+
+    <Side Effects>
+
+    <Returns>
+        An HTTP response object
+
+    <Note>
+    """
     json = simplejson.dumps(data)
     return HttpResponse(json, mimetype='application/json')
 
 
 def __validate_ajax(request):
+    """
+    <Purpose>
+
+    <Arguments>
+
+    <Exceptions>
+
+    <Side Effects>
+
+    <Returns>
+        An HTTP response object
+
+    <Note>
+    """
     ret, success = __validate_guser__(request)
     if not success:
         return __jsonify({"success" : False, "error" : "could not validate your identity"}), False
@@ -812,6 +840,20 @@ def __validate_ajax(request):
 
 @login_required()
 def ajax_getshares(request):
+    """
+    <Purpose>
+
+    <Arguments>
+
+    <Exceptions>
+
+    <Side Effects>
+
+    <Returns>
+        An HTTP response object
+
+    <Note>
+    """
     print "ajax_getshares called"
     ret, success = __validate_guser__(request)
     if not success:
@@ -854,8 +896,25 @@ def ajax_getshares(request):
     return __jsonify(ret)
 
 
+
+
+
 @login_required()
 def ajax_editshare(request):
+    """
+    <Purpose>
+
+    <Arguments>
+
+    <Exceptions>
+
+    <Side Effects>
+
+    <Returns>
+        An HTTP response object
+
+    <Note>
+    """
     print "ajax_editshares called"
     ret, success = __validate_ajax(request)
     if not success:
@@ -877,6 +936,20 @@ def ajax_editshare(request):
 
 @login_required()
 def ajax_createshare(request):
+    """
+    <Purpose>
+
+    <Arguments>
+
+    <Exceptions>
+
+    <Side Effects>
+
+    <Returns>
+        An HTTP response object
+
+    <Note>
+    """
     print "ajax_createshare called"
     ret, success = __validate_ajax(request)
     if not success:
@@ -899,6 +972,20 @@ def ajax_createshare(request):
 
 @login_required()
 def ajax_getcredits(request):
+    """
+    <Purpose>
+
+    <Arguments>
+
+    <Exceptions>
+
+    <Side Effects>
+
+    <Returns>
+        An HTTP response object
+
+    <Note>
+    """
     print "ajax_getcredits called"
     ret, success = __validate_ajax(request)
     if not success:
@@ -946,6 +1033,20 @@ def ajax_getcredits(request):
 
 @login_required()
 def ajax_getvessels(request):
+    """
+    <Purpose>
+
+    <Arguments>
+
+    <Exceptions>
+
+    <Side Effects>
+
+    <Returns>
+        An HTTP response object
+
+    <Note>
+    """
     ret, success = __validate_ajax(request)
     if not success:
         return ret
