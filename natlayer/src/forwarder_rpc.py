@@ -59,8 +59,8 @@ def register_server(conn_id, value):
   # Check if this is already registered
   if value not in MAC_ID_LOOKUP:
     # Get the server info, assign the MAC
-    serverinfo = CONNECTIONS[conn_id]
-    serverinfo["mac"] = value
+    servermacs = CONNECTIONS[conn_id]["mac"]
+    servermacs.add(value)
     
     # Setup the reverse mapping, this allows clients to find the server
     MAC_ID_LOCK.acquire()  
@@ -91,30 +91,35 @@ def _timed_dereg_server(id,mux):
 
 
 # De-registers a server
-def deregister_server(conn_id,value=None):
+def deregister_server(conn_id,srvmac):
   # Get the server info
   serverinfo = CONNECTIONS[conn_id]
     
   # Remove the MAC address reverse lookup
-  if "mac" in serverinfo:
-    mac = serverinfo["mac"]
-    if mac in MAC_ID_LOOKUP:
+  if srvmac in serverinfo["mac"]:
+    # Discard this MAC address
+    serverinfo["mac"].discard(srvmac)
+    
+    # Remove the reverse lookup
+    if srvmac in MAC_ID_LOOKUP:
       MAC_ID_LOCK.acquire()  
-      del MAC_ID_LOOKUP[mac]
+      del MAC_ID_LOOKUP[srvmac]
       MAC_ID_LOCK.release()
   
-  # Close the multiplexer
-  if "mux" in serverinfo:
-    mux = serverinfo["mux"]
-  else:
-    mux = None
+  # Close the multiplexer if there are no remaining mappings
+  if len(serverinfo["mac"]) == 0:
+    # Get the multiplexer
+    if "mux" in serverinfo:
+      mux = serverinfo["mux"]
+    else:
+      mux = None
   
-  # Set timer to close the multiplexer in WAIT_INTERVAL(3) second
-  # This is because we cannot close the connection immediately or the RPC call would fail
-  settimer(WAIT_INTERVAL,_timed_dereg_server, [conn_id,mux])
+    # Set timer to close the multiplexer in WAIT_INTERVAL(3) second
+    # This is because we cannot close the connection immediately or the RPC call would fail
+    settimer(WAIT_INTERVAL,_timed_dereg_server, [conn_id,mux])
   
-  # DEBUG    
-  if DEBUG3: print getruntime(), "Set timer to de-register server ID#",conn_id,"Time:",WAIT_INTERVAL
+    # DEBUG    
+    if DEBUG3: print getruntime(), "Set timer to de-register server ID#",conn_id,"Time:",WAIT_INTERVAL
       
   return (True, None)
 
@@ -124,11 +129,15 @@ def reg_waitport(conn_id,value):
   # Get the server info
   serverinfo = CONNECTIONS[conn_id]
   
-  # Get the server ports
-  ports = serverinfo["ports"]
+  # Check if this mac has a set of ports, and create one if not
+  if not value["server"] in serverinfo["ports"]:
+    serverinfo["ports"][value["server"]] = set()
   
-  # Convert value to int, and append to ports
-  ports.add(value)
+  # Get the server ports
+  ports = serverinfo["ports"][value["server"]]
+  
+  # Append to ports
+  ports.add(value["port"])
   
   return (True,None)
 
@@ -138,11 +147,13 @@ def dereg_waitport(conn_id,value):
   # Get the server info
   serverinfo = CONNECTIONS[conn_id]
   
-  # Get the server ports
-  ports = serverinfo["ports"]
+  # Check if this mac has a set of ports
+  if value["server"] in serverinfo["ports"]:
+    # Get the server ports
+    ports = serverinfo["ports"][value["server"]]
   
-  # Convert value to int, and append to ports
-  ports.discard(value)
+    # Convert value to int, and append to ports
+    ports.discard(value["port"])
   
   return (True,None)
 
@@ -184,12 +195,12 @@ def new_client(conn_id, value):
     return (False,NAT_STATUS_BSY_SERVER)
   
   # Check if the server is listening on the desired port
-  if not port in serverinfo["ports"]:
+  if not port in serverinfo["ports"][servermac]:
     return (False,NAT_STATUS_FAILED)
   
   # Try to get a virtual socket
   try:
-    virtualsock = serverinfo["mux"].openconn(serverinfo["ip"], port,localip=conninfo["ip"],localport=conninfo["port"])
+    virtualsock = serverinfo["mux"].openconn(servermac, port,localip=conninfo["ip"],localport=conninfo["port"])
     
     # Manually send the confirmation RPC dict, since we will not return to the new_rpc function
     rpc_response = {RPC_REQUEST_STATUS:True,RPC_RESULT:NAT_STATUS_CONFIRMED}
@@ -333,7 +344,8 @@ def _connection_entry(id,sock,mux,remoteip,remoteport,type):
   if type == TYPE_MUX:
     info["mux"] = mux
     info["num_clients"] = 0
-    info["ports"] = set()
+    info["ports"] = {} # Maps each host name to a set of listening ports
+    info["mac"] = set() # Set of possible MAC addresses
     
   CONNECTIONS[id] = info
   

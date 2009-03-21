@@ -41,9 +41,13 @@ RPC_EXTERNAL_ADDR = "externaladdr"  # This allows the server to query its ip/por
 # This expects a MAC address as a parameter
 RPC_REGISTER_SERVER = "reg_serv"    
 
-RPC_DEREGISTER_SERVER = "dereg_serv"# This allows a server to de-register from a forwarder
+# This allows a server to de-register from a forwarder
+# This expects a MAC address as a parameter 
+RPC_DEREGISTER_SERVER = "dereg_serv"
 
-# The following two functions require an integer port
+# The following two functions require an integer port and a server mac address
+# # It expects the RPC_PARAM to be a dictionary:
+# {"server":"__MAC__","port":50}
 RPC_REGISTER_PORT = "reg_port"      # THis allows the server to register a wait port
 RPC_DEREGISTER_PORT = "dereg_port"  # This allows the server to de-register a wait port
 

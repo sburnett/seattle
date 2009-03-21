@@ -8,7 +8,7 @@ outlog="./log/forwarder.out"
 errlog="./log/forwarder.err"
 
 # What to call
-python repy.py restrictions.forwarder forwarder.py "127.0.0.1" 12345 2>${errlog} >${outlog} &
+python repy.py restrictions.forwarder forwarder_rpc.py "127.0.0.1" 12345 2>${errlog} >${outlog} &
 
 # Save the PID to a file
 PID=$!

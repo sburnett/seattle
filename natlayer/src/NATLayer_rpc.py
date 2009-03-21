@@ -12,6 +12,7 @@ Abstracts the forwarding specification into a series of classes and functions.
 
 include forwarder_advertise.py
 include server_advertise.py
+include deserialize.py
 include Multiplexer.py
 include RPC_Constants.py
 
@@ -102,6 +103,8 @@ def nat_openconn(destmac, destport, localport=None, timeout = 5, forwarderIP=Non
   else:  
     raise EnvironmentError, "Connection Refused!"
 
+
+
 # Does an RPC call, returns status
 def _nat_rpc_call(mux, rpc_dict):
   # Get a virtual socket
@@ -124,13 +127,13 @@ def _nat_rpc_call(mux, rpc_dict):
   return response[RPC_REQUEST_STATUS]
   
 # Does an RPC call to the forwarder to register a port
-def _nat_reg_port_rpc(mux, port):
-  rpc_dict = {RPC_REQUEST_ID:1,RPC_FUNCTION:RPC_REGISTER_PORT,RPC_PARAM:port}
+def _nat_reg_port_rpc(mux, mac, port):
+  rpc_dict = {RPC_REQUEST_ID:1,RPC_FUNCTION:RPC_REGISTER_PORT,RPC_PARAM:{"server":mac,"port":port}}
   return _nat_rpc_call(mux,rpc_dict)
 
 # Does an RPC call to the forwarder to deregister a port
-def _nat_dereg_port_rpc(mux, port):
-  rpc_dict = {RPC_REQUEST_ID:2,RPC_FUNCTION:RPC_DEREGISTER_PORT,RPC_PARAM:port}
+def _nat_dereg_port_rpc(mux, mac, port):
+  rpc_dict = {RPC_REQUEST_ID:2,RPC_FUNCTION:RPC_DEREGISTER_PORT,RPC_PARAM:{"server":mac,"port":port}}
   return _nat_rpc_call(mux,rpc_dict)
 
 # Does an RPC call to the forwarder to register a server
@@ -139,10 +142,12 @@ def _nat_reg_server_rpc(mux, mac):
   return _nat_rpc_call(mux,rpc_dict)
 
 # Does an RPC call to the forwarder to deregister a server
-def _nat_dereg_server_rpc(mux):
-  rpc_dict = {RPC_REQUEST_ID:4,RPC_FUNCTION:RPC_DEREGISTER_SERVER}
+def _nat_dereg_server_rpc(mux, mac):
+  rpc_dict = {RPC_REQUEST_ID:4,RPC_FUNCTION:RPC_DEREGISTER_SERVER,RPC_PARAM:mac}
   return _nat_rpc_call(mux,rpc_dict)  
   
+
+
 # Wrapper function around the NATLayer for servers  
 def nat_waitforconn(localmac, localport, function, forwarderIP=None, forwarderPort=None):
   """
@@ -165,100 +170,121 @@ def nat_waitforconn(localmac, localport, function, forwarderIP=None, forwarderPo
     
   <Returns>
     A handle, this can be used with nat_stopcomm to stop listening.      
-  """
-  if forwarderIP == None or forwarderPort == None:
-    forwarder_lookup() 
-    settimer(0, server_advertise, [localmac],)
-    forwarderIP = mycontext['currforwarder']
-    forwarderPort = 12345 
-  
+  """  
   # Do we already have a mux? If not create a new one
   if NAT_STATE_DATA["mux"] == None:
+    
+    # Get a forwarder to use
+    if forwarderIP == None or forwarderPort == None:
+      forwarder_lookup() 
+      settimer(0, server_advertise, [localmac],)
+      forwarderIP = mycontext['currforwarder']
+      forwarderPort = 12345
+      
     # Create a real connection to the forwarder
     socket = openconn(forwarderIP, forwarderPort)
   
     # Immediately create a multiplexer from this connection
-    mux = Multiplexer(socket, {"localip":localmac, "localport":localport})
+    mux = Multiplexer(socket, {"localip":getmyip(), "localport":localport})
 
-    # Register us as a server
-    status = _nat_reg_server_rpc(mux, localmac)
-    if not status:
-      # Something is wrong, raise Exception, close socket
-      socket.close()
-      raise EnvironmentError, "Failed to begin listening!"
-        
-    # Setup the waitforconn
-    mux.waitforconn(localmac, localport, function)
-
-    # Register our wait port on the forwarder
-    status = _nat_reg_port_rpc(mux, localport)
-    if not status:
-      # Something is wrong, raise Exception, close socket
-      socket.close()
-      raise EnvironmentError, "Failed to begin listening!"
-     
     # Add the multiplexer to our state
     NAT_STATE_DATA["mux"] = mux
-   
-    # Register this port
-    NAT_LISTEN_PORTS[localport] = True
-   
-    # Return the localport, for stopcomm
-    return localport
-    
-  
-  # We already have a mux, so just add a new listener
   else:
     # Get the mux
     mux = NAT_STATE_DATA["mux"]
-    
-    # Setup the waitforconn
-    mux.waitforconn(localmac, localport, function)
-     
-    # Register our wait port on the forwarder
-    _nat_reg_port_rpc(mux, localport)
+
+  # Register us as a server, if necessary
+  if not localmac in NAT_LISTEN_PORTS:
+    success = _nat_reg_server_rpc(mux, localmac)
+    if success:
+      # Create a set for the ports
+      NAT_LISTEN_PORTS[localmac] = set()
+    else:
+      # Something is wrong, raise Exception
+      raise EnvironmentError, "Failed to begin listening!"
       
+  # Setup the waitforconn
+  mux.waitforconn(localmac, localport, function)
+
+  # Register our wait port on the forwarder
+  success = _nat_reg_port_rpc(mux, localmac, localport)
+  if success:
     # Register this port
-    NAT_LISTEN_PORTS[localport] = True
-    
-    # Return the localport, for stopcomm
-    return localport
+    NAT_LISTEN_PORTS[localmac].add(localport)
+  else:
+    # Something is wrong, raise Exception
+    raise EnvironmentError, "Failed to begin listening!"
+   
+  
+  # Return the localmac and localport, for stopcomm
+  return (localmac,localport)
+  
      
     
 # Stops the socketReader for the given natcon  
-def nat_stopcomm(port):
+def nat_stopcomm(handle):
   """
   <Purpose>
     Stops listening on a NATConnection, opened by nat_waitforconn
     
   <Arguments>
-    port:
+    handle:
         Handle returned by nat_waitforconn.
   
   """
   # Get the mux
   mux = NAT_STATE_DATA["mux"]
   
+  # Unpack the handle
+  (localmac, localport) = handle
+  
   if mux != None:
-    if port in NAT_LISTEN_PORTS:
-      mux.stopcomm(port)
-      del NAT_LISTEN_PORTS[port]
+    if localmac in NAT_LISTEN_PORTS and localport in NAT_LISTEN_PORTS[localmac]:
+      # Tell the Mux to stop listening
+      mux.stopcomm(str(handle))
+      
+      # Cleanup
+      NAT_LISTEN_PORTS[localmac].discard(localport)
     
       # De-register our port from the forwarder
-      _nat_dereg_port_rpc(mux, port)
+      _nat_dereg_port_rpc(mux, localmac, localport)
     
       # Are we listening on any ports?
-      numListen = len(NAT_LISTEN_PORTS)
+      numListen = len(NAT_LISTEN_PORTS[localmac])
       if numListen == 0:
         # De-register the server entirely
-        _nat_dereg_server_rpc(mux)
+        _nat_dereg_server_rpc(mux, localmac)
+        
+        # Cleanup
+        del NAT_LISTEN_PORTS[localmac]
       
+      # Are we listening as any server?
+      if len(NAT_LISTEN_PORTS) == 0:
         # Close the mux, and set it to Null
         mux.close()
         NAT_STATE_DATA["mux"] = None
   
+
+
 # Determines if you are behind a NAT (Network-Address-Translation)
 def behind_nat(forwarderIP=None,forwarderPort=None):
+  """
+  <Purpose>
+    Determines if the currently executing node is behind a Network-Address-Translation device
+  
+  <Arguments>
+    forwarderip:
+      Defaults to None. This can be set for explicitly forcing the use of a forwarder
+    
+    forwarderport:
+      Defaults to None. This can be set for explicitly forcing the use of a port on a forwarder.
+  
+  <Exceptions>
+    This may raise various network related Exceptions if not connected to the internet.
+  
+  <Returns>
+    True if behind a nat, False otherwise.
+  """
   # Get "normal" ip
   ip = getmyip()
   
@@ -273,11 +299,12 @@ def behind_nat(forwarderIP=None,forwarderPort=None):
   
   # Now connect to a forwarder, and get our external ip/port
   # Create a RPC dictionary
-  rpc_request = {RPC_REQUEST_ID:5,RPC_FUNCTION:RPC_EXTERNAL_ADDR}
-  rpc_mesg = RPC_encode(rpc_request)
+  rpc_request = {RPC_FUNCTION:RPC_EXTERNAL_ADDR}
   
-  # Request, get the response
-  rpcsocket.send(rpc_mesg)
+  # Send the RPC message
+  rpcsocket.send(RPC_encode(rpc_request))
+  
+  # Get the response
   response = RPC_decode(rpcsocket)
   
   return (ip != response[RPC_RESULT]["ip"])
