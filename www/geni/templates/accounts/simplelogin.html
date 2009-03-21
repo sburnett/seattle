@@ -1,8 +1,12 @@
-	<div id="main" style="border: none; margin: 0pt 0em 0pt 0.2em; float: right; width: 22em; padding-left: 0.2em;">
-    <br><h2 style="text-align:left"><u>Seattle-GENI Portal Login:</u></h2><br>
-	  <div id="main" style="margin: 0pt 0em 0pt 0.2em; padding-left: 0;">
-
-		  <form method="post" action="http://seattle.cs.washington.edu:8090/geni_dev_ivan/accounts/login">
+<html>
+<head>
+<link href="{{ MEDIA_URL }}css/account.css" rel="stylesheet" type="text/css" />
+</head>
+<body>
+<div class="simpleloginoutter">
+    <br><h2 style="text-align:left"><b>Seattle-GENI Portal Login:</b></h2>
+	  <div id="simplelogininner">
+		  <form method="post" action="https://seattlegeni.cs.washington.edu/geni/accounts/login">
 		  {% if err %}
 		  <p><font color="red">{{ err }}</font></p><br>
 		  {% endif %}
@@ -26,3 +30,5 @@
 	</div>
 
 </div>
+</body>
+</html>

@@ -185,7 +185,7 @@ def show_login(request, ltemplate, template_dict, form = None):
         #if not request.session.test_cookie_worked():
         request.session.set_test_cookie()
     template_dict['form'] = form
-    return direct_to_template(request,ltemplate, template_dict)
+    return direct_to_template(request, ltemplate, template_dict)
 
 
 def help(request):

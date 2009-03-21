@@ -27,6 +27,8 @@ table.login tr td.value {
 table.login tr td.value input[type="text"],
 table.login tr td.value input[type="password"] {
     width: 180px;
+    border: 1px solid;
+    margin: 0px;
 }
 
 table.login tr td.value input {
@@ -36,4 +38,17 @@ table.login tr td.value input {
 
 table.login tr td.value select {
     font-size: 10pt;
+}
+
+div.simpleloginoutter {
+    border: 0px;
+    margin: 10px;
+    float: right;
+    width: 22em;
+    padding: 0.5em, 1em;
+}
+
+div.simplelogininner {
+    margin: 0pt 0em 0pt 0.2em;
+    padding-left: 0;
 }
