@@ -11,7 +11,7 @@ MAX_NUM = 50
 # Handle a new virtual connection
 def new_virtual_conn(remoteip, remoteport, virtualsock, junk, multiplexer):
   # Stop listening for new connections
-  multiplexer.stopcomm(12345)
+  multiplexer.stopcomm(str(("127.0.0.1",12345)))
   
   # Exchange 1 to 50
   num = 1

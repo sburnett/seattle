@@ -314,7 +314,8 @@ class Multiplexer():
       self.writeLock = getlock()
 
       # Callback function that is passed a socket object
-      # Maps a port to a function
+      # Maps a host (e.g. 127.0.0.1) to a dictionary of ports -> functions
+      # So  callBackFunctions["127.0.0.1"][50] returns the user function for host 127.0.0.1 port 50
       self.callbackFunction = {}
 
       # This dictionary keeps track of sockets we are waiting to open, e.g. openconn has been called
@@ -403,18 +404,22 @@ class Multiplexer():
 
       
   # Stops additional listener threads
-  def stopcomm(self,port):
+  def stopcomm(self,handle):
     """
     <Purpose>
-      Stops the listener thread from waitforconn.
+      Stops listening for the selected waithandle
       
-    <Side effects>
-      The virtual sockets will no longer get data buffered. Incoming frames will not be parsed.
+    <Arguments>
+      handle:
+        A handle returned from waitforconn
       
     """
+    # Convert handle back to tuple, unpack it
+    (ip, port) = deserialize(handle)
+    
     # Deletes the callback function on the specified port
-    if port in self.callbackFunction:
-      del self.callbackFunction[port]
+    if ip in self.callbackFunction and port in self.callbackFunction[ip]:
+      del self.callbackFunction[ip][port]
     
   # Private: Recieves a single frame 
   def _recvFrame(self):
@@ -615,15 +620,21 @@ class Multiplexer():
       Starts an event handler that listens for connections.
 
     <Returns>
-      Nothing
+      A handle that can be used with stopcomm
     """
     # Check if we are initialized
     if not self.connectionInit:
       raise AttributeError, "Multiplexer is not yet initialized or is closed!"
       
+    # Check if this is a new host, make a new dictionary
+    if not localip in self.callbackFunction:
+      self.callbackFunction[localip] = {}
+        
     # Setup the user function to call if there is a new client
-    self.callbackFunction[localport] = function
-
+    self.callbackFunction[localip][localport] = function
+     
+    # Generate a handle, string version of tuple (ip, port)
+    return str((localip,localport))
   
   
   # Handles a client closing a connection
@@ -675,11 +686,12 @@ class Multiplexer():
     info = deserialize(frame.content)   # Get the socket info from
     
     # What port are they trying to connect to?
+    requestedHost = info["localip"]
     requestedPort = info["localport"]
       
     # Check for a callback function
-    if requestedPort in self.callbackFunction:
-      userfunc = self.callbackFunction[requestedPort]
+    if requestedHost in self.callbackFunction and requestedPort in self.callbackFunction[requestedHost]:
+      userfunc = self.callbackFunction[requestedHost][requestedPort]
     
     # Send a failure message and return
     else:
@@ -1222,18 +1234,16 @@ def _helper_mux_waitforconn(ip, port, func, remoteip, remoteport, socket, thisco
   # Add the key entry for this mux
   MULTIPLEXER_OBJECTS[key] = mux
   
-  # Map the old waitforconn's
+  # Map all virtual waitforconn's to this mux
   _helper_map_existing_waits(mux)
-    
-  # Trigger user function
-  mux.waitforconn(ip,port,func)
+  
 
 # Helper function to map pre-existing waitforconn's to a new multiplexer
 def _helper_map_existing_waits(mux):
   # Apply the old waitforconns
   for (key, function) in MULTIPLEXER_WAIT_FUNCTIONS.items():
-    args = key.split(":")
-    mux.waitforconn(args[0],int(args[1]),function)
+    (ip, port) = deserialize(key)
+    mux.waitforconn(ip, port, function)
 
 # Wait for connection to establish new multiplexers and new virtual connections
 def mux_waitforconn(localip, localport, function):
@@ -1263,7 +1273,7 @@ def mux_waitforconn(localip, localport, function):
     A handle that can be used with mux_stopcomm to stop listening on this port for new connections.
   """
   # Get the key
-  key = "LISTEN:"+localip+":"+str(localport) 
+  key = "LISTEN:"+str((localip,localport))
   
   # Does this key already exist?
   if key in MULTIPLEXER_WAIT_HANDLES:
@@ -1322,11 +1332,10 @@ def mux_stopcomm(key):
 
     # Get the values by spliting on colon
     arr = key.split(":")
-    ip = arr[1]
-    port = arr[2]
+    virtualkey = arr[1]
 
     # Propogate this stopcomm virtually
-    mux_virtual_stopcomm(ip+":"+port)
+    mux_virtual_stopcomm(virtualkey)
 
 
 # Changes the underlying hooks that the mux wrappers use
@@ -1427,7 +1436,7 @@ def mux_virtual_waitforconn(localip, localport, function):
     A handle that can be used with mux_virtual_stopcomm
   """
   # Generate a key
-  key = localip+":"+str(localport)
+  key = str((localip, localport))
   
   # Register the ip/port function for new multiplexers
   MULTIPLEXER_WAIT_FUNCTIONS[key] = function
@@ -1451,11 +1460,11 @@ def mux_virtual_waitforconn(localip, localport, function):
 def mux_virtual_stopcomm(key):
   """
   <Purpose>
-    Instructs all multiplexers to stop responding to new connections on the virtual port.
+    Instructs all multiplexers to stop responding to new connections on the virtual ip/port.
 
   <Arguments>
-    port
-      The virtual port to stop listening on
+    key
+      The handle returned from mux_virtual_stopcomm
 
   <Side effects>
     All multiplexers will stop waiting on the local port
@@ -1463,17 +1472,12 @@ def mux_virtual_stopcomm(key):
   <Returns>
     None
   """
-  # Get the values by spliting on colon
-  arr = key.split(":")
-  ip = arr[0]
-  port = int(arr[1])
-
   # De-register this function for new multiplexers
   del MULTIPLEXER_WAIT_FUNCTIONS[key]
   
   # Map this stopcomm to all existing multiplexers
-  for (key, mux) in MULTIPLEXER_OBJECTS.items():
-    mux.stopcomm(port)
+  for (listenkey, mux) in MULTIPLEXER_OBJECTS.items():
+    mux.stopcomm(key)
 
 # This functions stops and closes all multiplexer objects
 def mux_stopall():
