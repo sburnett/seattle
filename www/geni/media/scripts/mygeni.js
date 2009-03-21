@@ -157,9 +157,9 @@ function change_percent(username, current_percent) {
 	});
 	save.click(function() {
 		var new_percent = parseInt(input.val());
-		if (validate(current_percent, new_percent)) {		
-			save_percent(username, new_percent);
-		}
+		//if (validate(current_percent, new_percent)) {		
+		save_percent(username, new_percent);
+		//}
 	});
 	dialog.append(input);
 	dialog.append(symbol);
@@ -196,10 +196,10 @@ function save_percent(username, percent) {
 /*
 	make sure the new percent is within range of validity
 */
-function validate(current_percent, new_percent) {
+/* function validate(current_percent, new_percent) {
 	var free = parseInt($("#usageFree span").text());
 	return (new_percent - current_percent < free) && (new_percent >= 0);
-}
+	} */
 
 
 /*
@@ -236,9 +236,9 @@ function share_resources_dialog() {
 	$("#shareresources").click(function () {
 		var username = $("#shareresourcesdialog #username").val();
 		var percent = parseInt($("#shareresourcesdialog #percent").val());
-		if (validate(0, percent)) {
-			share_resources(username, percent);
-		}
+		// if (validate(0, percent)) {
+		share_resources(username, percent);
+		//} 
 	});
 }
 
