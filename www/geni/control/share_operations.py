@@ -29,6 +29,10 @@ def get_percent_usage(geni_user):
     vcount_used = VesselMap.objects.filter(user = geni_user).count()
     vcount_available = get_vcount_available(geni_user)
     print "get_percent_usage: vcount used %i, and vcount_available %i"%(vcount_used, vcount_available)
+    if vcount_available == 0:
+        # error
+        print "ERROR in share_operations.get_percent_usage() : vcount_available is 0"
+        return 0
     return int((vcount_used * 1.0 / vcount_available * 1.0) * 100.0)
 
 

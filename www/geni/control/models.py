@@ -132,7 +132,7 @@ class User(models.Model):
         # set default num acquired vessels to 0
         self.num_acquired_vessels = 0
         # set default vcounts
-        self.vcount_base = 0
+        self.vcount_base = 10
         self.vcount_via_shares = 0
         self.vcount_via_donations = 0
         # save the object
@@ -257,7 +257,7 @@ class User(models.Model):
         percent_credits = []
         total_percent = 0
         for guser, credit in credits:
-            percent = int((credit*1.0 / total_vessels*1.0) * 100)
+            percent = int((credit * 1.0 / total_vessels * 1.0) * 100)
             percent_credits.append([guser, percent])
             total_percent += percent
 

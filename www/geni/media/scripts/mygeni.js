@@ -346,7 +346,7 @@ function update_credits() {
 	}, 3000);
 	setTimeout(function () {
 		if (loading) {
-			$("#credits").html("<td>It seems like it takes too long to load. Please refresh the page.</td>");
+			$("#credits").html("<td>The information is taking too long to load. Try refreshing the page and contact us if you have further problems.</td>");
 		}
 	}, 15000);
 	$.post("../control/ajax_getcredits",
@@ -384,7 +384,7 @@ function update_shares() {
 	}, 3000);
 	setTimeout(function () {
 		if (loading) {
-			$("#usage").html("<td>It seems like it takes too long to load. Please refresh the page.</td>");
+			$("#usage").html("<td>The information is taking too long to load. Try refreshing the page and contact us if you have further problems.</td>");
 		}
 	}, 15000);
 	$.post("../control/ajax_getshares",
