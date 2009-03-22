@@ -72,7 +72,8 @@ def clientSend(s, totalBytes, chunkSize):
 def main():
   # where are we?
   myport = int(sys.argv[2])
-  myip = socket.gethostbyname(socket.gethostname())
+#  myip, ba, bas = socket.gethostbyname_ex(socket.getfqdn())
+  myip = '128.208.3.86'
   s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
   s.bind((myip, myport))
 
@@ -83,7 +84,7 @@ def main():
   else: # client
     destip = sys.argv[3]
     destport = int(sys.argv[4])
-    addr = (destip, destport)
+    addr = (myip, destport)
     s.connect(addr)
     totalBytes = int(sys.argv[5])
     chunkSize = int(sys.argv[6])

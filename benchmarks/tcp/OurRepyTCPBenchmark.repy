@@ -28,11 +28,11 @@ include tcp.repy
 
 def serverListen(myport):
   server = Connection()
-  server.bind('127.0.0.1', myport)
+  server.bind(getmyip(), myport)
   server.listen()
   tcup, addr = server.accept()
 
-  while 1:
+  for i in range(0,100):
     tcup.recv(1000)
     sleep(1)
 
@@ -58,8 +58,8 @@ if callfunc == 'initialize':
       characterNum += 1
 
     socket = Connection()
-    socket.bind('127.0.0.1', myport)
-    socket.connect('127.0.0.1', destport)
+    socket.bind(getmyip(), myport)
+    socket.connect(getmyip(), destport)
     startTime = getruntime()
 
     while (packetNum < totalChunks):
@@ -71,8 +71,10 @@ if callfunc == 'initialize':
     socket.disconnect()
 
 
-    print "\n\n******* Statistics for TCUP *******\n\n"
-    print "Connected to " + str(destip) + "\n"
-    print "Sent " + str(totalChunks) + " packets, which had a size of " + str(chunkSize) + " bytes.\n\n" 
-    print "Total runtime: " + str((endTime - startTime)) + " seconds.\n"
-    print "At a Rate of: " + str(totalBytes *1.0/(endTime - startTime * 1.0)) + " B/S.\n\n\n"
+    print "\n\n******* Statistics for TCUP *******"
+    print "Connected to " + str(destip)
+    print "Sent " + str(totalChunks) + " packets, which had a size of " + str(chunkSize) + " bytes." 
+    print "Total runtime: " + str((endTime - startTime)) + " seconds."
+    print "At a Rate of: " + str(totalBytes *1.0/(endTime - startTime * 1.0)) + " B/S.\n\n"
+
+    exitall()

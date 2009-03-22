@@ -1,0 +1,30 @@
+#######################
+100 packets:
+# 1 MB total
+# 10 KB chunks
+
+******* Statistics for TCUP *******
+Sent 100 packets, which had a size of 10000 bytes.
+Total runtime: 102.720000001 seconds.
+At a Rate of: 9735.20249215 B/S.
+
+**********Repy- stalls***************8
+
+
+
+##################################
+100 packets
+# 100 KB
+# 1 KB chunks
+
+******* Statistics for TCUP *******
+Sent 100 packets, which had a size of 1000 bytes.
+Total runtime: 9.38999999966 seconds.
+At a Rate of: 10649.6272634 B/S.
+
+******* Statistics for Repy TCP *******
+Sent 100 packets, which had a size of 1000 bytes.
+Total runtime: 9.01999999955 seconds.
+At a Rate of: 11086.4745017 B/S.
+***************************************
+

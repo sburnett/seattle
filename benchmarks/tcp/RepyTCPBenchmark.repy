@@ -23,10 +23,11 @@
 
 
 def serverListen(myport):
+  print "server starting..."
   server = waitforconn(getmyip(), myport, RecvAndDoNothing)
 
 def RecvAndDoNothing(remoteip, remoteport, socket, thiscommhandle, listencommhandle):
-  pass
+  socket.recv(10000)
 
 
 
@@ -50,7 +51,8 @@ if callfunc == 'initialize':
       chunk += "a"
       characterNum += 1
 
-    socket = openconn(destip, destport, getmyip(), myport)
+    print "client starting..."
+    socket = openconn(getmyip(), destport, getmyip(), myport)
     startTime = getruntime()
 
     while (packetNum < totalChunks):
@@ -64,7 +66,7 @@ if callfunc == 'initialize':
     runTime = endTime - startTime
 
     print "\n\n******* Statistics for Repy TCP *******"
-    print "Connected to " + str(destip)
+    print "Connected to " + str(getmyip())
     print "Sent " + str(totalChunks) + " packets, which had a size of " + str(chunkSize) + " bytes."
     print "Total runtime: " + str(runTime) + " seconds."
     if runTime:
