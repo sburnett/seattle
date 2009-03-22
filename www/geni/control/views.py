@@ -54,18 +54,15 @@ def __validate_guser__(request):
     """
    <Purpose>
       Private helper function. Looks up and returns request.user in
-      the geni database. This is used to verify that the user is a
-      real user in the database and to retrieve a user's (ww-user)
-      record.
+      the geni database if such a user exists.
 
    <Arguments>
       request:
-         An HTTP request object that contains 'user' as an object
+         An HTTP request object that contains 'user' as a value
 
    <Exceptions>
       Returns exceptions when the DBMS connection is
-      unavailable. Returns an exception when request has no user
-      object
+      unavailable.
 
    <Side Effects>
       None.
@@ -75,18 +72,14 @@ def __validate_guser__(request):
       is True then ret is a User object. If bool is False then ret
       contains an HttpResponseRedirect object that redirect a user to
       the login page
-      
-   <FixMe>
-      Add a check for whether request.user actually exists. If 
-      it does not then we want to tell the user to register
     """
-      
-    try:
-        geni_user = User.objects.get(www_user = request.user)
+    # geni_user = User.objects.get(www_user = request.user)
+    success, geni_user = User.get_guser_by_username(request.user)
+    if success:   
         return geni_user,True
-    except User.DoesNotExist:
-        ret = HttpResponseRedirect("/geni/accounts/login")
-        return ret, False
+#    except User.DoesNotExist:
+    ret = HttpResponseRedirect("/geni/accounts/login")
+    return ret, False
 
 
 
@@ -136,7 +129,7 @@ def __dl_key__(request,pubkey=True):
     return response
 
 #############################################
-# Functions called to generate specific pages. Each requires a user to be logged in
+# Functions called to generate specific pages. Each requires the user to be logged in
 #############################################
 
 ########################## Functions dealing with the donation page
@@ -174,31 +167,8 @@ def donations(request,share_form=None):
     if not success:
         return ret
     geni_user = ret
-
-#    if share_form == None:
-        # build a new add share form if none is supplied to us
-#        share_form = forms.AddShareForm()
-            
-#    mydonations = Donation.objects.filter(user = geni_user)
-#    myshares = Share.objects.filter(from_user = geni_user)
-    
-#    donations_to_me = []
-#    has_donations_from_others = (len(donations_to_me) != 0)
-#    has_donations = (len(mydonations) != 0)
-#   has_shares = (len(myshares) != 0)
     
     return direct_to_template(request,'control/mygeni.html', {})
-                              # {'geni_user' : geni_user,
-#                                'has_donations' : has_donations,
-#                                'donations' : mydonations, 
-#                                'donations_to_me' : donations_to_me,
-#                                'has_donations_from_others' : has_donations_from_others,
-#                                'shares' : myshares,
-#                                'has_shares' : has_shares,
-#                                'share_form' : share_form})
-
-
-
 
 
 @login_required()
@@ -793,17 +763,22 @@ def getdonations(request):
 def __jsonify(data):
     """
     <Purpose>
-
+        Turns data into json representation (marshalls data), and
+        generates and returns an HttpResponse object that will communicate
+        the json representation of data to the client.
+       
     <Arguments>
+        data: data to marshall to the client as json. Typically this is a
+        simple datatype, such as a dictionary, or an array, of strings/ints.
 
     <Exceptions>
-
+        None?
+    
     <Side Effects>
+        None
 
     <Returns>
-        An HTTP response object
-
-    <Note>
+        An HTTP response object the has mimetype set to application/json
     """
     json = simplejson.dumps(data)
     return HttpResponse(json, mimetype='application/json')
@@ -812,7 +787,7 @@ def __jsonify(data):
 def __validate_ajax(request):
     """
     <Purpose>
-
+    
     <Arguments>
 
     <Exceptions>
@@ -855,9 +830,9 @@ def ajax_getshares(request):
     <Note>
     """
     print "ajax_getshares called"
-    ret, success = __validate_guser__(request)
+    ret, success = __validate_ajax(request)
     if not success:
-        return __jsonify({"success" : False, "error" : "could not validate your identity"})
+        return ret
     geni_user = ret
 
     # retrieve all shares for the geni_user
@@ -903,9 +878,11 @@ def ajax_getshares(request):
 def ajax_editshare(request):
     """
     <Purpose>
-
+    
     <Arguments>
-
+        request:
+            An HTTP request object, representing the ajax POST request.
+            
     <Exceptions>
 
     <Side Effects>
@@ -940,7 +917,9 @@ def ajax_createshare(request):
     <Purpose>
 
     <Arguments>
-
+        request:
+            An HTTP request object, representing the ajax POST request.
+            
     <Exceptions>
 
     <Side Effects>
@@ -976,7 +955,9 @@ def ajax_getcredits(request):
     <Purpose>
 
     <Arguments>
-
+        request:
+            An HTTP request object, representing the ajax POST request.
+            
     <Exceptions>
 
     <Side Effects>
@@ -1037,7 +1018,9 @@ def ajax_getvessels(request):
     <Purpose>
 
     <Arguments>
-
+        request:
+            An HTTP request object, representing the ajax POST request.
+            
     <Exceptions>
 
     <Side Effects>
@@ -1092,7 +1075,7 @@ def construction(request):
 
     <Arguments>
         request:
-            An HTTP request object
+            An HTTP request object, representing the ajax POST request.
 
     <Exceptions>
         None.
@@ -1117,7 +1100,7 @@ def help(request):
 
     <Arguments>
         request:
-            An HTTP request object
+            An HTTP request object, representing the ajax POST request.
 
     <Exceptions>
         None.

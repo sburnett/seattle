@@ -178,6 +178,38 @@ def login(request, simplelogin=False, msg=""):
 
 
 def show_login(request, ltemplate, template_dict, form = None):
+    """
+    <Purpose>
+        Show the GENI login form
+
+    <Arguments>
+        request:
+            An HTTP request object to use to populate the form
+            
+        ltemplate:
+           The login template name to use for the login form. Right now
+           this can be one of 'accounts/simplelogin.html' and
+           'accounts/login.html'. They provide different ways of visualizing
+           the login page.
+
+        template_dict:
+           The dictionary of arguments to pass to the template
+
+        form:
+           Either None or the AuthenticationForm to use as a 'form' argument
+           to ltemplate. If form is None, a fresh AuthenticationForm() will be
+           created and used.
+
+    <Exceptions>
+        None.
+
+    <Side Effects>
+        None. 
+
+    <Returns>
+        An HTTP response object that represents the login page on
+        succes.
+    """
     if form == None:
         # initial page load
         form = AuthenticationForm()
@@ -229,7 +261,7 @@ def simplelogin(request):
 
     <Returns>
         An HTTP response object that represents the simple login page on
-        succes. A redirect to a login page on error.
+        succes.
     """
     return login(request, simplelogin=True)
     

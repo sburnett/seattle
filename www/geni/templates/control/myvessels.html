@@ -49,14 +49,13 @@ My Vessels - GENI
 			</div>
 			<table class="vessels">
 				<tr class="odd">
-						<th>
 					  {% ifnotequal num_vessels 0 %}
+					  <th>
 					  <form method="POST" action="{% url del_all_resources %}">
 						<input type="submit" value="remove all"> </input>
 					  </form>
+					  </th>
 					  {% endifnotequal %}
-					  
-					</td>
 					<th>Vessel ID</td>
 					<th>Vessel Status</td>
 					<th>Expires in</td>

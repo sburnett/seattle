@@ -37,6 +37,7 @@ from django.contrib.auth.models import User as DjangoUser
 from geni.control.db_operations import pop_key
 from geni.control import vessel_flow
 
+##############################################################################
 
 class User(models.Model):
     """
@@ -67,7 +68,7 @@ class User(models.Model):
     donor_privkey = models.CharField("Donor private Key", max_length=4096)
     # number of vessels this user has acquired
     num_acquired_vessels = models.IntegerField("Number of acquired vessels")
-    # base vessels this user is credited with
+    # base vessels this user is credited with without accounting for any donations 
     vcount_base = models.IntegerField("Base vessel credits")
     # vessels credited to this user through shares from other users
     vcount_via_shares = models.IntegerField("Vessel credits through shares from others")
@@ -76,11 +77,37 @@ class User(models.Model):
 
     @classmethod
     def get_guser_by_username(cls, www_username):
+        """
+        <Purpose>
+            Helper function. Looks up and returns request.user in
+            the geni database. This is used to verify that the user is a
+            real user in the database and to retrieve a user's (geniuser)
+            record.
+
+        <Arguments>
+            www_username:
+                 www username to look up as a DjangoUser 
+
+        <Exceptions>
+            Returns exceptions when the DBMS connection is
+            unavailable. Returns an exception when request has no user
+            object
+
+        <Side Effects>
+            None.
+
+        <Returns>
+            (ret, bool) where bool indicates success of the lookup. If bool
+            is True then ret is a User object. If bool is False then ret
+            contains None
+        """
         djusers = DjangoUser.objects.filter(username = www_username)
         if djusers.count() != 1:
+            print "ERROR : more than one possbile www_user"
             return False, None
         users = User.objects.filter(www_user = djusers[0])
         if djusers.count() != 1:
+            print "ERROR : more than 1 possible geni user"
             return False, None
         return True, users[0]
     
@@ -194,10 +221,12 @@ class User(models.Model):
           The number of vessels this user is allowed to acquire
         """
         num_donations = Donation.objects.filter(user=self).filter(active=1).count()
+
         # TODO: TEMP (this code should really be in the node state transitions)
+        # or not??
+        
         self.num_acquired_vessels = VesselMap.objects.filter(user = self).count()
         self.vcount_via_donations = 10 * (num_donations)
-        self.vcount_base = 10
         self.save()
 
         percent_credits, total_vessels = self.get_user_credits()
@@ -239,6 +268,7 @@ class User(models.Model):
         shares = Share.build_shares(False)
         pshares = Share.build_shares(True)
         base_vessels = Share.get_base_vessels()
+
         print "in get_user_credits with base_vessels: ", base_vessels
         credits_from, vessels_from_shares = vessel_flow.flow_credits_from_roots(shares, pshares, base_vessels)
         print "flow_credits_from_roots returned credits_from: ", credits_from
@@ -266,8 +296,9 @@ class User(models.Model):
             percent_credits[0][1] += (100 - total_percent)
         
         return percent_credits, total_vessels
+
     
-        
+##############################################################################        
     
 class Donation(models.Model):
     """
@@ -325,7 +356,10 @@ class Donation(models.Model):
           String representation of the Donation class
         """
         return "%s:%s:%d"%(self.user.www_user.username, self.ip, self.port)
-        
+
+
+##############################################################################
+    
 class Vessel(models.Model):
     """
     <Purpose>
@@ -361,6 +395,8 @@ class Vessel(models.Model):
         """
         return "%s:%s"%(self.donation.ip,self.name)
 
+##############################################################################
+    
 class VesselPort(models.Model):
     """
     <Purpose>
@@ -390,6 +426,9 @@ class VesselPort(models.Model):
         """
         return "%s:%s:%s"%(self.vessel.donation.ip, self.vessel.name, self.port)
 
+
+##############################################################################
+    
 class VesselMap(models.Model):
     """
     <Purpose>
@@ -445,6 +484,9 @@ class VesselMap(models.Model):
             minutes = (delta.seconds - (hours * 60 * 60)) / 60
             ret = str(hours) + "h " + str(minutes) + "m"
         return ret
+
+
+##############################################################################
     
 class Share(models.Model):
     """

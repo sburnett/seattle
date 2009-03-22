@@ -39,7 +39,7 @@ class UserAdmin(admin.ModelAdmin):
 class DonationAdmin(admin.ModelAdmin):
     """
     <Purpose>
-      Customized admin view of the User model
+      Customized admin view of the Donation model
     <Side Effects>
       None
     <Example Use>
