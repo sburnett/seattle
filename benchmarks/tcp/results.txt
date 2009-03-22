@@ -8,9 +8,12 @@ Sent 100 packets, which had a size of 10000 bytes.
 Total runtime: 102.720000001 seconds.
 At a Rate of: 9735.20249215 B/S.
 
-**********Repy- stalls***************8
+********Repy- stalls***************8
 
-
+******* Statistics for Python TCP *******
+* Sent 100 packets, which had a size of 1000 bytes.
+* Total runtime: 0.0 seconds.
+*****************************************
 
 ##################################
 100 packets
@@ -27,4 +30,9 @@ Sent 100 packets, which had a size of 1000 bytes.
 Total runtime: 9.01999999955 seconds.
 At a Rate of: 11086.4745017 B/S.
 ***************************************
+
+******* Statistics for Python TCP *******
+* Sent 100 packets, which had a size of 1000 bytes.
+* Total runtime: 0.0 seconds.
+*****************************************
 

@@ -32,18 +32,6 @@ def serverListen(s):
 
   s.close()
 
-import socket
-import sys
-import time
-
-
-def serverListen(s):
-  s.listen(1)
-  conn, addr = s.accept()
-  while 1:
-    data = conn.recv(1024)
-  conn.close()
-
 def clientSend(s, totalBytes, chunkSize):
   totalChunks = totalBytes/chunkSize
   chunk = chunkSize * "a"
@@ -61,7 +49,6 @@ def clientSend(s, totalBytes, chunkSize):
   s.close()
 
   print "\n\n******* Statistics for Python TCP *******"
-  print "* Connected to " + str(addr)
   print "* Sent " + str(totalChunks) + " packets, which had a size of " + str(chunkSize) + " bytes." 
   print "* Total runtime: " + str(runTime) + " seconds."
   if runTime:
@@ -72,8 +59,7 @@ def clientSend(s, totalBytes, chunkSize):
 def main():
   # where are we?
   myport = int(sys.argv[2])
-#  myip, ba, bas = socket.gethostbyname_ex(socket.getfqdn())
-  myip = '128.208.3.86'
+  myip = socket.gethostbyname(socket.getfqdn())
   s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
   s.bind((myip, myport))
 

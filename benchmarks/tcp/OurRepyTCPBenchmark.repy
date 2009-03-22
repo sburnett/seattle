@@ -72,7 +72,6 @@ if callfunc == 'initialize':
 
 
     print "\n\n******* Statistics for TCUP *******"
-    print "Connected to " + str(destip)
     print "Sent " + str(totalChunks) + " packets, which had a size of " + str(chunkSize) + " bytes." 
     print "Total runtime: " + str((endTime - startTime)) + " seconds."
     print "At a Rate of: " + str(totalBytes *1.0/(endTime - startTime * 1.0)) + " B/S.\n\n"
