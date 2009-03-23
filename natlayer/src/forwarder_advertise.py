@@ -34,6 +34,7 @@ def forwarder_lookup(maxvals = 100):
 	
   # store the value
   mycontext['currforwarder'] = flist[index]
+  return (mycontext['currforwarder'], 12345)
 
 # below is code for starting the forwarder advertise thread in repy
 

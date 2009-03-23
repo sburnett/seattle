@@ -14,7 +14,8 @@ def server_lookup(key, maxvals = 100):
 
   # given a key, e.g. mac address, finds the currforwarder of target user
   mycontext['targetforwarder'] =  centralizedadvertise_lookup(key)
-	
+
+  return (mycontext['currforwarder'], 12345)
 
 
 #below is the code for starting the server advertise thread in repy

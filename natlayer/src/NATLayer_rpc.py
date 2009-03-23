@@ -70,9 +70,10 @@ def nat_openconn(destmac, destport, localport=None, timeout = 5, forwarderIP=Non
   """ 
   # TODO: Dennis you need to tie in here to get a real forwarder IP and port
   if forwarderIP == None or forwarderPort == None:
-    server_lookup(localmac)
-    forwarderIP = mycontext['currforwarder'][0]
-    forwarderPort = 12345
+   # server_lookup(localmac)
+   # forwarderIP = mycontext['currforwarder'][0]
+   # forwarderPort = 12345
+   forwarderIP, forwarderPort = server_lookup(localmac)
 
   # Create a real connection to the forwarder
   socket = openconn(forwarderIP, forwarderPort)
@@ -176,10 +177,11 @@ def nat_waitforconn(localmac, localport, function, forwarderIP=None, forwarderPo
     
     # Get a forwarder to use
     if forwarderIP == None or forwarderPort == None:
-      forwarder_lookup() 
+ #     forwarder_lookup() 
+      forwarderIP, forwarderPort = forwarder_lookup()
       settimer(0, server_advertise, [localmac],)
-      forwarderIP = mycontext['currforwarder']
-      forwarderPort = 12345
+ #     forwarderIP = mycontext['currforwarder']
+ #     forwarderPort = 12345
       
     # Create a real connection to the forwarder
     socket = openconn(forwarderIP, forwarderPort)
@@ -290,9 +292,10 @@ def behind_nat(forwarderIP=None,forwarderPort=None):
   
   # TODO: Dennis you need to tie in here to get a real forwarder IP and port
   if forwarderIP == None or forwarderPort == None:
-    server_lookup(localmac)
-    forwarderIP = mycontext['currforwarder'][0]
-    forwarderPort = 12345
+    forwarderIP, forwarderPort = server_lookup(localmac)
+#    server_lookup(localmac)
+#    forwarderIP = mycontext['currforwarder'][0]
+ #   forwarderPort = 12345
 
   # Create a real connection to the forwarder
   rpcsocket = openconn(forwarderIP, forwarderPort)
