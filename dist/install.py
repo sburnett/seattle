@@ -32,7 +32,6 @@ sys.path.append(os.getcwd())
 import nonportable
 import createnodekeys
 import repy_constants
-import windows_api
 
 
 SILENT_MODE = False
@@ -44,12 +43,13 @@ subprocess = None
 if OS != "WindowsCE":
   import subprocess
 
+windows_api = None
+if OS == "Windows" or OS == "WindowsCE":
+  import windows_api
+
+
 class UnsupportedOSError(Exception):
   pass
-
-class UnsupportedPythonError(Exception):
-  def __init__(self, version):
-    self.version = version
 
 class AlreadyInstalledError(Exception):
   pass
@@ -529,11 +529,6 @@ def install(prog_path):
     None.
   """
   global OS
-  # Make sure we're running a supported version of Python
-  version = sys.version.split(" ")[0].split(".")
-  if version[0] != '2' or version[1] != '5':
-    # If it's not Python 2.5
-    raise UnsupportedPythonError(version[0] + "." + version[1])
 
   prog_path = os.path.realpath(prog_path)
   
