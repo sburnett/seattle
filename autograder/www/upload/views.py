@@ -126,7 +126,10 @@ def showstat(request):
     status="No Status Available"
     if os.path.exists(settings.ASSIGNMENT_UPLOAD_PATH+"Status/"+file+".txt"):
       status=open(settings.ASSIGNMENT_UPLOAD_PATH+"Status/"+file+".txt").read()
-    return HttpResponse(status)
+    return direct_to_template(request, 'upload/default.html',
+                {'info' : status, 'form' : forms.UploadAssignmentForm()})
+
+#    return HttpResponse(status)
 
 
 
@@ -178,7 +181,8 @@ def see_uploads(request):
       if os.path.isdir(file)==False:
         file = file.split(settings.ASSIGNMENT_UPLOAD_PATH)[1]
         
-        classcode, email = file.split('_.')[0].split("_")#SAL (can't see ext while browsing)
+        classcode, email = file.split('_.')[0].split("_")
+
         status="No Status Available"
         if os.path.exists(settings.ASSIGNMENT_UPLOAD_PATH+"Status/"+file+".txt"):
            status=open(settings.ASSIGNMENT_UPLOAD_PATH+"Status/"+file+".txt").next()
@@ -188,3 +192,8 @@ def see_uploads(request):
 
 def preview(request, classcode, email):
     return direct_to_template(request, 'upload/uploads.html', {'upload_entries' : upload_entries})
+
+def test(request):
+    upload_entries = []
+    upload_entries.append(("TEST"))
+    return direct_to_template(request,'upload/profile.html', {'upload_entries' : upload_entries})
