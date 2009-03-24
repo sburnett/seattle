@@ -21,6 +21,10 @@ import os
 import sys
 import tempfile
 import glob
+import threading
+import datetime
+import time
+import signal
 
 from time import strftime
 #from subprocess import *
@@ -32,14 +36,51 @@ import subprocess
 #       subprocess.function()
 
 #further assumption is that scripts run in this order
-sliceLogin="root"
-expectedOutput='ProcessCheckerFinished\nfile_checker_finished'
+sliceLogin="uw_seattle"#"uw_seattle" #"root"
+#expectedOutput='ProcessCheckerFinished\nfile_checker_finished'
+expectedOutput='REACHED!\nfile_checker_finished\nProcessCheckerFinished\n'
 
-commandLine='tar -xf stuff.tar; ./processCheckerFail.sh; ./fileChecker.sh;'
+#commandLine='tar -xf stuff.tar; ./processCheckerFail.sh; ./fileChecker.sh;'
+commandLine='tar -xf testpack.tar; cd testpack; python verifyfiles.py -readfile verifyfiledict ~; python testprocess.py; exit;'
+
 
 
 #message for output and log
 message=""
+
+def uploadTests(server):
+  p1=subprocess.Popen('scp -o StrictHostKeyChecking=no -o BatchMode=yes testpack.tar '+sliceLogin+"@"+server+':',shell=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+  start = datetime.datetime.now()
+  timeout=500
+  while p1.poll() is None:
+      time.sleep(0.2)
+      now=datetime.datetime.now()
+      if (now-start).seconds > timeout:
+          os.kill(p1.pid, signal.SIGKILL)
+          os.waitpid(-1, os.WNOHANG)
+          return None
+
+  return p1
+
+def runTests(server):
+    #execute scripts on the remote server
+#    commandLine='cd seattle_repy; ./start_seattle.sh; exit;'
+    p=subprocess.Popen('echo "REACHED!"; ssh -o StrictHostKeyChecking=no -o BatchMode=yes '+sliceLogin+"@"+server,shell=True,stdout=subprocess.PIPE,stdin=subprocess.PIPE,stderr=subprocess.PIPE) 
+
+    stdpair=p.communicate(commandLine)    #commandLine)#[0]
+    start = datetime.datetime.now()
+    timeout=500
+    while p.poll() is None:
+        time.sleep(0.2)
+        now=datetime.datetime.now()
+        if (now - start).seconds> timeout:
+            os.kill(p.pid, signal.SIGKILL)
+            os.waitpid(-1, os.WNOHANG)
+            return None
+
+#    os.waitpid(p.pid,0)
+
+    return stdpair
 
 def copy_run(server):
   """
@@ -64,8 +105,6 @@ def copy_run(server):
     None.
   """
 
-
-
   tempfilename = tempfile.mktemp()
   tempfilename = tempfilename.split('/')[-1]
   print tempfilename
@@ -77,38 +116,52 @@ def copy_run(server):
   logtmp.write(m)
   
   server=server.strip()
-  if os.system("scp -o StrictHostKeyChecking=no -o BatchMode=yes stuff.tar "+sliceLogin+"@"+server+":")!=0:
-    m="scp failed for processChecker for "+server
-    print m
+
+  p1=None
+  p1=uploadTests(server)
+
+  #errors in stderr
+  if p1 is not None and len(p1.stderr.read())>0:
+    m="scp failed\n"
     logtmp.write(m)
-    exit(0)
+  elif p1 is None:
+    logtmp.write("Timeout on Scp")
+    print "Scp Timeout"
+  elif p1 is not None:
 
-  #open up a pipe for ssh communication
-  p=subprocess.Popen('ssh '+server,shell=True,stdout=subprocess.PIPE,stdin=subprocess.PIPE) 
+    stdpair=None
+    stdpair=runTests(server)
 
-  #execute scripts on the remote server
-  (stdoutStr, stderrStr)=p.communicate(commandLine)    #commandLine)#[0]
-  print stdoutStr 
-  #indicate if script did not terminate properly
-
-  print stdoutStr
-  logtmp.write(stdoutStr)
+    if stdpair is None:
+       logtmp.write("Timeout on SSH")
+       print "Timeout on SSH"
+      
+    elif stdpair is not None:
+      (stdoutStr, stderrStr)=stdpair
+ 
+      print "["+stdoutStr+"]"
+      logtmp.write(stdoutStr)
   
-  if stdoutStr!=expectedOutput:
-    m="PROBLEM OCCURRED!"
-    print m
-    logtmp.write(m)
+      if stdoutStr!=expectedOutput:
+        m="PROBLEM OCCURRED!\n"+"PO! "+server+"\n"
 
-  if stderrStr:
-    m="ERRORS in STDERR!\n"+stderrStr
-    print m
-    logtmp.write(m)
+        logtmp.write(m)
+      else:
+        logtmp.write("GOOD!\n")
 
+      if stderrStr:
+        m="ERRORS in STDERR!\n"+stderrStr
+        print m
+        logtmp.write(m)
 
 
 #execute provided function with items in the list as arguments (used by run_parallel)
-def exec_list(func, list):
+def exec_list(which, func, list):
+#  print "LIST CALLED: %d" % len(list)
+  count=0
   for item in list:
+    print "EXECUTING thread %d, item:%d of %d" % (which,count,len(list))
+    count+=1
     func(item)
 
 #runs provided function on the list of ip addresses in parallel (originally written by Justin Cappos)
@@ -127,7 +180,7 @@ def run_parallel(func, fulllist, forkthreads = 10):
   for num in range(forkthreads):
     if os.fork()==0:
       if num<len(list):
-        exec_list(func,list[num])
+        exec_list(num,func,list[num])
         os._exit(0)
   
   for num in range(forkthreads):
@@ -158,7 +211,7 @@ if __name__ == "__main__":
   for server in file(sys.argv[1]):                                                                                                         
     serverlist.append(server.strip()) 
   
-  run_parallel(copy_run, serverlist, 20) 
+  run_parallel(copy_run, serverlist, 10) 
 
   #combine all of the files together
   files = glob.glob('logs/tmp*')
