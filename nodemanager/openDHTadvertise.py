@@ -105,7 +105,8 @@ def lookup(key, maxvals=100):
 
 
     listofitems = []
-    while True:
+    # If the proxy fails, then we will go to the next one...
+    while currentproxy:
       try:
         # In the current version of xmlrpclib, an obsolescence warning will be 
         # printed here.   This is problem with the standard lib, not this code...
