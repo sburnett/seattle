@@ -38,6 +38,7 @@ from django.conf.urls.defaults import *
 from django.conf import settings
 
 urlpatterns = patterns('',
+                       (r'^%stest/'%(settings.URL_PREFIX), 'autograder.upload.views.test', {}, 'test'),
                        # assignment upload view
                        (r'^%supload/'%(settings.URL_PREFIX), 'autograder.upload.views.upload', {}, 'upload'),
                        #assignment grading view
@@ -48,4 +49,5 @@ urlpatterns = patterns('',
                        (r'^%suploads/'%(settings.URL_PREFIX), 'autograder.upload.views.see_uploads', {}, 'see_uploads'),
                        (r'^%spreview/(?P<classcode>\w+)/(?P<email>\w+)'%(settings.URL_PREFIX), 'autograder.upload.views.preview', {}, 'preview'),
                        (r'^%smedia/(?P<path>.*)$'%(settings.URL_PREFIX), 'django.views.static.serve', {'document_root': settings.MEDIA_ROOT}),
+
 )
