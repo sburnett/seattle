@@ -1,10 +1,11 @@
-{% include "common/header.html" %}
+{% extends "common/control_base.html" %}
+
+{% block nav_profile %}
+<td class="active">Uploads</td>
+{% endblock nav_profile %}
+
 {% block content %}
-<body>
-{% include "common/banner.html" %}
-
-<h2>Current uploads</h2>
-
+<div id="main">
 <table>
 
   <tr><td>Class code</td><td>Email</td><td>Submission</td><td>Action</td><td>Status</td></tr>
@@ -16,8 +17,7 @@
   {% endfor %}
   
 </table>
+</div>
+{% endblock content %}
 
 
-</body>
-{% endblock %}
-{% include "common/footer.html" %}

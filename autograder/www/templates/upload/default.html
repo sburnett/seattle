@@ -1,17 +1,17 @@
-{% include "common/header.html" %}
+{% extends "common/control_base.html" %}
+
+{% block nav_profile %}
+<td><a href="{% url see_uploads %}">Uploads</a></td>
+<td class="active">Status</td>
+{% endblock nav_profile %}
+
 {% block content %}
-<body>
-{% include "common/banner.html" %}
-
-
-
+<div id="main">
     {% ifnotequal info "" %}
-    <p><font color="blue">
+    
 	{{ info }}
-    </font></p><br>
+    
     {% endifnotequal %}
-
-
-</body>
+</div>
 {% endblock %}
-{% include "common/footer.html" %}
+
