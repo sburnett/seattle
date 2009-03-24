@@ -16,8 +16,12 @@ import random
 import urllib
 
 import sha
+
 # I'm doing this for portability / clarity for whomever needs to replace
 # this later.   timeout_xmlrpclib is merely xmlrpclib with timeouts on sockets
+
+# BUG: This is known to have dangerous side effects on some OSes (like
+# Windows).   All sockets will timeout now!
 import timeout_xmlrpclib as xmlrpclib
 
 
