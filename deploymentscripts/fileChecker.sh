@@ -1,1 +1,0 @@
-echo "file_checker_finished"
