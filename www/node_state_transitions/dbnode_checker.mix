@@ -20,11 +20,14 @@
   $ python dbnode_checker.py
 """
 
+
 from repyportability import *
 include nmclient.repy
 
+include parallelize.repy
+
 from django.db import transaction
-#import pollinglib
+
 
 #import changeusers
 # db api
@@ -35,6 +38,62 @@ import logging
 import traceback
 
 
+def handle_donation(donation):
+    host = donation.ip
+    port = int(donation.port)
+
+    thisnmhandle = None
+    try:
+        thisnmhandle = nmclient_createhandle(host, port)
+        retdict = nmclient_getvesseldict(thisnmhandle)
+        nodeID = rsa_publickey_to_string(retdict['nodekey'])
+    except:
+        # close the handle on any error...
+        print time.ctime(), "Exception in processing donation", donation
+        traceback.print_exc(file=sys.stdout)
+        if thisnmhandle != None:
+            nmclient_destroyhandle(thisnmhandle)
+        genidb.handle_inactive_donation(donation)
+    else:
+        print time.ctime(), "Detected active donation", donation
+        donation.epoch = genidb.DEFAULT_EPOCH_COUNT
+        donation.active = 1
+        donation.save()
+    return
+
+def do_parallel(donations):
+    num_threads = 50
+    while True:
+        if donations == []:
+            break
+        
+        if len(donations) < num_threads:
+            parallel_donations = donations
+                
+        else:
+            parallel_donations = donations[:num_threads]
+            donations = donations[num_threads:]
+
+        try:
+            phandle = parallelize_initfunction(parallel_donations, handle_donation, num_threads)
+        except ParallelizeException:
+            print time.ctime(), "parallelize_initfunction raised ParallelizeException"
+            break
+        
+        while not parallelize_isfunctionfinished(phandle):
+            sleep(0.1)
+                
+        resultdict = parallelize_getresults(phandle)
+        #for donation, (success, msg) in resultdict['returned']:
+        for donation, exception_str in resultdict['exception']:
+            print time.ctime(), "handle_donation(%s) raised Exception: %s"%(donation, exception_str)
+    return
+
+
+def do_non_parallel(donations):
+    for donation in donations:
+        handle_donation(donation)
+    return
 
 def main():
     """
@@ -55,28 +114,17 @@ def main():
         Never returns (daemon).
     """
     # loop forever
+    parallelize = False
+    
     while True:
     	# grab all currently donation node records from the db
         donations = genidb.get_nodes()
-        for donation in donations:
-            host = donation.ip
-            port = int(donation.port)
 
-            try:
-                thisnmhandle = nmclient_createhandle(host, port)
-                retdict = nmclient_getvesseldict(thisnmhandle)
-                nodeID = rsa_publickey_to_string(retdict['nodekey'])
-            except:
-                # close the handle on any error...
-                print time.ctime(), "Exception in processing donation", donation
-                traceback.print_exc(file=sys.stdout)
-                nmclient_destroyhandle(thisnmhandle)
-		genidb.handle_inactive_donation(donation)
-            else:
-	       	print time.ctime(), "Detected active donation", donation
-                donation.epoch = genidb.DEFAULT_EPOCH_COUNT
-		donation.active = 1
-                donation.save()
+        # handle the donation records either in parallel or not
+        if parallelize:
+            do_parallel(donations)
+        else:
+            do_non_parallel(donations)
   
         # this is an essential hack to make get_expired_vesselmaps() not use internal models caching:
 	# http://www.mail-archive.com/django-users@googlegroups.com/msg14826.html

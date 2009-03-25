@@ -60,7 +60,7 @@ from django.db import transaction
 # django exceptions we might see
 import django.core.exceptions as exceptions
 
-DEFAULT_EPOCH_COUNT = 5
+DEFAULT_EPOCH_COUNT = 2
 
 def __get_guser__(donor_pubkey_string):
     """
