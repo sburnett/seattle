@@ -39,10 +39,13 @@ import datetime
 VERSION = 'beta'
 
 SEATTLE = 'Seattle'  # the name of our project in emulab
-ASSIGNMENT_NAME = 'webserverlive' #emulab exp name
+ASSIGNMENT_NAME = 'agv1' #emulab exp name
 
-log = logging.circular_logger('autograder_log')
+loggerfo = logging.circular_logger('autograder_log')
 make_log = True   #logs if true, prints if false
+timestamp = datetime.datetime   # used to time stamp log output
+
+grader_state = {}  #hold state about the autograder
 
 
 ## FUNCTIONS TO RUN AND GRADE REPY CODE 
@@ -50,136 +53,209 @@ make_log = True   #logs if true, prints if false
 
 # use a thread to run student code, blocks
 # until the code is done executing
-def run_student_code(vessels,student_file_name,student_file_data):   
+def run_student_code(student_file_name,student_file_data,node_dict):   
+  print 'running student code'
   try:
-    webserver_running,error = nm_remote_api.run_on_targets(vessels,
+    vessels = [node_dict['vessel']]
+    results_dict = nm_remote_api.run_on_targets(vessels,
                             student_file_name,student_file_data,
-                            student_file_name+' 63173')
+                            student_file_name+' '+node_dict['args'])
   except Exception,e:
     clean_up()
-    my_print(str(e))
+    print(str(e))
     raise
   else:
-    if not webserver_running:
+   #check that all the vessel started
+   all_running = True
+   for v in vessels:
+     (success,info) = results_dict[v]
+     if not success: all_running = False
+   if not all_running:
       clean_up()
-      my_print("Exception student code failed to start")
-      raise Exception, "student code failed to start: "+error
+      print("Exception student code failed to start")
+      raise Exception, "student code failed to start: "+info
  
 
 
 # coordinate running code on emulab and processing the output
-def grade_it(name_ip_tuples):
+def run_grader():
+   
+  # get the list assignemnt test-meta data
+  (ns_file_list, ns_file_testsuite_map,test_node_map) = data_interface.get_test_meta_data(ASSIGNMENT_NAME)
 
-  while data_interface.files_need_grading():
-
-    file_to_grade = data_interface.next_file_to_grade()
-
-    my_print("grading "+file_to_grade)
-
-    data_interface.mark_in_progress(file_to_grade)    
-
-    # execute the assignment and tests in emulab
-    run_webserver_tests(file_to_grade,name_ip_tuples)
+  # get the list of student submissions that are ready to grade
+  # if the submission isnt in to_grade by this point it will have to wait
+  # for the next grade run
+  student_submission_list = data_interface.files_to_grade()
 
 
+  # for this hardcoded case there is only one ns file
+  for ns_file in ns_file_list:
+    grader_state['current_ns'] = ns_file  #the name of the ns_file is passed around because it is part of the emulab exp name
 
-# execute repy code on emulab nodes
-def run_webserver_tests(filename,name_ip_tuples): 
+    # starting emulab
+    print "Starting Emulab with toplogy from: "+ns_file
 
-  # get a tuple for each test [(filename,file_content_str)...]
-  test_tuples = data_interface.get_tests()
+    name_ip_tuples = start_emulab(ns_file)
+    
+    #hard coded values for troubleshooting with a running instance of emulab
+    #name_ip_tuples =  [('node-2.'+ASSIGNMENT_NAME+'wlan.Seattle.emulab.net','10.1.1.2'),('node-1.'+ASSIGNMENT_NAME+'wlan.Seattle.emulab.net','10.1.1.1')]
 
-  #get list of hosts
+
+    
+    # initialize the vessels on all emulab nodes
+    vessels = init_vessels(name_ip_tuples)   
+ 
+    for student_file in student_submission_list:   
+      print '\nRunning tests on '+ns_file+' for '+student_file
+    
+      # get the list of tests for this topology
+      testsuite = ns_file_testsuite_map[ns_file]
+      for test_case in testsuite:
+        test_mapping = test_node_map[test_case]
+
+        # execute the test_case in emulab (a test case is one test file and one student file for the hardcoded example)
+        run_test_on_emulab(student_file,test_mapping,vessels)
+     
+    #TODO END EMULAB
+    print "Terminating emulab with topology from: "+ns_file
+    clean_up()
+
+  #Finished grading, mark all student solutions as graded
+  for student_file in student_submission_list:   
+    data_interface.concat_status_files(student_file)
+    data_interface.mark_as_graded(student_file)
+
+
+
+# initialize all the vessels in a network topology on emulab
+def init_vessels(name_ip_tuples):
+  
+  
+  attempts = 0  
+
+  # creat a list of available hosts
   host_list =[]
   for (host,ip) in name_ip_tuples:
     host_list.append(host)
- 
-  # initialize seattle nodes on each host
-  try:
-    is_init, vessels = nm_remote_api.initialize(host_list, "autograder")
-  except Exception,e:
-    clean_up()
-    my_print(str(e))
-    raise
-  else:
-    if not is_init:
-      clean_up()
-      my_print("Exception, faile dto initialize seattle nodes "+str(vessels))
-      raise Exception, 'failed to intialize seattle nodes '+str(vessels)
 
-  
-  # get the contents of the students repy file
-  student_file_name,student_file_data = data_interface.get_tared_repy_file_data(filename)  
+  print "INTIALIZING HOSTS: "+str(host_list)
 
-   
-  webserver_host_name, webserver_ip = name_ip_tuples[0]
-  
-  # execute each test in the TEST_DIR
-  for (test_name,test_data) in test_tuples:
-    
-    #reset all vessels before running the test
-    nm_remote_api.reset_targets(vessels)
-    time.sleep(3)   #give the vessels a little time
 
-    # run the students webserver
-    thread.start_new_thread(run_student_code,([vessels[0]],student_file_name,
-                             student_file_data))
-    time.sleep(3) #give the student code time to start
-
-    testargs =test_name+" "+webserver_ip+" 63173"
-    my_print("RUNNING TEST "+test_name+" against "+student_file_name)
-
-    # run the test    
+  while True:
+    # initialize seattle nodes on each host
     try:
-      test_running,error = nm_remote_api.run_target(vessels[1],test_name,test_data,testargs)
+      is_init, vessels = nm_remote_api.initialize(host_list, "autograder")
     except Exception,e:
       clean_up()
-      my_print(str(e))
+      print(str(e))
       raise
     else:
-      if not test_running:
-        clean_up()
-        my_print("Exception test code: "+test_name+" failed to start: "+error)
-        raise Exception, "test code "+test_name+"failed to start\n"+error
+      if not is_init:
+        if attempts > 2: 
+          clean_up()
+          print("Exception, failed to initialize seattle nodes "+str(vessels))
+          raise Exception, 'failed to intialize seattle nodes '+str(vessels)
+        else:
+          attempts +=1
+          print 'failed to initialize nodes '+str(vessels)
+          print 'sleeping for 30 seconds and trying again'
+          nm_remote_api.tear_down()
+          time.sleep(30)
+      else: return vessels 
 
-    
-    # get vessel logs
-    try:
-      got_it,test_log = nm_remote_api.showlog_vessel(vessels[1])
-    except Exception,e:
+
+# execute repy code on emulab nodes
+def run_test_on_emulab(filename,test_mapping,vessels): 
+
+  # add the vessel_long_name to the test mapping
+  for node_dict in test_mapping:
+    found = False    
+    #find the vessel that corresponds to this node
+    for vessel in vessels:
+      if node_dict['node'] in vessel:
+        node_dict['vessel'] = vessel
+        found = True
+        break
+    if not found:
       clean_up()
-      my_print(str(e))
-      raise
+      raise Exception, 'Node specified in test case not found in topology' 
+
+  for node_dict in test_mapping:
+    print '\n'
+    #get the name and contents of the file to run
+    if node_dict['is_student']:
+      (file_name,file_data) = data_interface.get_tared_repy_file_data(filename,node_dict['code'])
     else:
-      if not got_it:
+      file_name = node_dict['code']
+      file_data = data_interface.get_test_content(node_dict['code'])
+      
+    # run the code in the background?
+    if not node_dict['block']:
+      thread.start_new_thread(run_student_code,(file_name,file_data,node_dict))
+      time.sleep(5)  #give the code time to start
+    # run the test so that it blocks
+    else:
+      testargs =file_name+" "+node_dict['args']
+      print("RUNNING TEST "+file_name)
+
+      try:
+        results_dict = nm_remote_api.run_on_targets([node_dict['vessel']],file_name,file_data,testargs)
+        (test_running,error) = results_dict[node_dict['vessel']]
+      except Exception,e:
         clean_up()
-        my_print("Exception could not get logs from vessel, error: "+test_log)
-        raise Exception, "could not get logs from vessel, error: "+test_log
+        print(str(e))
+        #TODO,remove this print
+        print "RESULTS DICT "+str(results_dict)
+        raise
+      else:
+        if not test_running:
+          if 'timely manner' not in error:
+            clean_up()
+            raise Exception, "test code "+file_name+"failed to start\n"+error
+
+
+    # get vessel logs?
+    if node_dict['get_logs']:
+      try:
+        got_it,test_log = nm_remote_api.showlog_vessel(node_dict['vessel'])
+      except Exception,e:
+        clean_up()
+        print(str(e))
+        raise
+      else:
+        if not got_it:
+          clean_up()
+          print("Exception could not get logs from vessel, error: "+test_log)
+          raise Exception, "could not get logs from vessel, error: "+test_log
       
 
-    results = score(test_log,test_name)
-    data_interface.save_grade(results,filename)
-
     
-  # mv file to the graded directory
-  data_interface.mark_as_graded(filename)
+      # save the logs
+      results = score(test_log,file_name)
+      #TODO this method does not exisist
+      data_interface.save_output(filename,file_name,results,test_log)
 
- 
 
-  # clean up 
-  my_print("tearing down")
-  nm_remote_api.tear_down()
+
+
+  #reset all vessels before running the next test
+  nm_remote_api.reset_targets(vessels)
+  time.sleep(3)   #give the vessels a little time
+
+  
+
  
 
 
 # call the grade function from the given test
 def score(test_log,test_name):
   try:
-    repyhelper.translate_and_import(TEST_DIR+"/"+test_name)
+    repyhelper.translate_and_import(data_interface.TEST_DIR+"/"+test_name)
     results = grade(test_log)
     return test_name+": "+results
   except Exception:
-    my_print("error occured importing grade from "+test_name)
+    print("error occured importing grade from "+test_name)
     clean_up()
     raise
 
@@ -190,29 +266,33 @@ def score(test_log,test_name):
  
 # start an expirament in emulab
 # blocks for some time waiting for the expirament to go active
-def start_emulab():  
-  ns_file_name,ns_file_str = data_interface.get_ns_str()
+def start_emulab(ns_file_name):  
+  assign_name = ASSIGNMENT_NAME+grader_state['current_ns'][:-3]
 
-  my_print(" parseing ns file")
+  ns_file_str = data_interface.get_ns_str(ns_file_name)
+
+  print(" parseing ns file")
   # check the ns file for errors
   (passed,message) = remote_emulab.checkNS(ns_file_str)
 
   if (not passed):
-    my_print(message+"\nException: Failed attempt to parse "+ns_file_name)
+    print(message+"\nException: Failed attempt to parse "+ns_file_name)
     raise Exception, 'Parse of NS file failed'
   
   # start a new exp in non-batchmode
-  remote_emulab.startexp(SEATTLE,ASSIGNMENT_NAME,ns_file_str)
+  remote_emulab.startexp(SEATTLE,assign_name,ns_file_str)
 
   # wait for the exp to go active
-  my_print("waiting for exp to go active")
-  remote_emulab.wait_for_active(SEATTLE,ASSIGNMENT_NAME,900)
-
+  print("waiting for exp to go active")
+  remote_emulab.wait_for_active(SEATTLE,assign_name,900)
+  
+  time.sleep(120) #additional wait for nodes to be ready
+  
   # get a mapping of host names to internal ips
-  emulab_network_mapping = remote_emulab.get_links(SEATTLE,ASSIGNMENT_NAME)
-  host_ip_tuples = remote_emulab.simplify_links(SEATTLE,ASSIGNMENT_NAME
+  emulab_network_mapping = remote_emulab.get_links(SEATTLE,assign_name)
+  host_ip_tuples = remote_emulab.simplify_links(SEATTLE,assign_name
                                                  ,emulab_network_mapping)
-  my_print('assignment running on emulab')
+  print('assignment running on emulab')
 
   return host_ip_tuples
 
@@ -225,57 +305,43 @@ def start_emulab():
 
 #terminate the expirament in emulab
 def clean_up():
-  #try:
-  #  remote_emulab.endexp(SEATTLE,ASSIGNMENT_NAME)
-  #except Exception,e:
-  #  my_print("Exception occured terminating expirament: "+str(e))
-  #  raise
+  try:
+    remote_emulab.endexp(SEATTLE,ASSIGNMENT_NAME+grader_state['current_ns'][:-3])
+  except Exception,e:
+    print("Exception occured terminating expirament: "+str(e))
+    raise
   return
 
 
 # run a loop waiting for files to grade
 def waitforfiles():
   while True:
-
+    # are there files in to_grade?
     if data_interface.files_need_grading():
 
-      my_print('starting emulab')
-      name_ip_tuples = start_emulab()
-      grade_it(name_ip_tuples)
+      print(str(timestamp.now())+' STARTING NEW GRADE RUN')
       
-      # terminate the expirament
-      clean_up()
+      run_grader()
 
-      
     #sleep for 10 seconds before looping again
     time.sleep(10)    
 
-def fakewaitforfiles():
-  while True:
-    
-    nm_remote_api.tear_down()
-    links = [('node-1.'+ASSIGNMENT_NAME+'.Seattle.emulab.net','10.1.1.1'),('node-2.'+ASSIGNMENT_NAME+'.Seattle.emulab.net','10.1.1.2')]
-    grade_it(links)
 
-
-
-# prints to a log or to the console depending on 
-# the golbal make_log
-def my_print(data):
-  if make_log:
-    log.write(str(datetime.datetime.today())+": "+data+"\n")
-  else:
-    print data
 
 
 if __name__ == "__main__":
 
+  
+  # if the -p option is given pring to the console instead of the log
   if len(sys.argv) > 1:  
-    if "-p" in argv:
+    if "-p" in sys.argv:
       make_log = False
       print "logging turned off, printing output to console"
 
-  # normal means of running, with emulab part
-  #fakewaitforfiles()
+  if make_log:
+    sys.stdout = loggerfo
+    sys.stderr = loggerfo
+    
   waitforfiles()
- 
+
+  sys.stdout = logging.flush_logger(sys.stdout)
