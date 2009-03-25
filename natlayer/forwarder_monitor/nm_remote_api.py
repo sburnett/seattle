@@ -1,5 +1,7 @@
 # RJ - testing with uservessels
-# Modified add_node_by_hostname.
+# Modified add_node_by_hostname to use uservessels.
+
+# Modified run_target to allow infinite program.
 #
 #
 
@@ -2775,7 +2777,7 @@ def run_target(longname, filename, filedata, argstring, timeout=240):
     if not is_vessel_finished(longname):
         summary += "Timeout (" + str(timeout) + \
             " seconds) triggered; stopping execution"
-        stop_target(longname)
+    #    stop_target(longname)
         return (False, summary)
     else:
         summary += "Finished execution in approx. " + str(sleep_time) + \
