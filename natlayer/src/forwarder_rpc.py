@@ -91,6 +91,7 @@ def _timed_dereg_server(id,mux):
 
 
 # De-registers a server
+# If srvmac is None, totally de-register immediately
 def deregister_server(conn_id,srvmac):
   # Get the server info
   serverinfo = CONNECTIONS[conn_id]
@@ -105,7 +106,18 @@ def deregister_server(conn_id,srvmac):
       MAC_ID_LOCK.acquire()  
       del MAC_ID_LOOKUP[srvmac]
       MAC_ID_LOCK.release()
-  
+ 
+  elif srvmac == None:
+    MAC_ID_LOCK.acquire()  
+    # Iterate through every mac, removing it
+    for mac in serverinfo["mac"]:
+      del MAC_ID_LOOKUP[mac]
+    MAC_ID_LOCK.release()
+    
+    # Clear the set
+    serverinfo["mac"].clear()
+    
+    
   # Close the multiplexer if there are no remaining mappings
   if len(serverinfo["mac"]) == 0:
     # Get the multiplexer

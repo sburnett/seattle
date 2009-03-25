@@ -42,7 +42,7 @@ RPC_EXTERNAL_ADDR = "externaladdr"  # This allows the server to query its ip/por
 RPC_REGISTER_SERVER = "reg_serv"    
 
 # This allows a server to de-register from a forwarder
-# This expects a MAC address as a parameter 
+# This expects a MAC address as a parameter, or None to deregister all MAC's 
 RPC_DEREGISTER_SERVER = "dereg_serv"
 
 # The following two functions require an integer port and a server mac address
