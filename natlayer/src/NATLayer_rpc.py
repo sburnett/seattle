@@ -70,9 +70,6 @@ def nat_openconn(destmac, destport, localport=None, timeout = 5, forwarderIP=Non
   """ 
   # TODO: Dennis you need to tie in here to get a real forwarder IP and port
   if forwarderIP == None or forwarderPort == None:
-   # server_lookup(localmac)
-   # forwarderIP = mycontext['currforwarder'][0]
-   # forwarderPort = 12345
    forwarderIP, forwarderPort = server_lookup(localmac)
 
   # Create a real connection to the forwarder
@@ -177,11 +174,8 @@ def nat_waitforconn(localmac, localport, function, forwarderIP=None, forwarderPo
     
     # Get a forwarder to use
     if forwarderIP == None or forwarderPort == None:
- #     forwarder_lookup() 
       forwarderIP, forwarderPort = forwarder_lookup()
       settimer(0, server_advertise, [localmac],)
- #     forwarderIP = mycontext['currforwarder']
- #     forwarderPort = 12345
       
     # Create a real connection to the forwarder
     socket = openconn(forwarderIP, forwarderPort)
@@ -267,6 +261,45 @@ def nat_stopcomm(handle):
         NAT_STATE_DATA["mux"] = None
   
 
+# Pings a forwarder to get our external IP
+def getmy_external_ip(forwarderIP=None,forwarderPort=None):
+  """
+  <Purpose>
+    Allows a vessel to determine its external IP address. E.g. this will differ from getmyip if you are on a NAT.
+  
+  <Arguments>
+    forwarderIP/forwarderPort:
+      If None, a forwarder will be automatically selected. They can also be explicitly specified.
+  
+  <Side Effects>
+    This operation will use a socket while it is running.
+  
+  <Returns>
+    A string IP address
+  """
+  # TODO: Dennis you need to tie in here to get a real forwarder IP and port
+  if forwarderIP == None or forwarderPort == None:
+    forwarderIP, forwarderPort = server_lookup(localmac)
+
+  # Create a real connection to the forwarder
+  rpcsocket = openconn(forwarderIP, forwarderPort)
+  
+  # Now connect to a forwarder, and get our external ip/port
+  # Create a RPC dictionary
+  rpc_request = {RPC_FUNCTION:RPC_EXTERNAL_ADDR}
+  
+  # Send the RPC message
+  rpcsocket.send(RPC_encode(rpc_request))
+  
+  # Get the response
+  response = RPC_decode(rpcsocket)
+  
+  # Close the socket
+  rpcsocket.close()
+  
+  # Return the IP
+  return response[RPC_RESULT]["ip"]
+
 
 # Determines if you are behind a NAT (Network-Address-Translation)
 def behind_nat(forwarderIP=None,forwarderPort=None):
@@ -290,25 +323,8 @@ def behind_nat(forwarderIP=None,forwarderPort=None):
   # Get "normal" ip
   ip = getmyip()
   
-  # TODO: Dennis you need to tie in here to get a real forwarder IP and port
-  if forwarderIP == None or forwarderPort == None:
-    forwarderIP, forwarderPort = server_lookup(localmac)
-#    server_lookup(localmac)
-#    forwarderIP = mycontext['currforwarder'][0]
- #   forwarderPort = 12345
-
-  # Create a real connection to the forwarder
-  rpcsocket = openconn(forwarderIP, forwarderPort)
+  # Get external ip
+  externalip = getmy_external_ip(forwarderIP, forwarderPort)
   
-  # Now connect to a forwarder, and get our external ip/port
-  # Create a RPC dictionary
-  rpc_request = {RPC_FUNCTION:RPC_EXTERNAL_ADDR}
-  
-  # Send the RPC message
-  rpcsocket.send(RPC_encode(rpc_request))
-  
-  # Get the response
-  response = RPC_decode(rpcsocket)
-  
-  return (ip != response[RPC_RESULT]["ip"])
+  return (ip != externalip)
   
