@@ -1,0 +1,29 @@
+This file describes the purpose and usage of all files in the current
+directory and summarizes the purpose of all subdirectories.
+
+=files=
+==install.bat==
+Included in the Windows installer, this will run the install script
+(install.py, located in trunk/dist) when called.
+
+==manifest.txt==
+This file (see description at top).
+
+==start_seattle.bat==
+Included in the Windows installer, this will start the python scripts
+that comprise seattle when called.
+
+==stop_seattle.bat==
+Included in the Windows installer, this runs seattlestopper.py in the
+background when called.
+
+==uninstall.bat==
+Included in the Windows installer, this runs the uninstall script
+(uninstall.py), passing it the seattle startup path  when called.
+Note that this file is preprocessed at install time, with instances
+of %STARTER_FILE% replaced with the path to the seattle startup file.
+
+==uninstall.py==
+Included in the Windows installer, this kills seattle processes and
+removes seattle from the startup folder (specified in a command line
+argument) when run.

@@ -1,0 +1,25 @@
+This file describes the purpose and usage of each file in the current
+directory and summarizes the purpose of each subdirectory.
+
+=files=
+==install.sh==
+Included in the Linux installer, it runs the install script (install.py,
+found in trunk/dist) when called.
+
+==manifest.txt==
+This file (see description at top).
+
+==start_seattle.sh==
+Included in the Linux installer, it starts the scripts that comprise
+seattle in the background when run.
+
+==stop_seattle.sh=
+Included in the Linux installer, it runs seattlestopper.py in the
+background when called.
+
+==uninstall.py==
+Included in the Linux installer, it kills all seattle processes and
+removes the seattle starter line from the crontab when run.
+
+==uninstall.sh==
+Included in the Linux installer, it runs uninstall.py when called.
