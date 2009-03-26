@@ -358,6 +358,9 @@ class Multiplexer():
     
       # Set error if one occurs in socketReader
       self.error = None
+      
+      # Callback function in case of fatal error
+      self.errorDelegate = None
         
       # Launch event to handle the multiplexing
       # Wait 2 seconds so that the user has a change to set waitforconn
@@ -427,6 +430,14 @@ class Multiplexer():
         info[1].release()
       except:
         pass
+    
+    # Check if we have an error delegate and an error
+    if self.error != None and self.errorDelegate != None:
+      # Call the error delegate, with self and the error
+      self.errorDelegate(self, self.error[0], self.error[1])
+      
+      # Remove the error, to prevent multiple notifications
+      self.error = None
 
       
   # Stops additional listener threads
@@ -892,6 +903,28 @@ class Multiplexer():
       # Close
       self.close()
       
+  
+  def setErrorDelegate(self, func):
+    """
+    <Purpose>
+      Allows a user-defined function to be notified if the Multiplexer is closed internally, without a call to close().
+      
+    <Arguments>
+      func:
+        The user function to be called after close() is completed due to an error condition.
+        The function should take the following arguments:
+        -mux : A reference to the multiplexer object
+        -location : A string reference to the point of failure
+        -exp : The actually exception that caused the internal failure
+    
+      Set the func to None to disable the error delegation.
+        
+    <Returns>
+      None.
+    """
+    # Assign the user function to the internal callback handle
+    self.errorDelegate = func
+    
 
 # A socket like object with an understanding that it is part of a Multiplexer
 # Has the same functions as the socket like object in repy
@@ -1018,7 +1051,12 @@ class MultiplexerSocket():
       buf_frame.initConnBufSizeFrame(self.id, self.mux.defaultBufSize)
       
       # Send it
-      self.mux._sendFrame(buf_frame)
+      try:
+        self.mux._sendFrame(buf_frame)
+      except:
+        # The multiplexer may be closed
+        # Check if the socket is closed
+        self._handleClosed()
       
       # Increase our incoming buffer
       self.bufferInfo["incoming"] = self.mux.defaultBufSize
