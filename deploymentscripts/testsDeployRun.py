@@ -51,7 +51,7 @@ message=""
 def uploadTests(server):
   p1=subprocess.Popen('scp -o StrictHostKeyChecking=no -o BatchMode=yes testpack.tar '+sliceLogin+"@"+server+':',shell=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
   start = datetime.datetime.now()
-  timeout=500
+  timeout=700
   while p1.poll() is None:
       time.sleep(0.2)
       now=datetime.datetime.now()
@@ -203,25 +203,44 @@ if __name__ == "__main__":
     print "Invalid arguments - usage: python testsDeployRun.py [iplist_file]"
     exit(0)
 
+
+
+  # Reads the server list file specified in the command line 
+
+  count=0
+  serverlist=[]
+  toadd=[]
+  #put servers into several groups
+  #to not start next group until previous finished
+  for server in file(sys.argv[1]):                                          
+    if (count==50):#number of nodes in a group
+      serverlist.append(toadd)
+      count=0
+      toadd=[] 
+    count+=1
+    toadd.append(server.strip())
+
+  serverlist.append(toadd)
+
+  #deploy and run for each group
+  for slist in serverlist:
+    run_parallel(copy_run, slist, 20) 
+
+
   #combined logs file
   logfo=open('logs/'+strftime("%Y-%m-%d_%H.%M.%S"),'w');
 
-  # Reads the server list file specified in the command line 
-  serverlist=[]
-  for server in file(sys.argv[1]):                                                                                                         
-    serverlist.append(server.strip()) 
-  
-  run_parallel(copy_run, serverlist, 10) 
+  if (True):
+    #combine all of the files together
+    files = glob.glob('logs/tmp*')
+    for filename in files:
+      tmplog_file=open(filename,'r')
+      content=tmplog_file.read()
+      tmplog_file.close()
+      logfo.write(content)
 
-  #combine all of the files together
-  files = glob.glob('logs/tmp*')
-  for filename in files:
-    tmplog_file=open(filename,'r')
-    content=tmplog_file.read()
-    tmplog_file.close()
-    logfo.write(content)
 
   logfo.close()
-  #delete temporary files
+    #delete temporary files
   for filename in files:
     os.remove(filename)
