@@ -99,7 +99,7 @@ decreaseamount = .5
 # BUG: what if the data on disk is corrupt?   How do I recover?   What is the
 # "right thing"?   I could run nminit again...   Is this the "right thing"?
 
-version = "0.1b"
+version = "0.1e"
 
 # Our settings
 configuration = {}
@@ -281,7 +281,8 @@ def main():
         for line in open(file_to_modify):
           tokenlist = line.split()
           if len(tokenlist) > 2 and tokenlist[0] == "resource" and tokenlist[1] == "events":
-            line_to_write = "resource events " + tokenlist[2] + "0\n" #append a 0 to the number of events
+            num_events = (tokenlist[2].split('.'))[0]
+            line_to_write = "resource events " + str(num_events) + "0\n" #append a 0 to the number of events
             
             if len(tokenlist[2]) > 2: #if number of events is 3 digits or larger
               #use original line instead, do not change number of events
