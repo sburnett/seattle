@@ -1,5 +1,8 @@
+##############
+# Client Side
 #######################
-100 packets:
+
+# 100 packets:
 # 1 MB total
 # 10 KB chunks
 
@@ -15,7 +18,6 @@ At a Rate of: 9735.20249215 B/S.
 * Total runtime: 0.0 seconds.
 *****************************************
 
-##################################
 100 packets
 # 100 KB
 # 1 KB chunks
@@ -35,4 +37,31 @@ At a Rate of: 11086.4745017 B/S.
 * Sent 100 packets, which had a size of 1000 bytes.
 * Total runtime: 0.0 seconds.
 *****************************************
+
+
+
+
+
+############################
+# Server Side
+############################
+
+# 100 packets:
+# 1 MB total
+# 10 KB chunks
+
+******* Statistics for TCUP *******
+Sent 100.0 packets, which had a size of 10000 bytes.
+Total runtime: 104.100286961 seconds.
+At a Rate of: 9606.12145458 B/S.
+
+
+# 100 packets
+# 100 KB
+# 1 KB chunks
+
+******* Statistics for TCUP *******
+Sent 100.0 packets, which had a size of 1000 bytes.
+Total runtime: 11.119715929 seconds.
+At a Rate of: 8993.03549103 B/S.
 

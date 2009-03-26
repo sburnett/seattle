@@ -15,8 +15,8 @@
 
 include tcp.repy
 
-TOTAL_BYTES = 100000 # 1 MB
-CHUNK_SIZE = 1000	# 10 KB
+TOTAL_BYTES = 1000000 # 1 MB
+CHUNK_SIZE = 10000	# 10 KB
 TOTAL_CHUNKS = (TOTAL_BYTES/CHUNK_SIZE) * 1.0 # 100 packets
 CHUNK = CHUNK_SIZE * "a" # all the letter 'a'
 
@@ -48,7 +48,7 @@ def serverListen():
   print "Total runtime: " + str(runTime) + " seconds."
   print "At a Rate of: " + str(TOTAL_BYTES * 1.0/runTime) + " B/S.\n\n"
 
-#  tcup.disconnect()
+  tcup.disconnect()
 
 def clientSend():
     tcup = Connection()
@@ -61,7 +61,7 @@ def clientSend():
       packetNum += 1
 
     tcup.disconnect()
-
+    sleep(5)
 
 def main():
   serverOrClient = callargs[0]
