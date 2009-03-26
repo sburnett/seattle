@@ -11,69 +11,67 @@
 <Purpose>
   Sends a specific amount of bytes with a specific chunk size and records the
   time that it required to complete.
-
-  First argument tells program to be a server or client:
-    Server: Only local port is needed in addition.
-    Client: localPor, DestinationIP, DestinationPort, TotalBytes, and ChunkSize are needed.
-  
-  Arguments required: (-s or -c) LocalPort [DestinationIP DestinationPort TotalBytes ChunkSize]
-
 """
-
 
 include tcp.repy
 
+TOTAL_BYTES = 100000 # 1 MB
+CHUNK_SIZE = 1000	# 10 KB
+TOTAL_CHUNKS = (TOTAL_BYTES/CHUNK_SIZE) * 1.0 # 100 packets
+CHUNK = CHUNK_SIZE * "a" # all the letter 'a'
 
+IP = getmyip()
+S_PORT = 12345
+C_PORT = 12346
 
+def usage():
+  print "Usage: python repy.py restrictions.file OurRepyTCPBenchmark.out (-s or -c)"
 
-def serverListen(myport):
+def serverListen():
   server = Connection()
-  server.bind(getmyip(), myport)
+  server.bind(IP, S_PORT)
   server.listen()
   tcup, addr = server.accept()
 
-  for i in range(0,100):
-    tcup.recv(1000)
-    sleep(1)
+  startTime = getruntime()
+  bytes_rcvd = 0
+  while bytes_rcvd < TOTAL_BYTES:
+    data = tcup.recv(TOTAL_BYTES)
+    bytes_rcvd += len(data)
+    sleep(1)    
+  endTime = getruntime()
 
-if callfunc == 'initialize':
-  serverOrClient = callargs[0]
-  myport = int(callargs[1])
-  if (serverOrClient == "-s"):
-    serverListen(myport)
-  else:
+  runTime = (endTime - startTime) * 1.0
 
-    destip = callargs[2]
-    destport = int(callargs[3])
-    totalBytes = int(callargs[4])
-    chunkSize = int(callargs[5])
-    totalChunks = totalBytes/chunkSize
-    chunk = ""
-    characterNum = 0
+  print "\n\n******* Statistics for TCUP *******"
+  print "Sent " + str(TOTAL_CHUNKS) + " packets, which had a size of " + str(CHUNK_SIZE) + " bytes." 
+  print "Total runtime: " + str(runTime) + " seconds."
+  print "At a Rate of: " + str(TOTAL_BYTES * 1.0/runTime) + " B/S.\n\n"
+
+#  tcup.disconnect()
+
+def clientSend():
+    tcup = Connection()
+    tcup.bind(IP, C_PORT)
+    tcup.connect(IP, S_PORT)
+
     packetNum = 0
-
-    # Creating a chunk
-    while (characterNum < chunkSize):
-      chunk += "a"
-      characterNum += 1
-
-    socket = Connection()
-    socket.bind(getmyip(), myport)
-    socket.connect(getmyip(), destport)
-    startTime = getruntime()
-
-    while (packetNum < totalChunks):
-      socket.send(chunk)
+    while (packetNum < TOTAL_CHUNKS):
+      tcup.send(CHUNK)
       packetNum += 1
 
-    endTime = getruntime()
-
-    socket.disconnect()
+    tcup.disconnect()
 
 
-    print "\n\n******* Statistics for TCUP *******"
-    print "Sent " + str(totalChunks) + " packets, which had a size of " + str(chunkSize) + " bytes." 
-    print "Total runtime: " + str((endTime - startTime)) + " seconds."
-    print "At a Rate of: " + str(totalBytes *1.0/(endTime - startTime * 1.0)) + " B/S.\n\n"
+def main():
+  serverOrClient = callargs[0]
+  if serverOrClient == "-s":
+    serverListen()
+  elif serverOrClient == "-c":
+    clientSend()
+  else:
+    usage()
 
-    exitall()
+if callfunc == 'initialize':
+  main()
+  exitall()

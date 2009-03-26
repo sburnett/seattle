@@ -14,12 +14,6 @@
   Sends a specific amount of bytes with a specific chunk size and records the
   time that it required to complete.
 
-  First argument tells program to be a server or client:
-    Server: Only local port is needed in addition.
-    Client: localPor, DestinationIP, DestinationPort, TotalBytes, and ChunkSize are needed.
-
-  Arguments required: (-s or -c) LocalPort [DestinationIP DestinationPort TotalBytes ChunkSize]
-
 <TODO>
   Right now the client cannot reuse its port, even if the socket is
   closed in clientSend(). Have to: (1) find out why this is the case
@@ -47,185 +41,62 @@ import socket
 import sys
 import time
 
+TOTAL_BYTES = 100000 # 1 MB
+CHUNK_SIZE = 1000	# 10 KB
+TOTAL_CHUNKS = (TOTAL_BYTES/CHUNK_SIZE) * 1.0 # 100 packets
+CHUNK = CHUNK_SIZE * "a" # all the letter 'a'
 
-def serverListen(s):
-  """
-  <Purpose>
-    Receive arbitrary amount of data from the client, and do
-    absolutely nothing with it.
-    
-  <Arguments>
-    s : socket object on which to listen and then receive
-    
-  <Exceptions>
-    None
-  
-  <Side Effects>
-    Acepts a connection and then receives data from the client on s
-    
-  <Returns>
-    None
-  """
-  s.listen(1)
-    
-  conn, addr = s.accept()
-  print 'Received connection from', addr
-
-  while 1:
-    try:
-      data = conn.recv(1024)
-    except:
-      s.close()
-      return
+IP = socket.gethostbyname(socket.getfqdn())
+S_PORT = 12345
+C_PORT = 12346
 
 
-
-def clientSend(s, totalBytes, chunkSize):
-  """
-  <Purpose>
-    Sends totalBytes worth of bytes in chunkSize chunks, and times how
-    long it takes. Then closes the socket, prints out stats, and
-    returns.
-    
-  <Arguments>
-    s : socket on which to send (already connected)
-    totalBytes : total bytes to send (int)
-    chunkSize : number of chunks to send (e.g. this is some divisor of totalBytes) (int)
-    
-  <Exceptions>
-    Socket exceptions
-    
-  <Side Effects>
-    Sends data to a remote host.
-    
-  <Returns>
-    None
-  """
-  totalChunks = totalBytes/chunkSize
-  chunk = chunkSize * "a"
+def serverListen():
+  server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+  server.bind((IP, S_PORT))
+  server.listen(1)
+  conn, addr = server.accept()
 
   startTime = time.clock()
-  i = 0
-  while (i < totalChunks):
-    s.send(chunk)
-    i += 1
+  bytes_rcvd = 0
+  while bytes_rcvd < TOTAL_BYTES:
+    data = conn.recv(TOTAL_BYTES)
+    bytes_rcvd += len(data)
   endTime = time.clock()
 
   runTime = (endTime - startTime) * 1.0
 
-  addr = s.getpeername()
-  s.close()
-
-  print "\n\n******* Statistics for a Python TCP transfer *******"
-  print "* Sent " + str(totalChunks) + " packets, which had a size of " + str(chunkSize) + " bytes." 
-  print "* Total runtime: " + str(runTime) + " seconds."
+  print "\n\n******* Statistics for Python TCP *******"
+  print "Sent " + str(TOTAL_CHUNKS) + " packets, which had a size of " + str(CHUNK_SIZE) + " bytes." 
+  print "Total runtime: " + str(runTime) + " seconds."
   if runTime:
-    print "* At a Rate of: " + str(totalBytes/runTime) + " B/S."
-  print "*****************************************\n\n"
-  return
+    print "* At a Rate of: " + str(TOTAL_BYTES * 1.0/runTime) + " B/S."
 
+def clientSend():
+  conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+#  conn.bind((IP, C_PORT))
+  conn.connect((IP, C_PORT))
+  
+  packetNum = 0
+  while (packetNum < TOTAL_CHUNKS):
+    conn.send(CHUNK)
+    packetNum += 1
+  
+  tcup.close()
 
-
-def usage_exit(err_str = ""):
-  """
-  <Purpose>
-    Prints an optional error message, and the usage for the program.
-    
-  <Arguments>
-    err_str : the error to display to the user (string)
-    
-  <Exceptions>
-    None
-    
-  <Side Effects>
-    Prints to screen, and exits program.
-    
-  <Returns>
-    None
-  """
-  if err_str != "":
-    print "ERROR:", err_str
-  print "usage: %s [-s|-c] LocalPort [DestinationIP DestinationPort TotalBytes ChunkSize]"%(sys.argv[0])
-  sys.exit(1)
-
-
+def usage():
+  print "Usage: python PythonTCPBenchmark.py (-s or -c)"
 
 def main():
-  """
-  <Purpose>
-    Parses arguments. Binds the socket that the client/server will use
-    and runs the function to start either the client or the server. On
-    argument parsing/valueerror calls usage_exit().
-    
-  <Arguments>
-    None
-    
-  <Exceptions>
-    None
-    
-  <Side Effects>
-    None
-    
-  <Returns>
-    None
-  """
-  # where are we?
-  if len(sys.argv) < 3:
-    usage_exit("at least three arguments are required")
-    
-  try:
-    myport = int(sys.argv[2])
-  except ValueError:
-    usage_exit("LocalPort must be an integer")
-
-  # who are we?
-  serverOrClient = sys.argv[1]
-  if serverOrClient not in ["-s", "-c"]:
-    usage_exit("first argument must be -s or -c")
-
-  # bind the socket that we will use
-  myip = socket.gethostbyname(socket.getfqdn())
-  s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-  s.bind((myip, myport))
-
+  serverOrClient = sys.argv.pop()
   if serverOrClient == "-s":
-    # we are the server
-    serverListen(s)
-    
+    serverListen()
+  elif serverOrClient == "-c":
+    clientSend()
   else:
-    # we are the client
-    if len(sys.argv) != 7:
-      s.close()
-      usage_exit("client (-c) needs exactly 5 other arguments")
-      
-    destip = sys.argv[3]
-    try:
-      destport = int(sys.argv[4])
-    except ValueError:
-      s.close()
-      usage_exit("DestinationPort must be an integer")
-      
-    try:
-      totalBytes = int(sys.argv[5])
-    except ValueError:
-      s.close()
-      usage_exit("TotalBytes must be an integer")
-
-    try:
-      chunkSize = int(sys.argv[6])
-    except ValueError:
-      s.close()
-      usage_exit("ChunkSize must be an integer")
-
-    # now we can connect
-    addr = (myip, destport)
-    s.connect(addr)
-    
-    clientSend(s, totalBytes, chunkSize)
-    
-  return
-
+    usage()
 
 # do it
 if __name__ == "__main__":
   main()
+
