@@ -19,6 +19,7 @@ TOTAL_CHUNKS = (TOTAL_BYTES/CHUNK_SIZE) * 1.0 # 100 packets
 CHUNK = CHUNK_SIZE * "a" # all the letter 'a'
 
 IP = getmyip()
+PEER = 'attu.cs.washington.edu'
 S_PORT = 12345
 C_PORT = 12346
 
@@ -68,4 +69,4 @@ def main():
 
 if callfunc == 'initialize':
   main()
-  exitall()
+#  exitall()

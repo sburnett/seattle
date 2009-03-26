@@ -56,6 +56,17 @@ Total runtime: 104.100286961 seconds.
 At a Rate of: 9606.12145458 B/S.
 
 
+******* Statistics for Repy TCP *******
+Sent 100.0 packets, which had a size of 1000 bytes.
+Total runtime: 10.63 seconds.
+At a Rate of: 9407.33772342 B/S.
+
+
+******* Statistics for Python TCP *******
+Sent 100.0 packets, which had a size of 10000 bytes.
+Total runtime: 0.02 seconds.
+At a Rate of: 50000000.0 B/S.
+
 # 100 packets
 # 100 KB
 # 1 KB chunks
@@ -64,4 +75,13 @@ At a Rate of: 9606.12145458 B/S.
 Sent 100.0 packets, which had a size of 1000 bytes.
 Total runtime: 11.119715929 seconds.
 At a Rate of: 8993.03549103 B/S.
+
+******* Statistics for Repy TCP *******
+Sent 100.0 packets, which had a size of 10000 bytes.
+Total runtime: 100.2 seconds.
+At a Rate of: 9980.03992016 B/S.
+
+******* Statistics for Python TCP *******
+Sent 100.0 packets, which had a size of 1000 bytes.
+Total runtime: 0.0 seconds.
 

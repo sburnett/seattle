@@ -47,6 +47,7 @@ TOTAL_CHUNKS = (TOTAL_BYTES/CHUNK_SIZE) * 1.0 # 100 packets
 CHUNK = CHUNK_SIZE * "a" # all the letter 'a'
 
 IP = socket.gethostbyname(socket.getfqdn())
+PEER='attu.cs.washington.edu'
 S_PORT = 12345
 C_PORT = 12346
 
@@ -70,7 +71,7 @@ def serverListen():
   print "Sent " + str(TOTAL_CHUNKS) + " packets, which had a size of " + str(CHUNK_SIZE) + " bytes." 
   print "Total runtime: " + str(runTime) + " seconds."
   if runTime:
-    print "* At a Rate of: " + str(TOTAL_BYTES * 1.0/runTime) + " B/S."
+    print "At a Rate of: " + str(TOTAL_BYTES * 1.0/runTime) + " B/S."
 
 def clientSend():
   conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
