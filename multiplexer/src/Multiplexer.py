@@ -217,7 +217,12 @@ class MultiplexerFrame():
     # Read in the header frame size
     headerSize = inSocket.recv(MULTIPLEXER_FRAME_HEADER_DIGITS+len(MULTIPLEXER_FRAME_DIVIDER))
     headerSize = headerSize.rstrip(MULTIPLEXER_FRAME_DIVIDER)
-    headerSize = int(headerSize)-1
+    
+    try:
+      headerSize = int(headerSize)-1
+    except:
+      raise EnvironmentError, "Failed to convert: "+headerSize+" to an integer!"
+      
     header = inSocket.recv(headerSize)
     
     if len(header) == headerSize:
@@ -225,8 +230,24 @@ class MultiplexerFrame():
       self._parseStringHeader(header)
 
       if self.contentLength != 0:
-        # Read in the data
-        self.content = inSocket.recv(self.contentLength)
+        content = ""  # Store the data we have received so far
+        recieved = 0  # Track the amount of data we have
+        
+        # Loop until we receive all of the data
+        while recieved < self.contentLength:
+          newContent = inSocket.recv(self.contentLength - recieved)
+          newLength = len(newContent)
+          
+          # Check the length
+          if newLength == 0:
+            raise EnvironmentError, "Received null dataset!"
+          else:
+            # Store the new data
+            recieved += newLength
+            content += newContent
+        
+        # Assign the content
+        self.content = content
 
     else:
       raise EnvironmentError, "Unexpected Header Size!"
@@ -239,18 +260,20 @@ class MultiplexerFrame():
     headerFields = header.split(MULTIPLEXER_FRAME_DIVIDER,2)
     (msgtype, contentlength, ref) = headerFields
     
-    # Convert the types
-    msgtype = int(msgtype)
-    contentlength = int(contentlength)
+    try:
+      # Convert the types
+      msgtype = int(msgtype)
+      contentlength = int(contentlength)
     
-    # Strip the last semicolon off
-    ref = int(ref.rstrip(MULTIPLEXER_FRAME_DIVIDER))
+      # Strip the last semicolon off
+      ref = int(ref.rstrip(MULTIPLEXER_FRAME_DIVIDER))
     
-    # Setup the Frame
-    self.mesgType = msgtype
-    self.contentLength = contentlength
-    self.referenceID = ref
-    
+      # Setup the Frame
+      self.mesgType = msgtype
+      self.contentLength = contentlength
+      self.referenceID = ref
+    except:
+      raise EnvironmentError, "Failed to parse header: "+header+" with fields: "+str(headerFields)    
     
     
   def toString(self):
@@ -332,6 +355,9 @@ class Multiplexer():
       # Inject or override socket info given to use
       for key, value in info.items():
         self.socketInfo[key] = value
+    
+      # Set error if one occurs in socketReader
+      self.error = None
         
       # Launch event to handle the multiplexing
       # Wait 2 seconds so that the user has a change to set waitforconn
@@ -438,6 +464,9 @@ class Multiplexer():
       frame.initFromSocket(self.socket)
    
     except Exception, exp:
+      # Store the error
+      self.error = ("_recvFrame", exp)
+      
       # We need to close the multiplexer
       self.close()
       
@@ -464,6 +493,9 @@ class Multiplexer():
       self.socket.send(frame.toString())
     
     except Exception, exp:
+      # Store the error
+      self.error = ("_sendFrame", exp)
+      
       # We need to close the multiplexer
       self.close()
       
@@ -854,6 +886,9 @@ class Multiplexer():
     
     # We caught an exception, close the multiplexer and exit
     except Exception, err:
+      # Store the error
+      self.error = ("_socketReader", err)
+      
       # Close
       self.close()
       
