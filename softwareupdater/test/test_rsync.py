@@ -54,14 +54,22 @@ def test_rsync(testtype, softwareurl, chgFile=[]):
   <Purpose>
     Does the actual rsync test of the given type, at the given softwareurl,
     and with the given expected update list (empty by default).
+
   <Arguments>
     testtype - The type of test to be performed.  See usage in this module's
                docstring for details.
     softwareurl - The location to rsync with.
     chgFile - A list of files to be updated.  Only used with the -u option,
               it defaults to empty.
+
+  <Exceptions>
+    None
+
   <Side Effects>
     None
+
+  <Returns>
+    A string indicating the results of the test.
   """
   
   # Start building the standard test output that will be printed.

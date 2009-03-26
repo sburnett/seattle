@@ -35,6 +35,33 @@
   If everything is successful, there will be an instance of softwareupdater.py
   and nmmain.py running when this script completes.  It is non-trivial to clean
   this up here, because we do not directly start these processes.
+
+<Inner Workings>
+  To start, the tests need to create folders that the softwareupdater will be
+  able to try to get updates from.  The softwareupdater itself must also be
+  modified so that it is looking for the correct update site and has the
+  correct testing key.  Also, once the folders are created, nminit.py needs to
+  do its thing so the softwareupdater can do its service logging.  All these
+  things are done by the create_folders function in test_updater.  The folders
+  are created via tempfile.mkdtemp so they can be easily cleaned away when the
+  tests are done running.  Once we have everything set up properly, we can then
+  run the tests.
+
+  First we start by running the rsync only tests.  These tests just test the 
+  do_rsync method of the softwareupdater by importing softwareupdater and
+  calling it manually.  Before the start of each test we must start a 
+  webserver that will serve files from whatever folder has the appropriate 
+  files for the current test.  Because the webserver is restricted to only
+  serving files in its current directory, we cannot just run one webserver
+  that serves files for all of the tests.  Once the test is done, we need to
+  kill the webserver as well, so there won't be any conflicts when starting
+  up the next one.
+
+  Once the rsync tests are done running, we run the tests that make sure the
+  whole softwareupdater is capable of running, updating, and restarting itself
+  if need be.  For this we first point it at an update that will change its
+  key, then at an update that requires that new key, but just updates the
+  node manager.
 """
 
 from repyportability import *
@@ -134,17 +161,22 @@ def kill_webserver(pid, url):
   # We need to make sure the webserver is stopped up before returning.  Waiting
   # an arbitrary amount of time is just asking for strange and inconsistent
   # errors, so I will actually query the web server until it fails.  However,
-  # to prevent an infinite loop, I will limit the waiting to 1 minute.
+  # to prevent an infinite loop, I will limit the waiting to 1 minute.  What
+  # else can we do if it doesn't die other than just raising an exception?
   for junk in xrange(60):
     try:
       # If we can successfully retrieve the url, we aren't ready.
       urllib.urlretrieve(url)
     except Exception:
       # We are done when it fails!
-      break
+      return
     
     time.sleep(1)
 
+  # If it didn't die within the 60 seconds it was given, it probably won't die
+  # any time soon, so we will raise an exception and to exit ourselves.
+  raise Exception("Could not kill the webserver.   pid == " + str(pid) + \
+      " :: url == " + str(url))
 
 
 def run_webserver(path):
@@ -171,7 +203,9 @@ def run_webserver(path):
   # We need to make sure the webserver starts up before returning.  Waiting
   # an arbitrary amount of time is just asking for strange and inconsistent
   # errors, so I will actually query the web server until it works.  However,
-  # to prevent an infinite loop, I will limit the waiting to 1 minute.
+  # to prevent an infinite loop, I will limit the waiting to 1 minute.  If 
+  # the webserver has not started by this time, it is probably safe to say
+  # it won't start.  In this case we will raise an exception indicating this.
   
   # Initialize the update url to just be the ip address of this machine.
   ip = getmyip()
@@ -187,7 +221,7 @@ def run_webserver(path):
 
   if webserver.poll() != None:
     # The webserver has exited!!
-    print 'Webserver not actually running!'
+    raise Exception('Webserver exitted with code ' + str(webserver.poll()))
 
   return webserver
 
@@ -287,7 +321,9 @@ def main():
 
     ret = updateprocess.returncode
     if ret != 10:
-      if ret == 55:
+      if ret == None:
+        raise Exception("First software updater never died.")
+      elif ret == 55:
         raise Exception("Software updater failed to get the process lock.")
       elif ret == 1:
         raise Exception("Softwareupdater failed with an uncaught exception. \n\
