@@ -29,6 +29,9 @@ they do not terminate prematurely (restarting them as necessary).
 
 """
 
+#for the number of events patch
+import glob
+
 # Let's make sure the version of python is supported
 import checkpythonversion
 checkpythonversion.ensure_python_version_is_supported()
@@ -259,6 +262,47 @@ def main():
   # BUG: Do this better?   Is this the right way to engineer this?
   configuration = persist.restore_object("nodeman.cfg")
 
+
+  ##BUG FIX: insuficient events. We patch each resource file once when node manager is started the first time.
+  if not("patch_number_events" in configuration.keys()):
+    
+    #add the key and commit the change
+    configuration["patch_number_events"] = "true"
+    persist.commit_object(configuration, "nodeman.cfg")
+    
+    #modifcy the number of events in each resource file
+    files_to_modify=glob.glob("resource.v*")
+    
+    for file_to_modify in files_to_modify:
+      
+      try:
+        #write to this buffer
+        file_write_buffer = ""
+        for line in open(file_to_modify):
+          tokenlist = line.split()
+          if len(tokenlist) > 2 and tokenlist[0] == "resource" and tokenlist[1] == "events":
+            line_to_write = "resource events " + tokenlist[2] + "0\n" #append a 0 to the number of events
+            
+            if len(tokenlist[2]) > 2: #if number of events is 3 digits or larger
+              #use original line instead, do not change number of events
+              line_to_write = line
+              
+            file_write_buffer = file_write_buffer + line_to_write
+          else:
+            file_write_buffer = file_write_buffer + line
+            
+        #now write the file
+        outfo = open(file_to_modify,"w")
+        print >> outfo, file_write_buffer
+        outfo.close()
+
+      except OSError, e:
+        servicelogger.log("[ERROR]:Unable to patch events limit in resource file "+ file_to_modify + ", exception " + str(e))
+  
+  
+  
+  
+  
   
   # get the external IP address...
   # BUG: What if my external IP changes?   (A problem throughout)
