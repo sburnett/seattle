@@ -51,10 +51,9 @@ At a Rate of: 11086.4745017 B/S.
 # 10 KB chunks
 
 ******* Statistics for TCUP *******
-Sent 100.0 packets, which had a size of 10000 bytes.
-Total runtime: 104.100286961 seconds.
-At a Rate of: 9606.12145458 B/S.
-
+Sent 100.0 packets, which had a size of 1000 bytes.
+Total runtime: 11.119715929 seconds.
+At a Rate of: 8993.03549103 B/S.
 
 ******* Statistics for Repy TCP *******
 Sent 100.0 packets, which had a size of 1000 bytes.
@@ -72,9 +71,9 @@ At a Rate of: 50000000.0 B/S.
 # 1 KB chunks
 
 ******* Statistics for TCUP *******
-Sent 100.0 packets, which had a size of 1000 bytes.
-Total runtime: 11.119715929 seconds.
-At a Rate of: 8993.03549103 B/S.
+Sent 100.0 packets, which had a size of 10000 bytes.
+Total runtime: 104.100286961 seconds.
+At a Rate of: 9606.12145458 B/S.
 
 ******* Statistics for Repy TCP *******
 Sent 100.0 packets, which had a size of 10000 bytes.
