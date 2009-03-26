@@ -41,8 +41,8 @@ import socket
 import sys
 import time
 
-TOTAL_BYTES = 100000 # 1 MB
-CHUNK_SIZE = 1000	# 10 KB
+TOTAL_BYTES = 10000000       
+CHUNK_SIZE = 100000   
 TOTAL_CHUNKS = (TOTAL_BYTES/CHUNK_SIZE) * 1.0 # 100 packets
 CHUNK = CHUNK_SIZE * "a" # all the letter 'a'
 
@@ -76,14 +76,14 @@ def serverListen():
 def clientSend():
   conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 #  conn.bind((IP, C_PORT))
-  conn.connect((IP, C_PORT))
+  conn.connect((IP, S_PORT))
   
   packetNum = 0
   while (packetNum < TOTAL_CHUNKS):
     conn.send(CHUNK)
     packetNum += 1
   
-  tcup.close()
+  conn.close()
 
 def usage():
   print "Usage: python PythonTCPBenchmark.py (-s or -c)"
