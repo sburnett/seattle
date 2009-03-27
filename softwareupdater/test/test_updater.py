@@ -118,6 +118,16 @@ def create_folders(topdir='../'):
   updata = updata[:siteindex] + 'softwareurl = "' + baseurl + '/"' + \
       updata[eolindex:]
 
+  # Also change the key to the test key
+  keyindex = updata.find('softwareupdatepublickey')
+  eolindex = updata.find('\n', keyindex)
+  updaterkeyfile = open('updater.publickey', 'r')
+  updaterkeystring = updaterkeyfile.read()
+  updaterkeyfile.close()
+  newkey = rsa_string_to_publickey(updaterkeystring)
+  updata = updata[:keyindex] + 'softwareupdatepublickey = ' + str(newkey) + \
+      updata[eolindex:]
+
   # Write these changes back to softwareupdater
   upfile = file('softwareupdater.py', 'w')
   upfile.write(updata)
