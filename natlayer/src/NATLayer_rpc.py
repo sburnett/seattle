@@ -16,6 +16,9 @@ include deserialize.py
 include Multiplexer.py
 include RPC_Constants.py
 
+# How long we should stall nat_waitforconn after we create the mux to check its status
+NAT_MUX_STALL = 1  # In seconds
+
 # Set the messages
 NAT_STATUS_NO_SERVER = "NO_SERVER"
 NAT_STATUS_BSY_SERVER = "BSY_SERVER"
@@ -169,6 +172,11 @@ def nat_waitforconn(localmac, localport, function, forwarderIP=None, forwarderPo
   <Returns>
     A handle, this can be used with nat_stopcomm to stop listening.      
   """  
+  # Check if our current mux is dead (if it exists)
+  if NAT_STATE_DATA["mux"] != None and not NAT_STATE_DATA["mux"].connectionInit:
+    # Delete the mux
+    NAT_STATE_DATA["mux"] = None
+  
   # Do we already have a mux? If not create a new one
   if NAT_STATE_DATA["mux"] == None:
     
@@ -183,6 +191,13 @@ def nat_waitforconn(localmac, localport, function, forwarderIP=None, forwarderPo
     # Immediately create a multiplexer from this connection
     mux = Multiplexer(socket, {"localip":getmyip(), "localport":localport})
 
+    # Stall for a while then check the status of the mux
+    sleep(NAT_MUX_STALL)
+    
+    # If the mux is no longer initialized, or never could initialize, then raise an exception
+    if not mux.connectionInit:
+      raise EnvironmentError, "Failed to begin listening!"
+    
     # Add the multiplexer to our state
     NAT_STATE_DATA["mux"] = mux
   else:
@@ -202,14 +217,15 @@ def nat_waitforconn(localmac, localport, function, forwarderIP=None, forwarderPo
   # Setup the waitforconn
   mux.waitforconn(localmac, localport, function)
 
-  # Register our wait port on the forwarder
-  success = _nat_reg_port_rpc(mux, localmac, localport)
-  if success:
-    # Register this port
-    NAT_LISTEN_PORTS[localmac].add(localport)
-  else:
-    # Something is wrong, raise Exception
-    raise EnvironmentError, "Failed to begin listening!"
+  # Register our wait port on the forwarder, if necessary
+  if not localport in NAT_LISTEN_PORTS[localmac]:
+    success = _nat_reg_port_rpc(mux, localmac, localport)
+    if success:
+      # Register this port
+      NAT_LISTEN_PORTS[localmac].add(localport)
+    else:
+      # Something is wrong, raise Exception
+      raise EnvironmentError, "Failed to begin listening!"
    
   
   # Return the localmac and localport, for stopcomm
@@ -230,6 +246,13 @@ def nat_stopcomm(handle):
   """
   # Get the mux
   mux = NAT_STATE_DATA["mux"]
+  
+  # Check the status of the mux, is it alive?
+  if mux != None and not mux.connectionInit:
+    # Delete the mux, and stop listening on everything
+    NAT_STATE_DATA["mux"]
+    NAT_LISTEN_PORTS.clear()
+    mux = None
   
   # Unpack the handle
   (localmac, localport) = handle
