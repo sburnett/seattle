@@ -108,8 +108,45 @@ class RsyncError(Exception):
 
 
 def do_rsync(serverpath, destdir, tempdir):
-  # Returns a list of updated files.
+  """
+  <Purpose>
+    This method is the one that attempts to download the metainfo file from
+    the given serverpath, then uses that to attempt to do an update.  This
+    method makes sure that the downloaded metainfo file is valid and signed
+    correctly before changing any files.  Once the metainfo file is determined
+    to be valid, it will then compare file hashes between the ones in the new
+    metainfo file and the hashes of the files currently on disk.  If there is
+    a difference, the new file is downloaded and added to the updated list.  
+    Once all the new files have been downloaded, if they all did so 
+    successfully they are then copied over the old ones, replacing them and
+    completing the update of the files.  Then a list of the files updated is
+    returned.
 
+  <Arguments>
+    serverpath - The url for the update site that we will try to contact.  
+                 This should be the url of the directory that contains all of
+                 the files that are being pushed as an update.
+    destdir - This is the directory where the new files will end up if 
+              everything goes well.
+    tempdir - This is the directory where the new files will be initially
+              downloaded to before their hashes are checked.  This is not
+              cleaned up after finishing.
+
+  <Exceptions>
+    Will throw various socket errors if there is trouble getting a file from
+    the webserver.
+    Will throw an RsyncError if the downloaded metainfo is malformed, or if
+    the hash of a downloaded file does not match the one listed in the 
+    metainfo file.
+
+  <Side Effects>
+    Files will be downloaded to tempdir, and they might be copied over to
+    destdir if everything is successful.
+
+  <Returns>
+    A list of files that have been updated.  The list is empty if nothing is
+    to be updated.
+  """
 
   # get the metainfo (like a directory listing)
   safe_download(serverpath, "metainfo", tempdir, 1024*32)
@@ -226,8 +263,6 @@ def do_rsync(serverpath, destdir, tempdir):
         servicelogger.log("Hash mismatch on file '"+filename+"':" + filehash +
             " vs " + get_file_hash(tempdir+filename))
         shutil.copy(tempdir+filename, '/homes/iws/couvb/'+filename+'.oddness') 
-        #print 'Hash download: '+str(filehash)
-        #print 'Hash computed: '+str(get_file_hash(tempdir+filename))
         raise RsyncError, "Hash of file '"+filename+"' does not match information in metainfo file"
 
       # put this file in the list of files we need to update
@@ -236,7 +271,6 @@ def do_rsync(serverpath, destdir, tempdir):
 
   # copy the files to the local dir...
   for filename in updatedfiles:
-    #print "copying "+tempdir+filename+" to "+destdir+filename
     shutil.copy(tempdir+filename, destdir+filename)
     
   # done!   We updated the files
@@ -280,7 +314,29 @@ def do_rsync(serverpath, destdir, tempdir):
 
 
 def init():
-#  print 'Starting at the very beginning...'
+  """
+  <Purpose>
+    This method is here to do a runthrough of trying to update.  The idea is
+    that if there is going to be a fatal error, we want to die immediately
+    rather than later.  This way, when a node is updating to a flawed version,
+    the old one won't die until we know the new one is working.  Also goes
+    through the magic explained in the comment block above.
+
+  <Arguments>
+    None
+
+  <Exceptions>
+    See fresh_software_updater and software_updater_start.
+
+  <Side Effects>
+    If we can't get the lock, we will exit.  The standard streams are closed.
+    We will hold the softwareupdater.new lock while trying to start, but if
+    all goes well, we will release that lock and aquire the 
+    softwareupdater.old lock.
+
+  <Returns>
+    None
+  """
   gotlock = runonce.getprocesslock("softwareupdater.new")
   if gotlock == True:
     # I got the lock.   All is well...
@@ -290,30 +346,10 @@ def init():
     # exit quietly
     sys.exit(55)
 
-#  print 'Right before closure...'
-
-  # set up logging, etc.
+  # Close the standard streams so the user doesnt have to worry about it.
   sys.stdin.close()
-  # close C's stdout stream
   sys.stdout.close()
-#  os.close(1)
-#  sys.stdout = open('softwareupdater.stdout', 'w')
   sys.stderr.close()
-
-  if not os.path.exists("softwareupdater.logfile") or os.path.getsize("softwareupdater.logfile") > 1024*1024:
-    # kill the log file if it's > 1MB, create if it doesn't exist
-    sys.stderr = open("softwareupdater.logfile","w")
-    #pass
-  else:
-    # or append otherwise
-    sys.stderr = open("softwareupdater.logfile","a")
-    #pass
-
- # sys.stdout = sys.stderr
-
-#  sys.stderr.write('Starting init')
-
-#  print 'done with stderr stuffs'
 
   # don't hang if the socket is slow (in some ways, this doesn't always work)
   # BUG: http://mail.python.org/pipermail/python-list/2008-January/471845.html
@@ -331,10 +367,9 @@ def init():
   # do an update to that directory.   If I don't see an unexpected error, we 
   # should be in good shape
   tempdir = tempfile.mkdtemp()+"/"
-#  sys.stderr.write('Gonna do rsync test')
   try:
     do_rsync(softwareurl, "download.test/",tempdir)
-  except:
+  except Exception:
      # We continue if this happens later, 
      # so we should do so now as well
      pass
@@ -343,8 +378,6 @@ def init():
       
   # remove the test directory
   shutil.rmtree("download.test")
-
-#  sys.stderr.write('Gonna get started now!')
 
   # time to handle startup (with respect to other copies of the updater
   if len(sys.argv) == 1:
@@ -356,6 +389,32 @@ def init():
 
 
 def software_updater_start(mutexname):
+  """
+  <Purpose>
+    When restarting the software updater, this method is called in the new 
+    one.  It will write an OK file to let the original know it has started,
+    then will wait for the original to acknowledge by either removing the OK
+    file, meaning we should carry on, or by writing a stop file, meaning we
+    should exit.  Carrying on means getting the softwareupdater.old lock, and
+    releasing the softwareupdater.new lock, then returning.
+  
+  <Arguments>
+    mutexname - The new software updater was started with a given mutex name,
+                which is used to uniquely identify the stop and OK files as
+                coming from this softwareupdater.  This way the old one can
+                know that the softwareupdater it started is the one that is
+                continueing on.
+
+  <Exceptions>
+    Possible Exception creating the OK file.
+
+  <Side Effects>
+    Acquires the softwareupdater.old lock and releases the softwareupdater.new
+    lock.
+
+  <Return>
+    None
+  """
   # if "stop" file exists, then exit
   if os.path.exists("softwareupdater.stop."+mutexname):
     sys.exit(2)
@@ -391,6 +450,27 @@ def software_updater_start(mutexname):
 # this is called by either the installer or the program that handles starting
 # up on boot
 def fresh_software_updater():
+  """
+  <Purpose>
+    This function is ment to be called when starting a softwareupdater when no
+    other is currently running.  It will clear away any outdated OK or stop
+    files, then release the softwareupdater.new lock and acquire the
+    softwareupdater.old lock.
+
+  <Arguments>
+    None
+ 
+  <Exceptions>
+    Possible exception if there is a problem removing the OK/stop files.    
+
+  <Side Effects>
+    The softwareupdater.new lock is released.
+    The softwareupdater.old lock is acquired.
+    All old OK and stop files are removed.
+
+  <Returns>
+    None
+  """
   # clean all mutex files
   for filename in os.listdir('.'):
     # Remove any outdated stop or OK files...
@@ -425,8 +505,27 @@ def get_mutex():
   
 
 def restart_software_updater():
-  """This will exit if the new program seems to start correctly and return otherwise.   It should prevent multiple copies from running"""
-#  std.stderr.write('Gonna restart!')
+  """
+  <Purpose>
+    Attempts to start a new software updater, and will exit this one if the
+    new one seems to start successfully.  If the new one does not start
+    successfully, then we just return.
+
+  <Arguments>
+    None
+
+  <Exceptions>
+   Possible exception if there is problems writing the OK file.
+ 
+  <Side Effects>
+    If all goes well, a new softwareupdater will be started, and this one will
+    exit.
+
+  <Returns>
+    In the successful case, it will not return.  If the new softwareupdater does
+    not start correctly, we will return None.
+  """
+
   # find an unused mutex 
   thismutex = get_mutex()
 
@@ -453,6 +552,22 @@ def restart_software_updater():
 
 
 def restart_client(filenamelist):
+  """
+  <Purpose>
+    Restarts the node manager.
+
+  <Arguments>
+    filenamelist - Currently not used, but is included for possible future use.
+
+  <Exceptions>
+    None
+
+  <Side Effects>
+    The current node manager is killed, and a new one is started.
+
+  <Returns>
+    None.
+  """
   # kill nmmain if it is currently running
   retval = runonce.getprocesslock('seattlenodemanager')
   if retval == True:
@@ -476,7 +591,26 @@ def restart_client(filenamelist):
 
 
 def main():
+  """
+  <Purpose>
+    Has an infinite loop where we sleep for 5-55 minutes, then check for 
+    updates.  If an update happens, we will restart ourselves and/or the
+    node manager as necesary.
+    
+  <Arguments>
+    None
 
+  <Exceptions>
+    Any non-RsyncError exceptions from do_rsync.
+
+  <Side Effects>
+    If there is an update on the update site we are checking, it will be 
+    grabbed eventually.
+
+  <Return>
+    Will not return.  Either an exception will be thrown, we exit because we
+    are restarting, or we loop infinitely.
+  """
 
   # This is similar to init only:
   #   1) we loop / sleep
@@ -489,7 +623,6 @@ def main():
   restartme = False
 
   while True:
-#    sys.stderr.write('Before main sleep')
     # sleep for 5-55 minutes 
     for junk in range(random.randint(10, 110)):
       # We need to wake up every 30 seconds otherwise we will take
@@ -502,7 +635,6 @@ def main():
         sys.stderr.write('We no longer have the processlock\n')
         sys.exit(55)
 
-#    sys.stderr('After main sleep')
 
     # Make sure that if we failed somehow to restart, we keep trying before
     # every time we try to update. - Brent
@@ -512,7 +644,6 @@ def main():
     # where I'll put files...
     tempdir = tempfile.mkdtemp()+"/"
 
-#    sys.stderr.write('gonna update!')
 
     # I'll clean this up in a minute
     try:
@@ -528,7 +659,6 @@ def main():
     if updatedlist == []:
       continue
 
-#    sys.stderr.write('Updated something!')
    
     # if there were updates, the metainfo file should be one of them...
     assert('metainfo' in updatedlist)
