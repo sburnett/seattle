@@ -1,3 +1,20 @@
+"""
+Author: Armon Dadgar, Eric Kimbrel
+
+Date: Feb 2009
+
+Description: 
+  This forwarder uses the NATLayer protocol to multiplex connections between
+  servers and clients, with the goal of providing communication with nodes
+  behind a NAT
+
+  Servers connect via a multiplexer while clients connect with real sockets.
+  A virtual socket from the server and a real socekt from the client are
+  put together in an exchance message method where data is exchanged.
+
+
+"""
+
 
 # Get the NATLayer
 include NATLayer_rpc.py
@@ -9,9 +26,10 @@ FORWARDER_STATE = {"ip":"127.0.0.1","Next_Conn_ID":0}
 SERVER_PORT = 12345  # What real port to listen on for servers
 CLIENT_PORT = 23456  # What real port to listen on for clients
 MAX_CLIENTS_PER_SERV = 8*2 # How many clients per server, the real number is this divided by 2
+MAX_SERVERS = 8 # How man servers can connect
 WAIT_INTERVAL = 3    # How long to wait after sending a status message before closing the socket
 RECV_SIZE = 1024 # Size of chunks to exchange
-CHECK_INTERVAL = 60  # How often to cleanup our state, e.g. remove dead multiplexers
+CHECK_INTERVAL = 15  # How often to cleanup our state, e.g. remove dead multiplexers
 
 # Lock for CONNECTIONS dictionary
 CONNECTIONS_LOCK = getlock()
@@ -31,7 +49,7 @@ MAC_ID_LOOKUP = {}
 
 # Controls Debug messages
 DEBUG1 = True  # Prints general debug messages
-DEBUG2 = False  # Prints verbose debug messages
+DEBUG2 = True  # Prints verbose debug messages
 DEBUG3 = False  # Prints Ultra verbose debug messages
 
 # Safely closes a socket
@@ -87,6 +105,7 @@ def _timed_dereg_server(id,mux):
   except KeyError:
     # The mux may have already been cleaned up by the main thread
     pass
+  
   CONNECTIONS_LOCK.release()
 
 
@@ -402,6 +421,27 @@ def new_server(remoteip, remoteport, sock, thiscommhandle, listencommhandle):
   # DEBUG
   if DEBUG2: print getruntime(),"Server Conn.",remoteip,remoteport
   
+
+  server_wait_dict = mycontext['server_wait_info']
+  server_wait_dict['lock'].acquire()
+  # close sockets if the connection handle is not active
+  if not server_wait_dict['active']:
+    if DEBUG2: print getruntime(), "Too many servers connected, quietly droping new servers"
+    sock.close()
+    server_wait_dict['lock'].release()
+    return
+  
+  # stop the server wait handle if the max number of servers is connected
+  # TODO, stop the forwarder from advertising when the server wait handle is stopped
+  if len(CONNECTIONS)+1 >= MAX_SERVERS:
+    if DEBUG2: print getruntime(),"Server Limits Reached"
+    
+    #removed until stopcomm issue is resolved
+    #stopcomm(server_wait_dict['handle'])
+    server_wait_dict['active'] = False
+  
+  server_wait_dict['lock'].release()
+
   # Get the connection ID
   id = _get_conn_id()
   
@@ -460,7 +500,9 @@ def main():
   
   # Setup a port for servers to connect
   server_wait_handle = waitforconn(ip, SERVER_PORT, new_server)
-  
+  mycontext['server_wait_info']={'handle':server_wait_handle,'active':True,
+                                 'servers_connected':0, 'lock':getlock()}
+
   # Setup a port for clients to connect
   client_wait_handle = waitforconn(ip, CLIENT_PORT, inbound_connection)
   
@@ -488,6 +530,17 @@ def main():
           
           # De-register this server
           deregister_server(id, None)
+    
+    # if a stopcomm was called check and see if we can do a new waitforconn
+    sleep(WAIT_INTERVAL) #make sure servers are disconnected
+    server_wait_dict = mycontext['server_wait_info']
+    server_wait_dict['lock'].acquire()
+    if (not server_wait_dict['active']) and (len(CONNECTIONS) < MAX_SERVERS):
+      #commented out until stopcomm issue is resolved
+      #server_wait_dict['handle'] = waitforconn(ip,SERVER_PORT,new_server)
+      print 'allowing new servers to connect'
+      server_wait_dict['active'] = True
+    server_wait_dict['lock'].release()
 
 
 
