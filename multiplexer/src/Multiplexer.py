@@ -53,6 +53,11 @@ MULTIPLEXER_FRAME_NOT_INIT = -1
 MULTIPLEXER_STATUS_CONFIRMED = "CONFIRMED"
 MULTIPLEXER_STATUS_FAILED = "FAILED"
 
+# Defines a delay period for the initialization of a multiplexer object
+# This is to allow the user to specify waitfunctions before the multiplexer is started
+# So that any queued openconn requests are not immediately rejected
+MULTIPLEXER_START_DELAY = 1
+
 # Core unit of the Specification, this is used for multiplexing a single connection,
 # and for initializing connections
 class MultiplexerFrame():
@@ -315,6 +320,11 @@ class Multiplexer():
     <Arguments>
       socket:
         Socket like object that is used for multiplexing
+      
+      info:
+        A dictionary object. Its key/value pairs will be injected into mux.socketInfo.
+        This can be used to store custom data, or to override localip, localport, remoteip, and remoteport.
+        It is optional.
     """    
     # If we are given a socket, assume it is setup
     if socket != None:
@@ -363,8 +373,8 @@ class Multiplexer():
       self.errorDelegate = None
         
       # Launch event to handle the multiplexing
-      # Wait 2 seconds so that the user has a change to set waitforconn
-      settimer(2, self._socketReader, ())
+      # Wait a few seconds so that the user has a chance to set waitforconn
+      settimer(MULTIPLEXER_START_DELAY, self._socketReader, ())
       
     else:
       raise ValueError, "Must pass in a valid socket!"
@@ -482,7 +492,7 @@ class Multiplexer():
       self.close()
       
       # Re-raise the exception
-      raise exp
+      raise EnvironmentError, "Fatal Error:"+str(exp)
 
     # Release the lock
     self.readLock.release()
@@ -511,7 +521,7 @@ class Multiplexer():
       self.close()
       
       # Re-raise the exception
-      raise exp
+      raise EnvironmentError, "Fatal Error:"+str(exp)
         
     # release the send lock
     self.writeLock.release()
@@ -1185,6 +1195,7 @@ MULTIPLEXER_FUNCTIONS = {}
 MULTIPLEXER_FUNCTIONS["waitforconn"] = waitforconn
 MULTIPLEXER_FUNCTIONS["openconn"] = openconn
 MULTIPLEXER_FUNCTIONS["stopcomm"] = stopcomm
+MULTIPLEXER_FUNCTIONS["errdelegate"] = None # What function is used to handle error delegation, _mux_error_delegate is default
 
 # This dictionary has all of the virtual waitforconn functions to propagate waitforconn to new muxes
 # E.g. if a new host connects, it inherits all of the waitforconns on the existing muxes
@@ -1284,6 +1295,9 @@ def mux_openconn(desthost, destport, localip=None,localport=None,timeout=15,virt
     # Make a mux with this new socket
     mux = Multiplexer(realsocket, info)
 
+    # Assign the error delegate, in case of a fatal internal error
+    mux.setErrorDelegate(MULTIPLEXER_FUNCTIONS["errdelegate"])
+    
     # Add the key entry for this mux
     MULTIPLEXER_OBJECTS[key] = mux
 
@@ -1303,6 +1317,9 @@ def _helper_mux_waitforconn(ip, port, func, remoteip, remoteport, socket, thisco
   
   # Create a mux
   mux = Multiplexer(socket, info)
+  
+  # Assign the error delegate, in case of a fatal internal error
+  mux.setErrorDelegate(MULTIPLEXER_FUNCTIONS["errdelegate"])
   
   # Add the key entry for this mux
   MULTIPLEXER_OBJECTS[key] = mux
@@ -1576,5 +1593,22 @@ def mux_stopall():
     
   # Remove all the wait functions
   for key in MULTIPLEXER_WAIT_FUNCTIONS.keys():
-    mux_virtual_stopcomm(key) 
+    mux_virtual_stopcomm(key)
+    
+# This function is the error delegate for the multiplexers created using the functional wrappers,
+# they help clean everything up
+def _mux_error_delegate(mux,errloc,exception):
+  # Retrieve the key from the mux, the key is injected by mux_openconn and mux_waitforconn
+  # into the socketInfo dictionary
+  key = mux.socketInfo["key"]
+
+  # Cleanup the multiplexer object
+  if key in MULTIPLEXER_OBJECTS:
+    del MULTIPLEXER_OBJECTS[key]
+
+
+# Register this as the default error delegate
+MULTIPLEXER_FUNCTIONS["errdelegate"] = _mux_error_delegate
+
+
   
