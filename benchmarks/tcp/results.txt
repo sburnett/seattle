@@ -3,3 +3,9 @@
 TCUP	: 		  90016.5026878 	    | 84563.0748891 B/S	
 Repy TCP: 		  141315.553796 	    | 990247.33731 B/S
 Py TCP	: 		  infinite		    | 1000000000.0 B/S
+
+
+TCUP Required Resources
+-----------------------
+resource memory 18000000+
+resource events 5
