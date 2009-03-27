@@ -1,5 +1,4 @@
-# This test tries to use waitforconn and openconn from repy to get a real socket.
-# It then manually initializes the Multiplexer, and attempts to exchange "Hi!" once.
+# This test tries to check error delegation for the functional wrappers
 
 # Get the Multiplexer
 include Multiplexer.py
