@@ -23,8 +23,6 @@ include NATLayer_rpc.py
 include RPC_Constants.py
 
 FORWARDER_STATE = {"ip":"127.0.0.1","Next_Conn_ID":0}
-SERVER_PORT = 12345  # What real port to listen on for servers
-CLIENT_PORT = 23456  # What real port to listen on for clients
 MAX_CLIENTS_PER_SERV = 8*2 # How many clients per server, the real number is this divided by 2
 MAX_SERVERS = 8 # How man servers can connect
 WAIT_INTERVAL = 3    # How long to wait after sending a status message before closing the socket
@@ -447,7 +445,7 @@ def new_server(remoteip, remoteport, sock, thiscommhandle, listencommhandle):
   
   # Initialize the multiplexing socket with this socket
   mux = Multiplexer(sock, {"localip":FORWARDER_STATE["ip"], 
-                             "localport":SERVER_PORT,
+                             "localport":mycontext['SERVER_PORT'],
                              "remoteip":remoteip,
                              "remoteport":remoteport,
                              "conn_id":id}) # Inject the ID into the socketInfo, for error handling
@@ -499,12 +497,12 @@ def main():
   FORWARDER_STATE["ip"] = ip
   
   # Setup a port for servers to connect
-  server_wait_handle = waitforconn(ip, SERVER_PORT, new_server)
+  server_wait_handle = waitforconn(ip, mycontext['SERVER_PORT'], new_server)
   mycontext['server_wait_info']={'handle':server_wait_handle,'active':True,
                                  'servers_connected':0, 'lock':getlock()}
 
   # Setup a port for clients to connect
-  client_wait_handle = waitforconn(ip, CLIENT_PORT, inbound_connection)
+  client_wait_handle = waitforconn(ip, mycontext['CLIENT_PORT'], inbound_connection)
   
   # DEBUG
   if DEBUG1: print getruntime(),"Forwarder Started on",ip
@@ -537,7 +535,7 @@ def main():
     server_wait_dict['lock'].acquire()
     if (not server_wait_dict['active']) and (len(CONNECTIONS) < MAX_SERVERS):
       #commented out until stopcomm issue is resolved
-      #server_wait_dict['handle'] = waitforconn(ip,SERVER_PORT,new_server)
+      #server_wait_dict['handle'] = waitforconn(ip,mycontext['SERVER_PORT'],new_server)
       print 'allowing new servers to connect'
       server_wait_dict['active'] = True
     server_wait_dict['lock'].release()
@@ -564,4 +562,12 @@ RPC_FUNCTION_SECURITY = {RPC_EXTERNAL_ADDR:set([TYPE_MUX, TYPE_SOCK]), # Both ty
 
 # Check if we are suppose to run
 if callfunc == "initialize":
+  
+  if len(callargs) != 2:
+    print ' usage: forwarder_rpc.py SERVER_PORT CLIENT_PORT'
+    exitall()
+
+  mycontext['SERVER_PORT'] = int(callargs[0])  # What real port to listen on for servers
+  mycontext['CLIENT_PORT'] = int(callargs[1])  # What real port to listen on for clients
+  
   main()
