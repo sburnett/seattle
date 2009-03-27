@@ -7,10 +7,10 @@ resource fileread 10000
 resource filesopened 5
 resource insockets 5
 resource outsockets 5
-resource netsend 50000 # 50k
-resource netrecv 50000
-resource loopsend 1000000 # 1M
-resource looprecv 1000000
+resource netsend 500000 # 500k
+resource netrecv 500000
+resource loopsend 10000000 # 10M
+resource looprecv 10000000
 resource lograte 30000
 resource random 100
 resource messport 12345
