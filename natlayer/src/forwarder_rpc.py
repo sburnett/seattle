@@ -385,6 +385,18 @@ def _get_conn_id():
   return id
 
 
+# Handles a multiplexer dieing due to a fatal error
+# Targets connection for deregistration, so as to cleanup our state as fast as possible
+def _mux_internal_error(mux, errorloc, excep):
+  # Extract the connection ID
+  conn_id = mux.socketInfo["conn_id"]
+  
+  # DEGUG
+  if DEBUG2: print getruntime(),"#",conn_id,"Multiplexer had fatal error in:",errorloc,"due to:",excep 
+  
+  # De-register this multiplexer
+  deregister_server(conn_id,None)
+
 # Handle new servers
 def new_server(remoteip, remoteport, sock, thiscommhandle, listencommhandle):
   # DEBUG
@@ -397,7 +409,11 @@ def new_server(remoteip, remoteport, sock, thiscommhandle, listencommhandle):
   mux = Multiplexer(sock, {"localip":FORWARDER_STATE["ip"], 
                              "localport":SERVER_PORT,
                              "remoteip":remoteip,
-                             "remoteport":remoteport})
+                             "remoteport":remoteport,
+                             "conn_id":id}) # Inject the ID into the socketInfo, for error handling
+  
+  # Assign our custom error delegate
+  mux.setErrorDelegate(_mux_internal_error)
   
   # Helper wrapper function
   def rpc_wrapper(remoteip, remoteport, client_sock, thiscommhandle, listencommhandle):
