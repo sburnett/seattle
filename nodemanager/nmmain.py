@@ -281,10 +281,10 @@ def main():
         for line in open(file_to_modify):
           tokenlist = line.split()
           if len(tokenlist) > 2 and tokenlist[0] == "resource" and tokenlist[1] == "events":
-            num_events = (tokenlist[2].split('.'))[0]
-            line_to_write = "resource events " + str(num_events) + "0\n" #append a 0 to the number of events
+            num_events = float(tokenlist[2])
+            line_to_write = "resource events " + str(num_events * 10) + "\n" #multiply number of events by 10
             
-            if len(tokenlist[2]) > 2: #if number of events is 3 digits or larger
+            if num_events > 100: #if number of events is greater than 100
               #use original line instead, do not change number of events
               line_to_write = line
               
