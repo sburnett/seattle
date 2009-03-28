@@ -87,10 +87,10 @@ def long_execution():
 
 if callfunc == "initialize":
   # Create server connection, force local forwarder
-  whandle = nat_waitforconn(serverMac, 10000, new_client, getmyip(), 12345) 
+  whandle = nat_waitforconn(serverMac, 10000, new_client, getmyip(), 12345, 23456) 
   
   # Setup client sockets, force use of local forwarder for the tests
-  clientsock1 = nat_openconn(serverMac, 10000, clientMac1, forwarderIP=getmyip(),forwarderPort=23456)
+  clientsock1 = nat_openconn(serverMac, 10000, forwarderIP=getmyip(),forwarderPort=23456)
 
   # Setup timer to kill us if we exceed our time limit
   handle = settimer(TIME_LIMIT, long_execution, ())
