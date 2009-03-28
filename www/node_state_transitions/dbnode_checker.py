@@ -15,10 +15,7 @@
   node, but instead changes the database to make the two consistent.
 
 <Usage>
-  Preprocessing this mix file into a python file using e.g.:
-  $ python repypp.py dbnode_checker.mix dbnode_checker.py
-  
-  And then run it from the command line without any args:
+  Run from the command line without any args:
   $ python dbnode_checker.py
 
 <ToDo>
