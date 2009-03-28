@@ -50,11 +50,18 @@ nm_remote_api.run_target = infinitely_run_target # small change to nm_remote_api
 
 # Our nodes to run on
 #hosts = ['128.208.1.161', '128.208.1.240', '128.208.1.169', '128.208.1.108', '128.208.1.166']
-hosts = ['128.112.139.75', '128.112.139.108', '128.112.139.80', '128.112.139.97', '128.112.139.2']
+#hosts = ['128.112.139.75', '128.112.139.108', '128.112.139.80', '128.112.139.97', '128.112.139.2']
+#hosts = ['128.208.1.199', '128.208.1.168', '128.208.1.183', '128.208.1.158', '128.208.1.249']
+# 128.208.1.185, 128.208.1.225, 128.208.1.166                   
+# 128.208.1.217,    169.229.50.7, 128.208.1.131
+
+hosts = ['169.229.50.14', '169.229.50.7', '169.229.50.6']
 filename = 'forwarder_rpc.py' # code to run on them
+C_PORT = "63111"
+S_PORT = "63111"
 
 def usage():
-  print "Usage: python natd.py <status | start | stop | restart>"
+  print "Usage: python natd.py <status | start | stop | log>"
   sys.exit(1)
 
 #############
@@ -85,13 +92,17 @@ elif cmd == 'start':
   FILE = open(filename)
   filedata = FILE.read()
   FILE.close()
-  argstring = filename
+  argstring = filename + " " + C_PORT + " " + S_PORT
   dic = nm_remote_api.run_on_targets(info, filename, filedata, argstring, 10)
   print dic
 elif cmd == 'stop':
   print "Stopping " + str(filename) + " on all vessels..."
   for longname in info:
     nm_remote_api.stop_target(longname)
+elif cmd == 'log':
+  print "Showing the logs of vessels..."
+  for lname in info:
+    print nm_remote_api.showlog_vessel(lname)
 
 else:
   usage()
