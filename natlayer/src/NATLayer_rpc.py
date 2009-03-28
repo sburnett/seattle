@@ -304,7 +304,7 @@ def nat_stopcomm(handle):
   
 
 # Pings a forwarder to get our external IP
-def getmy_external_ip(forwarderIP=None,forwarderPort=None):
+def getmy_external_ip(forwarderIP=None,forwarderCltPort=None):
   """
   <Purpose>
     Allows a vessel to determine its external IP address. E.g. this will differ from getmyip if you are on a NAT.
@@ -321,7 +321,7 @@ def getmy_external_ip(forwarderIP=None,forwarderPort=None):
     A string IP address
   """
   # If we don't have an explicit forwarder, pick a random one
-  if forwarderIP == None or forwarderPort == None:
+  if forwarderIP == None or forwarderCltPort == None:
     forwarderIP, forwarderPort, forwarderCltPort = nat_forwarder_lookup()
 
   # Create a real connection to the forwarder
@@ -348,7 +348,7 @@ def getmy_external_ip(forwarderIP=None,forwarderPort=None):
 
 
 # Determines if you are behind a NAT (Network-Address-Translation)
-def behind_nat(forwarderIP=None,forwarderPort=None):
+def behind_nat(forwarderIP=None,forwarderCltPort=None):
   """
   <Purpose>
     Determines if the currently executing node is behind a Network-Address-Translation device
@@ -371,7 +371,7 @@ def behind_nat(forwarderIP=None,forwarderPort=None):
   ip = getmyip()
   
   # Get external ip
-  externalip = getmy_external_ip(forwarderIP, forwarderPort)
+  externalip = getmy_external_ip(forwarderIP, forwarderCltPort)
   
   return (ip != externalip)
   
