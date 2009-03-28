@@ -4,11 +4,6 @@ Description:
   Tests the checks performed to determine whether or not a file needs to be
   retranslated.
   
-  The following are checked:
-    -Both arguments for whether or not the file exists
-    -If a directory is provided as an argument
-    -
-  
   No output indicates success
   
 """
@@ -19,25 +14,27 @@ import test_utils
   
 #The (preexisting) repy file to use as a reference for translating
 SRCFILE = "rhtest_filetests.repy"
+
 #The temporary file to create to perform checks against
 TESTFILE = "rhtest_filetests_new.repy"
+
 #The translation name corresponding to TESTFILE
 TESTFILE_TR = repyhelper._get_module_name(TESTFILE) + ".py"
 
 
 
-def create_testfile(filename, file_tag):
+def create_testfile(filename, contents):
   """
   Create a file in the current directory with a specified translation tagline file tag
   returns the name of the created file
   """
   fh = open(filename, 'w')
-  print >> fh, repyhelper.TRANSLATION_TAGLINE, file_tag
+  print >> fh, contents
   fh.close()
   return filename
   
   
-create_testfile(TESTFILE, "")
+create_testfile(TESTFILE, repyhelper.TRANSLATION_TAGLINE)
 
 ### Test Nonexistant Files ###
 
@@ -54,11 +51,11 @@ try:
 except repyhelper.TranslationError:
   pass
 else:
-  print "test didnt raise exception when provided bad souce file"
+  print "Didnt raise exception when provided nonexistant souce file"
 
 test_utils.cleanup_file(TESTFILE_TR)
 
-create_testfile(TESTFILE, "")
+create_testfile(TESTFILE, repyhelper.TRANSLATION_TAGLINE)
 
 #Test directory...
 try: 
@@ -66,61 +63,61 @@ try:
 except repyhelper.TranslationError:
   pass
 else:
-  print "directory passed test as file needing to be read"
+  print "Directory passed test as file needing to be read"
 
 test_utils.cleanup_file(TESTFILE_TR)
 
 
 
-### Now test the tagline tests ###
+### Now test the tagline test ###
 
 #Create a file without the tagline, to see if an anonomous file would get clobbered
-fh = open(TESTFILE, "w")
-fh.write("gibberish!")
-fh.close()
+create_testfile(TESTFILE, "gibberish!\n")
 try:
   repyhelper._translation_is_needed(SRCFILE, TESTFILE)
 except repyhelper.TranslationError:
   pass
 else:
-  print "tagline detection incorrectly passed, would have clobbered file"
+  print "Tagline detection incorrectly passed, would have clobbered file"
 
 test_utils.cleanup_file(TESTFILE_TR)
 
 
-
-#create a fake translation with the correct flag, and a newer modification time
-#on the source. This means the test should pass
-create_testfile(TESTFILE, os.path.abspath(SRCFILE))
-#touch the source file so it thinks translation is needed
-os.utime(SRCFILE, None)
+#Now see if a translation from a different source path prompts a regen
+create_testfile(TESTFILE, repyhelper.TRANSLATION_TAGLINE + " " + os.path.abspath('./foo'))
 if repyhelper._translation_is_needed(SRCFILE, TESTFILE):
   pass
 else:
-  print "tagline detection should have passed, but failed"
+  print "Mismatched absolute source path of regen didn't prompt a new generation!"
+
+test_utils.cleanup_file(TESTFILE_TR)
+
+
+### Test the filetime modification checks ###
+
+#create a fake translation with the correct tagline, and a newer modification time
+#on the source. This means regen should be required
+create_testfile(TESTFILE, repyhelper.TRANSLATION_TAGLINE)
+
+#touch the source file so it thinks translation is needed
+os.utime(SRCFILE, None)
+
+if repyhelper._translation_is_needed(SRCFILE, TESTFILE):
+  pass
+else:
+  print "File modification time test incorrectly failed! Didn't detect change in source file"
   
 test_utils.cleanup_file(TESTFILE_TR)
 
 
 #Perform the same tests as last (valid translation file), but keep modtime of
-#translation newer, so test should fail
-create_testfile(TESTFILE, os.path.abspath(SRCFILE))
+#translation newer, so test should fail.
+create_testfile(TESTFILE, repyhelper.TRANSLATION_TAGLINE + "\ndef foo():\n  pass\n")
+
 if repyhelper._translation_is_needed(SRCFILE, TESTFILE):
   pass
 else:
-    print "file modification time tests failed!"
+  print "File modification time test failed! Thought regeneration was needed when it wasn't!"
 
-test_utils.cleanup_file(TESTFILE_TR)
-
-#Test the file path check for a bogus path
-create_testfile(TESTFILE, "badfiletag")  
-os.utime(SRCFILE, None)
-try:
-  repyhelper._translation_is_needed(SRCFILE, TESTFILE)
-except repyhelper.TranslationError:
-  pass
-else:
-  print "Bogus file path check failed"  
-  
 test_utils.cleanup_file(TESTFILE_TR)
 

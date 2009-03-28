@@ -4,7 +4,9 @@ Description
   Tests various file name formats for calls to translate
   
   No output indicates success
+
 """
+
 import os
 import repyhelper
 import test_utils
@@ -30,7 +32,7 @@ def test_name(name, expected):
     test_utils.cleanup_file(name)
     test_utils.cleanup_file(translation_name + ".py")
   else:
-    print "couldn't prepare test for filename test:", name
+    print "Couldn't prepare test for filename test:", name
 
 
 test_name("rhtestname_file1.repy", "rhtestname_file1_repy")
@@ -38,5 +40,5 @@ test_name("rhtestname_file2.py", "rhtestname_file2_py")
 test_name("rhtestname.file3.py", "rhtestname_file3_py")
 test_name("rhtestname.file4.repy", "rhtestname_file4_repy")
 test_name("rhtestname file5.repy", "rhtestname file5_repy")
-
+test_name("./rhtestname_file6.repy", "rhtestname_file6_repy")
 
