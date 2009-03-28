@@ -1,17 +1,0 @@
-include server_advertise.repy
-include forwarder_advertise.repy
-
-#tests the fadvertise and sadvertise functions with 'macad' and current ip address
-
-if callfunc == 'initialize':
-
-  settimer(0, forwarder_advertise, [] )
-  forwarder_lookup()
-	
-  targetuser = "macad"
-	
-  settimer(10, sadvertise, [targetuser], )
-  server_lookup(targetuser)
-	
-  print mycontext['currforwarder']
-	  print mycontext['targetforwarder']
