@@ -10,14 +10,13 @@ Abstracts the forwarding specification into a series of classes and functions.
 
 """
 
-include forwarder_advertise.py
-include server_advertise.py
+include NAT_advertisement.py
 include deserialize.py
 include Multiplexer.py
 include RPC_Constants.py
 
 # How long we should stall nat_waitforconn after we create the mux to check its status
-NAT_MUX_STALL = 1  # In seconds
+NAT_MUX_STALL = 2  # In seconds
 
 # Set the messages
 NAT_STATUS_NO_SERVER = "NO_SERVER"
@@ -34,11 +33,9 @@ NAT_STATE_DATA["mux"] = None # Initialize to nothing
 NAT_LISTEN_PORTS = {}
 
 #########################################################################
-###  Wrappers around the NAT Objects
-###  These should integrate lookup methods
 
 # Wrapper function around the NATLayer for clients        
-def nat_openconn(destmac, destport, localport=None, timeout = 5, forwarderIP=None,forwarderPort=None):
+def nat_openconn(destmac, destport, localip=None, localport=0, timeout = 5, forwarderIP=None,forwarderPort=None):
   """
   <Purpose>
     Opens a connection to a server behind a NAT.
@@ -48,13 +45,13 @@ def nat_openconn(destmac, destport, localport=None, timeout = 5, forwarderIP=Non
       The MAC address of the destination server
     
     destport:
-      N/A, for compatibility reasons
+      The port on the host to connect to.
     
-    localmac:
-      The MAC address used to identify this client
+    localip:
+      See openconn.
     
     localport:
-      N/A, for compatibility reasons
+      See openconn.
     
     timeout:
       How long before timing out the forwarder connection
@@ -71,12 +68,12 @@ def nat_openconn(destmac, destport, localport=None, timeout = 5, forwarderIP=Non
      A socket-like object that can be used for communication. 
      Use send, recv, and close just like you would an actual socket object in python.
   """ 
-  # TODO: Dennis you need to tie in here to get a real forwarder IP and port
+  # If we don't get an ip/port explicitly, then locate the server
   if forwarderIP == None or forwarderPort == None:
-   forwarderIP, forwarderPort = server_lookup(localmac)
+   forwarderIP, forwarderPort = nat_server_lookup(localmac)
 
   # Create a real connection to the forwarder
-  socket = openconn(forwarderIP, forwarderPort)
+  socket = openconn(forwarderIP, forwarderPort, localip, localport, timeout)
 
   # Create an RPC request
   rpc_dict = {RPC_FUNCTION:RPC_CLIENT_INIT,RPC_PARAM:{"server":destmac,"port":destport}}
@@ -150,7 +147,7 @@ def _nat_dereg_server_rpc(mux, mac):
 
 
 # Wrapper function around the NATLayer for servers  
-def nat_waitforconn(localmac, localport, function, forwarderIP=None, forwarderPort=None):
+def nat_waitforconn(localmac, localport, function, forwarderIP=None, forwarderPort=None, forwarderCltPort=None):
   """
   <Purpose>
     Allows a server to accept connections from behind a NAT.
@@ -160,12 +157,16 @@ def nat_waitforconn(localmac, localport, function, forwarderIP=None, forwarderPo
 
     forwarderIP:
       Force a forwarder to connect to. This will be automatically resolved if None.
-      forwarderPort must be specified if this is None.
+      All forwarder information must be specified if this is set.
       
     forwarderPort:
       Force a forwarder port to connect to. This will be automatically resolved if None.
-      forwarderIP must be specified if this is None.           
+      All forwarder information must be specified if this is set.           
   
+    forwarderCltPort:
+      The port for clients to connect to on the explicitly specified forwarder.
+      All forwarder information must be specified if this is set.
+      
   <Side Effects>
     An event will be used to monitor new connections
     
@@ -181,12 +182,19 @@ def nat_waitforconn(localmac, localport, function, forwarderIP=None, forwarderPo
   if NAT_STATE_DATA["mux"] == None:
     
     # Get a forwarder to use
-    if forwarderIP == None or forwarderPort == None:
-      forwarderIP, forwarderPort = forwarder_lookup()
-      settimer(0, server_advertise, [localmac],)
-      
-    # Create a real connection to the forwarder
-    socket = openconn(forwarderIP, forwarderPort)
+    if forwarderIP == None or forwarderPort == None or forwarderCltPort == None:
+      forwarderIP, forwarderPort, forwarderCltPort = nat_forwarder_lookup()
+    
+    # Save this information
+    NAT_STATE_DATA["forwarderIP"] = forwarderIP
+    NAT_STATE_DATA["forwarderPort"] = forwarderPort
+    NAT_STATE_DATA["forwarderCltPort"] = forwarderCltPort
+
+    try:  
+      # Create a real connection to the forwarder
+      socket = openconn(forwarderIP, forwarderPort)
+    except:
+      raise EnvironmentError, "Failed to connect to forwarder. Please try again."
   
     # Immediately create a multiplexer from this connection
     mux = Multiplexer(socket, {"localip":getmyip(), "localport":localport})
@@ -210,6 +218,11 @@ def nat_waitforconn(localmac, localport, function, forwarderIP=None, forwarderPo
     if success:
       # Create a set for the ports
       NAT_LISTEN_PORTS[localmac] = set()
+      
+      # Setup an advertisement
+      nat_server_advertise(localmac, NAT_STATE_DATA["forwarderIP"], NAT_STATE_DATA["forwarderCltPort"])
+      nat_toggle_advertisement(True)
+    
     else:
       # Something is wrong, raise Exception
       raise EnvironmentError, "Failed to begin listening!"
@@ -257,31 +270,37 @@ def nat_stopcomm(handle):
   # Unpack the handle
   (localmac, localport) = handle
   
-  if mux != None:
-    if localmac in NAT_LISTEN_PORTS and localport in NAT_LISTEN_PORTS[localmac]:
-      # Tell the Mux to stop listening
-      mux.stopcomm(str(handle))
+  if mux != None and localmac in NAT_LISTEN_PORTS and localport in NAT_LISTEN_PORTS[localmac]:
+    # Tell the Mux to stop listening
+    mux.stopcomm(str(handle))
+    
+    # Cleanup
+    NAT_LISTEN_PORTS[localmac].discard(localport)
+  
+    # De-register our port from the forwarder
+    _nat_dereg_port_rpc(mux, localmac, localport)
+    
+    # Are we listening on any ports?
+    numListen = len(NAT_LISTEN_PORTS[localmac])
+    
+    if numListen == 0:
+      # De-register the server entirely
+      _nat_dereg_server_rpc(mux, localmac)
+      
+      # Stop advertising
+      nat_stop_server_advertise(localmac)
       
       # Cleanup
-      NAT_LISTEN_PORTS[localmac].discard(localport)
+      del NAT_LISTEN_PORTS[localmac]
     
-      # De-register our port from the forwarder
-      _nat_dereg_port_rpc(mux, localmac, localport)
-    
-      # Are we listening on any ports?
-      numListen = len(NAT_LISTEN_PORTS[localmac])
-      if numListen == 0:
-        # De-register the server entirely
-        _nat_dereg_server_rpc(mux, localmac)
-        
-        # Cleanup
-        del NAT_LISTEN_PORTS[localmac]
+    # Are we listening as any server?
+    if len(NAT_LISTEN_PORTS) == 0:
+      # Close the mux, and set it to Null
+      mux.close()
+      NAT_STATE_DATA["mux"] = None
       
-      # Are we listening as any server?
-      if len(NAT_LISTEN_PORTS) == 0:
-        # Close the mux, and set it to Null
-        mux.close()
-        NAT_STATE_DATA["mux"] = None
+      # Disable advertisement
+      nat_toggle_advertisement(False, False)
   
 
 # Pings a forwarder to get our external IP
@@ -293,6 +312,7 @@ def getmy_external_ip(forwarderIP=None,forwarderPort=None):
   <Arguments>
     forwarderIP/forwarderPort:
       If None, a forwarder will be automatically selected. They can also be explicitly specified.
+      forwarderPort must be a client port.
   
   <Side Effects>
     This operation will use a socket while it is running.
@@ -300,12 +320,15 @@ def getmy_external_ip(forwarderIP=None,forwarderPort=None):
   <Returns>
     A string IP address
   """
-  # TODO: Dennis you need to tie in here to get a real forwarder IP and port
+  # If we don't have an explicit forwarder, pick a random one
   if forwarderIP == None or forwarderPort == None:
-    forwarderIP, forwarderPort = server_lookup(localmac)
+    forwarderIP, forwarderPort, forwarderCltPort = nat_forwarder_lookup()
 
   # Create a real connection to the forwarder
-  rpcsocket = openconn(forwarderIP, forwarderPort)
+  try:
+    rpcsocket = openconn(forwarderIP, forwarderCltPort)
+  except:
+    raise EnvironmentError, "Failed to connect to forwarder. Please try again."
   
   # Now connect to a forwarder, and get our external ip/port
   # Create a RPC dictionary
@@ -336,6 +359,7 @@ def behind_nat(forwarderIP=None,forwarderPort=None):
     
     forwarderport:
       Defaults to None. This can be set for explicitly forcing the use of a port on a forwarder.
+      This must be the client port, not the server port.
   
   <Exceptions>
     This may raise various network related Exceptions if not connected to the internet.

@@ -61,15 +61,18 @@ def nat_forwarder_lookup():
   forwarders = centralizedadvertise_lookup(NAT_FORWARDER_ADVERTISE_KEY, NAT_MAX_LOOKUP)
   
   # Safety check..
-  if len(forwarders) == 0:
+  if len(forwarders) <= 1 and forwarders[0] == '':
     raise Exception, "No forwarders could be found!"
   
   # Grab a random forwarder
-  index = int(randomfloat() * len(forwarders))
+  index = int(randomfloat() * (len(forwarders)-1))
   
   # Get the info
   forwarderInfo = forwarders[index]
-  forwarderInfo = deserialize(forwarderInfo)  
+  try:
+    forwarderInfo = deserialize(forwarderInfo)  
+  except ValueError,exp:
+    raise EnvironmentError, "Bad server advertisement encountered! Please try again."
   
   # Return a tuple containing the IP and port for server and client
   return (forwaderInfo["ip"], forwarderInfo["server"], forwarderInfo["client"])
@@ -86,7 +89,7 @@ def nat_server_lookup(key):
   
   # Safety check...
   assert(num <= 1)
-  if num == 0:
+  if num == 0 or (num == 1 and lst[0] == ''):
     raise Exception, "Host could not be found!"
 
   # Get the information about the server
