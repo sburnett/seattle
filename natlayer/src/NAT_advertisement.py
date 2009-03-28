@@ -29,7 +29,7 @@ NAT_ADVERTISE_POOL = {}
 NAT_ADVERTISE_STATE = {"enable":False,"run":False}
 
 # Registers the forwarder so that clients using the NATLayer can find us
-def forwarder_advertise(ip, serverport, clientport):
+def nat_forwarder_advertise(ip, serverport, clientport):
   # Generate the value to advertise
   valueDict = {"ip":ip, "server":serverport, "client":clientport}
   value = str(valueDict)
@@ -39,7 +39,7 @@ def forwarder_advertise(ip, serverport, clientport):
 
 
 # Advertises a server, so that other NATLayer users can connect
-def server_advertise(key, forwarderIP, forwarderCltPort):
+def nat_server_advertise(key, forwarderIP, forwarderCltPort):
   # Generate the value to advertise
   valueDict = {"key":key, "forwarder":forwarderIP, "port":forwarderCltPort}
   value = str(valueDict)
@@ -49,10 +49,14 @@ def server_advertise(key, forwarderIP, forwarderCltPort):
 
   # Add to the advertising pool
   NAT_ADVERTISE_POOL[key] = value
-    
+
+# Stops advertising a server key    
+def nat_stop_server_advertise(key):
+  if key in NAT_ADVERTISE_POOL:
+    del NAT_ADVERTISE_POOL[key]
     
 # Lookup a forwarder so that we can connect
-def forwarder_lookup():
+def nat_forwarder_lookup():
   # Get the list of forwarders
   forwarders = centralizedadvertise_lookup(NAT_FORWARDER_ADVERTISE_KEY, NAT_MAX_LOOKUP)
   
@@ -72,7 +76,7 @@ def forwarder_lookup():
 
 
 # Finds a server using the NATLayer
-def server_lookup(key):
+def nat_server_lookup(key):
   # Get the proper key, add the prefix
   key = NAT_SRV_PREFIX + key
 
@@ -116,11 +120,11 @@ def _nat_advertise_thread():
           centralizedadvertise_announce(key, val, NAT_ADVERTISE_TTL)
         except:
           pass
-        
-    # Check if we should terminate
-    if not NAT_ADVERTISE_STATE["run"]:
-      break
     
     # Sleep for a while
     sleep(NAT_ADVERTISE_INTERVAL)
+              
+    # Check if we should terminate
+    if not NAT_ADVERTISE_STATE["run"]:
+      break
 
