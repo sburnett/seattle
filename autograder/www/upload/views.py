@@ -86,6 +86,10 @@ def upload(request):
                   classcode = str(form.cleaned_data['class_code'])
                   email = str(form.cleaned_data['email'])
 
+                  #check if root directory for assignemnt uploads exists
+                  if (os.path.isdir(settings.ASSIGNMENT_UPLOAD_PATH))==False:
+                     os.mkdir(settings.ASSIGNMENT_UPLOAD_PATH)
+
                   file_path = settings.ASSIGNMENT_UPLOAD_PATH + classcode + "_" + email + "_." + extension
 
                   # open the file to hold the user's assignment
@@ -139,6 +143,12 @@ def grade(request):
   if request.method == 'POST':
     form = forms.UploadAssignmentForm(request.POST)
     whichFile=request.POST['which']
+
+
+    if (os.path.exists(settings.ASSIGNMENT_UPLOAD_PATH+"ToGrade/"+whichFile)):
+       return direct_to_template(request, 'upload/default.html',
+                {'info' : whichFile+" is scheduled for grading (being graded) already", 'form' : forms.UploadAssignmentForm()})
+
     if (os.path.isdir(settings.ASSIGNMENT_UPLOAD_PATH+"ToGrade"))==False:
       os.mkdir(settings.ASSIGNMENT_UPLOAD_PATH+"ToGrade")
     os.system('cp '+settings.ASSIGNMENT_UPLOAD_PATH+whichFile+' '+settings.ASSIGNMENT_UPLOAD_PATH+"ToGrade; chmod 664 "+settings.ASSIGNMENT_UPLOAD_PATH+"ToGrade/"+whichFile)
