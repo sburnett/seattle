@@ -70,7 +70,7 @@ def nat_openconn(destmac, destport, localip=None, localport=0, timeout = 5, forw
   """ 
   # If we don't get an ip/port explicitly, then locate the server
   if forwarderIP == None or forwarderPort == None:
-   forwarderIP, forwarderPort = nat_server_lookup(localmac)
+   forwarderIP, forwarderPort = nat_server_lookup(destmac)
 
   # Create a real connection to the forwarder
   socket = openconn(forwarderIP, forwarderPort, localip, localport, timeout)

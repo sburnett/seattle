@@ -1,5 +1,5 @@
 """
-Author: Armon Dadgar
+Author: Armon Dadgar, Eric Kimbrel
 
 Start date: March 27, 2009
 
@@ -31,8 +31,7 @@ NAT_ADVERTISE_STATE = {"enable":False,"run":False}
 # Registers the forwarder so that clients using the NATLayer can find us
 def nat_forwarder_advertise(ip, serverport, clientport):
   # Generate the value to advertise
-  valueDict = {"ip":ip, "server":serverport, "client":clientport}
-  value = str(valueDict)
+  value = ip+"*"+str(serverport)+"*"+str(clientport)
   
   # Add to the advertising pool
   NAT_ADVERTISE_POOL[NAT_FORWARDER_ADVERTISE_KEY] = value
@@ -41,8 +40,7 @@ def nat_forwarder_advertise(ip, serverport, clientport):
 # Advertises a server, so that other NATLayer users can connect
 def nat_server_advertise(key, forwarderIP, forwarderCltPort):
   # Generate the value to advertise
-  valueDict = {"key":key, "forwarder":forwarderIP, "port":forwarderCltPort}
-  value = str(valueDict)
+  value = forwarderIP+'*'+str(forwarderCltPort)
 
   # Alter the key, add the prefix
   key = NAT_SRV_PREFIX + key
@@ -59,23 +57,25 @@ def nat_stop_server_advertise(key):
 def nat_forwarder_lookup():
   # Get the list of forwarders
   forwarders = centralizedadvertise_lookup(NAT_FORWARDER_ADVERTISE_KEY, NAT_MAX_LOOKUP)
-  
+
   # Safety check..
   if len(forwarders) <= 1 and forwarders[0] == '':
     raise Exception, "No forwarders could be found!"
   
   # Grab a random forwarder
   index = int(randomfloat() * (len(forwarders)-1))
-  
+
   # Get the info
   forwarderInfo = forwarders[index]
-  try:
-    forwarderInfo = deserialize(forwarderInfo)  
-  except ValueError,exp:
-    raise EnvironmentError, "Bad server advertisement encountered! Please try again."
   
+  try:
+    (ip,server_port,client_port) = forwarderInfo.split('*')
+  except ValueError:
+    raise Exception, 'Forwarder lookup returned unexpected value'
+  
+
   # Return a tuple containing the IP and port for server and client
-  return (forwaderInfo["ip"], forwarderInfo["server"], forwarderInfo["client"])
+  return (ip,int(server_port),int(client_port))
 
 
 # Finds a server using the NATLayer
@@ -93,10 +93,15 @@ def nat_server_lookup(key):
     raise Exception, "Host could not be found!"
 
   # Get the information about the server
-  info = deserialize(lst[0])
+  info = lst[0]
+
+  try:
+    (forwarder_ip,clt_port) = info.split('*')
+  except ValueError:
+    raise 'Unexpected value recieved from server lookup'
 
   # Return a tuple of the forwarder IP port
-  return (info["forwarder"], info["port"])
+  return (forwarder_ip, int(clt_port))
 
 
 # Toggles advertisement
