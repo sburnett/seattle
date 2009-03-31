@@ -50,6 +50,9 @@ def nat_server_advertise(key, forwarderIP, forwarderCltPort):
 
 # Stops advertising a server key    
 def nat_stop_server_advertise(key):
+  # Alter the key, add the prefix
+  key = NAT_SRV_PREFIX + key
+  
   if key in NAT_ADVERTISE_POOL:
     del NAT_ADVERTISE_POOL[key]
     
