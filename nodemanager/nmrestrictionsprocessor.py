@@ -18,16 +18,16 @@ def read_restrictions_file(file):
     file: name/path of the file to open
   
   <Returns>
-    A string buffer with the contents of the file.  
+    A list, where each element is a line in the file  
   """
-  # Get the file handle, read mode
-  fileh = open(file)
+  # Get the file object, read mode with universal newlines
+  fileo = open(file,"ru")
   
   # Read in all the contents
-  contents = fileh.read()
+  contents = fileo.readlines()
   
-  # Close the file handle
-  fileh.close()
+  # Close the file object
+  fileo.close()
   
   return contents
   
@@ -38,28 +38,29 @@ def write_restrictions_file(file, buffer):
     
   <Arguments>
     file: name/path of the file to open
-    buffer: The contents of the restrictions file
+    buffer: A list, where each element is a line in the file
   
   <Returns>
     Nothing  
   """
-  # Get the file handle, write mode
-  fileh = open(file, "w")
+  # Get the file object, write mode
+  fileo = open(file, "w")
   
   # Write in all the buffer
-  fileh.write(buffer)
+  for line in buffer:
+    fileo.write(line+"\n")
   
-  # Close the file handle
-  fileh.close()
+  # Close the file object
+  fileo.close()
   
 
-def update_restriction(contents, restriction, restype, val, func=False):
+def update_restriction(lines, restriction, restype, val, func=False):
   """
   <Purpose>
     Updates a resource in a restrictions file
   
   <Arguments>
-    contents: The contents of the restrictions file
+    lines: The contents of the restrictions file, list each element is a line
     restriction: The name of the restriction e.g. resource, call
     restype: The type of restriction, e.g. events
     val: Either a new absolute value, or a callback function
@@ -70,13 +71,10 @@ def update_restriction(contents, restriction, restype, val, func=False):
     The restrictions file will be modified
   
   <Returns>
-    The contents of the new restrictions file
+    The contents of the new restrictions file, list each element is a line
   """
-  # Explode file on the newline
-  lines = contents.split("\n")
-  
   # Empty buffer for new contents
-  newContents = ""
+  newContents = []
   
   # Check each line if it contains the resource
   for line in lines:
@@ -90,7 +88,7 @@ def update_restriction(contents, restriction, restype, val, func=False):
         assert(lineContents[1] == restype)
       except AssertionError:
         # Wrong line, continue after appending this line
-        newContents += line+"\n"
+        newContents.append(line)
         continue
         
       # Check if we are using a callback function
@@ -105,17 +103,16 @@ def update_restriction(contents, restriction, restype, val, func=False):
       
       # Re-create the line string, with the modifications
       lineString = ""
-      for x in lineContents:
-        lineString += x + " "
+      for elem in lineContents:
+        lineString += elem + " "
       lineString = lineString.strip()
-      lineString += "\n"
       
       # Append the new line to the buffer
-      newContents += lineString
+      newContents.append(lineString)
       
     else:
       # Just append this line to the buffer
-      newContents += line+"\n"
+      newContents.append(line)
       
   # Return the modified buffer
   return newContents
@@ -152,8 +149,8 @@ def process_restriction_file(file, tasks):
   newContent = content
   
   # Run each task against the restrictions file
-  for t in tasks:
-    (restriction, restype, val, func) = t
+  for task in tasks:
+    (restriction, restype, val, func) = task
     newContent = update_restriction(newContent, restriction, restype, val, func)
   
   # Check if there were any changes
@@ -172,7 +169,6 @@ def process_all_files(tasks):
     (restriction, restype, val, func). See update_restriction for the meaning of these values.
   
   <Returns>
-    None on success. Otherwise,
     A list of all the failures. They are in the form of tuples: (file, exception)
   """
   # Get all the resource files
@@ -191,10 +187,7 @@ def process_all_files(tasks):
     except Exception, exp:
       failedFiles.append((rFile, exp))
   
-  # Return the list of failed files, or None if there were no failures
-  if len(failedFiles) == 0:
-    return None
-  else:  
-    return failedFiles
+  # Return the list of failed files 
+  return failedFiles
 
 
