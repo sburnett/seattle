@@ -53,7 +53,7 @@ def write_restrictions_file(file, buffer):
   
   # Write in all the buffer
   for line in buffer:
-    fileo.write(line+"\n")
+    fileo.write(line)
   
   # Close the file object
   fileo.close()
@@ -92,17 +92,21 @@ def update_restriction(lines, restriction, restype, val, func=False):
   # Empty buffer for new contents
   newContents = []
   
+  # Store the length of the restriction
+  restrictionLength = len(restriction)
+  
   # Check each line if it contains the resource
   for line in lines:
-    if restriction in line:
+    # Check if the line starts with a comment or the restriction as an optimization
+    # This prevents us from processing every single line needlessly
+    if not line[0] == "#" and restriction == line[0:restrictionLength]:
       # Explode on space
       lineContents = line.split(" ")
       
       # Make sure this is the correct resource
-      try:
-        assert(lineContents[0] == restriction)
-        assert(lineContents[1] == restype)
-      except AssertionError:
+      # This is okay if there are comments, because either the index will be offset
+      # Or the value of the index will be changed, and will not match
+      if not lineContents[0] == restriction or not lineContents[1] == restype:
         # Wrong line, continue after appending this line
         newContents.append(line)
         continue
@@ -122,6 +126,7 @@ def update_restriction(lines, restriction, restype, val, func=False):
       for elem in lineContents:
         lineString += elem + " "
       lineString = lineString.strip()
+      lineString += "\n"
       
       # Append the new line to the buffer
       newContents.append(lineString)
