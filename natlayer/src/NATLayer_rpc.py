@@ -147,7 +147,7 @@ def _nat_dereg_server_rpc(mux, mac):
 
 
 # Wrapper function around the NATLayer for servers  
-def nat_waitforconn(localmac, localport, function, forwarderIP=None, forwarderPort=None, forwarderCltPort=None):
+def nat_waitforconn(localmac, localport, function, forwarderIP=None, forwarderPort=None, forwarderCltPort=None, errdel=None):
   """
   <Purpose>
     Allows a server to accept connections from behind a NAT.
@@ -166,6 +166,10 @@ def nat_waitforconn(localmac, localport, function, forwarderIP=None, forwarderPo
     forwarderCltPort:
       The port for clients to connect to on the explicitly specified forwarder.
       All forwarder information must be specified if this is set.
+      
+    errdel:
+      Sets the Error Delegate for the underlying multiplexer. See Multiplexer.setErrorDelegate.
+      Argument should be a function pointer, the function should take 3 parameters, (mux, location, exception)
       
   <Side Effects>
     An event will be used to monitor new connections
@@ -212,6 +216,10 @@ def nat_waitforconn(localmac, localport, function, forwarderIP=None, forwarderPo
     # Get the mux
     mux = NAT_STATE_DATA["mux"]
 
+  # If the error delegate is assigned, set up error delegation
+  if errdel != None:
+    mux.setErrorDelegate(errdel)
+        
   # Register us as a server, if necessary
   if not localmac in NAT_LISTEN_PORTS:
     success = _nat_reg_server_rpc(mux, localmac)
