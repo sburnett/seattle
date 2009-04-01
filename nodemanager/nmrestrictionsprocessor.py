@@ -9,6 +9,9 @@ Description:
 # Finds all resource files
 import glob
 
+# Used for moving files
+import os
+
 def read_restrictions_file(file):
   """
   <Purpose>
@@ -34,7 +37,8 @@ def read_restrictions_file(file):
 def write_restrictions_file(file, buffer):
   """
   <Purpose>
-    Writes in the contents of a restrictions file.
+    Writes in the contents of a restrictions file. Tries to do this safely,
+    by writing to a new file, backing-up the original, renaming the new file, and finally deleting the backup.
     
   <Arguments>
     file: name/path of the file to open
@@ -44,7 +48,8 @@ def write_restrictions_file(file, buffer):
     Nothing  
   """
   # Get the file object, write mode
-  fileo = open(file, "w")
+  # Use a .new suffix, so as not to corrupt the current file
+  fileo = open(file+".new", "w")
   
   # Write in all the buffer
   for line in buffer:
@@ -52,6 +57,17 @@ def write_restrictions_file(file, buffer):
   
   # Close the file object
   fileo.close()
+  
+  # Move the original to *.bak if it exists
+  if os.path.exists(file):
+    os.rename(file, file+".bak")
+  
+  # Move the new one to the original
+  os.rename(file+".new", file)
+  
+  # Cleanup, remove the backup
+  if os.path.exists(file+".bak"):
+    os.remove(file+".bak")
   
 
 def update_restriction(lines, restriction, restype, val, func=False):

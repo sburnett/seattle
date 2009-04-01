@@ -35,6 +35,7 @@ def update_restrictions():
   # Log any errors we encounter
   if errors != None:
     for e in errors:
+      print e
       servicelogger.log("[ERROR]:Unable to patch events limit in resource file "+ e[0] + ", exception " + str(e[1]))
 
   
