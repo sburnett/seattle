@@ -12,6 +12,9 @@ import nmrestrictionsprocessor
     
 import servicelogger
 
+# This lets us control the vessels
+import nmAPI
+
 EVENT_SCALAR = 0.5 # Scalar number of threads, relative to current
 HARD_MIN = 1 # Minimum number of events
 
@@ -19,7 +22,7 @@ HARD_MIN = 1 # Minimum number of events
 def update_restrictions():
   # Create an internal handler function, takes a resource line and returns the new number of threads
   def _internal_func(lineContents):
-    threads = int(lineContents[2])
+    threads = float(lineContents[2])
     threads = threads * EVENT_SCALAR
     threads = int(threads)
     threads = max(threads, HARD_MIN) # Set a hard minimum
@@ -46,9 +49,20 @@ def handle_threading_error():
     Handles a repy node failing with ThreadErr. Reduces global thread count by 50%.
     Restarts all existing vesselts
   """
+  # Make a log of this
+  servicelogger.log("[ERROR]:A Repy vessel has exited with ThreadErr status. Patching restrictions and reseting all vessels.")
+  
   # First, update the restrictions
   update_restrictions()
   
   # Then, restart the vessels
-  # TODO
+  # Get all the vessels
+  vessels = nmAPI.vesseldict.keys()
   
+  # Reset each vessel
+  for vessel in vessels:
+    try:
+      nmAPI.resetvessel(vessel)
+    except Exception, exp:
+      # Forge on, regardless of errors
+      servicelogger.log("[ERROR]:Failed to reset vessel (Handling ThreadErr). Exception: "+str(exp))
