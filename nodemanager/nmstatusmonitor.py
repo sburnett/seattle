@@ -27,6 +27,9 @@ import time
 
 import servicelogger
 
+# This is used to handle a vesseling having a 
+# ThreadErr status
+import nmthreadingerror
 
 # The amount of time we allow without an update before we declare a vessel 
 # dead...
@@ -71,10 +74,15 @@ class statusthread(threading.Thread):
   # isn't a copy, but a reference to the same data structure
   statusdict = None
   sleeptime = None
+  
+  # Set tracks timestamps at which vessels encountered a threading error
+  # This is uses so that the error is only handled once
+  threadErrSet = None
 
   def __init__(self,statusdictionary,sleeptime):
     self.statusdict = statusdictionary
     self.sleeptime = sleeptime
+    self.threadErrSet = set()
     threading.Thread.__init__(self,name = "Status Monitoring Thread")
 
   def run(self):
@@ -108,7 +116,20 @@ class statusthread(threading.Thread):
                 pass
                
               continue
-        
+          
+          # Armon: Check if status is ThreadErr, this is a critical error condition
+          # that requires lowering the global thread count, and reseting all vessels
+          if status == "ThreadErr":
+            # Check if this is the first time for this timestamp
+            # Since the status file is not removed, this is necessary so that we do not
+            # continuously trigger the error handling code
+            if not timestamp in self.threadErrSet:
+              # Add the timestamp
+              self.threadErrSet.add(timestamp)
+              
+              # Call the error handling module
+              nmthreadingerror.handle_threading_error()
+          
           # The status has a timestamp in case the process is killed harshly and 
           # needs to be restarted.   This allows ordering of status reports
           staleness = time.time() - timestamp
