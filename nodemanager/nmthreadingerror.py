@@ -22,11 +22,16 @@ HARD_MIN = 1 # Minimum number of events
 def update_restrictions():
   # Create an internal handler function, takes a resource line and returns the new number of threads
   def _internal_func(lineContents):
-    threads = float(lineContents[2])
-    threads = threads * EVENT_SCALAR
-    threads = int(threads)
-    threads = max(threads, HARD_MIN) # Set a hard minimum
-    return threads
+    try:
+      threads = float(lineContents[2])
+      threads = threads * EVENT_SCALAR
+      threads = int(threads)
+      threads = max(threads, HARD_MIN) # Set a hard minimum
+      return threads
+    except:
+      # On failure, return the minimum
+      return HARD_MIN
+      
   
   # Create a task that uses our internal function
   task = ("resource","events",_internal_func,True)
