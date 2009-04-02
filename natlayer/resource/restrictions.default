@@ -6,7 +6,7 @@ resource filewrite 10000
 resource fileread 10000
 resource filesopened 5
 resource insockets 5
-resource outsockets 5
+resource outsockets 8
 resource netsend 50000 # 50k
 resource netrecv 50000
 resource loopsend 1000000 # 1M

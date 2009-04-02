@@ -10,7 +10,7 @@ include NATLayer_rpc.py
 
 serverMac =  "SERVER-----"
 serverMac2 = "SERVER----2"
-MAX_CONNECTED = 8
+MAX_CONNECTED = 4
 
 # The test will be forced to exit after this many seconds
 # This is necessary since client 3 is expected to block indefinately

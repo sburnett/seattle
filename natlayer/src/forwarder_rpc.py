@@ -23,8 +23,8 @@ include NATLayer_rpc.py
 include RPC_Constants.py
 
 FORWARDER_STATE = {"ip":"127.0.0.1","Next_Conn_ID":0}
-MAX_CLIENTS_PER_SERV = 8*2 # How many clients per server, the real number is this divided by 2
-MAX_SERVERS = 8 # How man servers can connect
+MAX_CLIENTS_PER_SERV = 5*2 # How many clients per server, the real number is this divided by 2
+MAX_SERVERS = 4 # How man servers can connect
 WAIT_INTERVAL = 3    # How long to wait after sending a status message before closing the socket
 RECV_SIZE = 1024 # Size of chunks to exchange
 CHECK_INTERVAL = 15  # How often to cleanup our state, e.g. remove dead multiplexers
@@ -431,14 +431,21 @@ def new_server(remoteip, remoteport, sock, thiscommhandle, listencommhandle):
   
   # stop the server wait handle if the max number of servers is connected
   # TODO, stop the forwarder from advertising when the server wait handle is stopped
-  if len(CONNECTIONS)+1 >= MAX_SERVERS:
+  elif server_wait_dict['servers_connected']+1 >= MAX_SERVERS:
     if DEBUG2: print getruntime(),"Server Limits Reached"
     
     #removed until stopcomm issue is resolved
     #stopcomm(server_wait_dict['handle'])
     server_wait_dict['active'] = False
-  
+    
+    # stop advertising the forwarder
+    nat_toggle_advertisement(False,False)    
+
+  else:
+    server_wait_dict['servers_connected'] +=1
+
   server_wait_dict['lock'].release()
+
 
   # Get the connection ID
   id = _get_conn_id()
@@ -504,15 +511,21 @@ def main():
   # Setup a port for clients to connect
   client_wait_handle = waitforconn(ip, mycontext['CLIENT_PORT'], inbound_connection)
   
+  
+  # Advertise the forwarder
+  nat_forwarder_advertise(ip,mycontext['SERVER_PORT'],mycontext['CLIENT_PORT'])
+  nat_toggle_advertisement(True)
+
   # DEBUG
   if DEBUG1: print getruntime(),"Forwarder Started on",ip
-  
+
+
   # Periodically check the multiplexers, see if they are alive
   while True:
     sleep(CHECK_INTERVAL)
     
     # DEBUG
-    if DEBUG2: print getruntime(), "Polling for dead connections."
+    if DEBUG3: print getruntime(), "Polling for dead connections."
     
     # Check each multiplexer
     for (id, info) in CONNECTIONS.items():
@@ -533,9 +546,12 @@ def main():
     sleep(WAIT_INTERVAL) #make sure servers are disconnected
     server_wait_dict = mycontext['server_wait_info']
     server_wait_dict['lock'].acquire()
-    if (not server_wait_dict['active']) and (len(CONNECTIONS) < MAX_SERVERS):
+    if (not server_wait_dict['active']) and (server_wait_dict['servers_connected'] < MAX_SERVERS):
       #commented out until stopcomm issue is resolved
       #server_wait_dict['handle'] = waitforconn(ip,mycontext['SERVER_PORT'],new_server)
+      # start advertising the forwarder
+      nat_toggle_advertisement(True)
+
       print 'allowing new servers to connect'
       server_wait_dict['active'] = True
     server_wait_dict['lock'].release()
@@ -569,5 +585,4 @@ if callfunc == "initialize":
 
   mycontext['SERVER_PORT'] = int(callargs[0])  # What real port to listen on for servers
   mycontext['CLIENT_PORT'] = int(callargs[1])  # What real port to listen on for clients
-  
   main()
