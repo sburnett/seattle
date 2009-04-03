@@ -145,6 +145,18 @@ def _nat_dereg_server_rpc(mux, mac):
   return _nat_rpc_call(mux,rpc_dict)  
   
 
+# Simple wrapper function to determine if we are still waiting
+# e.g. if the multiplexer is still alive
+def nat_waitforconn_alive():
+  """
+  <Purpose>
+    Informs the caller of the current state of the NAT waitforconn.
+    
+  <Returns>
+    True if the connection to the forwarder is established and alive, False otherwise.    
+  """
+  return NAT_STATE_DATA["mux"] != None and NAT_STATE_DATA["mux"].isAlive()
+  
 
 # Wrapper function around the NATLayer for servers  
 def nat_waitforconn(localmac, localport, function, forwarderIP=None, forwarderPort=None, forwarderCltPort=None, errdel=None):
@@ -178,7 +190,7 @@ def nat_waitforconn(localmac, localport, function, forwarderIP=None, forwarderPo
     A handle, this can be used with nat_stopcomm to stop listening.      
   """  
   # Check if our current mux is dead (if it exists)
-  if NAT_STATE_DATA["mux"] != None and not NAT_STATE_DATA["mux"].connectionInit:
+  if NAT_STATE_DATA["mux"] != None and not NAT_STATE_DATA["mux"].isAlive():
     # Delete the mux
     NAT_STATE_DATA["mux"] = None
   
@@ -207,7 +219,7 @@ def nat_waitforconn(localmac, localport, function, forwarderIP=None, forwarderPo
     sleep(NAT_MUX_STALL)
     
     # If the mux is no longer initialized, or never could initialize, then raise an exception
-    if not mux.connectionInit:
+    if not mux.isAlive():
       raise EnvironmentError, "Failed to begin listening!"
     
     # Add the multiplexer to our state
@@ -269,9 +281,9 @@ def nat_stopcomm(handle):
   mux = NAT_STATE_DATA["mux"]
   
   # Check the status of the mux, is it alive?
-  if mux != None and not mux.connectionInit:
+  if mux != None and not mux.isAlive():
     # Delete the mux, and stop listening on everything
-    NAT_STATE_DATA["mux"]
+    NAT_STATE_DATA["mux"] = None
     NAT_LISTEN_PORTS.clear()
     mux = None
   
