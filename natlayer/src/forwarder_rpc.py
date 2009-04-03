@@ -439,7 +439,7 @@ def new_server(remoteip, remoteport, sock, thiscommhandle, listencommhandle):
     server_wait_dict['active'] = False
     
     # stop advertising the forwarder
-    nat_toggle_advertisement(False,False)    
+    nat_toggle_advertisement(False)    
 
   else:
     server_wait_dict['servers_connected'] +=1
@@ -510,7 +510,6 @@ def main():
 
   # Setup a port for clients to connect
   client_wait_handle = waitforconn(ip, mycontext['CLIENT_PORT'], inbound_connection)
-  
   
   # Advertise the forwarder
   nat_forwarder_advertise(ip,mycontext['SERVER_PORT'],mycontext['CLIENT_PORT'])
