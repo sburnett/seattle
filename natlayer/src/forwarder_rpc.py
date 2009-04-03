@@ -532,7 +532,7 @@ def main():
       # Check server type connections for their status
       if info["type"] == TYPE_MUX:
         mux = info["mux"]
-        status = mux.connectionInit
+        status = mux.isAlive()
       
         # Check if the mux is no longer initialized
         if not status:
