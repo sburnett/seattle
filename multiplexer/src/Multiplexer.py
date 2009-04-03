@@ -382,10 +382,26 @@ class Multiplexer():
   # So that we display properly  
   def __repr__(self):
     # Format a nice string with some of our info
-    return "<Multiplexer setup:"+str(self.connectionInit)+ \
+    return "<Multiplexer setup:"+str(self.isAlive())+ \
     " buf_size:"+str(self.defaultBufSize)+ \
     " counter:"+str(self.nextReferenceID)+ \
     " info:"+str(self.socketInfo)+">"
+  
+  
+  # Returns the status of the multiplexer
+  def isAlive(self):
+    """
+    <Purpose>
+      Returns the status of the multiplexer. Since the multiplexer is mostly handled by internal threads,
+      user programs will not receive exceptions on a fatal error, like the underlying socket closing.
+      This function returns the status, or setErrorDelegate can be used to be informed proactively.
+  
+   <Returns>
+    True, if the multiplexer is alive and functional. False otherwise.      
+    """
+    # Just use connectionInit, that is our internal variable
+    return self.connectionInit
+          
           
   # Closes the Multiplexer, and cleans up
   def close(self, closeSocket=True):
@@ -471,7 +487,7 @@ class Multiplexer():
   # Private: Recieves a single frame 
   def _recvFrame(self):
     # Check if we are initialized
-    if not self.connectionInit:
+    if not self.isAlive():
       raise AttributeError, "Multiplexer is not yet initialized or is closed!"
             
     # Init frame
@@ -503,7 +519,7 @@ class Multiplexer():
   # Private: Sends a single frame
   def _sendFrame(self,frame):
     # Check if we are initialized
-    if not self.connectionInit:
+    if not self.isAlive():
       raise AttributeError, "Multiplexer is not yet initialized or is closed!"
     
     try:
@@ -565,7 +581,7 @@ class Multiplexer():
       A socket like object.
     """    
     # Check if we are initialized
-    if not self.connectionInit:
+    if not self.isAlive():
       raise AttributeError, "Multiplexer is not yet initialized or is closed!"
     
     # Check for default values
@@ -676,7 +692,7 @@ class Multiplexer():
       A handle that can be used with stopcomm
     """
     # Check if we are initialized
-    if not self.connectionInit:
+    if not self.isAlive():
       raise AttributeError, "Multiplexer is not yet initialized or is closed!"
       
     # Check if this is a new host, make a new dictionary
@@ -855,7 +871,7 @@ class Multiplexer():
       # and handles all administrative frames
       while True:
         # Should we quit?
-        if not self.connectionInit:
+        if not self.isAlive():
           break
       
         # Read in a frame
@@ -868,7 +884,7 @@ class Multiplexer():
           continue
       
         # It is possible we recieved a close command while doing recv, so lets check again and handle this
-        if not self.connectionInit:
+        if not self.isAlive():
           break 
       
         # Get the virtual socket if it exists
@@ -975,7 +991,7 @@ class MultiplexerSocket():
       and most likely Runtime Errors will be encountered.
     """
     # If the Multiplexer is still initialized, then lets send a close message
-    if self.mux != None and self.mux.connectionInit:
+    if self.mux != None and self.mux.isAlive():
       # Create termination frame
       termFrame = MultiplexerFrame()
       termFrame.initConnTermFrame(self.id)
@@ -1247,7 +1263,7 @@ def mux_openconn(desthost, destport, localip=None,localport=None,timeout=15,virt
   key = "IP:"+desthost+":"+str(destport)
   if key in MULTIPLEXER_OBJECTS:
     # Check if the multiplexer is still initialized
-    status = MULTIPLEXER_OBJECTS[key].connectionInit
+    status = MULTIPLEXER_OBJECTS[key].isAlive()
     
     # If the mux is not still initialized, then remove it and call ourselves again
     if not status:
