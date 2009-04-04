@@ -77,3 +77,4 @@ req win_cpu_nanny.py
 req uniqueid.repy
 req timeout_xmlrpclib.py
 req listops.repy
+req LICENSE.TXT

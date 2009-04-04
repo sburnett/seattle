@@ -140,6 +140,8 @@ def main():
   copy_to_target("seattlelib/*", target_dir)
   copy_to_target("seash/*", target_dir)
   copy_to_target("softwareupdater/*", target_dir)
+  # include the license.   It's not essential, but we should include it
+  copy_to_target("LICENSE.TXT", target_dir)
   
   if repytest:
     # Only copy the tests if they were requested.
