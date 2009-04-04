@@ -9,27 +9,23 @@
   Adapted from preparetest.py.  Trying to build demokit.
 
 <Usage>
-  preparedemokit.py <target_folder>
-"""
-import sys
-import glob
-import os
-import shutil
-import subprocess
+  python preparedemokit.py
+
+<Side Effects> 
+  Creates a directory called "demokit".  If "demokit" exists,
+  overwrites it.
+""" 
+
+import sys 
+import glob 
+import os 
+import shutil 
+import subprocess 
 import preparetest
 
-helpstring = """python preparedemokit.py <foldername>"""
-
-# checks to make sure the argument list has at least 2 entries
-def checkArgLen():
-  if len(sys.argv) < 2:
-    preparetest.help_exit('Invalid number of arguments')
-
 def main():
-  checkArgLen()
-	
   #store root directory and get target directory
-  target_dir = sys.argv[1]
+  target_dir = "demokit"
   current_dir = os.getcwd()
 
   ####################
@@ -37,25 +33,14 @@ def main():
   ###################
 
   # Make sure they gave us a valid directory
-  if (os.path.exists(target_dir)):  # don't overwrite
-  #  help_exit("given foldername already exists")
-    pass
-  else: # create it
-    os.mkdir(target_dir)
-
-  #set working directory to the test folder
-  os.chdir(target_dir)	
-  files_to_remove = glob.glob("*")
-
-  #clean the test folder
-  for f in files_to_remove: 
-    if os.path.isdir(f):
-      shutil.rmtree(f)		
+  if (os.path.exists(target_dir)):  # remove it
+    if os.path.isdir(target_dir):
+      shutil.rmtree(target_dir)		
     else:
-      os.remove(f)
+      os.remove(target_dir)    
 
-  #go back to root project directory
-  os.chdir(current_dir) 
+  # recreate it
+  os.mkdir(target_dir)
 
   ####################
   # Build Repy
