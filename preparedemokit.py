@@ -64,6 +64,9 @@ def main():
   preparetest.copy_to_target("repy/apps/allpairsping/allpairsping.repy", target_dir)
   preparetest.copy_to_target("repy/apps/old_demokit/*", target_dir)
 
+  # other
+  preparetest.copy_to_target("LICENSE.TXT", target_dir)
+
   #set working directory to the test folder
   os.chdir(target_dir)
 
