@@ -278,6 +278,10 @@ def setup_startup(prog_path):
     if os.path.exists(startup + os.sep + get_starter_file_name()):
       raise AlreadyInstalledError
     
+    #BUG fix ticket 320. keys need to be generated before setting up the cron tab to avoid a race condition. 
+    #In the windows case we should handle this in a consistent manner and set up the node keys before we modify the statup settings.
+    generate_keys(prog_path)
+    
     # Now that we have the startup folder and we know seattle is not installed,
     # customize the starter file.
     preprocess_file(prog_path + os.sep + get_starter_file_name(), 
@@ -307,7 +311,12 @@ def setup_startup(prog_path):
   
     # Now we know they don't, so we should add it
     
-    # First, generate a temp file with the user's crontab plus our task
+    
+    #BUG fix ticket 320. keys need to be generated before setting up the cron tab to avoid a race condition
+    #generate the node keys
+    generate_keys(prog_path)
+    
+    # Generate a temp file with the user's crontab plus our task
     # (tempfile module used as suggested in Jacob Appelbaum's patch)
     real_install_dir = os.path.realpath(prog_path)
     cron_line = '*/10 * * * * "' + real_install_dir + '/' + \
@@ -533,7 +542,7 @@ def install(prog_path):
   prog_path = os.path.realpath(prog_path)
   
   # First, setup seattle to run at startup
-  output("Preparing seattle to run at startup...")
+  output("Generating node keys and preparing seattle to run at startup...")
   startup_retval = setup_startup(prog_path)
   if startup_retval:
     output("Done!")
@@ -556,11 +565,6 @@ def install(prog_path):
   # Next, customize the constants file
   output("Configuring seattle constants...")
   setup_constants(prog_path)
-  output("Done!")
-
-  # Next, generate the node keys
-  output("Generating node keys (may take a few minutes)...")
-  generate_keys(prog_path)
   output("Done!")
   
   # If on a Linux-like system, make sure that the scripts have the right permissions
