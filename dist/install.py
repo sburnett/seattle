@@ -520,7 +520,7 @@ def install(prog_path):
       Path to the directory in which seattle is being installed.
 
   <Exceptions>
-    UnsupportedPythonError if the Python version is unsupported.
+    None.
     
   <Side Effects>
     None.
@@ -635,8 +635,6 @@ def main():
   
   try:
     install(install_dir)
-  except UnsupportedPythonError, err:
-    print "Your version of Python (" + err.version + ") is not supported."
   except AlreadyInstalledError:
     print "seattle was already installed."
 
