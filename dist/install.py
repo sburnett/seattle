@@ -542,7 +542,7 @@ def install(prog_path):
   prog_path = os.path.realpath(prog_path)
   
   # First, setup seattle to run at startup
-  output("Generating node keys and preparing seattle to run at startup...")
+  output("Generating node keys and preparing seattle to run at startup, this may take a few minutes...")
   startup_retval = setup_startup(prog_path)
   if startup_retval:
     output("Done!")
