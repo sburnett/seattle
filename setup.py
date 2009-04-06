@@ -26,14 +26,27 @@
  
   Do `python setup.py --help-commands` for available commands.
 """
+# standard imports
 from distutils.cmd import Command
 from distutils.errors import *
 from distutils.core import setup
 
+# commands to customize
+import distutils.command.build_scripts
+import distutils.command.clean
+
+
+# other python libs
 import preparetest
 import os
 import shutil
 import glob
+import tempfile
+
+
+#######################
+# New Commands
+#######################
 
 class test(Command):
     """
@@ -60,33 +73,27 @@ class test(Command):
     def run(self):
       """Do a little setup, then pass off to old python script"""
 
-      # remove dir if exists
-      if (os.path.exists(self.directory)):  
-        if os.path.isdir(self.directory):
-          shutil.rmtree(self.directory)
-        else:    
-          os.remove(self.directory)
-
-      # recreate it
-      os.mkdir(self.directory)    
+      # remove dir if exists and recreate it. other wise create it
+      refresh_dir(self.directory)
 
       # pass off to preparetest.py
       cmd = "python preparetest.py " + str(self.directory)
       if self.include_repy_tests:
         cmd += " -t"
-      os.system(cmd)
+      preparetest.exec_command(cmd)
 
 class demokit(Command):
     """
     <Purpose>
       This command generates a folder of Repy and some
       other files.  This generated demokit folder is a distribution of Repy.
- 
+
       Creates a directory called "demokit".  If "demokit" exists,
       overwrites it.
+
+      Uses the build_scripts command to generate Repy and Seash scripts.
     """
     description = "build the demokit"
-   
     user_options = []
 
     def initialize_options(self):
@@ -101,75 +108,50 @@ class demokit(Command):
       """Do it"""
       #store root directory and get target directory
       target_dir = self.directory
-      current_dir = os.getcwd()
 
-      # remove demokit if exists
-      if (os.path.exists(target_dir)):  
-        if os.path.isdir(target_dir):
-          shutil.rmtree(target_dir)
-        else:
-          os.remove(target_dir)    
-
-      # recreate it
-      os.mkdir(target_dir)
+      # remove dir if exists and recreate it. other wise create it
+      refresh_dir(target_dir)
 
       # Build Repy
-      preparetest.copy_to_target("nodemanager/servicelogger.mix", target_dir)
-      preparetest.copy_to_target("repy/*.py", target_dir)
-      preparetest.copy_to_target("seattlelib/*.repy", target_dir)
-      preparetest.copy_to_target("portability/*.py", target_dir)
-      preparetest.copy_to_target("nodemanager/advertise.mix", target_dir)
-      preparetest.copy_to_target("nodemanager/persist.py", target_dir)
-      preparetest.copy_to_target("nodemanager/timeout_xmlrpclib.py", target_dir)
-      preparetest.copy_to_target("nodemanager/openDHTadvertise.py", target_dir)
+      builder =build_scripts(self.distribution)
+      builder.finalize_options()
+      builder.run()
 
-      # add some utils
-      preparetest.copy_to_target("seattlelib/repypp.py", target_dir)
-      preparetest.copy_to_target("seash/seash.mix", target_dir)
+#      copy_repy(target_dir)
 
-      # and some extras
+      # Add some extra files
+      preparetest.copy_to_target("build/scripts-2.5/*", target_dir)
       preparetest.copy_to_target("repy/apps/allpairsping/allpairsping.repy", target_dir)
       preparetest.copy_to_target("repy/apps/old_demokit/*", target_dir)
-
-      # and even some other
       preparetest.copy_to_target("LICENSE.TXT", target_dir)
 
-      #set working directory to the test folder
-      os.chdir(target_dir)
 
-      #call the process_mix function to process all mix files in the target directory
-      preparetest.process_mix("repypp.py")
+#######################
+# Custom Standard Commands
+#######################
 
-      # rm mix src files
-      files_to_remove = glob.glob("*.mix")
-      for fn in files_to_remove: 
-        os.remove(fn)
-
-      #go back to root project directory
-      os.chdir(current_dir) 
-  # run()
-
-class clean(Command):
+class clean(distutils.command.clean.clean):
     """
     <Purpose>
       This command removes the junk of other commands.  It also deletes .pyc
-      files.
+      files.  And does whatever the usual clean would do
     """
 
-    user_options = [ ]
+    description = "clean up temporary files from the 'build', 'test', 'demokit' commands"
 
     def initialize_options(self):
       """Setup"""
 
+      # super
+      distutils.command.clean.clean.initialize_options(self)
+
       # these are the junk dirs from other commands
       self._junk = ['demokit', 'tests']
 
-    def finalize_options(self):
-      """What now"""
-      pass
-
     def run(self):
       """Delete it all"""
+      # super
+      distutils.command.clean.clean.run(self)
 
       # Remove .pyc files
       pycs = [ ]
@@ -187,11 +169,92 @@ class clean(Command):
             os.remove(junker)
 
 
+class build_scripts(distutils.command.build_scripts.build_scripts):
+    """
+    <Purpose>
+      This command generates portable versions of our scripts.  But first,
+      we squeeze our scripts into single files.
+    """
+
+    def run(self):
+      """Process, squeeze, call super, and then clean up"""
+      
+      # create a temporary file 
+      tmpdirname = tempfile.mkdtemp()
+      
+      # copy and process repy in the tmp directory
+      copy_repy(tmpdirname)
+
+      # squeeze all the files in the tmp dir into each script      
+      for script in self.scripts:
+        fileglob = tmpdirname + "/*.py"
+        scriptnameonly = os.path.splitext(os.path.basename(script))[0]
+        cmd = "python squeeze.py -1 -o " + scriptnameonly + " -b " + scriptnameonly + " " + fileglob
+        print cmd
+        preparetest.exec_command(cmd)
+
+      # clean up
+      shutil.rmtree(tmpdirname)
+
+      # now do the usual with the newly created scripts
+      distutils.command.build_scripts.build_scripts.run(self)
+
+      # then remove the tmp squeezed ones
+      for script in self.scripts:
+        os.remove(script)
+
+######################
+# Helpers
+####################
+
+def refresh_dir(directory):
+  """Creates the directory, or deletes and recreates."""
+  # remove dir if exists
+  if (os.path.exists(directory)):  
+    if os.path.isdir(directory):
+      shutil.rmtree(directory)
+    else:    
+      os.remove(directory)
+  # recreate it
+  os.mkdir(directory)    
+
+def copy_repy(directory):
+   """Copy into the directory and process all the files needed for Repy"""
+
+   target_dir = directory
+   current_dir = os.getcwd()
+
+   preparetest.copy_to_target("nodemanager/servicelogger.mix", target_dir)
+   preparetest.copy_to_target("repy/*.py", target_dir)
+   preparetest.copy_to_target("seattlelib/*.repy", target_dir)
+   preparetest.copy_to_target("portability/*.py", target_dir)
+   preparetest.copy_to_target("nodemanager/advertise.mix", target_dir)
+   preparetest.copy_to_target("nodemanager/persist.py", target_dir)
+   preparetest.copy_to_target("nodemanager/timeout_xmlrpclib.py", target_dir)
+   preparetest.copy_to_target("nodemanager/openDHTadvertise.py", target_dir)
+
+   # add some utils
+   preparetest.copy_to_target("seattlelib/repypp.py", target_dir)
+   preparetest.copy_to_target("seash/seash.mix", target_dir)
+
+   #set working directory to the test folder
+   os.chdir(target_dir)
+
+   #call the process_mix function to process all mix files in the target directory
+   preparetest.process_mix("repypp.py")
+
+   # rm mix src files
+   files_to_remove = glob.glob("*.mix")
+   for fn in files_to_remove: 
+     os.remove(fn)
+
+   #go back to root project directory
+   os.chdir(current_dir) 
 
 
-
-
-
+#################
+# Main
+#################
 """
 <Purpose>
   Main interface to Distutils.
@@ -209,6 +272,13 @@ class clean(Command):
   then to register your project with Cheese Shop
   as well as generate user help messages.
 """
+
+commandClasses = dict(
+      test = test,
+      demokit = demokit,
+      clean = clean,
+      build_scripts = build_scripts)
+
 setup(name = "Seattle",
       version = "0.1e",
       author = 'Justin Cappos', 
@@ -227,5 +297,5 @@ ubiquitous/mobile computing, distributed systems.
       license = "GENI Public License",
 
       scripts = ['repy.py', 'seash.py'],
-      cmdclass = { "test": test, "demokit": demokit, "clean": clean })
+      cmdclass = commandClasses)
 
