@@ -64,10 +64,14 @@ def handle_threading_error():
   # Get all the vessels
   vessels = nmAPI.vesseldict.keys()
   
+  # Create the stop tuple, exit code 57 with an error message
+  stoptuple = (57, "Fatal system-wide threading error! Stopping all vessels.")
+  
   # Reset each vessel
   for vessel in vessels:
     try:
-      nmAPI.resetvessel(vessel)
+      # Stop each vessel, using our stoptuple
+      nmAPI.stopvessel(vessel,stoptuple)
     except Exception, exp:
       # Forge on, regardless of errors
       servicelogger.log("[ERROR]:Failed to reset vessel (Handling ThreadErr). Exception: "+str(exp))
