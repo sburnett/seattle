@@ -268,7 +268,11 @@ def start_task(command):
     subprocess.Popen(command, shell=True)
 
 
-def stopvessel(vesselname):
+# Armon: Takes an optional exitparams tuple, which should contain
+# an integer exit code and a string message,
+# e.g. (44,'') is the default and represents exiting with status
+# "Stopped" with no messege
+def stopvessel(vesselname,exitparams=(44, '')):
   if vesselname not in vesseldict:
     raise BadRequest, "No such vessel"
 
@@ -279,8 +283,17 @@ def stopvessel(vesselname):
   if currentstatus != 'Started':
     raise BadRequest("Cannot stop vessel with status '"+currentstatus+"'")
   
-  # create the stop file
-  open(vesseldict[vesselname]['stopfilename'],"w").close()
+  # Armon: Create the stop file, using a .tmp extension
+  fileo = open(vesseldict[vesselname]['stopfilename']+".tmp","w")
+  
+  # Write out the stop string, Format: EINT;EMESG
+  fileo.write(str(exitparams[0]) + ";" + exitparams[1])
+  
+  # Close the object
+  fileo.close()
+  
+  # Rename the tmp file to the actual stopfile, this should be detected by repy now
+  os.rename(vesseldict[vesselname]['stopfilename']+".tmp", vesseldict[vesselname]['stopfilename'])
 
   starttime = nonportable.getruntime()
 
@@ -454,14 +467,15 @@ def readvessellog(vesselname):
 
 
 # Flush a vessel's log, filesystem, and stop any running code...
-def resetvessel(vesselname):
+# Armon: See stopvessel for explaination of exitparams
+def resetvessel(vesselname,exitparams=(44, '')):
   if vesselname not in vesseldict:
     raise BadRequest, "No such vessel"
 
   # need to try to stop it until it works...
   while True:
     try:
-      returnstring = stopvessel(vesselname)
+      returnstring = stopvessel(vesselname,exitparams)
     except BadRequest:
       # due to the vessel not running...
       break
