@@ -161,7 +161,10 @@ class statusthread(threading.Thread):
     
     except Exception,e:
       exceptionstring = "[ERROR]:"
-      for line in traceback.format_tb(sys.last_traceback):
+      # Armon: Get info about the traceback
+      (exception_type, val, tb) = sys.exc_info()
+      
+      for line in traceback.format_tb(tb):
         exceptionstring = exceptionstring + line
 
       servicelogger.log(exceptionstring)
