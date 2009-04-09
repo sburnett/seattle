@@ -15,8 +15,18 @@ import servicelogger
 # This lets us control the vessels
 import nmAPI
 
+# This allows us to get the system thread count
+import nonportable
+
+# This allows us to access the NM configuration
+import persist
+
 EVENT_SCALAR = 0.5 # Scalar number of threads, relative to current
 HARD_MIN = 1 # Minimum number of events
+
+# If repy's allocated 
+DEFAULT_NOOP_THRESHOLD = .10
+NOOP_CONFIG_KEY = "threaderr_noop_thres" # The key used in the NM config file
 
 # Updates the restrictions files, to use 50% of the threads
 def update_restrictions():
@@ -41,12 +51,41 @@ def update_restrictions():
   errors = nmrestrictionsprocessor.process_all_files(taskList)
   
   # Log any errors we encounter
-  if errors != None:
+  if errors != []:
     for e in errors:
       print e
       servicelogger.log("[ERROR]:Unable to patch events limit in resource file "+ e[0] + ", exception " + str(e[1]))
 
+# Store the threads
+_allocatedThreads = 0
+      
+# Gets our allocated thread count
+def get_allocated_threads():
+  global _allocatedThreads
   
+  # Create an internal handler function, takes a resource line and stores the allocated threads
+  # Makes no changes
+  def _internal_func(lineContents):
+    global _allocatedThreads
+    try:
+      threads = int(float(lineContents[2]))
+      _allocatedThreads += threads
+      return lineContents[2]
+    except Exception, e:
+      # On failure, return the initial value
+      return lineContents[2]
+  
+  # Reset the thread count
+  _allocatedThreads = 0
+  
+  # Create a task that uses our internal function, which will tally up the allocated threads
+  task = ("resource","events",_internal_func,True)
+  taskList = [task]
+  
+  # Process all the resource files
+  errors = nmrestrictionsprocessor.process_all_files(taskList)
+  
+  return _allocatedThreads
 
 def handle_threading_error():
   """
@@ -57,17 +96,44 @@ def handle_threading_error():
   # Make a log of this
   servicelogger.log("[ERROR]:A Repy vessel has exited with ThreadErr status. Patching restrictions and reseting all vessels.")
   
+  # Get the number of threads Repy has allocated
+  allocatedThreads = get_allocated_threads()
+  
+  # Get the number os system threads currently
+  systemThreads = nonportable.osAPI.getSystemThreadCount()
+  
+  # Log this information
+  servicelogger.log("[ERROR]:System Threads: "+str(systemThreads)+"  Repy Allocated Threads: "+str(allocatedThreads))
+  
+  # Get the NM configuration
+  configuration = persist.restore_object("nodeman.cfg")
+  
+  # Check if there is a threshold configuration,
+  # otherwise add the default configuration
+  if NOOP_CONFIG_KEY in configuration:
+    threshold = configuration[NOOP_CONFIG_KEY]
+  else:
+    threshold = DEFAULT_NOOP_THRESHOLD
+    configuration[NOOP_CONFIG_KEY] = threshold
+    persist.commit_object(configuration, "nodeman.cfg")
+  
+  # Check if we are below the threshold, if so
+  # then just return, this is a noop
+  if allocatedThreads < systemThreads * threshold:
+    return
+  
+  # We are continuing, so we are above the threshold!
   # First, update the restrictions
   update_restrictions()
   
-  # Then, restart the vessels
+  # Then, stop the vessels
   # Get all the vessels
   vessels = nmAPI.vesseldict.keys()
   
   # Create the stop tuple, exit code 57 with an error message
   stoptuple = (57, "Fatal system-wide threading error! Stopping all vessels.")
   
-  # Reset each vessel
+  # Stop each vessel
   for vessel in vessels:
     try:
       # Stop each vessel, using our stoptuple
