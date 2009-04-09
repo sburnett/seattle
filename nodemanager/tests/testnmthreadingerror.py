@@ -127,6 +127,21 @@ class TestNMThreadingErrorr(unittest.TestCase):
     # Check that it is equal to what is expected
     self.assertEqual(self.contentStr2, contents)
     self.assertEqual(self.contentStr2, contents2)
+  
+  def testget_allocated_threads(self):
+    # Create the two resource files
+    fileo = open(self.filename,"w")
+    fileo.write(self.contentStr)
+    fileo.close()
+    fileo = open(self.filename2,"w")
+    fileo.write(self.contentStr)
+    fileo.close()
+    
+    # Call into nmthreadingerror
+    alloc = nmthreadingerror.get_allocated_threads()
+     
+    # Check that it is equal to what is expected
+    self.assertEqual(alloc, 200)
     
   def tearDown(self):
     os.remove(self.filename)    
