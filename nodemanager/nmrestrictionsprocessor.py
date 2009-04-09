@@ -24,7 +24,7 @@ def read_restrictions_file(file):
     A list, where each element is a line in the file  
   """
   # Get the file object, read mode with universal newlines
-  fileo = open(file,"ru")
+  fileo = open(file,"rU")
   
   # Read in all the contents
   contents = fileo.readlines()
