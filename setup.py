@@ -117,10 +117,10 @@ class demokit(Command):
       builder.finalize_options()
       builder.run()
 
-#      copy_repy(target_dir)
-
-      # Add some extra files
-      preparetest.copy_to_target("build/scripts-2.5/*", target_dir)
+      # Add the files
+      preparetest.copy_to_target("build/scripts-2.5/repy.py", target_dir)
+      preparetest.copy_to_target("build/scripts-2.5/seash.py", target_dir)
+      preparetest.copy_to_target("seattlelib/repypp.py")
       preparetest.copy_to_target("repy/apps/allpairsping/allpairsping.repy", target_dir)
       preparetest.copy_to_target("repy/apps/old_demokit/*", target_dir)
       preparetest.copy_to_target("LICENSE.TXT", target_dir)
@@ -175,26 +175,33 @@ class build_scripts(distutils.command.build_scripts.build_scripts):
       This command generates portable versions of our scripts.  But first,
       we squeeze our scripts into single files.
     """
+    def initialize_options(self):
+      """Setup"""
+
+      # super
+      distutils.command.build_scripts.build_scripts.initialize_options(self)
+
+      # these are files needed (included/imported) to build each script
+      repy_core = ['repy/*.py', 'nodemanager/servicelogger.mix', 'seattlelib/*.repy', 'nodemanager/persist.py']
+      nm_core = ['nodemanager/*.mix', 'nodemanager/*.py']
+      self._dependencies = { 
+		'repy.py': repy_core, 
+		'seash.py': ['seash/seash.mix', 'portability/repyportability.py'] + repy_core + nm_core, 
+		'rhizoma.py': ['seattlelib/rhizoma.mix', 'portability/repyportability.py', 'autograder/nm_remote_api.mix'] + repy_core + nm_core}
 
     def run(self):
       """Process, squeeze, call super, and then clean up"""
-      
-      # create a temporary file 
-      tmpdirname = tempfile.mkdtemp()
-      
-      # copy and process repy in the tmp directory
-      copy_repy(tmpdirname)
 
-      # squeeze all the files in the tmp dir into each script      
+      # this will dump a processed-squeezed version each script
+      # into the current directory
       for script in self.scripts:
-        fileglob = tmpdirname + "/*.py"
-        scriptnameonly = os.path.splitext(os.path.basename(script))[0]
-        cmd = "python squeeze.py -1 -o " + scriptnameonly + " -b " + scriptnameonly + " " + fileglob
-        print cmd
-        preparetest.exec_command(cmd)
-
-      # clean up
-      shutil.rmtree(tmpdirname)
+        # create a temporary file 
+        tmpdirname = tempfile.mkdtemp()
+        # copy and process repy in the tmp directory
+        process_it(script, self._dependencies[script], tmpdirname)
+        squeeze_it(script, tmpdirname)
+        # clean up
+        shutil.rmtree(tmpdirname)
 
       # now do the usual with the newly created scripts
       distutils.command.build_scripts.build_scripts.run(self)
@@ -218,24 +225,52 @@ def refresh_dir(directory):
   # recreate it
   os.mkdir(directory)    
 
-def copy_repy(directory):
-   """Copy into the directory and process all the files needed for Repy"""
 
-   target_dir = directory
+def squeeze_it(script, tmpdirname):
+  """
+  <Purpose>
+    Turn a bunch of python files into one compressed file
+   
+  <Args>
+    script - the main module to start at
+    tmpdirname - the directory with all the dependent files 
+
+  <Pre>
+    Process all files using process_it() into the tmp dir.
+    The files in the tmp should be the minimal set of files.
+
+  <Side Effect>
+    Dumps the compressed script into the current directory
+  """
+  fileglob = tmpdirname + "/*.py"
+  scriptnameonly = os.path.splitext(os.path.basename(script))[0]
+  cmd = "python squeeze.py -1 -o " + scriptnameonly + " -b " + scriptnameonly + " " + fileglob
+  preparetest.exec_command(cmd)
+
+
+def process_it(script, dependencies, tmpdirname):
+   """
+   <Purpose>
+     Copy into the directory and process all the files needed for the script.
+     Remove unneeded files after processing.
+
+   <Args>
+     script - the main module to build
+     dependencies - the files the main script includes or imports
+     tmpdirname - the temporary directory
+   <Side Effects>
+     Leaves the minimal set of files neccessary to run the script in the tmp dir
+   """
+
+   target_dir = tmpdirname
    current_dir = os.getcwd()
 
-   preparetest.copy_to_target("nodemanager/servicelogger.mix", target_dir)
-   preparetest.copy_to_target("repy/*.py", target_dir)
-   preparetest.copy_to_target("seattlelib/*.repy", target_dir)
-   preparetest.copy_to_target("portability/*.py", target_dir)
-   preparetest.copy_to_target("nodemanager/advertise.mix", target_dir)
-   preparetest.copy_to_target("nodemanager/persist.py", target_dir)
-   preparetest.copy_to_target("nodemanager/timeout_xmlrpclib.py", target_dir)
-   preparetest.copy_to_target("nodemanager/openDHTadvertise.py", target_dir)
+   # copy them all in
+   for filepath in dependencies:
+     preparetest.copy_to_target(filepath, target_dir)
 
    # add some utils
    preparetest.copy_to_target("seattlelib/repypp.py", target_dir)
-   preparetest.copy_to_target("seash/seash.mix", target_dir)
 
    #set working directory to the test folder
    os.chdir(target_dir)
@@ -243,14 +278,14 @@ def copy_repy(directory):
    #call the process_mix function to process all mix files in the target directory
    preparetest.process_mix("repypp.py")
 
-   # rm mix src files
-   files_to_remove = glob.glob("*.mix")
+   # rm build files
+   files_to_remove = glob.glob("*.mix") + glob.glob("*.repy")
    for fn in files_to_remove: 
      os.remove(fn)
+   os.remove("repypp.py") # get rid of the repypp.py file
 
    #go back to root project directory
    os.chdir(current_dir) 
-
 
 #################
 # Main
@@ -296,6 +331,6 @@ ubiquitous/mobile computing, distributed systems.
       keywords = "seattle repy",
       license = "GENI Public License",
 
-      scripts = ['repy.py', 'seash.py'],
+      scripts = ['repy.py', 'seash.py', 'rhizoma.py'],
       cmdclass = commandClasses)
 
