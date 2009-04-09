@@ -1,4 +1,13 @@
+/*
+	JavaScript to enable interactions in mygeni.html
+	Author: Sean (Xuanhua) Ren
+	Last Modified: 4/9/2009
+*/
 
+
+/*
+	load the credits and shares when the page is ready
+*/
 $(document).ready(function() {
 	update_credits();
 	update_shares();
@@ -7,8 +16,15 @@ $(document).ready(function() {
 
 
 /*
-	Create a block with given width and background color,
-	and append it to the given bar element.
+	Create a block with given username and width for credits or shares
+	and return the block
+	If width is less than 10%, create and append to a "Other" block
+	
+	username: the username for the block
+	width: the width of the block
+	isShare: true if it's in the "shares" bar, false if it's in the "credits" bar
+	
+	return: the block created
 */
 function create_block(username, width, isShare) {
 	var block = $(document.createElement('td'));
@@ -77,10 +93,14 @@ function create_block(username, width, isShare) {
 }
 
 
-
 /*
-	Create a name label with given width and append it to
-	the given name table.
+	Create a name label with given width for shares or credits bar
+	
+	username: the username for the label
+	width: the width for the label
+	isShare: true if it is in "shares" bar and false if it is in "credits" bar
+	
+	return: the label created
 */
 function create_label(username, width, isShare) {
 	var label = $(document.createElement('td'));
@@ -95,6 +115,13 @@ function create_label(username, width, isShare) {
 }
 
 
+/*
+	Append the given username and percent to "Others" table
+	
+	type: type of the table, "credits" or "shares"
+	username: username to added to the table
+	percent: percent shown in the table
+*/
 function add_other(type, username, percent) {
 	var table;
 	if (type == "credits") {
@@ -134,9 +161,11 @@ function add_other(type, username, percent) {
 }
 
 
-
 /*
-	Display the change percent dialog box
+	Display the "Change Percent" modal dialog box
+	
+	username: username of the editing block
+	current_percent: current percent of the block editing
 */
 function change_percent(username, current_percent) {
 	var dialog = $(document.createElement("div"));
@@ -176,6 +205,9 @@ function change_percent(username, current_percent) {
 /*
 	Save the percent of the the block when click "save" on the
 	change_percent dialog box
+	
+	username: username of the block
+	percent: new percent of the block user enters
 */
 function save_percent(username, percent) {
 	$.post("../control/ajax_editshare",
@@ -194,17 +226,12 @@ function save_percent(username, percent) {
 			"json");
 }
 
-/*
-	make sure the new percent is within range of validity
-*/
-/* function validate(current_percent, new_percent) {
-	var free = parseInt($("#usageFree span").text());
-	return (new_percent - current_percent < free) && (new_percent >= 0);
-	} */
-
 
 /*
-	Toggle display the tables for small percent users
+	Toggle display "Others" table
+	
+	isShare: true if the table to toggle is in "shares"
+			 false if the table to toggle is in "credits"
 */
 function toggle_table(isShare) {
 	if (isShare) {
@@ -215,6 +242,10 @@ function toggle_table(isShare) {
 }
 
 
+/*
+	Display the "Get Resources" modal dialog
+	Currently disabled because the button directly linked to myVessels page
+*/
 function get_resources_dialog() {
 	$("#dialogframe").fadeIn("fast");
 	$("#overlay").fadeIn("fast");
@@ -224,6 +255,9 @@ function get_resources_dialog() {
 }
 
 
+/*
+	Display the "Share Resources" modal dialog
+*/
 function share_resources_dialog() {
 	$("#shareresourcesdialog #username").val("");
 	$("#shareresourcesdialog #percent").val("");
@@ -243,6 +277,10 @@ function share_resources_dialog() {
 	});
 }
 
+
+/*
+	Hide the modal dialog currently being displayed
+*/
 function close_dialog() {
     if ($(this).parent().children(".warning")) {
 		$(this).parent().children(".warning").remove();
@@ -252,6 +290,14 @@ function close_dialog() {
 	$("#overlay").hide();
 }
 
+
+/*
+	Validate the returned data before displaying
+	
+	url: url for posting ajax
+	args: arguments for posting ajax
+	func: function to callback when server returns data
+*/
 function post_ajax(url, args, func) {
 	$.post(url, args, function(data) {
 		// check data
@@ -263,6 +309,12 @@ function post_ajax(url, args, func) {
 }
 
 
+/*
+	Save the given amount of resources with given user
+	
+	username: username of the user to be shared
+	percent: percent of resources to share
+*/
 function share_resources(username, percent) {
 	post_ajax("../control/ajax_createshare",
 			{ username: username, percent: percent },
@@ -280,6 +332,10 @@ function share_resources(username, percent) {
 }
 
 
+/*
+	Get the amount of resources taken from the "Get Resources" dialog
+	Currently disabled because the button directly linked to myVessels page
+*/
 function get_resources() {
 	var numvessels = parseInt($("#numvessels").val());
 	var env = parseInt($("#environment").val());
@@ -303,10 +359,13 @@ function get_resources() {
 			});
 }
 
-/*
-	Create and insert a warning sign after the given position
-*/
 
+/*
+	Create and append a warning sign after the given position
+	
+	error: the error message to show in the html
+	position: the location where the error message should append to
+*/
 function create_warning(error, position) {
 	var warning = $(document.createElement("p"));
 	warning.html(error);
@@ -318,6 +377,10 @@ function create_warning(error, position) {
 /*
 	Generate a color in hex notation for a username, which assigns different
 	colors to different usernames.
+	
+	username: username for generating random colors
+	
+	return: hex representation of the color
 */
 function color_generator(username) {
 	var seeds = ['cc','ff'];
@@ -337,6 +400,11 @@ function color_generator(username) {
 	return color;
 }
 
+
+/*
+	Load all blocks in "credits" bar
+	If it takes more than 15000 milliseconds, display message to let user refresh the page
+*/
 function update_credits() {
 	var loading = true;
 	setTimeout(function () {
@@ -375,6 +443,11 @@ function update_credits() {
 			"json");
 }
 
+
+/*
+	Load all blocks in "shares" bar
+	If it takes more than 15000 milliseconds, display message to let user refresh the page
+*/
 function update_shares() {
 	loading = true;
 	setTimeout(function () {
@@ -421,6 +494,14 @@ function update_shares() {
 }
 
 
+/*
+	Add a block-label pair to a perticular bar
+	
+	type: "credits" if adding to the "credits" bar
+		  "shares" if adding to the "shares" bar
+	username: username of the cell to add
+	percent: percent of the cell to add
+*/
 function add_cell(type, username, percent) {
 	if (type == "credits") {
 		var block = create_block(username, percent, false);
@@ -436,6 +517,11 @@ function add_cell(type, username, percent) {
 }
 
 
+/*
+	Let the select box in "Get Resources" dialog display possible number of vessels
+	
+	number: number of possible vessels to get
+*/
 function update_numvessels(number) {
 	$("#numvessels").empty();
 	for (var i = 1; i <= number; i++) {
