@@ -22,42 +22,9 @@
 
 
 
-/*******************
-* RESET
-********************/
-
-* {
-	margin: 0;
-	padding: 0;
-}
-
-table {
-	border-collapse:collapse;
-	border-spacing: 0;
-}
-
-fieldset, img {
-	border: 0;
-}
-
-ol, ul {
-	list-style: none;
-}
-
-
-
-
-
 /***********************
 * GENERAL
-************************/
-
-
-body {
-	background-color: #fff;
-	font-family: "Segoe UI", "Lucida Grande", "Helvetica" , sans-serif;
-	font-size: 10pt;
-}
+***********************
 
 #content {
 	margin: 5px;
@@ -76,14 +43,14 @@ h1 {
 
 /******************************
 * STYLESHEET FOR index.php
-*******************************/
+******************************
 
 
 #main {
 	padding: 30px auto;
 }
 
-
+*/
 /*    users div    */
 
 #users {
@@ -194,7 +161,7 @@ ul li {
 *********************************/
 
 
-/*    table    */
+/*    table    
 
 table#installers {
 	border-collapse: collapse;
@@ -223,7 +190,6 @@ table#installers tr td {
 }
 
 
-/*    other elements    */
 
 p.comment {
 	margin: 5px 20px;
@@ -238,3 +204,5 @@ p.comment {
 	border: 3px solid #666;
 	background-color: #fcfcd4;
 }
+
+*/

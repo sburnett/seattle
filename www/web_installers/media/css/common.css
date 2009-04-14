@@ -1,0 +1,133 @@
+
+/*******************
+* RESET
+********************/
+
+* {
+	margin: 0;
+	padding: 0;
+}
+
+fieldset, img {
+	border: 0;
+}
+
+table {
+	border-collapse:collapse;
+	border-spacing: 0;
+}
+
+
+ol, ul {
+	list-style: none;
+}
+
+
+/************************
+* GENERAL
+************************/
+
+body {
+	background-color: #fff;
+	font-family: "Segoe UI", "Lucida Grande", "Helvetica" , sans-serif;
+	font-size: 10pt;
+}
+
+
+a {
+    text-decoration: none;
+    color: #0066FF;
+}
+
+code {
+    font-family: "Consolas", "Lucida Console", "Monaco", "Courier New";
+}
+
+
+/************************
+* LAYOUT
+************************/
+
+/***** Header *****/
+
+#header {
+    width: 70%;
+    margin: 30px auto 20px auto;
+}
+
+#header #logo {
+    font-size: 36pt;
+    font-weight: bold;
+}
+
+#header #logo a {
+    color: #000;
+}
+
+#header #caption {
+    margin-left: 20px;
+    font-size: 10pt;
+}
+
+#header #caption a {
+	color: #0066FF;
+}
+
+
+/***** Navigator *****/
+
+#navigator {
+    width: 100%;
+    border-bottom: 3px solid #222;
+}
+
+#tabs {
+    width: 70%;
+    margin: 0 auto;
+}
+
+#meta {
+    float: right;
+    font-size: 13pt;
+    margin: 5px 0;
+}
+
+#meta a.logout {
+    color: red;
+}
+
+#tabs table {
+    border-collapse: collapse;
+    border-spacing: 0;
+}
+
+#tabs table tr td {
+   padding: 5px 15px;
+   font-size: 14pt;
+   border-top: 1px solid #222;
+   border-right: 2px solid #222;
+   border-left: 2px solid #222;
+}
+
+#tabs table tr td a {
+    color: #000;
+}
+
+#tabs table tr td.active {
+    background-color: #222;
+    color: #fff;
+}
+
+
+/***** Main *****/
+
+#main {
+    width: 1250px;
+    padding: 5px 0;
+    background-image: url(../images/bg.png);
+    background-repeat: repeat-x;
+}
+
+#middle {
+	padding: 30px auto;
+}
