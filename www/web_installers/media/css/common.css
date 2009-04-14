@@ -131,3 +131,9 @@ code {
 #middle {
 	padding: 30px auto;
 }
+
+#middlehelp {
+    margin: 0 auto;
+    width: 70%;
+	padding-bottom: 60px;
+}
