@@ -4,6 +4,11 @@
 Help - Customized Installer
 {% endblock title %}
 
+{% block style %}
+{{ block.super }}
+<link href="{{ MEDIA_URL }}css/help.css" rel="stylesheet" type="text/css" />
+{% endblock style %}
+
 {% block nav_help %}
 <td class="active">Help</td>
 {% endblock nav_help %}

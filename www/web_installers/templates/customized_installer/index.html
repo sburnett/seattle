@@ -4,13 +4,18 @@
 Customized Installer Maker
 {% endblock title %}
 
+{% block style %}
+{{ block.super }}
+<link href="{{ MEDIA_URL }}css/index.css" rel="stylesheet" type="text/css" />
+{% endblock style %}
+
 {% block nav_custominstaller %}
 <td class="active">Customized Installer Maker</td>
 {% endblock nav_custominstaller %}
 
 {% block content %}
-		<div id="content"> 
-			<div id="main">
+		<div id="main"> 
+			<div id="middle">
 				<div id="users">
 					<div id="names"></div>
 					<div id="input">
