@@ -9,6 +9,11 @@ Customized Installer Maker
 <link href="{{ MEDIA_URL }}css/index.css" rel="stylesheet" type="text/css" />
 {% endblock style %}
 
+{% block script %}
+{{ block.super }}
+<script src="{{ MEDIA_URL }}scripts/index.js" type="text/javascript"></script>
+{% endblock script %}	
+
 {% block nav_custominstaller %}
 <td class="active">Customized Installer Maker</td>
 {% endblock nav_custominstaller %}
