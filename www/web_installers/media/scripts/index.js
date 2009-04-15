@@ -310,6 +310,7 @@ function addUser () {
 	if ($("username").value == "") {
 		$("username").value = "user_" + counter;
 	}
+	alert(counter);
 	var name = $("username").value;
 	if (name == "user_" + counter) {
 		counter++;
