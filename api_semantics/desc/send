@@ -1,0 +1,41 @@
+Socket like object  -  Send(message)
+
+
+  summary:  sends a string over a tcp like connection
+
+  argument semantics:  (not currently tested)
+  
+     message is not a str (or can't be automatically converted to one) 
+     - Type Error  
+     (no test)
+
+    
+
+  behavioral semantics
+
+    block on send-
+
+      typically is not blocking
+      (tested - test_send_not_blocking.py)
+
+      will block when nessicary if internal buffer is full
+      ? how important is the size of this buffer? do we need to specify
+      some sort of constraint on it?
+      (tested - test_send_blocks.py)
+
+      timeout - the tcp connection tiems out, exception is thrown
+      (no test)
+
+      
+      send after self close()   -  causes exception (Socket Closed)
+      (tested - test_send_after_self_close_1.py )
+
+ 
+      send after peer close() - a call to close() should close the connection
+        entirely, so a call to send() should throw an exception assuming 
+        sufficent time has passed since the remote host called close()
+        (tested - test_send_after_peer_close_1.py, FAILS - the first send() will
+         pass, but the second one fails. )
+
+      blocking send when peer calls close() - an exception should occur
+        (tested - test_send_after_peer_close2.py)
