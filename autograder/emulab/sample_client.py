@@ -26,7 +26,7 @@ proj = "Seattle"
 exp = "lantest"
 
 #specify the name of an ns file being used
-mynsfn = "lan.ns"
+mynsfn = "hello.ns"
 
 
 # EXECUTE A BASIC SENERIO
@@ -58,10 +58,10 @@ else:
   remote_emulab.wait_for_active(proj,exp)
 
   print "now active... getting mapping"
-  mapping = remote_emulab.get_mapping(proj,exp))
+  mapping = remote_emulab.get_mapping(proj,exp)
   print "mapping:  "+str(mapping)
   simple_mapping = get_ips(mapping)
-  [("10.0.0.1", node-1.Seattle.....), ()]
+  
 
   print " got mapping, getting links"
   print "links:  "+str(remote_emulab.get_links(proj,exp))
