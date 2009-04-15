@@ -51,7 +51,7 @@ code {
 /***** Header *****/
 
 #header {
-    width: 1250px;
+    width: 1240px;
     margin: 30px auto 20px auto;
 }
 
@@ -81,7 +81,7 @@ code {
 }
 
 #tabs {
-    margin: 0 5px;
+    margin: 0 20px;
 }
 
 #meta {
@@ -131,7 +131,6 @@ code {
 }
 
 #middlehelp {
-    margin: 0 auto;
-    width: 70%;
+    margin: 0 10px
 	padding-bottom: 60px;
 }
