@@ -309,8 +309,8 @@ function updateVessels() {
 function addUser () {
 	if ($("username").value == "") {
 		$("username").value = "user_" + counter;
+		alert("je");
 	}
-	alert(counter);
 	var name = $("username").value;
 	if (name == "user_" + counter) {
 		counter++;
