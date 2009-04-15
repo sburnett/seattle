@@ -307,10 +307,9 @@ function updateVessels() {
 
 /* add vessels to the user box */
 function addUser () {
-	if ($("username").value == "") {
-		$("username").value = "user_" + counter;
-		alert("je");
-	}
+//	if ($("username").value == "") {
+	$("username").value = "user_" + counter;
+//	}
 	var name = $("username").value;
 	if (name == "user_" + counter) {
 		counter++;
