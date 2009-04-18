@@ -26,6 +26,10 @@ sure how to fix this or structure this module to make it cleaner...
 import checkpythonversion
 checkpythonversion.ensure_python_version_is_supported()
 
+# Armon: Prevent all warnings
+import warnings
+# Ignores all warnings
+warnings.simplefilter("ignore")
 
 # simple client.   A better test client (but nothing like what a real client
 # would be)
