@@ -632,6 +632,20 @@ def command_loop():
         if userinputlist[0] == 'as':
           if userinputlist[1] not in keys:
             raise UserError("Error: Unknown identity '"+userinputlist[1]+"'")
+          
+          # Check for both sets of keys
+          setPublic = keys[userinputlist[1]]['publickey']
+          setPrivate = keys[userinputlist[1]]['privatekey']
+          
+          # Raise exception if we do not have both keys
+          if not (setPublic and setPrivate):
+            raise UserError("Error: Missing Public/Private key pair!")
+          
+          # Armon: Check for a mis-match
+          match = rsa_matching_keys(setPrivate, setPublic)
+          if not match:
+            raise UserError("Error: Public/Private key mis-match!")
+            
           # set the target and strip the rest...
           currentkeyname = userinputlist[1]
           userinputlist = userinputlist[2:]
