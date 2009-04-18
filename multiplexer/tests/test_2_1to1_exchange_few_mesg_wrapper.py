@@ -40,7 +40,9 @@ if callfunc=='initialize':
   # Try to exchange 1 to 10
   num = 1
   while True and num <= MAX_NUM:
-    virtualsock.send(str(num))
+    sent = virtualsock.send(str(num))
+    if (sent != len(str(num))):
+      print "Sent data size not equal to data that I requested be sent!"
     num = num + 1
     data = virtualsock.recv(1024)
     if data == str(num):

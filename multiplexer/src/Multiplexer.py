@@ -1122,8 +1122,11 @@ class MultiplexerSocket():
       If the data input is empty, a ValueError will be raised.
       
     """
+    # Get the data length
+    fullDataLength = len(data)
+    
     # Input sanity
-    if len(data) == 0:
+    if fullDataLength == 0:
       raise ValueError, "Cannot send a null data-set!"
         
     # Send chunks of data until it is all sent
@@ -1194,7 +1197,10 @@ class MultiplexerSocket():
         # If there is no data left to send, then break
         if len(data) == 0:
           break
-
+    
+    # Return bytes sent, which is always the full message
+    # since we will block indefinately until everything is sent.
+    return fullDataLength
 
 # Functional Wrappers for the Multiplexer objects
 
