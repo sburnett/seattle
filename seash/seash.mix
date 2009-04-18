@@ -1497,7 +1497,7 @@ update             -- Update information about the vessels
         try:
           check_key_set(keyname)
         except:
-          keys[keyname] = {'privatekey':None, 'publickey':None}
+          del keys[keyname]
           raise
           
         continue
