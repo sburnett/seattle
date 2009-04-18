@@ -541,6 +541,24 @@ def setusers_target(longname,userkeystring):
 
 
 
+# Checks if both keys are setup
+def check_key_set(name):
+  if (name in keys and 'publickey' in keys[name] and 'privatekey' in keys[name] and keys[name]['publickey'] and keys[name]['privatekey']):
+    if not check_key_pair_compatibility(name):
+      raise UserError("Error: Mis-matched Public/Private key pair!")
+
+# Check the keys to make sure they are compatible, for the given name
+def check_key_pair_compatibility(name):
+   # Check for both sets of keys
+    setPublic = keys[name]['publickey']
+    setPrivate = keys[name]['privatekey']
+    
+    # Check for a mis-match
+    match = rsa_matching_keys(setPrivate, setPublic)
+    
+    return match
+
+
 #################### main loop and variables.
   
 # a dict that contains all of the targets (vessels and groups) we know about.
@@ -632,19 +650,6 @@ def command_loop():
         if userinputlist[0] == 'as':
           if userinputlist[1] not in keys:
             raise UserError("Error: Unknown identity '"+userinputlist[1]+"'")
-          
-          # Check for both sets of keys
-          setPublic = keys[userinputlist[1]]['publickey']
-          setPrivate = keys[userinputlist[1]]['privatekey']
-          
-          # Raise exception if we do not have both keys
-          if not (setPublic and setPrivate):
-            raise UserError("Error: Missing Public/Private key pair!")
-          
-          # Armon: Check for a mis-match
-          match = rsa_matching_keys(setPrivate, setPublic)
-          if not match:
-            raise UserError("Error: Public/Private key mis-match!")
             
           # set the target and strip the rest...
           currentkeyname = userinputlist[1]
@@ -1389,6 +1394,13 @@ update             -- Update information about the vessels
           keys[keyname] = {'publickey':pubkey, 'privatekey':None}
         else:
           keys[keyname]['publickey'] = pubkey
+          
+          # Check the keys, on error reverse the change and re-raise
+          try:
+            check_key_set(keyname)
+          except:
+            keys[keyname]['publickey'] = None
+            raise
 
         continue
   
@@ -1435,7 +1447,14 @@ update             -- Update information about the vessels
           keys[keyname] = {'privatekey':privkey, 'publickey':None}
         else:
           keys[keyname]['privatekey'] = privkey
-
+          
+          # Check the keys, on error reverse the change and re-raise
+          try:
+            check_key_set(keyname)
+          except:
+            keys[keyname]['privatekey'] = None
+            raise
+          
         continue
 
 
@@ -1473,7 +1492,14 @@ update             -- Update information about the vessels
         privkey = rsa_file_to_privatekey(privkeyfn)
         pubkey = rsa_file_to_publickey(pubkeyfn)
         keys[keyname] = {'privatekey':privkey, 'publickey':pubkey}
-
+        
+        # Check the keys, on error reverse the change and re-raise
+        try:
+          check_key_set(keyname)
+        except:
+          keys[keyname] = {'privatekey':None, 'publickey':None}
+          raise
+          
         continue
 
 
