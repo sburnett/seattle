@@ -36,6 +36,11 @@ import glob
 import checkpythonversion
 checkpythonversion.ensure_python_version_is_supported()
 
+# Armon: Prevent all warnings
+import warnings
+# Ignores all warnings
+warnings.simplefilter("ignore")
+
 from repyportability import *
 
 import time
