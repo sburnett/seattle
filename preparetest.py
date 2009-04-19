@@ -150,6 +150,7 @@ def main():
     copy_to_target("nodemanager/tests/*", target_dir)
     copy_to_target("portability/tests/*", target_dir)
     copy_to_target("seash/tests/*", target_dir)
+    copy_to_target("seattlelib/tests/*", target_dir)
 
 
   #set working directory to the test folder
