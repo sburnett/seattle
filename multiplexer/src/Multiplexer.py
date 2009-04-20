@@ -603,13 +603,15 @@ class Multiplexer():
     # Setup the frame
     frame.initClientFrame(requestedID, desthost, destport, localip, localport)
     
-    # Send the request
-    self._sendFrame(frame)
+   
     
     # Add this request to the pending sockets, add a bool to hold if this was successful, and a lock that we use for blocking
     # The third element is a timer handle, that is used for the timeout
     self.pendingSockets[requestedID] = [False, getlock(), None]
     
+    # Send the request
+    self._sendFrame(frame)
+
     # Now we block until the request is handled, or until we reach the timeout
     
     # Set a timer to unblock us after a timeout
