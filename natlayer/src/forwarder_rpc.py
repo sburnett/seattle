@@ -23,11 +23,11 @@ include NATLayer_rpc.py
 include RPC_Constants.py
 
 FORWARDER_STATE = {"ip":"127.0.0.1","Next_Conn_ID":0}
-MAX_CLIENTS_PER_SERV = 5*2 # How many clients per server, the real number is this divided by 2
-MAX_SERVERS = 4 # How man servers can connect
+MAX_CLIENTS_PER_SERV = 4*2 # How many clients per server, the real number is this divided by 2
+MAX_SERVERS = 5 # How man servers can connect
 WAIT_INTERVAL = 3    # How long to wait after sending a status message before closing the socket
 RECV_SIZE = 1024 # Size of chunks to exchange
-CHECK_INTERVAL = 15  # How often to cleanup our state, e.g. remove dead multiplexers
+CHECK_INTERVAL = 10  # How often to cleanup our state, e.g. remove dead multiplexers
 
 # Lock for CONNECTIONS dictionary
 CONNECTIONS_LOCK = getlock()
@@ -49,6 +49,17 @@ MAC_ID_LOOKUP = {}
 DEBUG1 = True  # Prints general debug messages
 DEBUG2 = True  # Prints verbose debug messages
 DEBUG3 = False  # Prints Ultra verbose debug messages
+
+
+# count the number of servers currently connected
+def count_servers():
+  servers = 0
+  for entry in CONNECTIONS:
+    if 'type' in CONNECTIONS[entry] and CONNECTIONS[entry]['type'] == 1: 
+      servers += 1
+  return servers
+
+
 
 # Safely closes a socket
 def _safe_close(sock):
@@ -105,6 +116,22 @@ def _timed_dereg_server(id,mux):
     pass
   
   CONNECTIONS_LOCK.release()
+
+
+  # decrement the count of servers connected
+  server_wait_dict = mycontext['server_wait_info']
+  server_wait_dict['lock'].acquire()
+  if (not server_wait_dict['active']) and (count_servers() < MAX_SERVERS):
+      
+      # start advertising the forwarder
+      nat_toggle_advertisement(True)
+
+      if DEBUG1: print 'allowing new servers to connect'
+      server_wait_dict['active'] = True
+  server_wait_dict['lock'].release()
+
+
+
 
 
 # De-registers a server
@@ -195,6 +222,7 @@ def exchange_mesg(serverinfo, fromsock, tosock):
     while True:
       mesg = fromsock.recv(RECV_SIZE)
       tosock.send(mesg)
+      
   except Exception, exp:
     # DEBUG
     if DEBUG3: print getruntime(), "Error exchanging messages between",fromsock,"and",tosock,"Error:",str(exp)
@@ -263,11 +291,12 @@ def new_client(conn_id, value):
 
 # Handle a remote procedure call
 def new_rpc(conn_id, sock):
+
   # If anything fails, close the socket
   try:
     # Get the RPC object
     rpc_dict = RPC_decode(sock)
-    
+    print 'decoded rpc'
     # DEBUG
     if DEBUG1: print getruntime(),"#"+str(conn_id),"RPC Request:",rpc_dict
     
@@ -422,27 +451,22 @@ def new_server(remoteip, remoteport, sock, thiscommhandle, listencommhandle):
 
   server_wait_dict = mycontext['server_wait_info']
   server_wait_dict['lock'].acquire()
-  # close sockets if the connection handle is not active
+  
+  # drop the connection if there are too many servers connected
   if not server_wait_dict['active']:
     if DEBUG2: print getruntime(), "Too many servers connected, quietly droping new servers"
     sock.close()
     server_wait_dict['lock'].release()
     return
   
-  # stop the server wait handle if the max number of servers is connected
-  # TODO, stop the forwarder from advertising when the server wait handle is stopped
-  elif server_wait_dict['servers_connected']+1 >= MAX_SERVERS:
+  # are MAX_SERVERS connected?
+  elif count_servers()+1 >= MAX_SERVERS:
     if DEBUG2: print getruntime(),"Server Limits Reached"
     
-    #removed until stopcomm issue is resolved
-    #stopcomm(server_wait_dict['handle'])
     server_wait_dict['active'] = False
     
     # stop advertising the forwarder
     nat_toggle_advertisement(False)    
-
-  else:
-    server_wait_dict['servers_connected'] +=1
 
   server_wait_dict['lock'].release()
 
@@ -457,13 +481,14 @@ def new_server(remoteip, remoteport, sock, thiscommhandle, listencommhandle):
                              "remoteport":remoteport,
                              "conn_id":id}) # Inject the ID into the socketInfo, for error handling
   
+
   # Assign our custom error delegate
   mux.setErrorDelegate(_mux_internal_error)
   
   # Helper wrapper function
   def rpc_wrapper(remoteip, remoteport, client_sock, thiscommhandle, listencommhandle):
     new_rpc(id, client_sock)
-  
+
   # Set the RPC waitforconn
   mux.waitforconn(RPC_VIRTUAL_IP, RPC_VIRTUAL_PORT, rpc_wrapper)
   
@@ -471,6 +496,12 @@ def new_server(remoteip, remoteport, sock, thiscommhandle, listencommhandle):
   _connection_entry(id,sock,mux,remoteip,remoteport,TYPE_MUX)
 
 
+
+
+
+
+ 
+  
 
 # Handles a new incoming connection, for non-servers
 # This is for RPC calls and new clients
@@ -505,8 +536,7 @@ def main():
   
   # Setup a port for servers to connect
   server_wait_handle = waitforconn(ip, mycontext['SERVER_PORT'], new_server)
-  mycontext['server_wait_info']={'handle':server_wait_handle,'active':True,
-                                 'servers_connected':0, 'lock':getlock()}
+  mycontext['server_wait_info']={'active':True,'lock':getlock()}
 
   # Setup a port for clients to connect
   client_wait_handle = waitforconn(ip, mycontext['CLIENT_PORT'], inbound_connection)
@@ -519,41 +549,25 @@ def main():
   if DEBUG1: print getruntime(),"Forwarder Started on",ip
 
 
-  # Periodically check the multiplexers, see if they are alive
+ 
+  # print connections for debugging
   while True:
     sleep(CHECK_INTERVAL)
     
-    # DEBUG
-    if DEBUG3: print getruntime(), "Polling for dead connections."
-    
-    # Check each multiplexer
-    for (id, info) in CONNECTIONS.items():
-      # Check server type connections for their status
-      if info["type"] == TYPE_MUX:
-        mux = info["mux"]
-        status = mux.isAlive()
-      
-        # Check if the mux is no longer initialized
-        if not status:
-          # DEBUG
-          if DEBUG1: print getruntime(),"Connection #",id,"dead. Removing..."
-          
-          # De-register this server
-          deregister_server(id, None)
-    
-    # if a stopcomm was called check and see if we can do a new waitforconn
-    sleep(WAIT_INTERVAL) #make sure servers are disconnected
+    # check periodically to make sure the forwarder isnt deadlocked 
+    # for no reason
     server_wait_dict = mycontext['server_wait_info']
     server_wait_dict['lock'].acquire()
-    if (not server_wait_dict['active']) and (server_wait_dict['servers_connected'] < MAX_SERVERS):
-      #commented out until stopcomm issue is resolved
-      #server_wait_dict['handle'] = waitforconn(ip,mycontext['SERVER_PORT'],new_server)
+    if (not server_wait_dict['active']) and (count_servers() < MAX_SERVERS):
+      
       # start advertising the forwarder
       nat_toggle_advertisement(True)
 
-      print 'allowing new servers to connect'
+      if DEBUG1: print 'allowing new servers to connect'
       server_wait_dict['active'] = True
     server_wait_dict['lock'].release()
+
+
 
 
 
