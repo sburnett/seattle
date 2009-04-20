@@ -10,7 +10,7 @@ include NATLayer_rpc.py
 
 serverMac =  "SERVER-----"
 serverMac2 = "SERVER----2"
-MAX_CONNECTED = 4
+MAX_CONNECTED = 5
 
 # The test will be forced to exit after this many seconds
 # This is necessary since client 3 is expected to block indefinately
@@ -48,31 +48,34 @@ if callfunc == "initialize":
     sleep(.5)
     server_list.append(openconn(mycontext['forwarderip'],12345))
      
-  
+
   try:
     # Create server connection, force local forwarder
     whandle = nat_waitforconn(serverMac, 10000, new_client, 
-                              mycontext['forwarderip'], 12345) 
-  
-  except Exception,e:
-    error = e # this should occur, so do nothing
+                             mycontext['forwarderip'], 12345,23456)    
+
+  except Exception:
+    pass # this should occur, so do nothing
   else:
     print 'No exception thrown when extra servers were connected'
+    stopcomm(whandle)
 
+  
 
   # close a connection, wait for the forwarder check interval to pass
   # and then try to make one more connection
   server_list[0].close()
   
-  sleep(20)  # sleep while waiting for the server to open new connections
- 
+  sleep(15)  # sleep while waiting for the server to open new connections
+  
   
   # Create server connection, force local forwarder
   whandle = nat_waitforconn(serverMac2, 10000, new_client, 
-                              mycontext['forwarderip'], 12345) 
+                              mycontext['forwarderip'], 12345,23456) 
   
-
+  
   for sock in server_list:
     sock.close()
 
+  stopcomm(whandle)
   exitall()

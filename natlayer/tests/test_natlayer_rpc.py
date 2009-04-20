@@ -10,9 +10,7 @@ include NATLayer_rpc.py
 # There is no expected output
 
 serverMac = "FFFFFFFFFFFE"
-clientMac1 = "FFFFFFFFFFFD"
-clientMac2 = "FFFFFFFFFFFC"
-clientMac3 = "FFFFFFFFFFFB"
+
 
 # The test will be forced to exit after this many seconds
 # This is necessary since client 3 is expected to block indefinately
@@ -98,8 +96,9 @@ if callfunc == "initialize":
   # Try to connect client 1+2
   client_message(clientsock1, 50)
   
-  # Now we issue a stopcomm, so client 3 should never connect with a virtual socket
-  nat_stopcomm(whandle)
 
   # Quit even if any threads are left
-  exitall()
+  nat_stopcomm(whandle)
+  canceltimer(handle)
+  clientsock1.close()
+

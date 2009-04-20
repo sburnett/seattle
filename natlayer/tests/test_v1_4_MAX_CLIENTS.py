@@ -8,7 +8,7 @@ include NATLayer_rpc.py
 # There is no expected output
 
 serverMac =  "SERVERSERVER"
-MAX_CONNECTED = 8
+MAX_CONNECTED = 4
 
 # The test will be forced to exit after this many seconds
 # This is necessary since client 3 is expected to block indefinately
@@ -34,7 +34,7 @@ def long_execution():
 
 # run the test!
 if callfunc == "initialize":
-  
+
   #mycontext['forwarderip'] = '128.208.1.138'  # attu
   mycontext['forwarderip']= getmyip()       #local
 
@@ -42,11 +42,12 @@ if callfunc == "initialize":
   client_list = []
  
   # Setup timer to kill us if we exceed our time limit
- # handle = settimer(TIME_LIMIT, long_execution, ())
+  #handle = settimer(TIME_LIMIT, long_execution, ())
   
   # Create server connection, force local forwarder
   whandle = nat_waitforconn(serverMac, 10000, new_client, 
-                              mycontext['forwarderip'], 12345) 
+                  forwarderIP=mycontext['forwarderip'],
+                  forwarderPort=12345,forwarderCltPort=23456) 
   
   number_connected = 0
 
@@ -66,6 +67,6 @@ if callfunc == "initialize":
  
   if number_connected != MAX_CONNECTED:
     print str(number_connected)+' of '+str(MAX_CONNECTED)+' clients connected'
-  
+
   # exit the test
   exitall()

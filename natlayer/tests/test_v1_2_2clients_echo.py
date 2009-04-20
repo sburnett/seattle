@@ -8,8 +8,7 @@ include NATLayer_rpc.py
 # There is no expected output
 
 serverMac =  "SERVERSERVER"
-clientMac1 = "CLIENTNUM__1"
-clientMac2 = "CLIENTNUM__2"
+
 
 # The test will be forced to exit after this many seconds
 # This is necessary since client 3 is expected to block indefinately
@@ -99,14 +98,15 @@ if callfunc == "initialize":
 
   # Create server connection, force local forwarder
   whandle = nat_waitforconn(serverMac, 10000, new_client, 
-                              mycontext['forwarderip'], 12345) 
+                              mycontext['forwarderip'], 12345,23456) 
   
   # Setup client sockets, force use of local forwarder for the tests
-  clientsock1 = nat_openconn(serverMac, 10000, clientMac1, 
-             forwarderIP=mycontext['forwarderip'],forwarderPort=23456)
+  clientsock1 = nat_openconn(serverMac, 10000, 
+                    forwarderIP=mycontext['forwarderip'],forwarderPort=23456)
 
-  clientsock2 = nat_openconn(serverMac, 10000, clientMac1, 
-             forwarderIP=mycontext['forwarderip'],forwarderPort=23456)
+  clientsock2 = nat_openconn(serverMac, 10000, 
+                    forwarderIP=mycontext['forwarderip'],forwarderPort=23456)
+
 
   # Setup timer to kill us if we exceed our time limit
   handle = settimer(TIME_LIMIT, long_execution, ())
