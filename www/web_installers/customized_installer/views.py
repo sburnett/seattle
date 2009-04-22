@@ -28,12 +28,13 @@ import os
 
 from django.views.generic.simple import direct_to_template, redirect_to
 from django.http import HttpResponse
+from django import forms
 from django.contrib.auth.models import User as DjangoUser
 
 #session_start();
 prefix = "/var/www/customized_installer"
-carter_script = "/home/ivan/trunk/dist/customize_installers.py"
-vesselinfopy = "/home/ivan/trunk/test/writecustominstallerinfo.py"
+installer_script = prefix + "/customize_installers.py"
+vesselinfo_script = prefix + "/writecustominstallerinfo.py"
 #sid = session_id()
 # dl_prefix = prefix + "/download/" + sid
 
@@ -44,38 +45,37 @@ def help(request):
     return direct_to_template(request,'customized_installer/help.html', {})
 
 def build_installer(request):
-    if not isset(_POST):
-        # redirect to err page
-        pass
+    if (request.POST['action'] == 'adduser'):
+        username = standarize(request.POST['username'])
         
-    if (_POST['action'] == 'adduser'):
-        username = standarize(_POST['username'])
-        if (is_uploaded_file(_FILES["publickey"]["tmp_name"])):
-            key = file_get_contents(_FILES["publickey"]["tmp_name"])
-            _SESSION[username] = key
+        if (request.FILES['file']['content']):
+            key = FILES['file']['content'])
+            request.session[username] = key
         else:
-            unset(_SESSION[username])
-    elif (_POST['action'] == 'createinstaller'):
-        vessels = json_decode(stripslashes(_POST['content']), true)
+            del request.session[username]
+    elif (request.POST['action'] == 'createinstaller'):
+        vessels = simplejson.loads(request.POST['content'])
         os.system("rm $dl_prefix/*")
         os.system("mkdir $dl_prefix")
         os.system("mkdir $dl_prefix/vesselsinfo")
+        
         #file_put_contents("h0","")
         for vessel in vessels:
-            genkey(vessel['owner'])
+            genkey(vessel['owner'], request)
             vessel['owner'] = getPublicKeyPath(standarize(vessel['owner']))
             for user in vessel['users']:
-                genkey(user)
+                genkey(user, request)
                 user = getPublicKeyPath(standarize(user))
 
         file_put_contents("h1","")
         file_put_contents("$dl_prefix/vesselsinfo.txt", outputVesselsInfo(vessels))
         file_put_contents("h2","")
+        
         os.system("python $vesselinfopy $dl_prefix/vesselsinfo.txt $dl_prefix/vesselsinfo/")
         
         # file_put_contents("h3","cd $dl_prefix/ && python $carter_script mlw $dl_prefix/vesselsinfo $dl_prefix/ > /tmp/carter.out.php 2> /tmp/carter.err.php")
         os.system("mkdir $dl_prefix/tmp/")
-        os.system("cd $dl_prefix/ && python $carter_script mlw $dl_prefix/vesselsinfo $dl_prefix/ > /tmp/carter.out.php 2> /tmp/carter.err.php")
+        os.system("cd $dl_prefix/ && python $installer_script mlw $dl_prefix/vesselsinfo $dl_prefix/ > /tmp/carter.out.php 2> /tmp/carter.err.php")
 		
         # file_put_contents("h4","")
         os.system("zip -j $dl_prefix/private.zip $dl_prefix/*.privatekey")
@@ -83,11 +83,11 @@ def build_installer(request):
         os.system("zip -j $dl_prefix/public.zip $dl_prefix/*.publickey")
         # file_put_contents("h6","")
 
-def genkey(user):
+def genkey(user, request):
     global prefix
     global dl_prefix
-    if (array_key_exists(user, _SESSION)):
-        file_put_contents(getPublicKeyPath(user), _SESSION[user])
+    if (array_key_exists(user, request.session)):
+        file_put_contents(getPublicKeyPath(user), request.session[user])
     else:
         os.system("python $prefix/generatekeys.py $user 128 $dl_prefix/")
 
