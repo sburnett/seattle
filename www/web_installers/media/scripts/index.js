@@ -311,13 +311,8 @@ function addUser () {
 		$("username").value = "user_" + counter;
 	}
 	var name = $("username").value;
-	if (!name.match(/[\w_\-]+/)) {
-		alert("Please enter usernames that only contain characters, digits, underscores and dashes.");
-		$("username").value = "";
-		return;
-	}
-	if (name.length > 20) {
-		alert("Please enter usernames with maximum length of 20.");
+	if (!name.match(/^[\w_\-]{1,20}$/)) {
+		alert("Please enter usernames that only contain alphabet, digits, underscores and dashes. Maximum 20 characters.");
 		$("username").value = "";
 		return;
 	}
