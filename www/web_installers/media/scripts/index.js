@@ -311,9 +311,15 @@ function addUser () {
 		$("username").value = "user_" + counter;
 	}
 	var name = $("username").value;
+	while (!name.match([\w_\-]+)) {
+		alert("Please enter usernames that only contain characters, digits, underscores and dashes.");
+	}
+	while (name.length > 20) {
+		alert("Please enter usernames with maximum length of 20.");
+	}
 	if (name == "user_" + counter) {
 		counter++;
-	}	
+	}
 	if (users.indexOf(name) == -1) {
 		users.push(name);
 		var user = document.createElement("span");
