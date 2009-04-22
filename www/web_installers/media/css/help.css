@@ -50,6 +50,7 @@ p {
 	font-size: 11pt;
 	text-align: justify;
 	line-height: 16pt;
+	font-weight: normal;
 }
 
 p.footnote {
