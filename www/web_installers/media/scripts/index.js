@@ -311,7 +311,7 @@ function addUser () {
 		$("username").value = "user_" + counter;
 	}
 	var name = $("username").value;
-	while (!name.match([\w_\-]+)) {
+	while (!name.match(/[\w_\-]+/)) {
 		alert("Please enter usernames that only contain characters, digits, underscores and dashes.");
 	}
 	while (name.length > 20) {
