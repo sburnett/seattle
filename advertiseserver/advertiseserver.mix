@@ -11,11 +11,34 @@ Advertisements to a central server (similar to openDHT)
 
 include session.repy
 include time.repy
+include uniqueid.repy
 
 serverport = 10101
 
 
 hashtable = {}
+
+#used for logging
+logfiledata=dict()
+
+#contains a list of get/put requests that have been completed, nothing is logged here for requests that are failed
+#the call_trace log follows the following format:
+#<timestamp> <PUT/GET> <request identification key> <first 16 characters of key> <value> <expiration interval in case of PUT, blank in case of GET>
+logfiledata["call_trace"]=None   
+
+#contains information that is logged while each request is processed
+#will log information for all requests that are received
+logfiledata["expanded_log"]=None
+log_lock = getlock()
+
+#safely write to the given log file
+def write_to_log(log_file, message):
+  #log the request information
+  log_lock.acquire()
+  log_file.write(message)
+  log_file.flush()
+  log_lock.release()
+
 
 def expire_hashtable_items():
   now = time_gettime()
@@ -43,6 +66,11 @@ def insert_hashtable(key, value, expiretime):
 
 def read_hashtable(key, maxkeys):
   if key not in hashtable:
+    
+    #log the hash table miss
+    expanded_message = str(time_gettime())+": unable to find key " + str(key)[0:16] + "... in hashtable.\n"
+    write_to_log(logfiledata["expanded_log"], expanded_message)
+  
     return []
 
   retlist = []
@@ -63,10 +91,23 @@ def handlerequest(remoteIP, remoteport, sockobj, ch, mainch):
       return
 
     requestlist = request.split('|')
-  
+    
+    #set up a unique id for this operation
+    request_id = uniqueid_getid()
+    
     if requestlist[0] == 'PUT':
+    
+      #log the request information
+      expanded_message = str(time_gettime())+": PUT " + str(request_id) + " request started. key,value= " +  str(requestlist[1])[0:16] + "... ," + str(requestlist[2]) + ".\n"
+      write_to_log(logfiledata["expanded_log"], expanded_message)
+    
+    
       if len(requestlist) != 4:
         session_sendmessage(sockobj, "Error, incorrect number of args")
+        
+        #log the problem
+	expanded_message = str(time_gettime())+": PUT " + str(request_id) + " request failed, incorrect number of args\n"
+        write_to_log(logfiledata["expanded_log"], expanded_message)
         return
       
       try:
@@ -74,27 +115,71 @@ def handlerequest(remoteIP, remoteport, sockobj, ch, mainch):
         insert_hashtable('%all', requestlist[2], int(requestlist[3])+time_gettime())
       except ValueError:
         session_sendmessage(sockobj, "Error, last arg must be a number")
+        
+        #log the problem
+	expanded_message = str(time_gettime())+": PUT " + str(request_id) + " request has failed, last arg must be a number.\n"
+	write_to_log(logfiledata["expanded_log"], expanded_message)
+        
         return
       
       session_sendmessage(sockobj, "OK")
+      
+            
+      #log the call info to call_trace
+      call_trace_message = str(time_gettime())+" PUT " + str(request_id) + " " +  str(requestlist[1])[0:16] + "... " + str(requestlist[2]) + " " + str(requestlist[3]) + "\n"
+      write_to_log(logfiledata["call_trace"], call_trace_message)
+      
+      #also log to the expanded log
+      expanded_message = str(time_gettime())+": PUT " + str(request_id) + " request has completed.\n"
+      write_to_log(logfiledata["expanded_log"], expanded_message)
+      
       return
 
     elif requestlist[0] == 'GET':
 
+      #log the request information
+      expanded_message = str(time_gettime())+": GET " + str(request_id) + " request started. key,value= " +  str(requestlist[1])[0:16] + "... ," + str(requestlist[2]) + ".\n"
+      write_to_log(logfiledata["expanded_log"], expanded_message)
+    
+
       if len(requestlist) != 3:
         session_sendmessage(sockobj, "Error, incorrect number of args")
+        
+        #log the problem
+	expanded_message = str(time_gettime())+": GET " + str(request_id) + " request failed, incorrect number of args\n"
+        write_to_log(logfiledata["expanded_log"], expanded_message)
         return
       
       try:
         readlist = read_hashtable(requestlist[1], int(requestlist[2]))
       except ValueError:
         session_sendmessage(sockobj, "Error, last arg must be a number")
+        
+        #log the problem
+	expanded_message = str(time_gettime())+": GET " + str(request_id) + " request has failed, last arg must be a number.\n"
+	write_to_log(logfiledata["expanded_log"], expanded_message)
         return
 
       session_sendmessage(sockobj, ",".join(readlist)+"OK")
+      
+      #log the call info to call_trace
+      call_trace_message = str(time_gettime())+" GET " + str(request_id) + " " +  str(requestlist[1])[0:16] + "... " + str(requestlist[2]) + " " + "\n"
+      write_to_log(logfiledata["call_trace"], call_trace_message)
+      
+      #also log to the expanded log
+      expanded_message = str(time_gettime())+": GET " + str(request_id) + " request has completed.\n"
+      write_to_log(logfiledata["expanded_log"], expanded_message)
+      
       return
 
     else:
+    
+      #log the request information
+      log_lock.acquire()
+      expanded_message = str(time_gettime())+": Unknown Request " + str(request_id) + " message = " + request + "\n"
+      write_to_log(logfiledata["expanded_log"], expanded_message)
+    
+    
       session_sendmessage(sockobj, "Error, unknown request type")
       return
 
@@ -109,4 +194,9 @@ def handlerequest(remoteIP, remoteport, sockobj, ch, mainch):
 if callfunc=='initialize':
   print "Started"
   time_updatetime(34612)
+  
+  #initialize the log files
+  logfiledata["call_trace"] = open("log.calltrace",'w')
+  logfiledata["expanded_log"] = open("log.expanded",'w')
+  
   waitforconn(getmyip(),serverport,handlerequest)
