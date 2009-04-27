@@ -30,13 +30,11 @@ from django.views.generic.simple import direct_to_template, redirect_to
 from django.http import HttpResponse
 from django import forms
 from django.contrib.auth.models import User as DjangoUser
+import 
+
 
 #session_start();
-prefix = "/var/www/customized_installer"
-installer_script = prefix + "/customize_installers.py"
-vesselinfo_script = prefix + "/writecustominstallerinfo.py"
 #sid = session_id()
-# dl_prefix = prefix + "/download/" + sid
 
 def customized_installer(request):
     return direct_to_template(request,'customized_installer/index.html', {})
@@ -47,19 +45,15 @@ def help(request):
 def build_installer(request):
     if (request.POST['action'] == 'adduser'):
         username = standarize(request.POST['username'])
-        
         if (request.FILES['file']['content']):
             key = FILES['file']['content'])
             request.session[username] = key
         else:
             del request.session[username]
     elif (request.POST['action'] == 'createinstaller'):
-        vessels = simplejson.loads(request.POST['content'])
-        os.system("rm $dl_prefix/*")
-        os.system("mkdir $dl_prefix")
-        os.system("mkdir $dl_prefix/vesselsinfo")
         
-        #file_put_contents("h0","")
+        vessels = simplejson.loads(request.POST['content'])
+        
         for vessel in vessels:
             genkey(vessel['owner'], request)
             vessel['owner'] = getPublicKeyPath(standarize(vessel['owner']))
@@ -67,21 +61,9 @@ def build_installer(request):
                 genkey(user, request)
                 user = getPublicKeyPath(standarize(user))
 
-        file_put_contents("h1","")
-        file_put_contents("$dl_prefix/vesselsinfo.txt", outputVesselsInfo(vessels))
-        file_put_contents("h2","")
+        vessel_info = outputVesselsInfo(vessels)
         
-        os.system("python $vesselinfopy $dl_prefix/vesselsinfo.txt $dl_prefix/vesselsinfo/")
-        
-        # file_put_contents("h3","cd $dl_prefix/ && python $carter_script mlw $dl_prefix/vesselsinfo $dl_prefix/ > /tmp/carter.out.php 2> /tmp/carter.err.php")
-        os.system("mkdir $dl_prefix/tmp/")
-        os.system("cd $dl_prefix/ && python $installer_script mlw $dl_prefix/vesselsinfo $dl_prefix/ > /tmp/carter.out.php 2> /tmp/carter.err.php")
-		
-        # file_put_contents("h4","")
-        os.system("zip -j $dl_prefix/private.zip $dl_prefix/*.privatekey")
-        # file_put_contents("h5","")
-        os.system("zip -j $dl_prefix/public.zip $dl_prefix/*.publickey")
-        # file_put_contents("h6","")
+
 
 def genkey(user, request):
     global prefix
