@@ -180,17 +180,21 @@ if __name__ == "__main__":
 
 	if len(sys.argv) < 4:
 		print "usage: python remote_server.py hostname port download_prefix"
+		sys.exit(0)
 	else:
 		host = sys.argv[1]
-		port = sys.argv[2]
+		try:
+			port = int(sys.argv[2])
+		except ValueError:
+			print "ERROR: port must be an integer value"
+			sys.exit(0)
 		dl_prefix = sys.argv[3]
 
 	# default arguments for testing purpose
-	host = '127.0.0.1'
-	port = 8000
-	prefix = "/Users/shawiz/Development/research/www/remote_installer"
-	dl_prefix = "download"
-	
+	#host = '127.0.0.1'
+	#port = 8000
+	#prefix = "/Users/shawiz/Development/research/www/remote_installer"
+	#dl_prefix = "download"
 	
 	# create the XMLRPC server
 	server = SimpleXMLRPCServer.SimpleXMLRPCServer((host, port))
