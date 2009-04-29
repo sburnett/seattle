@@ -342,7 +342,7 @@ function addUser () {
 		}
 	}
 	
-	new Ajax.Request('../customized_installer/add_user',
+	new Ajax.Request('../customized_installer/build_installer',
 		{
 			method: "post",
 			parameters: {action: "resetform", username: name},

@@ -64,7 +64,7 @@ def __jsonify(data):
   return HttpResponse(json, mimetype='application/json')
 
 
-def add_user(request):
+def build_installer(request):
   if (request.POST['action'] == 'adduser'):
     username = standarize(request.POST['username'])
     if 'publickey' in request.FILES:
@@ -75,10 +75,8 @@ def add_user(request):
       request.session[username] = key
     else:
       del request.session[username]
-
-
-def build_installer(request):
-  if (request.POST['action'] == 'build_installer'):
+  
+  elif (request.POST['action'] == 'build_installer'):
     vessels = simplejson.loads(request.POST['content'])
     for vessel in vessels:
       genkey(vessel['owner'], request)
