@@ -342,7 +342,7 @@ function addUser () {
 		}
 	}
 	
-	new Ajax.Request('process.php',
+	new Ajax.Request('../customized_installer/add_user',
 		{
 			method: "post",
 			parameters: {action: "resetform", username: name},
@@ -416,10 +416,10 @@ function createInstaller () {
 	}
 	
 	var jsonString =  Object.toJSON(json);
-	new Ajax.Request('process.php',
+	new Ajax.Request('../customized_installer/build_installer',
 		{
 			method: "post",
-			parameters: {action: "createinstaller", content: jsonString},
+			parameters: {action: "build_installer", content: jsonString},
 			onSuccess: finish
 		}
 	);
@@ -427,7 +427,7 @@ function createInstaller () {
 
 /*  redirect the page to installer download page  */
 function finish (ajax) {
-	location.href = "installers.php";
+	location.href = "../customized_installer/download";
 }
 
 

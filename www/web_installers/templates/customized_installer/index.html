@@ -24,7 +24,7 @@ Customized Installer Maker
 				<div id="users">
 					<div id="names"></div>
 					<div id="input">
-						<form method="POST" enctype="multipart/form-data" action="/build_installer/" id="form" name="form" target="target">
+						<form method="POST" enctype="multipart/form-data" action="{% url add_user %}" id="form" name="form" target="target">
 							<input type="text" name="username" id="username" value="user_1" size="12" />
 							<input type="hidden" name="action" value="adduser" />
 							<input type="file" name="publickey" id="publickey" size="6" />
