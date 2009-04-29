@@ -75,6 +75,7 @@ def build_installer(request):
       request.session[username] = key
     else:
       del request.session[username]
+    return True
   
   elif (request.POST['action'] == 'build_installer'):
     vessels = simplejson.loads(request.POST['content'])
