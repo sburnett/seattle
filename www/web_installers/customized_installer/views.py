@@ -67,7 +67,6 @@ def __jsonify(data):
 def add_user(request):
   if (request.POST['action'] == 'adduser'):
     username = standarize(request.POST['username'])
-
     if 'publickey' in request.FILES:
       file = request.FILES['publickey']
       if file.size > 2048:
