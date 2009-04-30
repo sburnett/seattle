@@ -25,13 +25,14 @@ from django.db import connection
 from django.contrib.auth.models import User as DjangoUser
 
 from geni.control.models import Vessel, Donation
+from geni.control.resource_operations import create_vmaps
 from geni.control.repy_dist.changeusers import changeusers
 
 from repyportability import *
 include parallelize.repy
 
 
-def acquire_vessel(vessel, pubkey_list):
+def acquire_vessel(vessel, pubkey_list, geni_user):
     """
     <Purpose>
       Responsible for changing the user public keys list on a vessel
@@ -61,13 +62,41 @@ def acquire_vessel(vessel, pubkey_list):
     # explanation += "nodepubkey : %s<br>nodeprivkey: %s<br>"%(nodepubkey,nodeprivkey)
     # explanation += "calling changeusers with: \npubkeystrlist %s\nnmip %s\nnmport %s\nvesselname %s\nnodepubkey %s\nnodeprivkey %s\n"%(userpubkeystringlist, nmip, nmport, vesselname, nodepubkey, nodeprivkey)
     # explanation += " Acquiring %s:%s"%(nmip,nmport)
+
+    # alpers - before changeusers, let's create a vmap entry so we can recover
+    #          the vessel if changeusers gets forcefully terminated
+
+    vessel_str = nmip + ":" + str(nmport) + " "
+
+    if not create_vmaps([vessel], geni_user, pending_flag=True):
+        return False, vessel_str + "no open ports found for vmap"
+
     print "changeusers ", time.time(), "on", nmip, ":", nmport, ":", vesselname
     success,msg = changeusers(userpubkeystringlist, nmip, nmport, vesselname, nodepubkey, nodeprivkey)
     print "/changeusers " , time.time()
 
     if success:
         return True, ""
-    explanation = nmip + ":" + str(nmport) + " " + msg
+    
+    # alpers - TODO: gotta delete vesselmap here if changeusers failed
+    # first find the right vesselport..
+    vport = VesselPort.objects.filter(vessel = vessel).filter(
+        port = geni_user.port)
+    vport = vport[0]
+
+    # then select the vmap object
+    vmap = VesselMap.objects.filter(vessel_port = vport, user = geni_user, 
+                                    pending = 1)
+    if len(vmap) != 1:
+        raise "should have selected just one vmap entry, instead got %d: %s" %(len(vmap), vmap)
+
+    # don't actually remove object, let's try to inspect list instead.
+    # delete the vmap object from the db
+    vmap.del()
+    
+    
+
+    explanation = vessel_str + msg
     return False, explanation
 
 
@@ -176,7 +205,8 @@ def parallel_acquire_vessels(vessel_list, geni_user, num_threads=10):
 
     # start acquisition
     phandle = parallelize_initfunction(vessel_list, acquire_vessel,
-                                       num_threads, [geni_user.pubkey])
+                                       num_threads, [geni_user.pubkey], 
+                                       geni_user)
 
     # wait until all acquisitions have been attempted
     while not parallelize_isfunctionfinished(phandle):
