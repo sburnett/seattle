@@ -65,7 +65,7 @@ def __jsonify(data):
 
 
 def build_installer(request):
-  if (request.POST['action'] == 'adduser'):
+  if (request.POST['action'] == 'resetform'):
     username = standarize(request.POST['username'])
     if 'publickey' in request.FILES:
       file = request.FILES['publickey']
