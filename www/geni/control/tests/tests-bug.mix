@@ -12,18 +12,18 @@ from geni.control.resource_operations import acquire_resources, release_resource
 def acquire_node(geni_user, type):
     #                                    user, num, type  
     success, blob = acquire_resources(geni_user, 10, type)
-    num, summary, explanation = blob
-    if not success or not num == 8:
-        print "Failed to acquire node."
-        print "Summary:", summary
-        print "Details:", explanation
+#     num, summary, explanation = blob
+#     if not success or not num == 8:
+#         print "Failed to acquire node."
+#         print "Summary:", summary
+#         print "Details:", explanation
         
-        return
+#         return
 
-    else: 
-        print "Successfully acquired nodes."
-        print "Summary:", summary
-        print "Details:", explanation
+#     else: 
+#         print "Successfully acquired nodes."
+#         print "Summary:", summary
+#         print "Details:", explanation
 
 
 def release_node(geni_user):
