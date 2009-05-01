@@ -1,0 +1,228 @@
+"""
+<Program Name>
+  key_daemon.repy
+
+<Started>
+  April 27, 2009
+
+<Author>
+  n2k8000@u.washington.edu
+  Konstantin Pik
+
+<Purpose>
+  Provides a daemon that runs on a socket generating RSA keys of length 
+  specified and store them in memory.  Upon connection, a public/private 
+  keypair will be sent on that socket (either from cache or generated if 
+  cache is empty).
+
+  The keys will be provided and separated by \n characters.
+  
+  Manual connection to key-daemon should not be done, instead use
+  key-daemon-parser.repy.
+  
+  Usage:
+    key-daemon --port # [--maxkeys 60] [--keylength 1024] [--localhost]
+                        [--keyrefresh 5]
+   
+  Paramaters:
+    --port            Required. Sets the port the daemon will start on. No
+                        default port is specified, program will termiante if
+                        not port is not set.
+    --maxkeys         Optional. Sets the default number of keys to generate
+                        and store in cache [default is 60].
+    --keylength       Optional. Sets the default keylength of all the keys
+                        [default is 1024].
+    --localhost       Optional. If this flag is set, then daemon will run
+                        on loopback IP, otherwise will use getmyip() API call
+                        to determine the listening IP.
+    --keyrefresh      Optional. Sets the time (in minutes) that the program 
+                        will check to see if the cache needs to be refilled.
+  Return String format:
+    [public_key_string]\n[private_key_string]\n
+    
+  See key-daemon-parser.repy for how data is parsed.
+"""
+
+include rsa.repy
+include argument_parser.repy
+
+
+def fill_keys_cache():
+  """
+  <Purpose>
+    Function checks to see if the number of keys in the cache is less than
+    the number of keys the cache is supposed to have, and generates them 
+    assert needed.  Function should never be called outside of key-daemon.
+    
+    key_cache layout:
+     ((pubkey1, privkey1), ..., (pubkeyn, privkeyn))
+     
+  <Arguments>
+    None.
+
+  <Exceptions>
+    None known.
+
+  <Side Effects>
+    Changes the global 'key_cache'.
+
+  <Returns>
+    None.
+  """
+  
+  canceltimer(mycontext['fill_timer_handle'])
+  if len(mycontext['key_cache']) < mycontext['max_keys']:
+    while len(mycontext['key_cache']) < mycontext['max_keys']:
+      print 'Generating key '+str(1 + len(mycontext['key_cache']))+ \
+        ' of '+str(mycontext['max_keys'])
+      generated_key = rsa_gen_pubpriv_keys(mycontext['default_keylen'])
+      pubkey_string = rsa_publickey_to_string(generated_key[0])
+      privkey_string = rsa_privatekey_to_string(generated_key[1])
+      mycontext['key_cache'].append((pubkey_string, privkey_string))
+      
+  eventhandle = settimer(mycontext['key_refresh_rate'], fill_keys_cache, ())
+  mycontext['fill_timer_handle'] = eventhandle
+       
+       
+def wait_for_connection(ip, port, sockobj, thiscommhandle, listencommhandle):
+  """
+  <Purpose>
+    Function is a callback for when a connection is established.  It sends 
+    pub/priv keypair in string form to ip:port on sockobj.  a \n is
+    concatenated at the end of each key to signify end of key.  The socket is
+    closed after the key has been sent.
+    
+    A keypair will either be pulled from cache (if one exists at time of 
+    connection request), or one will be generated and sent to the remote
+    user.
+
+  <Arguments>
+    None. Shouldn't be called manually.
+
+  <Exceptions>
+    Throws an exception if socket breaks down in middle of send (perhaps 
+    peer dropped?).  Expected behavior is to close socket and wait for 
+    more connections.
+    
+    Throws IndexError exception when we try to .pop() on our cache if it is
+    empty. Then we catch it and generate a new key on the fly.
+    
+    Exits with return code 0 if the not remote client doesn't send a 
+    "NEWKEY\n" string to signify a new string.
+
+  <Side Effects>
+    Possibly modifies global 'key_cache'.
+
+  <Returns>
+    The keys are returned in the following format:
+    [pub_key_string]\n[priv_key_string]\n on a socket.
+    
+    0 if wrong connection string, just from the function (is there a better 
+    way to do this?)
+  """
+  
+  print '\n['+str(thiscommhandle)+'] remote user ['+str(ip)+'] connected'
+  try:
+    in_data = sockobj.recv(128)
+  except Exception, e:
+    print '\n['+str(thiscommhandle)+'] remote user ['+str(ip)+'] is not'+ \
+      ' responding, connection closed.'
+    return 0
+  
+  if in_data.strip(" ").lower() != "newkey\n":
+    print '\n['+str(thiscommhandle)+'] provided invalid query string. '+ \
+    'Closing connection from ['+str(ip)+'].'
+    stopcomm(thiscommhandle)
+    return 0
+  
+  print '\n['+str(thiscommhandle)+'] remote user ['+str(ip)+'] requesting key'
+  print '['+str(thiscommhandle)+'] trying cache for key...'
+  
+  try:
+    key_tuple = mycontext['key_cache'].pop(0)
+    pubkey_to_return = key_tuple[0]
+    privkey_to_return = key_tuple[1]
+  except IndexError, e: 
+    print '['+str(thiscommhandle)+'] cache is empty, generating new key'
+    key_tuple = rsa_gen_pubpriv_keys(mycontext['default_keylen'])
+    pubkey_to_return = rsa_publickey_to_string(key_tuple[0])
+    privkey_to_return = rsa_privatekey_to_string(key_tuple[1])
+  finally:
+    try:
+      sockobj.send(pubkey_to_return+'\n'+privkey_to_return+'\n')
+      print "["+str(thiscommhandle)+"] got a key"
+    except Exception, e:
+      print e
+    finally:
+      stopcomm(thiscommhandle)
+   
+
+if callfunc == 'initialize':
+  """
+  <Purpose>
+    Called when daemon is first started. Initializes the listening socket,
+    and sets default settings (described at very top of file).
+    
+  <Arguments>
+    None.  All editable settings are passed as program args, see program
+    description above.
+
+  <Exceptions>
+    Raises an exception if something goes wrong and we can't start our the 
+    daemon.  Typically because of a restriction on a port.
+
+  <Side Effects>
+    None.
+
+  <Returns>
+    None.
+  """
+  
+  print 'keydaemon initializing...'
+  
+  if len(callargs) > 9:
+    raise Exception('Too many call arguments')
+  
+  mycontext['max_keys'] = 60
+  mycontext['default_keylen'] = 1024
+  mycontext['key_cache'] = []
+  mycontext['key_refresh_rate'] = 5 * 60
+  
+  if scan_bool(callargs, '--port'):
+    port = scan_int(callargs, '--port')
+    
+    temp_max_keys = scan_int(callargs, '--maxkeys')
+    if temp_max_keys:
+      mycontext['max_keys'] = temp_max_keys
+    
+    temp_keylength = scan_int(callargs, '--keylength')
+    if temp_keylength:
+      mycontext['default_keylen'] = temp_keylength
+    
+    temp_key_refresh = scan_int(callargs, '--keyrefresh')
+    if temp_key_refresh:
+      mycontext['key_refresh_rate'] = 5 * temp_key_refresh
+    
+    # TODO: Add --ip option to allow manual specification of IP if multiple
+    # ip's are assigned to host (loopback, network, WAN, etc)
+    if scan_bool(callargs, '--localhost'):
+      ip = '127.0.0.1'
+    else:
+      ip = getmyip()
+  else:
+    raise Exception('No port set. Please specify a port with --port #')
+    
+  try:
+    print 'Trying to start daemon on '+str(ip)+':'+str(port)
+    listenhandle = waitforconn(ip, int(port), wait_for_connection)
+    mycontext['listener_handle'] = listenhandle
+    eventhandle = settimer(mycontext['key_refresh_rate'], fill_keys_cache, ())
+    mycontext['fill_timer_handle'] = eventhandle
+  except Exception, e: 
+    print e
+    raise Exception('Stopping daemon, most likely because of a port ' + \
+      'restriction.')
+  else:
+    print '...daemon started successfully'
+    fill_keys_cache()
+    

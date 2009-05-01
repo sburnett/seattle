@@ -1,0 +1,97 @@
+"""
+<Program Name>
+  key_daemon_parser_test.repy
+
+<Started>
+  April 29, 2009
+
+<Author>
+  n2k8000@u.washington.edu
+  Konstantin Pik
+
+<Purpose>
+  Test file for key_daemon_parser.repy - runs some simple connection tests.
+  
+  Assumes key_daemon.repy was started with the following arguments on the
+  same computer:
+  
+  key_daemon --port 12345 --localhost
+  
+  Note: for testing purposes, it might be of interest to set the --keylength
+  parameter to a small size such as 16 or 32 for faster key generation.
+  
+"""
+
+include key_daemon_parser.repy
+
+def run_daemon_tests():
+  """
+  <Purpose>
+    Function executes a series of tests.
+    
+  <Arguments>
+    None.
+    
+  <Exceptions>
+    None.
+
+  <Side Effects>
+    None.
+
+  <Returns>
+    None.
+  """
+
+  # Test just ip/port related stuff first, but suppress 'print'
+  expect(False, get_keypair('0.0.0.0', 123, False), 'Bad IP')
+  expect(False, get_keypair('127.0.0.12', 123, False), 
+    'Good IP, not listening')
+  expect(False, get_keypair('127.0.0.1', -5, False), 
+    'Good IP, bad port')
+  expect(False, get_keypair('0', -5, False), 'bad IP, bad port')
+  expect(False, get_keypair('127.0.0.1', 12345, False, 1), 
+    'Good IP & port as int, instant timeout')
+  expect(True, get_keypair('127.0.0.1', "12345", False, 180), 
+    'Good IP & port as str, reasonable timeout')
+
+def expect(expected_value, daemon_parser_response, test_description = ""):
+  """
+  <Purpose>
+    Function checks returned output from get_keypair to expected output. If
+    the output does not match then more detailed information is printed out.
+    Otherwise, a success message is printed and a test description if
+    available.
+    
+  <Arguments>
+    expected_value:   Expected return value (True/False) from function (to
+                      be compared with the first item from the function
+                      response)
+    daemon_parser_response: The complete response from function.
+    test_description: Optional. Default is blank.  Description of the test
+                      being ran.
+    
+  <Exceptions>
+    None.
+
+  <Side Effects>
+    None.
+
+  <Returns>
+    None.  All info is printed to console.
+  """
+  
+  if daemon_parser_response[0] == expected_value:
+    if test_description:
+      print 'Key daemon test passed! (test description: '+test_description+')'
+    else:
+      print 'Key daemon test passed!'
+  else:
+    print 'Key daemon test failed! expected "'+ \
+      str(expected_value)+'", but received "'+ \
+      str(daemon_parser_response[0])+'". \n   Additional info:'
+    if test_description:
+      print '\tTest description:  '+test_description
+    print '\tReturn value:  '+str(daemon_parser_response)
+
+if callfunc == "initialize":
+  run_daemon_tests()
