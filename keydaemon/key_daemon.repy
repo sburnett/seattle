@@ -17,14 +17,14 @@
 
   The keys will be provided and separated by \n characters.
   
-  Manual connection to key-daemon should not be done, instead use
-  key-daemon-parser.repy.
+  Manual connection to key_daemon should not be done, instead use
+  key_daemon_parser.repy.
   
   Usage:
     key-daemon --port # [--maxkeys 60] [--keylength 1024] [--localhost]
-                        [--keyrefresh 5]
+                        [--keyrefresh 5] [--ip #ip#]
    
-  Paramaters:
+  Paramaters (may be specified in any order):
     --port            Required. Sets the port the daemon will start on. No
                         default port is specified, program will termiante if
                         not port is not set.
@@ -37,10 +37,16 @@
                         to determine the listening IP.
     --keyrefresh      Optional. Sets the time (in minutes) that the program 
                         will check to see if the cache needs to be refilled.
+    --ip              Optional. Sets the IP that the daemon should initialize
+                        itself on.  --local host has precedence over this.
+                        Unless there are multiple adapters on the computer
+                        that the daemon is running on, this should typically
+                        not be used.
+                        
   Return String format:
     [public_key_string]\n[private_key_string]\n
     
-  See key-daemon-parser.repy for how data is parsed.
+  See key_daemon_parser.repy for how data is parsed.
 """
 
 include rsa.repy
@@ -131,7 +137,7 @@ def wait_for_connection(ip, port, sockobj, thiscommhandle, listencommhandle):
   
   if in_data.strip(" ").lower() != "newkey\n":
     print '\n['+str(thiscommhandle)+'] provided invalid query string. '+ \
-    'Closing connection from ['+str(ip)+'].'
+      'Closing connection from ['+str(ip)+'].'
     stopcomm(thiscommhandle)
     return 0
   
@@ -155,21 +161,23 @@ def wait_for_connection(ip, port, sockobj, thiscommhandle, listencommhandle):
       print e
     finally:
       stopcomm(thiscommhandle)
-   
 
 if callfunc == 'initialize':
   """
   <Purpose>
     Called when daemon is first started. Initializes the listening socket,
-    and sets default settings (described at very top of file).
+    and sets default settings (described at very top of this file).
     
   <Arguments>
-    None.  All editable settings are passed as program args, see program
+    None.  All editable settings are passed as program parameters, see program
     description above.
 
   <Exceptions>
-    Raises an exception if something goes wrong and we can't start our the 
+    Raises an exception if something goes wrong and we can't start our
     daemon.  Typically because of a restriction on a port.
+    
+    Exceptions will also be thrown if any of the parameters specified
+    have invalid values.
 
   <Side Effects>
     None.
@@ -180,8 +188,9 @@ if callfunc == 'initialize':
   
   print 'keydaemon initializing...'
   
-  if len(callargs) > 9:
-    raise Exception('Too many call arguments')
+  if len(callargs) > 11:
+    print 'Error: Too many call arguments'
+    exitall()
   
   mycontext['max_keys'] = 60
   mycontext['default_keylen'] = 1024
@@ -201,16 +210,19 @@ if callfunc == 'initialize':
     
     temp_key_refresh = scan_int(callargs, '--keyrefresh')
     if temp_key_refresh:
-      mycontext['key_refresh_rate'] = 5 * temp_key_refresh
+      mycontext['key_refresh_rate'] = 60 * temp_key_refresh
     
-    # TODO: Add --ip option to allow manual specification of IP if multiple
-    # ip's are assigned to host (loopback, network, WAN, etc)
     if scan_bool(callargs, '--localhost'):
       ip = '127.0.0.1'
     else:
-      ip = getmyip()
+      temp_ip = scan_str(callargs, '--ip')
+      if temp_ip:
+        ip = temp_ip
+      else:
+        ip = getmyip()
   else:
-    raise Exception('No port set. Please specify a port with --port #')
+    print ('Error: No port set. Please specify a port with --port #')
+    exitall()
     
   try:
     print 'Trying to start daemon on '+str(ip)+':'+str(port)
@@ -218,11 +230,11 @@ if callfunc == 'initialize':
     mycontext['listener_handle'] = listenhandle
     eventhandle = settimer(mycontext['key_refresh_rate'], fill_keys_cache, ())
     mycontext['fill_timer_handle'] = eventhandle
-  except Exception, e: 
+  except Exception, e:
     print e
-    raise Exception('Stopping daemon, most likely because of a port ' + \
-      'restriction.')
+    print 'Error: Stopping daemon, most likely because of a port ' + \
+      'restriction.'
+    exitall()
   else:
     print '...daemon started successfully'
-    fill_keys_cache()
-    
+    fill_keys_cache()  

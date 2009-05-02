@@ -49,7 +49,8 @@ def run_daemon_tests():
   expect(False, get_keypair('127.0.0.1', -5, False), 
     'Good IP, bad port')
   expect(False, get_keypair('0', -5, False), 'bad IP, bad port')
-  expect(False, get_keypair('127.0.0.1', 12345, False, 1), 
+  # The following might sometimes return a false positive if server has keys
+  expect(False, get_keypair('127.0.0.1', 12345, False, 0), 
     'Good IP & port as int, instant timeout')
   expect(True, get_keypair('127.0.0.1', "12345", False, 180), 
     'Good IP & port as str, reasonable timeout')
