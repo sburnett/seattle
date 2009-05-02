@@ -113,6 +113,19 @@ version = "0.1e"
 # Our settings
 configuration = {}
 
+# Initializes emulcomm with all of the network restriction information
+# Takes configuration, which the the dictionary stored in nodeman.cfg
+def initialize_ip_interface_restrictions(configuration):
+  # Armon: Check if networking restrictions are enabled, appropriately generate the list of usable IP's
+  # If any of our expected entries are missing, assume that restrictions are not enabled
+  if 'networkrestrictions' in configuration and 'nm_restricted' in configuration['networkrestrictions'] \
+    and configuration['networkrestrictions']['nm_restricted'] and 'nm_user_preference' in configuration['networkrestrictions']:
+    # Setup emulcomm to generate an IP list for us, setup the flags
+    emulcomm.user_ip_interface_preferences = True
+    
+    # Add the specified IPs/Interfaces
+    emulcomm.user_specified_ip_interface_list = configuration['networkrestrictions']['nm_user_preference']
+
 # has the thread started?
 def should_start_waitable_thread(threadid, threadname):
   # first time!   Let's init!
@@ -161,16 +174,6 @@ def start_accepter():
       return myname
 
     else:
-      # Armon: Check if networking restrictions are enabled, appropriately generate the list of usable IP's
-      # If any of our expected entries are missing, assume that restrictions are not enabled
-      if 'networkrestrictions' in configuration and 'nm_restricted' in configuration['networkrestrictions'] \
-        and configuration['networkrestrictions']['nm_restricted'] and 'nm_user_preference' in configuration['networkrestrictions']:
-        # Setup emulcomm to generate an IP list for us, setup the flags
-        emulcomm.user_ip_interface_preferences = True
-        
-        # Add the specified IPs/Interfaces
-        emulcomm.user_specified_ip_interface_list = configuration['networkrestrictions']['nm_user_preference']
-      
       # Just use getmyip(), this is the default behavior and will work if we have preferences set
       # We only want to call getmyip() once, rather than in the loop since this potentially avoids
       # rebuilding the allowed IP cache for each possible port
@@ -285,6 +288,9 @@ def main():
   servicelogger.log("[INFO]:Loading config")
   # BUG: Do this better?   Is this the right way to engineer this?
   configuration = persist.restore_object("nodeman.cfg")
+  
+  # Armon: initialize the network restrictions
+  initialize_ip_interface_restrictions(configuration)
 
 
   ##BUG FIX: insuficient events. We patch each resource file once when node manager is started the first time.
@@ -332,7 +338,7 @@ def main():
   # get the external IP address...
   # BUG: What if my external IP changes?   (A problem throughout)
   
-  vesseldict = nmrequesthandler.initialize(misc.getmyip(),configuration['publickey'],version)
+  vesseldict = nmrequesthandler.initialize(emulcomm.getmyip(),configuration['publickey'],version)
 
   # Start accepter...
   myname = start_accepter()
