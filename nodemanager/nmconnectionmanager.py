@@ -65,6 +65,8 @@ def connection_handler(IP, port, socketobject, thiscommhandle, maincommhandle):
   # grabbing lots of connections
   try:
     if len(connection_dict[IP]) > 3:
+      # Armon: Avoid leaking sockets
+      socketobject.close()
       return
   except KeyError:
     # It's okay, they aren't added yet...

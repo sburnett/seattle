@@ -53,7 +53,12 @@ def initialize(myip, publickey, version):
 
 
   
-
+# Armon: Safely closes a socket object
+def safe_close(socket):
+  try:
+    socket.close()
+  except:
+    pass
 
 
 # this takes a connection and safely processes the request.   
@@ -66,10 +71,7 @@ def handle_request(socketobj):
     fullrequest = session_recvmessage(socketobj)
   except (socket.error, SessionEOF, ValueError), e:
     # close if possible
-    try:
-      socketobj.close()
-    except:
-      pass
+    safe_close(socketobj)
 
     # I can't handle this, let's exit
     # BUG: REMOVE LOGGING IN PRODUCTION VERSION (?)
@@ -84,9 +86,11 @@ def handle_request(socketobj):
   except nmAPI.BadRequest,e:
     try:
       session_sendmessage(socketobj, str(e)+"\nError")
-      socketobj.close()
     except:
       pass
+    # Armon: Moved out from the same try/catch because if session_sendmessage fails
+    # then, the socket would not be closed, this is to prevent leaks
+    safe_close(socketobj)
     return
 
   # Other exceptions only should happen on an internal error
@@ -94,19 +98,21 @@ def handle_request(socketobj):
     try:
       traceback.print_exc()
       session_sendmessage(socketobj,"Internal Error\nError")
-      socketobj.close()
     except:
       pass
+    # Armon: Prevent socket leaks
+    safe_close(socketobj)
     return
  
   
   # send any output from the command
   try:
     session_sendmessage(socketobj,retstring)
-    socketobj.close()
   except:
     pass
-
+  
+  # Prevent leaks
+  safe_close(socketobj)
 
 
 
