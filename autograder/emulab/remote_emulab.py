@@ -40,7 +40,7 @@ PACKAGE_VERSION = 0.1
 
 
 # NEEDS TO BE CHANGED TO AUTOGRADER USER
-login_id = "kimbrl"
+login_id = "jenn"
 
 # where do we connect to for xmlrpc commands
 URI = "ssh://" + login_id + "@" + xmlrpc_server + "/xmlrpc";

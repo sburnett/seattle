@@ -29,15 +29,18 @@ cp autograder_runner.py built/
 cp data_interface.py built/
 cp remote_emulab.py built/
 cp sshxmlrpc.py built/
+cp ../nm_remote_api.mix built/
+cp repypp.py built/
+cp parallelize.repy built/
 
 cd built
 
 # link in needed repy files
-cp  ../../../repy/* .
-ln -s ../../../${TESTDIR}/repy.py repy.py
-ln -s ../../../${TESTDIR}/repypp.py repypp.py
-ln -s ../../../${TESTDIR}/repyhelper.py repyhelper.py
-
+cp -r  ../../../repy/* .
+#ln -s ../../../${TESTDIR}/repy.py repy.py
+#ln -s ../../../${TESTDIR}/repypp.py repypp.py
+#ln -s ../../../${TESTDIR}/repyhelper.py repyhelper.py
+cp -r ../../../${TESTDIR}/* .
 
 #make directories for test runs
 mkdir to_grade
@@ -47,7 +50,7 @@ mkdir meta_test
 
 # get some stuff to grade
 cp ../lan.ns meta_test/
-cp ../../../assignments/webserver/webserver_tests/* meta_test/
+cp -r ../../../assignments/webserver/webserver_tests/* meta_test/
 cp ../../../assignments/webserver/webserver.repy to_grade
 
 cd to_grade
@@ -59,6 +62,6 @@ touch joe.tar.txt
 
 cd ..
 
-# run aplers thing thought the preprocessor
+# run aplers thing though the preprocessor
 python repypp.py $IN $OUT
 

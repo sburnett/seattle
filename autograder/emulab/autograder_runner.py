@@ -332,7 +332,7 @@ def waitforfiles():
 if __name__ == "__main__":
 
   
-  # if the -p option is given pring to the console instead of the log
+  # if the -p option is given print to the console instead of the log
   if len(sys.argv) > 1:  
     if "-p" in sys.argv:
       make_log = False
