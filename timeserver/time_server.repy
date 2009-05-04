@@ -1,0 +1,87 @@
+"""
+
+  Author: Zachary Boka
+    time_server.repy
+
+  Start Date: 3 May 2009
+
+  Description:
+
+    This repy service listens for connections and returns the current
+    time, obtained from a subset of NTPs via time.repy, whenever it receives
+    a request.
+
+"""
+
+
+include time.repy
+
+include centralizedadvertise.repy
+
+
+
+
+
+
+# Announce presence to central server every four to five minutes
+def time_server_announce(ipPortstring):
+  
+  announced = False
+  while announced != True:
+    try:
+      announced = centralizedadvertise_announce("time_server",ipPortstring,300)
+    except Exception,e:
+      print e, " trying again to announce presence to the central server"
+      sleep(60)            # Announce failed, retry in 60 seconds
+    else:
+      announced = True     # Announce succeeded, exit while loop
+
+
+  # Re-announce to central server sometime after 240 seconds has passed
+  timerhandle = settimer(240,time_server_announce,(ipPortstring,))
+
+
+
+# Supplies the current time obtained from a NTP to a client via time.repy
+def send_time_to_client(ip,port,sockobj,thiscommhandle,listencommhandle):
+
+  serverTime = str(time_gettime())
+
+  sockobj.send(serverTime)
+
+  stopcomm(thiscommhandle)
+
+
+
+if callfunc == 'initialize':
+
+  if len(callargs) > 1:
+    raise Exception("Too many call arguments")
+
+  elif len(callargs) == 1:
+    port = int(callargs[0])
+    ip = getmyip()
+
+  else:
+    port = 12345
+    ip = '127.0.0.1'
+
+
+  # Establish time via a connection to a NTP server
+  obtainingtime = True
+  while obtainingtime:
+    try:
+      time_updatetime(port)
+    except Exception,e:
+      print e, " trying again to connect to a NTP"  # print exception, try again
+    else:
+      obtainingtime = False             # time obtained, exit while loop
+
+
+
+  listencommhandle = waitforconn(ip,port,send_time_to_client)
+
+
+  # Begin announcing presence to central server
+  ipPortstring = "%s,%s"%(ip,port)
+  time_server_announce(ipPortstring)
