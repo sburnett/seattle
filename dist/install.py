@@ -32,7 +32,7 @@ sys.path.append(os.getcwd())
 import nonportable
 import createnodekeys
 import repy_constants
-
+import persist # Armon: Need to modify the NM config file
 
 SILENT_MODE = False
 OS = nonportable.ostype
@@ -597,8 +597,13 @@ def usage():
   Intended for internal use.
   Prints command line usage of script.
   """
-  print "python install.py [-s] [install_dir]"
-
+  print "python install.py [--nm-ip ip] [--nm-iface iface] [--repy-ip ip] [--repy-iface iface] [--repy-nootherips] [--onlynetwork] [-s] [install_dir]"
+  print "Info:"
+  print "--nm-ip IP\t\tSpecifies a preferred IP for the NM. Multiple may be specified, they will be used in the specified order."
+  print "--nm-iface iface\tSpecifies a preferred interface for the NM. Multiple may be specified, they will be used in the specified order."
+  print "--repy-ip, --repy-iface. See --nm-ip and --nm-iface. These flags only affect repy and are separate from the Node Manager."
+  print "--repy-nootherips\tSpecifies that repy is only allowed to use explicit IP's and interfaces."
+  print "--onlynetwork\t\tDoes not reinstall Seattle, but updates the network restrictions information."
 
 def in_opts(opts, flag):
   """
@@ -622,7 +627,8 @@ def main():
   opts = None
   args = None
   try:
-    opts, args = getopt.getopt(sys.argv[1:], "hs")
+    # Armon: Changed getopt to accept parameters for Repy and NM IP/Iface restrictions, also a special disable flag
+    opts, args = getopt.getopt(sys.argv[1:], "hs",["nm-ip=","nm-iface=","repy-ip=","repy-iface=","repy-nootherips","onlynetwork"])
   except getopt.GetoptError, err:
     print str(err)
     usage()
@@ -636,11 +642,55 @@ def main():
   install_dir = "."
   if len(args) > 1:
     install_dir = args[1]
+
+  # Armon: Special flag for testing purposes, disables the actual install
+  disable_install = False
+
+  # Armon: Generate the Restrictions Information for the NM and Repy
+  repy_restricted = False
+  repy_nootherips = False
+  repy_user_preference = []
+  nm_restricted = False
+  nm_user_preference = []
   
-  try:
-    install(install_dir)
-  except AlreadyInstalledError:
-    print "seattle was already installed."
+  # Iterate through the flags, checking for IP/Iface restrictions, maintain order 
+  for (flag, value) in opts:
+    if flag == "--onlynetwork":
+      disable_install = True
+    elif flag == "--nm-ip":
+      nm_restricted = True
+      nm_user_preference.append((True, value))
+    elif flag == "--nm-iface":
+      nm_restricted = True
+      nm_user_preference.append((False, value))
+    elif flag == "--repy-ip":
+      repy_restricted = True
+      repy_user_preference.append((True, value))
+    elif flag == "--repy-iface":
+      repy_restricted = True
+      repy_user_preference.append((False,value))
+    elif flag == "--repy-nootherips":
+      repy_restricted = True
+      repy_nootherips = True
+  
+  # Build the configuration dictionary
+  config = {}
+  config['nm_restricted'] = nm_restricted
+  config['nm_user_preference'] = nm_user_preference
+  config['repy_restricted'] = repy_restricted
+  config['repy_user_preference'] = repy_user_preference
+  config['repy_nootherips'] = repy_nootherips 
+
+  # Armon: Inject the configuration information
+  configuration = persist.restore_object("nodeman.cfg")
+  configuration['networkrestrictions'] = config
+  persist.commit_object(configuration,"nodeman.cfg") 
+  
+  if not disable_install:
+    try:
+      install(install_dir)
+    except AlreadyInstalledError:
+      print "seattle was already installed."
 
 
 if __name__ == "__main__":
