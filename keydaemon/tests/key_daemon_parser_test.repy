@@ -15,7 +15,7 @@
   Assumes key_daemon.repy was started with the following arguments on the
   same computer:
   
-  key_daemon --port 12345 --localhost
+  key_daemon --port 12345 --ip 127.0.0.1
   
   Note: for testing purposes, it might be of interest to set the --keylength
   parameter to a small size such as 16 or 32 for faster key generation.
@@ -27,7 +27,8 @@ include key_daemon_parser.repy
 def run_daemon_tests():
   """
   <Purpose>
-    Function executes a series of tests.
+    Function executes a series of tests on key_daemon_parser.repy and
+    prints all output to the console.
     
   <Arguments>
     None.
@@ -90,8 +91,10 @@ def expect(expected_value, daemon_parser_response, test_description = ""):
     print 'Key daemon test failed! expected "'+ \
       str(expected_value)+'", but received "'+ \
       str(daemon_parser_response[0])+'". \n   Additional info:'
+      
     if test_description:
       print '\tTest description:  '+test_description
+      
     print '\tReturn value:  '+str(daemon_parser_response)
 
 if callfunc == "initialize":

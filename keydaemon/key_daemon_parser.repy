@@ -40,7 +40,7 @@ def keydaemon_parser_connection_timeout(socketobj):
   socketobj.close()
 
   
-def get_keypair(ip, port, progress_to_console = True, default_timeout = 180):
+def get_keypair(ip, port, verbose = True, default_timeout = 180):
   """
   <Purpose>
     This function connects to ip:port and waits until
@@ -51,11 +51,11 @@ def get_keypair(ip, port, progress_to_console = True, default_timeout = 180):
     ip:                     The IP that the key_daemon is running on. 
                             Does not have to be remote, can be local loopback.
     port:                   The port that the key_daemon is running on.
-    progress_to_console:    Optinal. Default is True.  This prints out the
+    verbose:                Optional. Default is True.  This prints out the
                             progress of key acquisition. 
     default_timeout:        Optional. Default is 3 minutes.  Sets the timeout
                             (in seconds) for the function to return False if 
-                            no response has been received within a this 
+                            no response has been received within this 
                             amount of time.
   <Exceptions>
     Socket errors on connection closed.
@@ -74,6 +74,9 @@ def get_keypair(ip, port, progress_to_console = True, default_timeout = 180):
     On failure:
     (False, error, error_description_string)
     
+    You should always check the first element in the returned list to see 
+    whether the function returned successfully.
+    
   <Sample Usage>
     get_keypair('127.0.0.1', 12345)
     get_keypair('1.2.3.4', 3344, False)
@@ -81,25 +84,28 @@ def get_keypair(ip, port, progress_to_console = True, default_timeout = 180):
   """
   
   try: # Try connecting
-    if progress_to_console:
+    if verbose:
       print 'Connecting...'
+      
     mycontext['key_daemon_timer_trigger'] = False
     daemon_socket = openconn(ip, int(port))
     timeout_timer = settimer(default_timeout, 
       keydaemon_parser_connection_timeout, (daemon_socket,))
-    if progress_to_console:
+      
+    if verbose:
       print 'Connected! Sending key request...'
     daemon_socket.send('newkey\n')
   except Exception, e:
-    if progress_to_console:
+    if verbose:
       print e
-    return (False, 'Socket Error', 'Trouble connecting to host ('+str(ip) + \
+      
+    return (False, 'Socket Error', 'Trouble connecting to host ('+str(ip)+ \
       ':'+str(port)+')')
   else: # Connected
-    newline_counter = 0
-    incoming_data = ''
+    newline_counter = 0 # will count \n's that we receive on our socket
+    incoming_data = '' # incoming data buffer
     
-    if progress_to_console:
+    if verbose:
       print 'Waiting for key...'
     
     while newline_counter < 2 and not mycontext['key_daemon_timer_trigger']:
@@ -107,19 +113,28 @@ def get_keypair(ip, port, progress_to_console = True, default_timeout = 180):
           incoming_data += daemon_socket.recv(512)
           newline_counter = incoming_data.count('\n')
         except Exception, e:
+          if verbose:
+            print e
+            print 'Stopped recv(). Most likely because of timeout.'
           # catches socket closed, then exits while loop because of flag
           continue
     
     if mycontext['key_daemon_timer_trigger'] and newline_counter < 2:
-      if progress_to_console:
-        print 'Socket timed out.'
+      if verbose:
+        print 'Socket timed out. Exiting function with timeout error.'
+        
       return (False, 'Timeout Error', 'A response could not be obtained' + \
-        ' in the specified amount of time ('+str(default_timeout)+' minutes).')
+        ' in the specified amount of time ('+str(default_timeout)+' seconds).')
+        
+    # Cancel timer so we 
+    # 1. can release resources, and 
+    # 2. don't accidentally trigger it (shouldn't have any side effects anyway)
     canceltimer(timeout_timer)
 
-    if progress_to_console:
+    if verbose:
       print 'Key received successfully!'
-    
+      
+    # [pubkey]\n[privkey]\n -> becomes array of two items after splitlines()
     keypair = incoming_data.splitlines()
     public_key_string = keypair[0]
     private_key_string = keypair[1]
