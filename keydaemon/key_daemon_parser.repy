@@ -94,6 +94,7 @@ def get_keypair(ip, port, verbose = True, default_timeout = 180):
       
     if verbose:
       print 'Connected! Sending key request...'
+    
     daemon_socket.send('newkey\n')
   except Exception, e:
     if verbose:

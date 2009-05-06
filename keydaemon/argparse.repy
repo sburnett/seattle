@@ -14,18 +14,18 @@
   arguments. Similar to getopt()/getopts().
 
 <Sample Usage>
-  scan_str(callargs, '-ip')
+  argparse_scan_str(callargs, '-ip')
     returns False if no -ip flag
     returns string containing ip (parameter following -ip flag)
-  scan_bool(callargs, '--local')
+  argparse_scan_bool(callargs, '--local')
     returns False if no --local flag is set
     returns True if --local flag is set
-  scan_int(callargs, '/port')
+  argparse_scan_int(callargs, '/port')
     returns False if no /port flag is set
     returns a string (ensures castable to int) following the
     
   Note: False is the default return value for all the functions if a
-    default return value is not specified on functin call.
+    default return value is not specified on function call.
   Note: See individual functions for detailed information.
 
 """

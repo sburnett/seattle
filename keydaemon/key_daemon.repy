@@ -51,7 +51,7 @@ def fill_keys_cache():
   <Purpose>
     Function checks to see if the number of keys in the cache is less than
     the number of keys the cache is supposed to have, and generates them 
-    assert needed.  Function should never be called outside of key-daemon.
+    as needed.  Function should never be called outside of key-daemon.
     
     key_cache layout:
      ((pubkey1, privkey1), ..., (pubkeyn, privkeyn))
