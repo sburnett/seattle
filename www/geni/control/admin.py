@@ -46,9 +46,9 @@ class DonationAdmin(admin.ModelAdmin):
       Used internally by django
     """
     
-    list_display = ('user', 'ip', 'port', 'date_added', 'last_heard', 'status', 'version')
-    list_filter = ('user', 'status', 'version')
-    #search_fields = ['user.www_user.username','ip']
+    list_display = ('user', 'ip', 'port', 'date_added', 'last_heard', 'status', 'version', 'epoch', 'active')
+    list_filter = ('user', 'status', 'version', 'subnet', 'active', 'epoch')
+    search_fields = ['ip']
 
 class ShareAdmin(admin.ModelAdmin):
     """
@@ -62,7 +62,6 @@ class ShareAdmin(admin.ModelAdmin):
         
     list_display = ('from_user', 'to_user', 'percent')
     list_filter = ('from_user', 'to_user')
-    #search_fields = ['from_user','to_user']
     
 class VesselAdmin(admin.ModelAdmin):
     """
@@ -87,8 +86,9 @@ class VesselMapAdmin(admin.ModelAdmin):
       Used internally by django
     """
 
-    list_display = ('vessel_port', 'user', 'expiration')
+    list_display = ('user', 'expiration',)
     list_filter = ('user',)
+    raw_id_fields = ('vessel_port',)
 
 class VesselPortAdmin(admin.ModelAdmin):
     """
@@ -99,9 +99,9 @@ class VesselPortAdmin(admin.ModelAdmin):
     <Example Use>
       Used internally by django
     """
-
-    list_display = ('vessel', 'port')
+    list_display = ('port',)
     list_filter = ('port',)
+    raw_id_fields = ('vessel', )
 
 # register/associate each custom admin view defined above with the
 # model defined in geni.control.models
