@@ -79,7 +79,7 @@ def add_node_by_hostname(host, port=DEFAULT_NODEMANAGER_PORT):
     check_is_initialized(check_vesselinfo=False)
         
     # get information about the node's vessels
-    thishandle = nmclient_createhandle(host, port, privatekey = key['private'], 
+    thishandle = nmclient_createhandle(host, port, privatekey = key['private'],
                                        publickey = key['public'])
     ownervessels, uservessels = nmclient_listaccessiblevessels(thishandle, 
                                                                key['public'])
@@ -132,8 +132,8 @@ def run_on_targets(vessel_list, filename, filedata, argstring, timeout=240):
 
       argstring:
           An argument string passed to the repy program at runtime - note that 
-          the argstring is NEVER empty - the first argument should always be the
-          filename.
+          the argstring is NEVER empty - the first argument should always be 
+          the filename.
          
       timeout:
           A specified timeout (in seconds) at which the vessel will be forcibly
@@ -166,15 +166,17 @@ def run_on_targets(vessel_list, filename, filedata, argstring, timeout=240):
             raise Exception, "Unable to find vessel in current state " + \
                 "(vessel: " + vessel + ")"
 
+    # start the parallelized communication using the single-vessel 
+    # run_target() function
     phandle = parallelize_initfunction(vessel_list, run_target, 20, filename, 
                                        filedata, argstring, timeout)
 
+    # wait until all functions have completed
     while not parallelize_isfunctionfinished(phandle):
         sleep(0.1)
 
-    resultdict = parallelize_getresults(phandle)
-
     # start a dictionary to keep track of results
+    resultdict = parallelize_getresults(phandle)
     log_results = {}
 
     # for each exception, assert False and pass along the exception text
@@ -235,9 +237,9 @@ def run_target(longname, filename, filedata, argstring, timeout=240):
         error_msg = "Please pass in the filename without any directory/hierarchy information (passed in '%s')" % filename
         return (False, error_msg)
 
+    # check if the first argument is the file name - if not, add it
     argparts = argstring.partition(" ")
     if argparts[0] != filename:
-        # attempt to fix
         if argparts[2] != "":
             argstring = filename + " " + argparts[2].strip()
         else:
@@ -245,6 +247,7 @@ def run_target(longname, filename, filedata, argstring, timeout=240):
 
     check_is_initialized()
 
+    # add the file to the vessel
     vesselname = vesselinfo[longname]['vesselname']
     try:
         nmclient_signedsay(vesselinfo[longname]['handle'], "AddFileToVessel", 
@@ -254,13 +257,14 @@ def run_target(longname, filename, filedata, argstring, timeout=240):
     
     #print "Successfully added ", filename, " to vessel"
     
+    # start the execution of the file
     try:
         nmclient_signedsay(vesselinfo[longname]['handle'], "StartVessel", 
                            vesselname, argstring)
     except NMClientException, e:
         return (False, str(e))
     
-    # check for termination
+    # check and wait for termination
     num_checks = 10
     sleep_time = 0
     for i in range(num_checks):
