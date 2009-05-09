@@ -69,7 +69,7 @@ def acquire_vessel(vessel, pubkey_list, geni_user):
     vessel_str = nmip + ":" + str(nmport) + " "
 
     if not create_vmaps([vessel], geni_user, pending_flag=True):
-        return False, vessel_str + "no open ports found for vmap"
+        return False, vessel_str + ": no open ports found for vmap"
 
     print "changeusers ", time.time(), "on", nmip, ":", nmport, ":", vesselname
     success,msg = changeusers(userpubkeystringlist, nmip, nmport, vesselname, nodepubkey, nodeprivkey)
@@ -88,11 +88,11 @@ def acquire_vessel(vessel, pubkey_list, geni_user):
     vmap = VesselMap.objects.filter(vessel_port = vport, user = geni_user, 
                                     pending = 1)
     if len(vmap) != 1:
-        raise "should have selected just one vmap entry, instead got %d: %s" %(len(vmap), vmap)
+        return False, "should have selected just one vmap entry, instead got %d: %s" %(len(vmap), vmap)
 
     # don't actually remove object, let's try to inspect list instead.
     # delete the vmap object from the db
-    vmap.del()
+    vmap.delete()
     
     
 
