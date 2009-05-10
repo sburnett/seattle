@@ -332,8 +332,7 @@ def setup_startup(prog_path):
 
     # Now, replace the crontab with that temp file
     os.popen('crontab "' + s_tmp + '"')
-    os.unlink(s_tmp
-)
+    os.unlink(s_tmp)
     return True
 
 
