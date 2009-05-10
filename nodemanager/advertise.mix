@@ -1,4 +1,4 @@
-""" 
+"""
 Author: Justin Cappos
 
 Start Date: October 14, 2008
@@ -25,7 +25,7 @@ def announce(key, value, ttlval):
   global skipcentral
   global previouscentralskip
 
-  
+
   if skipcentral == 0:
     try:
       centralizedadvertise_announce(key, value, ttlval)
@@ -34,7 +34,7 @@ def announce(key, value, ttlval):
       print 'centralized:',e
       skipcentral = previouscentralskip + 1
       previouscentralskip = min(previouscentralskip * 2, 16)
-      
+
   else:
     skipcentral = skipcentral - 1
 
@@ -76,7 +76,7 @@ def lookup(key, maxvals=100, lookuptype=['central','opendht']):
       dhtans = openDHTadvertise.lookup(key, maxvals)
     except Exception, e:
       dhtans = []
-  
+
   else:
     dhtans = []
 
