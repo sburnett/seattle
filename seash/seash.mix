@@ -69,6 +69,9 @@ import os.path    # fix path names when doing upload, loadkeys, etc.
 #### Helper functions and exception definitions
 
 
+# this is how long we wait for a node to timeout
+globalseashtimeout = 10
+
   
 # Use this to signal an error we want to print...
 class UserError(Exception):
@@ -299,7 +302,7 @@ def browse_target(node, currentkeyname):
 
   # get information about the node's vessels
   try:
-    nodehandle = nmclient_createhandle(host, port, privatekey = keys[currentkeyname]['privatekey'], publickey = keys[currentkeyname]['publickey'])
+    nodehandle = nmclient_createhandle(host, port, privatekey = keys[currentkeyname]['privatekey'], publickey = keys[currentkeyname]['publickey'], timeout=globalseashtimeout)
   except NMClientException,e:
     return (False, str(e))
 
@@ -589,6 +592,10 @@ keys = {}
 # 2 is commonly done by a function XXX_target(...) listed above
 
 def command_loop():
+  # we will set this if they call set timeout
+  global globalseashtimeout
+
+
   # things that may be set herein and used in later commands
   host = None
   port = None
@@ -702,6 +709,7 @@ exit                         -- exits the shell
 set ownerinfo [ data ... ]    -- Change owner information for the vessels
 set advertise [ on | off ] -- Change advertisement of vessels
 set owner identity        -- Change a vessel's owner
+set timeout count  -- Sets the time that seash is willing to wait on a node
 """
 
 
@@ -720,6 +728,7 @@ show log        -- Display the log from the vessel (*)
 show files      -- Display a list of files in the vessel (*)
 show resources  -- Display the resources / restrictions for the vessel (*)
 show offcut     -- Display the offcut resource for the node (*)
+show timeout    -- Display the timeout for nodes
 
 (*) No need to update prior, the command contacts the nodes anew
 """
@@ -1015,6 +1024,12 @@ update             -- Update information about the vessels
   
           continue
 
+# show timeout    -- Display the timeout for nodes
+        elif userinputlist[1] == 'timeout' or userinputlist[1] == 'timeouts':
+
+          print globalseashtimeout
+          
+          continue
 
 
 
@@ -1195,7 +1210,7 @@ update             -- Update information about the vessels
           raise UserError("Error, usage is contact host:port[:vessel]")
         
         # get information about the node's vessels
-        thishandle = nmclient_createhandle(host, port, privatekey = keys[currentkeyname]['privatekey'], publickey = keys[currentkeyname]['publickey'], vesselid = vesselname)
+        thishandle = nmclient_createhandle(host, port, privatekey = keys[currentkeyname]['privatekey'], publickey = keys[currentkeyname]['publickey'], vesselid = vesselname, timeout = globalseashtimeout)
         ownervessels, uservessels = nmclient_listaccessiblevessels(thishandle,keys[currentkeyname]['publickey'])
 
         newidlist = []
@@ -2160,6 +2175,28 @@ update             -- Update information about the vessels
             targets['usersfail'] = faillist
             print "Added group 'usersgood' with "+str(len(targets['usersgood']))+" targets and 'usersfail' with "+str(len(targets['usersfail']))+" targets"
   
+    
+          continue
+
+
+# set timeout count  -- Sets the time that seash is willing to wait on a node
+        elif userinputlist[1] == 'timeout':
+
+          if len(userinputlist) != 3:
+            raise UserError("set timeout takes exactly one argument")
+
+          # I need to set the timeout for new handles...
+          try:
+            globalseashtimeout = int(userinputlist[2])
+          except ValueError:
+            raise UserError("The timeout value must be a number")
+
+          # let's reset the timeout for existing handles...
+          for longname in vesselinfo:
+            thisvesselhandle = vesselinfo[longname]['handle']
+            thisvesselhandledict = nmclient_get_handle_info(thisvesselhandle)
+            thisvesselhandledict['timeout'] = globalseashtimeout
+            nmclient_set_handle_info(thisvesselhandle,thisvesselhandledict)
     
           continue
 
