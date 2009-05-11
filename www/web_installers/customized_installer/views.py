@@ -76,7 +76,7 @@ def reset_form(request):
     else:
       del request.session[username]
     return HttpResponse("Done")
-  return HttpResponse(request.POST['action'])
+  #return HttpResponse(request.POST['action'])
 
 
 def build_installer(request):
