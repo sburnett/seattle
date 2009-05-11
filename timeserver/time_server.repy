@@ -83,5 +83,5 @@ if callfunc == 'initialize':
 
 
   # Begin announcing presence to central server
-  ipPortstring = "%s,%s"%(ip,port)
+  ipPortstring = "%s:%s"%(ip,port)
   time_server_announce(ipPortstring)
