@@ -73,11 +73,10 @@ def reset_form(request):
         return HttpResponse("Public key too large, file size limit is 2048 bytes")
       key = file.read()
       request.session[username] = key
+      return HttpResponse(key)
     #else:
       # del request.session[username]
     return HttpResponse("Done")
-  return HttpResponse("Hello")
-
 
 def build_installer(request):
   if (request.POST['action'] == 'build_installer'):
