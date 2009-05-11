@@ -64,7 +64,7 @@ def __jsonify(data):
   return HttpResponse(json, mimetype='application/json')
 
 
-def resetForm(request):
+def reset_form(request):
   if (request.POST['action'] == 'resetform'):
     username = standarize(request.POST['username'])
     if 'publickey' in request.FILES:
@@ -76,7 +76,7 @@ def resetForm(request):
     else:
       del request.session[username]
     return HttpResponse("Done")
-    
+
 
 def build_installer(request):
   if (request.POST['action'] == 'build_installer'):
