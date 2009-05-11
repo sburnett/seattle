@@ -73,8 +73,8 @@ def reset_form(request):
         return HttpResponse("Public key too large, file size limit is 2048 bytes")
       key = file.read()
       request.session[username] = key
-    else:
-      del request.session[username]
+    #else:
+      # del request.session[username]
     return HttpResponse("Done")
   return HttpResponse("Hello")
 
