@@ -341,7 +341,7 @@ function addUser () {
 			$("remove" + i).style.top = ($("vessellist").offsetTop - 2) + "px";
 		}
 	}
-	/*
+	
 	new Ajax.Request('../customized_installer/reset_form',
 		{
 			method: "post",
@@ -349,7 +349,7 @@ function addUser () {
 			onSuccess: resetForm
 		}
 	);
-	*/
+	
 	
 }
 
