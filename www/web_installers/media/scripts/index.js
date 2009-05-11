@@ -349,6 +349,7 @@ function addUser () {
 			onSuccess: resetForm
 		}
 	);
+	
 }
 
 /*  guess the username for given public key  */
