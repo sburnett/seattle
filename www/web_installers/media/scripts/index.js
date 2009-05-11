@@ -345,7 +345,7 @@ function addUser () {
 	new Ajax.Request('../customized_installer/build_installer',
 		{
 			method: "post",
-			parameters: {action: "resetform", username: name},
+			parameters: {action: "reset_form", username: name},
 			onSuccess: resetForm
 		}
 	);

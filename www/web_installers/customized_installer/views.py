@@ -65,7 +65,7 @@ def __jsonify(data):
 
 
 def reset_form(request):
-  if (request.POST['action'] == 'resetform'):
+  if (request.POST['action'] == 'reset_form'):
     username = standarize(request.POST['username'])
     if 'publickey' in request.FILES:
       file = request.FILES['publickey']
