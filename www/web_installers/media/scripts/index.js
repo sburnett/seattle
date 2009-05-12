@@ -429,7 +429,7 @@ function createInstaller () {
 
 /*  redirect the page to installer download page  */
 function finish (ajax) {
-	location.href = "../customized_installer/download";
+	//location.href = "../customized_installer/download";
 }
 
 

@@ -88,7 +88,7 @@ def reset_form(request):
 def build_installer(request):
   if (request.POST['action'] == 'build_installer'):
     vessels = simplejson.loads(request.POST['content'])
-    str = '';
+    str = ''
     for vessel in vessels:
       str += vessel['owner']
       for user in vessel['users']:
@@ -131,7 +131,7 @@ def genkey(username):
 	#f = open("/keys/%s.public"%(username), 'r')
 	#key = f.read()
 	#f.close()
-	key = '123123123'
+	key = '12312312'
 	return key
 
 # useless
