@@ -380,31 +380,38 @@ function createInstaller () {
 			"percentage": vesselLengths[0] / 132,
 			"owner": vesselOwners[0],
 		 	"users": vesselUsers[0]
-		}, {
+		},
+		{
 			"percentage": vesselLengths[1] / 132,
 			"owner": vesselOwners[1],
 			"users": vesselUsers[1]
-		}, {
+		},
+		{
 			"percentage": vesselLengths[2] / 132,
 			"owner": vesselOwners[2],
 			"users": vesselUsers[2]
-		}, {
+		},
+		{
 			"percentage": vesselLengths[3] / 132,
 			"owner": vesselOwners[3],
 			"users": vesselUsers[3]
-		}, {
+		},
+		{
 			"percentage": vesselLengths[4] / 132,
 			"owner": vesselOwners[4],
 			"users": vesselUsers[4]
-		}, {
+		},
+		{
 			"percentage": vesselLengths[5] / 132,
 			"owner": vesselOwners[5],
 			"users": vesselUsers[5]
-		}, {
+		},
+		{
 			"percentage": vesselLengths[6] / 132,
 			"owner": vesselOwners[6],
 			"users": vesselUsers[6]
-		}, {
+		},
+		{
 			"percentage": vesselLengths[7] / 132,
 			"owner": vesselOwners[7],
 			"users": vesselUsers[7]

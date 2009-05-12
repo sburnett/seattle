@@ -31,6 +31,7 @@ from django.http import HttpResponse
 from django import forms
 from django.contrib.auth.models import User as DjangoUser
 from django.utils import simplejson
+import xmlrpclib
 
 
 user_key_dict = {}
@@ -41,30 +42,6 @@ def customized_installer(request):
 
 def help(request):
   return direct_to_template(request,'customized_installer/help.html', {})
-
-  
-def __jsonify(data):
-  """
-  <Purpose>
-    Turns data into json representation (marshalls data), and
-    generates and returns an HttpResponse object that will communicate
-    the json representation of data to the client.
-
-  <Arguments>
-    data: data to marshall to the client as json. Typically this is a
-    simple datatype, such as a dictionary, or an array, of strings/ints.
-
-  <Exceptions>
-    None?
-
-  <Side Effects>
-    None
-
-  <Returns>
-    An HTTP response object the has mimetype set to application/json
-  """
-  json = simplejson.dumps(data)
-  return HttpResponse(json, mimetype='application/json')
 
 
 def reset_form(request):
@@ -86,32 +63,12 @@ def reset_form(request):
     
 
 def build_installer(request):
+  server = xmlrpclib.Server('http://localhost:8081')
+  global user_key_dict
   if (request.POST['action'] == 'build_installer'):
-    vessels = simplejson.loads(request.POST['content'])
-    str = ''
-    for vessel in vessels:
-      str += vessel['owner']
-      for user in vessel['users']:
-        str += " " + user
-    return HttpResponse(str)
-    
-#    for vessel in vessels:
-#      genkey(vessel['owner'], request)
-#      vessel['owner'] = getPublicKeyPath(standarize(vessel['owner']))
-#      for user in vessel['users']:
-#        genkey(user, request)
-#        user = getPublicKeyPath(standarize(user))
-#    vessel_info = outputVesselsInfo(vessels)
-    
+    vessel_info = simplejson.loads(request.POST['content'])
+    return server.build_installer(user_key_dict, vessel_info, dist_str)
 
-#def genkey(user, request):
-#  global prefix
-#  global dl_prefix
-#  if (array_key_exists(user, request.session)):
-#    file_put_contents(getPublicKeyPath(user), request.session[user])
-#  else:
-#    os.system("python $prefix/generatekeys.py $user 128 $dl_prefix/")
-  
 
 def genkey(username):
 	"""
@@ -134,16 +91,6 @@ def genkey(username):
 	key = '12312312'
 	return key
 
-# useless
-def outputVesselsInfo(vessels):
-  output = ''
-  for vessel in vessels:
-    output += "Percent " + vessel['percentage'] + "\n"
-    output += "Owner " + vessel['owner'] + "\n"
-    for user in vessel['users']:
-      output += "User " + user + "\n"
-  return output
-
 
 def standarize(username):
   # remove trailing whitespace
@@ -153,11 +100,6 @@ def standarize(username):
   # replace all inner whitespace chars with _
   username = string.join(string.split(username),'_')
   return username
-
-# useless
-def getPublicKeyPath(username):
-  global dl_prefix
-  return dl_prefix + "/" + username + ".publickey"
 
 
 def download(request):
