@@ -30,7 +30,10 @@ from django.views.generic.simple import direct_to_template, redirect_to
 from django.http import HttpResponse
 from django import forms
 from django.contrib.auth.models import User as DjangoUser
+from django.utils import simplejson
 
+
+user_key_dict = {}
 
 def customized_installer(request):
   return direct_to_template(request,'customized_installer/index.html', {})
@@ -65,6 +68,7 @@ def __jsonify(data):
 
 
 def reset_form(request):
+  global user_key_dict;
   if (request.POST['action'] == 'reset_form'):
     username = standarize(request.POST['username'])
     if 'publickey' in request.FILES:
@@ -72,33 +76,66 @@ def reset_form(request):
       if file.size > 2048:
         return HttpResponse("Public key too large, file size limit is 2048 bytes")
       key = file.read()
+      user_key_dict[username] = key
       # request.session[username] = key
       return HttpResponse(key)
-    #else:
+    else:
+      user_key_dict[username] = genkey(username)
       # del request.session[username]
     return HttpResponse("Done")
+    
 
 def build_installer(request):
   if (request.POST['action'] == 'build_installer'):
     vessels = simplejson.loads(request.POST['content'])
+    str = '';
     for vessel in vessels:
-      genkey(vessel['owner'], request)
-      vessel['owner'] = getPublicKeyPath(standarize(vessel['owner']))
+      str += vessel['owner']
       for user in vessel['users']:
-        genkey(user, request)
-        user = getPublicKeyPath(standarize(user))
-    vessel_info = outputVesselsInfo(vessels)
+        str += " " + user
+    return HttpResponse(str)
+    
+#    for vessel in vessels:
+#      genkey(vessel['owner'], request)
+#      vessel['owner'] = getPublicKeyPath(standarize(vessel['owner']))
+#      for user in vessel['users']:
+#        genkey(user, request)
+#        user = getPublicKeyPath(standarize(user))
+#    vessel_info = outputVesselsInfo(vessels)
     
 
-def genkey(user, request):
-  global prefix
-  global dl_prefix
-  if (array_key_exists(user, request.session)):
-    file_put_contents(getPublicKeyPath(user), request.session[user])
-  else:
-    os.system("python $prefix/generatekeys.py $user 128 $dl_prefix/")
+#def genkey(user, request):
+#  global prefix
+#  global dl_prefix
+#  if (array_key_exists(user, request.session)):
+#    file_put_contents(getPublicKeyPath(user), request.session[user])
+#  else:
+#    os.system("python $prefix/generatekeys.py $user 128 $dl_prefix/")
+  
 
+def genkey(username):
+	"""
+	<Purpose>
+		Internal method to generate keys for users
+	<Arguments>
+		username:
+			the user who we want to generate key for
+	<Returns>
+		the key for the user
+	"""
+  global user_key_dict;
 
+	# write keys to the file
+	os.system("python generatekeys.py %s %s %s"%(username, 20, "keys"))
+
+	# read the public key from file
+	f = open("/keys/%s.public"%(username), 'r')
+	key = f.read()
+	f.close()
+	
+	return key
+
+# useless
 def outputVesselsInfo(vessels):
   output = ''
   for vessel in vessels:
@@ -118,7 +155,7 @@ def standarize(username):
   username = string.join(string.split(username),'_')
   return username
 
-
+# useless
 def getPublicKeyPath(username):
   global dl_prefix
   return dl_prefix + "/" + username + ".publickey"
