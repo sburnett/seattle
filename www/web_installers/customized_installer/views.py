@@ -68,7 +68,7 @@ def __jsonify(data):
 
 
 def reset_form(request):
-  global user_key_dict;
+  global user_key_dict
   if (request.POST['action'] == 'reset_form'):
     username = standarize(request.POST['username'])
     if 'publickey' in request.FILES:
@@ -123,7 +123,6 @@ def genkey(username):
 	<Returns>
 		the key for the user
 	"""
-  global user_key_dict;
 
 	# write keys to the file
 	os.system("python generatekeys.py %s %s %s"%(username, 20, "keys"))
