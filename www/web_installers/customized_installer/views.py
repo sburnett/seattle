@@ -125,13 +125,13 @@ def genkey(username):
 	"""
 
 	# write keys to the file
-	os.system("python generatekeys.py %s %s %s"%(username, 20, "keys"))
+	#os.system("python generatekeys.py %s %s %s"%(username, 20, "keys"))
 
 	# read the public key from file
-	f = open("/keys/%s.public"%(username), 'r')
-	key = f.read()
-	f.close()
-	
+	#f = open("/keys/%s.public"%(username), 'r')
+	#key = f.read()
+	#f.close()
+	key = '123123123'
 	return key
 
 # useless
