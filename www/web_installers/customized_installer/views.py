@@ -67,7 +67,7 @@ def build_installer(request):
   global user_key_dict
   if (request.POST['action'] == 'build_installer'):
     vessel_info = simplejson.loads(request.POST['content'])
-    return server.build_installer(user_key_dict, vessel_info, dist_str)
+    return server.build_installer(user_key_dict, vessel_info, 'wlm')
 
 
 def genkey(username):

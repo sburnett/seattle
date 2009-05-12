@@ -9,7 +9,9 @@ urlpatterns = patterns('web_installers.customized_installer.views',
                        (r'^$', 'customized_installer' ,{}, 'customized_installer'),
                        (r'^help$', 'help' ,{}, 'help'),
                        (r'^build_installer$', 'build_installer' ,{}, 'build_installer'),
-                       (r'^reset_form$', 'reset_form' ,{}, 'reset_form')
+                       (r'^reset_form$', 'reset_form' ,{}, 'reset_form'),
+                       (r'^downloads$', 'downloads' ,{}, 'downloads')
+                       
                        
                        # Uncomment the admin/doc line below and add 'django.contrib.admindocs' 
                        # to INSTALLED_APPS to enable admin documentation:
