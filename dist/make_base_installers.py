@@ -149,8 +149,9 @@ def prepare_initial_files(trunk_location, include_tests, pubkey, privkey, output
     clean_folder.clean_folder(dist_dir + "/initial_files.fi", output_dir)
     # Generate the metainfo file
     os.chdir(output_dir)
-    writemetainfo = imp.load_source("writemetainfo", "writemetainfo.py")
-    writemetainfo.create_metainfo_file(real_privkey, real_pubkey, True)
+    writemetainfocommand = "python writemetainfo.py " + real_privkey +" "+real_pubkey+" -n"
+    p = subprocess.Popen(writemetainfocommand, shell=True)
+    p.wait()
     os.chdir(orig_dir)
 
 
