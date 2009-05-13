@@ -31,7 +31,7 @@ def main():
     # Then, start the node manager and software updater,
     # using different files for Windows or Linux based
     # OSes.
-    if platform.system == "Windows":
+    if platform.system() == "Windows":
         os.popen("start /min start_seattle.bat")
     else:
         os.popen("./start_seattle.sh&")
