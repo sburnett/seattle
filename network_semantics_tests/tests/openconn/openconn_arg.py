@@ -85,7 +85,7 @@ if callfunc == 'initialize':
   try:
     sock = openconn('127.0.0.1',12345,localport=12345)
   except:
-    raise
+    pass
   else:
     print 'specifing localport and not localip did not cause exception'
     sock.close()
