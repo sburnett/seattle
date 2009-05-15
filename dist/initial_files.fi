@@ -62,9 +62,7 @@ req signeddata.repy
 req sockettimeout.repy
 req softwareupdater.py
 req statusstorage.py
-req stopfilewatcher.py
 req time.repy
-req timeutil.py
 req tracebackrepy.py
 req seattlestopper.py
 req createnodekeys.py
