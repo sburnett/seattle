@@ -111,6 +111,8 @@ def main():
   # Keep track of whether ps is there (it isn't on Windows)
   no_ps = False
   
+  # NOTE: This intentionally doesn't use the superior checking mechanism in
+  # nonportable because we don't want to import potentially broken modules...
   if platform.system() == 'Windows' or platform.system() == 'Microsoft':
     # If we are running on windows, disable the ps calls.
     no_ps = True

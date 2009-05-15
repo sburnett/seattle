@@ -23,6 +23,9 @@ def stillhaveprocesslock(lockname):
   return val == os.getpid() or val == True
 
 def getprocesslock(lockname):
+
+  # NOTE: This intentionally doesn't use the superior checking mechanism in
+  # nonportable because we don't want to import potentially broken modules...
   ostype = platform.system()
   if ostype == 'Windows' or ostype == 'Microsoft':
     #print >> sys.stderr, 'Getting some Windows lockmutex'
@@ -37,6 +40,9 @@ def getprocesslock(lockname):
 
 
 def releaseprocesslock(lockname):
+
+  # NOTE: This intentionally doesn't use the superior checking mechanism in
+  # nonportable because we don't want to import potentially broken modules...
   ostype = platform.system()
   if ostype == 'Windows' or ostype == 'Microsoft':
     return releaseprocesslockmutex(lockname)
