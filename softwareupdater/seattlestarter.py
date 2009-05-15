@@ -22,6 +22,8 @@ import os
 import nonportable
 import platform
 
+OS = nonportable.ostype
+
 def main():
     # First, kill seattlestopper if it is running.
     retval = runonce.getprocesslock("seattlestopper")
@@ -31,7 +33,7 @@ def main():
     # Then, start the node manager and software updater,
     # using different files for Windows or Linux based
     # OSes.
-    if platform.system() == "Windows":
+    if OS == "Windows":
         os.popen("start /min start_seattle.bat")
     else:
         os.popen("./start_seattle.sh&")
