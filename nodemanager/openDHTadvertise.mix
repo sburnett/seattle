@@ -14,7 +14,6 @@ import socket
 import threading
 import random
 import urllib
-import urlparse
 
 import sha
 
@@ -55,12 +54,7 @@ def announce(key, value, ttlval):
 
 
     # This code block is adopted from put.py from OpenDHT
-    proxyurl = urlparse.urlparse(currentproxy)
-    proxyhost = proxyurl.hostname
-    proxyport = proxyurl.port
-    proxypath = "%s?%s#%s" % (proxyurl.path, proxyurl.params,
-      proxyurl.fragment)
-    pxy = xmlrpc_client_Client(proxyhost, server_port=proxyport, server_path=proxypath)
+    pxy = xmlrpc_client_Client(currentproxy)
     keytosend = xmlrpc_common_Binary(sha.new(str(key)).digest())
     valtosend = xmlrpc_common_Binary(value)
 
@@ -99,12 +93,7 @@ def lookup(key, maxvals=100):
 
 
     # This code block is adopted from get.py from OpenDHT
-    proxyurl = urlparse.urlparse(currentproxy)
-    proxyhost = proxyurl.hostname
-    proxyport = proxyurl.port
-    proxypath = "%s?%s#%s" % (proxyurl.path, proxyurl.params,
-      proxyurl.fragment)
-    pxy = xmlrpc_client_Client(proxyhost, server_port=proxyport, server_path=proxypath)
+    pxy = xmlrpc_client_Client(currentproxy)
     maxvalhash = int(maxvals)
     # I don't know what pm is for but I assume it's some sort of generator /
     # running counter
