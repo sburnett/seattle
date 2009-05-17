@@ -120,7 +120,7 @@ class demokit(Command):
       # Add the files
       preparetest.copy_to_target("build/scripts-2.5/repy.py", target_dir)
       preparetest.copy_to_target("build/scripts-2.5/seash.py", target_dir)
-      preparetest.copy_to_target("seattlelib/repypp.py")
+      preparetest.copy_to_target("seattlelib/repypp.py", target_dir)
       preparetest.copy_to_target("repy/apps/allpairsping/allpairsping.repy", target_dir)
       preparetest.copy_to_target("repy/apps/old_demokit/*", target_dir)
       preparetest.copy_to_target("LICENSE.TXT", target_dir)
