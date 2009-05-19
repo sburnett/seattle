@@ -3,7 +3,7 @@
 #
 # no expected output
 
-def do_nothing(rip,rport,thishandle):
+def do_nothing(rip,rport,msg,thishandle):
   pass
 
 
