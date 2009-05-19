@@ -83,7 +83,7 @@ if callfunc == 'initialize':
   try:
     sendmess('127.0.0.1',12345,"hello",localport=12345)
   except:
-    raise
+    pass
   else:
     print 'specifing localport and not localip did not cause exception'
     
