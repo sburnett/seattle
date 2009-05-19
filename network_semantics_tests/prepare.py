@@ -14,7 +14,12 @@
 
 <Usage>
   prepare.py 
+  WARNING: Assumes that a test directory named mytest has been previously setup
+           with the most recent updates.
+           eg cd trunk
+              python preparetest -t mytest/
 
+           you can change the name from mytest by changing the constant below
 
 
 
@@ -26,7 +31,7 @@ import os
 import shutil
 import subprocess
 
-
+REPY_TEST_DIR = "mytest"
 
 #define a function to use for copying the files matching the file expression to the target folder
 #file_expr may contain wildcards
@@ -79,7 +84,10 @@ def main():
   copy_to_target("tests/*/*", target_dir,prefix='test_')
   copy_to_target("resource/*", target_dir)
   copy_to_target("../repy/*", target_dir)
-  
+  copy_to_target("../"+REPY_TEST_DIR+"/repyportability.py",target_dir)
+  copy_to_target("../"+REPY_TEST_DIR+"/persist.py",target_dir)
+  copy_to_target("../"+REPY_TEST_DIR+"/servicelogger.py",target_dir)  
+
   # make the output directory
   os.chdir(target_dir) 
   os.makedirs('output')
