@@ -5,7 +5,7 @@
 def echo(rip,rport,m,h):
   sock.close()
 
-def do_nothing(rip,rport,sock,thish,lh):
+def do_nothing(rip,rport,msg,handle):
   pass
 
 
