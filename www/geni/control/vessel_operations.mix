@@ -25,7 +25,7 @@ from django.db import connection
 from django.contrib.auth.models import User as DjangoUser
 
 from geni.control.models import Vessel, Donation
-from geni.control.resource_operations import create_vmaps
+import geni.control.resource_operations
 from geni.control.repy_dist.changeusers import changeusers
 
 from repyportability import *
@@ -68,7 +68,7 @@ def acquire_vessel(vessel, pubkey_list, geni_user):
 
     vessel_str = nmip + ":" + str(nmport) + " "
 
-    if not create_vmaps([vessel], geni_user, pending_flag=True):
+    if not geni.control.resource_operations.create_vmaps([vessel], geni_user, pending_flag=True):
         return False, vessel_str + ": no open ports found for vmap"
 
     print "changeusers ", time.time(), "on", nmip, ":", nmport, ":", vesselname
