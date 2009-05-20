@@ -16,6 +16,9 @@ def stop_test(handle,sock):
   stopcomm(handle)
   sock.close()
   
+def fail():
+  print 'ERROR: THE SOCKET BLOCKED WITHOUT AN EXCEPTION'
+
 
 if callfunc == "initialize":
   mycontext['close_the_socket'] = False
@@ -33,12 +36,13 @@ if callfunc == "initialize":
   file_obj.close 
 
   settimer(12,close_the_socket,[])
-  
+  failtimer = settimer(15,fail,[])
+
   for i in range(1024):   #send until eventually it blocks
     try:
       sock.send(file_data)
     except Exception,e:
-      if 'Connection reset by peer' not in str(e): raise
+      canceltimer(failtimer)
       stop_test(handle,sock)  #got the exception, stop the test
       break
    
