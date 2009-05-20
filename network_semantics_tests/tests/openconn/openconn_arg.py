@@ -43,7 +43,7 @@ if callfunc == 'initialize':
 
 
   # test port ranges
-  for port in [-5000,0,65536]:
+  for port in [-5000,65536]:
      try:
        sock = openconn('127.0.0.1',port)
      except:
