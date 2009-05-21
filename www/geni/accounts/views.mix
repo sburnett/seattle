@@ -37,6 +37,8 @@ from geni.control.models import User
 import geni.accounts.forms as forms
 
 
+# JAC: We need the rsa routines to check the validity of the key.
+include rsa.repy
 
 
 def register(request):
@@ -75,6 +77,18 @@ def register(request):
             print "TXT_PUBKEY IS:", txt_pubkey    
             if form.cleaned_data['gen_upload_choice'] == 2 and txt_pubkey == "":
                 return HttpResponse("Enter a public key")
+            
+            # JAC: Need to verify the public key is valid
+            try:
+              possiblepubkey = rsa_string_to_publickey(txt_pubkey)
+            except ValueError:
+              # This will occur when the key isn't even a key (i.e. they 
+              # uploaded junk
+              return HttpResponse("Cannot convert key.   Please generate your public key using Seash.")
+
+            # JAC: Need to verify the public key is valid
+            if not rsa_is_valid_publickey(possiblepubkey):
+              return HttpResponse("The public key you uploaded is not valid.   Please generate using Seash.")
 
             # this saves the user's record to the database
             new_user = form.save()

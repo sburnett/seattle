@@ -122,11 +122,18 @@ def main():
     if do_tests:
         preparetest.copy_to_target(target_dir + "/../tests/*.mix", target_dir)
 
+  
+    # JAC: I need to copy over accounts/views.mix
+    preparetest.copy_to_target(os.path.abspath(svn_trunk) + "/www/geni/accounts/views.mix", target_dir)
+
     # set working dir to target
     os.chdir(target_dir)
-  
+
     # call the process_mix function to process all mix files in the target directory
     preparetest.process_mix("repypp.py")
+
+    # JAC: I need to copy views.py back over...
+    shutil.copyfile("views.py", geni_root + "/accounts/views.py")
 
     # touch __init__.py
     open("__init__.py", "w").close()
