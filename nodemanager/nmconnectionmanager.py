@@ -168,10 +168,12 @@ class WorkerThread(threading.Thread):
 
     except:
       exceptionstring = "[ERROR]:"
-      for line in traceback.format_tb(sys.last_traceback):
+      (type, value, tb) = sys.exc_info()
+    
+      for line in traceback.format_tb(tb):
         exceptionstring = exceptionstring + line
 
       servicelogger.log(exceptionstring)
-      raise e
+      raise
    
   

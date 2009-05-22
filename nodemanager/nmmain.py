@@ -75,6 +75,9 @@ import servicelogger
 # I will re-use the code repy uses in emulcomm
 import emulcomm
 
+# Allows us to get the traceback for the current exception
+import sys
+
 # One problem we need to tackle is should we wait to restart a failed service
 # or should we constantly restart it.   For advertisement and status threads, 
 # I've chosen to wait before restarting...   For worker and accepter, I think
@@ -386,4 +389,21 @@ def main():
 
 
 if __name__ == '__main__':
-  main() 
+  # Armon: Add some logging in case there is an uncaught exception
+  try:
+    main() 
+  except Exception,e:
+    exceptionstring = "[FATAL]:"
+    (type, value, tb) = sys.exc_info()
+    
+    for line in traceback.format_tb(tb):
+      exceptionstring = exceptionstring + line
+    
+    # If the servicelogger is not yet initialized, this will not be logged.
+    servicelogger.log(exceptionstring)
+
+    # Since the main thread has died, this is a fatal exception,
+    # so we need to forcefully exit
+    nonportable.harshexit(15)
+
+
