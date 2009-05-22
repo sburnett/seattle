@@ -258,14 +258,14 @@ def ensure_is_correctly_signed(fullrequest, allowedkeys, oldmetadata):
   if allowedkeys and signingpublickey not in allowedkeys:
     raise nmAPI.BadRequest('Insufficient Permissions')
 
-  #bug fix: old metadata may be storing full requests, so we are using a crude way to check if the full request is stored, of if jsut the signature is
+  #bug fix: old metadata may be storing full requests, so we are using a crude way to check if the full request is stored, or if just the signature is
   metadata_is_fullrequest = False
   if not(oldmetadata==None):
     oldrawpublickey, oldrawtimestamp, oldrawexpiration, oldrawsequenceno, oldrawdestination, oldjunksignature = oldmetadata.rsplit('!',5)
     try:
       conversion_try = rsa_string_to_publickey(oldrawpublickey[1:])
-    except Exception:
-      #we catch any exception here taht occurs when trying to convert, and assume it is because we are dealing with a full request
+    except ValueError:
+      #we catch any exception here that occurs when trying to convert, and assume it is because we are dealing with a full request
       #catching the general exception is ok here since we will do this same conversion in shouldtrust
       metadata_is_fullrequest = True
   
