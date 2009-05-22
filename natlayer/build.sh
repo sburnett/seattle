@@ -2,6 +2,11 @@
 #
 # Builds the tests
 
+
+# from trunk run python preparetest -t ${prepared_test_dir}
+prepared_test_dir='test'
+
+
 # Make the built directory if necessary
 mkdir ./built/
 
@@ -23,8 +28,8 @@ cp -R ./scripts ./built/
 
 # Link to repy and repypp
 cd built/
-ln -s ../../repy/repy.py repy.py
-ln -s ../../seattlelib/repypp.py repypp.py
+ln -s ../../${prepared_test_dir}/repy.py repy.py
+ln -s ../../${prepared_test_dir}/repypp.py repypp.py
 
 # Copy multiplexer files
 # Go into the source
