@@ -125,6 +125,8 @@ def add_vessel(longname, keyname, vesselhandle):
   vesselinfo[longname]['IP'] = longname.split(':')[0]
   vesselinfo[longname]['port'] = int(longname.split(':')[1])
   vesselinfo[longname]['vesselname'] = longname.split(':')[2]
+  # miscelaneous information about the vessel (version, nodeID, etc.)
+  vesselinfo[longname]['information'] = {}
   
   # set up a reference to myself...
   targets[longname] = [longname]
@@ -354,6 +356,11 @@ def list_or_update_target(longname):
     # etc.)
     for key in vesseldict['vessels'][vesselname]:
       vesselinfo[longname][key] = vesseldict['vessels'][vesselname][key]
+
+    # Update the "information" (version number, etc.)
+    del vesseldict['vessels']
+    vesselinfo[longname]['information'] = vesseldict
+
     return (True,)
 
 
@@ -716,6 +723,7 @@ set timeout count  -- Sets the time that seash is willing to wait on a node
           elif userinputlist[1] == 'show':
             print \
 """
+show info       -- Display general information about the vessels
 show users      -- Display the user keys for the vessels
 show ownerinfo  -- Display owner information for the vessels
 show advertise  -- Display advertisement information about the vessels
@@ -771,6 +779,18 @@ update             -- Update information about the vessels
           # What do I show?
           pass
 
+# show info       -- Display general information about the vessels
+        elif userinputlist[1] == 'info' or userinputlist[1] == 'information':
+          if not currenttarget:
+            raise UserError("Error, command requires a target")
+
+          for longname in targets[currenttarget]:
+            if vesselinfo[longname]['information']:
+              print longname, vesselinfo[longname]['information']
+            else:
+              print longname, "has no information (try 'update' or 'list')"
+
+
 # show targets    -- Display a list of targets
         elif userinputlist[1] == 'targets' or userinputlist[1] == 'groups':
           for target in targets:
@@ -783,6 +803,7 @@ update             -- Update information about the vessels
             print target, targets[target]
 
 
+# show keys       -- Display the known keys
         elif userinputlist[1] == 'keys':
           for identity in keys:
             print identity,keys[identity]['publickey'],keys[identity]['privatekey']
