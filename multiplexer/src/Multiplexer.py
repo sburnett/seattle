@@ -1016,10 +1016,23 @@ class MultiplexerSocket():
   
   # Checks if the socket is closed, and handles it
   def _handleClosed(self):
-    # Check if the socket is closed, raise an exception
-    if self.socketInfo["closed"]:
+    # Check if the socket is closed from the other side  
+    if self.socketInfo["closed"] and len(self.buffer) < 1:
       self.close() # Clean-up
       raise EnvironmentError, "The socket has been closed!"
+    elif self.socketInfo["closed"]:
+      # raise the exception, but dont kill the socket, it can still return data to recv
+      raise EnvironmentError, "The socket has been closed!"
+    
+    
+    # handle the case where the socket was closed and recv is called
+  def _handleClosed_recv(self):  
+    if self.socketInfo["closed"] and len(self.buffer) < 1:
+      self.close() # Clean-up
+      raise EnvironmentError, "The socket has been closed!"
+    
+    
+    
     
   def recv(self,bytes,blocking=False):
     """
@@ -1044,7 +1057,7 @@ class MultiplexerSocket():
       raise ValueError, "Must read a positive integer number of bytes!"
         
     # Check if the socket is closed
-    self._handleClosed()
+    self._handleClosed_recv()
         
     # Block until there is data
     # This lock is released whenever new data arrives, or if there is data remaining to be read
@@ -1056,7 +1069,7 @@ class MultiplexerSocket():
       pass
     
     # Check if the socket is closed
-    self._handleClosed()
+    self._handleClosed_recv()
             
     # Get our own lock
     self.socketLocks["recv"].acquire()
