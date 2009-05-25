@@ -96,7 +96,7 @@ if callfunc == "initialize":
                               mycontext['forwarderip'], 12345,23456) 
   
   # Setup client sockets, force use of local forwarder for the tests
-  clientsock1 = nat_openconn(serverMac, 10000, clientMac1, 
+  clientsock1 = nat_openconn(serverMac, 10000, 
                   forwarderIP=mycontext['forwarderip'],forwarderPort=23456)
 
   # Setup timer to kill us if we exceed our time limit

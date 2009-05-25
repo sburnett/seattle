@@ -56,7 +56,7 @@ if callfunc == "initialize":
     clientmac = 'CLIENTNUM_'+str(i)
     if len(clientmac) <12: clientmac +='_'
     try:
-      client_list.append(nat_openconn(serverMac, 10000, clientmac, 
+      client_list.append(nat_openconn(serverMac, 10000,
              forwarderIP=mycontext['forwarderip'],forwarderPort=23456))
       number_connected +=1
     except Exception:

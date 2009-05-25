@@ -35,7 +35,7 @@ NAT_LISTEN_PORTS = {}
 #########################################################################
 
 # Wrapper function around the NATLayer for clients        
-def nat_openconn(destmac, destport, localip=None, localport=0, timeout = 5, forwarderIP=None,forwarderPort=None):
+def nat_openconn(destmac, destport, localip=None, localport=None, timeout = 5, forwarderIP=None,forwarderPort=None):
   """
   <Purpose>
     Opens a connection to a server behind a NAT.
