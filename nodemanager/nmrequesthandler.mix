@@ -69,7 +69,12 @@ def handle_request(socketobj):
     # let's get the request...
     # BUG: Should prevent endless data / slow retrival attacks
     fullrequest = session_recvmessage(socketobj)
-  except (socket.error, SessionEOF, ValueError), e:
+  
+  # Armon: Catch a vanilla exception because repy emulated_sockets
+  # will raise Exception when the socket has been closed.
+  # This is changed from just passing through socket.error,
+  # which we were catching previously.
+  except Exception, e:
     # close if possible
     safe_close(socketobj)
 
