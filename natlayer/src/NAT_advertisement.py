@@ -17,7 +17,7 @@ NAT_SRV_PREFIX = "__NAT_SRV__"
 # Limit of forwarder lookups
 NAT_MAX_LOOKUP = 50
 
-NAT_ADVERTISE_INTERVAL = 30
+NAT_ADVERTISE_INTERVAL = 10
 NAT_ADVERTISE_TTL = 3*NAT_ADVERTISE_INTERVAL
 
 # Pools the advertisements, so that they can be done in one thread
@@ -77,8 +77,33 @@ def nat_forwarder_lookup():
     raise Exception, 'Forwarder lookup returned unexpected value'
   
 
+
+# Lookup a forwarder so that we can connect
+def nat_forwarder_list_lookup():
+  # Get the list of forwarders
+  forwarders = centralizedadvertise_lookup(NAT_FORWARDER_ADVERTISE_KEY, NAT_MAX_LOOKUP)
+
+  # Safety check..
+  if len(forwarders) <= 1 and forwarders[0] == '':
+    raise Exception, "No forwarders could be found!"
+  
+
+  list = []
+  for index in range(len(forwarders)):
+
+    # Get the info
+    forwarderInfo = forwarders[index]
+  
+    try:
+      (ip,server_port,client_port) = forwarderInfo.split('*')
+    except ValueError:
+      raise Exception, 'Forwarder lookup returned unexpected value'
+    else:
+      list.append((ip,server_port,client_port))
+   
+
   # Return a tuple containing the IP and port for server and client
-  return (ip,int(server_port),int(client_port))
+  return list
 
 
 # Finds a server using the NATLayer
@@ -105,6 +130,39 @@ def nat_server_lookup(key):
 
   # Return a tuple of the forwarder IP port
   return (forwarder_ip, int(clt_port))
+
+
+def nat_server_list_lookup(key):
+  # Get the proper key, add the prefix
+  key = NAT_SRV_PREFIX + key
+
+  # Get the list of forwarders
+  servers = centralizedadvertise_lookup(key, NAT_MAX_LOOKUP)
+  num = len(servers)
+
+  # Safety check...
+  assert(num <= 1)
+  if num == 0 or (num == 1 and servers[0] == ''):
+    raise Exception, "Host could not be found!"
+  
+
+  list = []
+  for index in range(num):
+
+    # Get the info
+    info = servers[index]
+  
+    try:
+      (forwarder_ip,clt_port) = info.split('*')
+    except ValueError:
+      raise Exception, 'lookup returned unexpected value'
+    else:
+      list.append((forwarder_ip,clt_port))
+   
+
+  # Return a tuple containing the IP and port for server and client
+  return list
+
 
 
 # Toggles advertisement

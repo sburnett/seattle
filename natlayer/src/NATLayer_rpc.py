@@ -70,11 +70,26 @@ def nat_openconn(destmac, destport, localip=None, localport=None, timeout = 5, f
   """ 
   # If we don't get an ip/port explicitly, then locate the server
   if forwarderIP == None or forwarderPort == None:
-   forwarderIP, forwarderPort = nat_server_lookup(destmac)
+    forwarders = nat_server_list_lookup(destmac)
+  else:
+    forwarders = [(forwarderIP, forwarderPort)]
 
-  # Create a real connection to the forwarder
-  socket = openconn(forwarderIP, forwarderPort, localip, localport, timeout)
+  connected = False
+  for (ip,port) in forwarders:
 
+    # Create a real connection to the forwarder
+    try:
+      socket = openconn(ip, int(port), localip, localport, timeout)
+    except:
+      pass # try the next forwarder listed
+    else:
+      connected = True
+      break
+
+  if not connected:
+    raise EnvironmentError, "Could not connect to forwarder"
+
+  
   # Create an RPC request
   rpc_dict = {RPC_FUNCTION:RPC_CLIENT_INIT,RPC_PARAM:{"server":destmac,"port":destport}}
 
@@ -199,19 +214,34 @@ def nat_waitforconn(localmac, localport, function, forwarderIP=None, forwarderPo
     
     # Get a forwarder to use
     if forwarderIP == None or forwarderPort == None or forwarderCltPort == None:
-      forwarderIP, forwarderPort, forwarderCltPort = nat_forwarder_lookup()
+      forwarders_list = nat_forwarder_list_lookup()
+    else:
+      forwarders_list = [(forwarderIP, forwarderPort, forwarderCltPort)]
+
+    # do this until we get a connection or run out of forwarders
+    connected = False
+    for (forwarderIP, forwarderPort, forwarderCltPort) in forwarders_list:
+        
     
+      try:  
+        # Create a real connection to the forwarder
+        socket = openconn(forwarderIP, int(forwarderPort))
+      except:
+        pass # do nothing and try the next forwarder
+      else:
+        # we got a connection so stop looping
+        connected = True
+        break
+
+    if not connected:
+      raise EnvironmentError, "Failed to connect to a forwarder."
+     
     # Save this information
     NAT_STATE_DATA["forwarderIP"] = forwarderIP
     NAT_STATE_DATA["forwarderPort"] = forwarderPort
     NAT_STATE_DATA["forwarderCltPort"] = forwarderCltPort
 
-    try:  
-      # Create a real connection to the forwarder
-      socket = openconn(forwarderIP, forwarderPort)
-    except:
-      raise EnvironmentError, "Failed to connect to forwarder. Please try again."
-  
+
     # Immediately create a multiplexer from this connection
     mux = Multiplexer(socket, {"localip":getmyip(), "localport":localport})
 
@@ -342,14 +372,26 @@ def getmy_external_ip(forwarderIP=None,forwarderCltPort=None):
   """
   # If we don't have an explicit forwarder, pick a random one
   if forwarderIP == None or forwarderCltPort == None:
-    forwarderIP, forwarderPort, forwarderCltPort = nat_forwarder_lookup()
+    forwarder_list = nat_forwarder_list_lookup()
+  else:
+    forwarder_list = [(forwarderIP,None,forwarderCltPort)]
 
-  # Create a real connection to the forwarder
-  try:
-    rpcsocket = openconn(forwarderIP, forwarderCltPort)
-  except:
+  connected = False
+  # try this until we get a good connection or run out of forwarders
+  for (forwarderIP, forwarderPort, forwarderCltPort) in forwarder_list:
+
+    # Create a real connection to the forwarder
+    try:
+      rpcsocket = openconn(forwarderIP, int(forwarderCltPort))
+    except Exception, e:
+      print str(e)
+      pass
+    else:
+      connected = True
+      break
+    
+  if not connected:
     raise EnvironmentError, "Failed to connect to forwarder. Please try again."
-  
   # Now connect to a forwarder, and get our external ip/port
   # Create a RPC dictionary
   rpc_request = {RPC_FUNCTION:RPC_EXTERNAL_ADDR}
@@ -394,4 +436,29 @@ def behind_nat(forwarderIP=None,forwarderCltPort=None):
   externalip = getmy_external_ip(forwarderIP, forwarderCltPort)
   
   return (ip != externalip)
+
+
+
+
+# provide a method for a user to get a unique id to use for nat 
+# this is just the actual ip and a random float
+def nat_getmyid():
+   return getmyip()+'#'+str(int(randomfloat()*10000))
+
+
+# check to see if the nat_waitforconn is still active
+def nat_isalive():
+
+  # Check if our current mux is dead (if it exists)
+  if NAT_STATE_DATA["mux"] == None or not NAT_STATE_DATA["mux"].isAlive():
+    # Delete the mux
+
+    for key in NAT_STATE_DATA.keys():
+      del NAT_STATE_DATA[key]
+    NAT_STATE_DATA["mux"] = None
+    for key in NAT_LISTEN_PORTS.keys():
+      del NAT_LISTEN_PORTS[key]
+    
+    return False
   
+  return True
