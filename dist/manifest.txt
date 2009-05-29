@@ -2,11 +2,6 @@ This file describes the purpose of every file in this directory and the
 general purpose of every subdirectory.
 
 =files=
-==build_installers.py==
-Used by both the base installer builder and the customized installer builder,
-this script can be run from the command line or imported, and provides utilities
-for appending files to zip files or tarballs.
-
 ==clean_folder.py==
 Used by the base installer builder to make sure that only the right files are
 included in the base installers, this scripts is designed to be imported and

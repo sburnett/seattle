@@ -4,493 +4,535 @@
 
 <Started>
   November 2008
+    Revised May 23, 2009
 
 <Author>
   Carter Butaud
+    Revised by Zachary Boka
 
 <Purpose>
-  Builds the base installers for one or more of the supported
-  operating systems, depending on options given. Runs on Linux
-  systems only.
+  Builds the installers for one or more of the supported operating systems,
+  depending on options given. Runs on Linux systems only.
+
+  Usage: python make_base_installer.py m|l|w|i|a|t path/to/trunk/ pubkey
+          privkey output/dir/ [version of seattle]
+  Flags: m,l,w,i,a,t represent the OS for which the base installer is being
+         created.  m = Macintosh, l = Linux, w = Windows, i = Windows Mobile,
+         a = all systems. t = include tests in installer.
+
+  Example of usage on command line:
+    python ./Seattle/trunk/dist/make_base_installers.py a ./Seattle/trunk/
+     zack.publickey zack.privatekey ./Installers/ 1.0a
+
 """
 
 import os
 import sys
-import imp
 import shutil
 import subprocess
+import tempfile
+import zipfile
+import tarfile
 
 import clean_folder
-import build_installers
 
-# The name of the script (used to create a temp folder)
-PROGRAM_NAME = "make_base_installers"
 # The name of the base directory in each installer
-INSTALL_DIR = "seattle_repy"
+BASE_INSTALL_DIR = "seattle_repy/"  # slash after name must be included
 # The base name of each installer = for instance, "seattle_win.zip"
 INSTALLER_NAME = "seattle"
+
+# The path to the directory, relative the trunk, of specific files for Windows
+WINDOWS_PATH = "/dist/win/scripts"
+# The path to the directory, relative the trunk, of specific files for WinMob
+WINMOB_PATH = "/dist/winmob/scripts"
+# The path to the directory, relative the trunk, of specific files for Linux
+LINUX_PATH = "/dist/linux/scripts"
+# The path to the directory, relative the trunk, of specific files for Mac
+MAC_PATH = "/dist/mac/scripts"
+
 
 
 
 def get_inst_name(dist, version):
-    """
-    <Purpose>
-      Given the OS and the version, returns what the name of the installer
-      ought to be.
+  """
+  <Purpose>
+    Given the OS and the version, returns what the name of the installer
+    will be.
 
-    <Arguments>
-      dist:
-        The OS that the installer is intended for, should be win, mac, linux,
-        or winmob.
-      version:
-        A string to be appended between the dist and the extension - for
-        instance, if version is "0.1d", then the linux installer name will
-        be "seattle_linux0.1d.tgz".
+  <Arguments>
+    dist:
 
-    <Exceptions>
-      None.
+      The OS that the installer is intended for, should be Windows, Macintosh,
+      Linux, or Winmob.
 
-    <Side Effects>
-      None.
+    version:
 
-    <Returns>
-      The proper installer name for the specified OS and version if the
-      OS is supported, an empty string otherwise.
-    """
-    base_name = INSTALLER_NAME + version + "_" + dist
-    if dist == "win":
-        base_name += ".zip"
-    if dist == "winmob":
-        base_name += ".zip"
-    if dist == "linux":
-        base_name += ".tgz"
-    if dist == "mac":
-        base_name += ".tgz"
-    return base_name
+      A string to be appended between the dist and the extension - for
+      instance, if version is "0.1d", then the Linux installer name will
+      be "seattle_linux0.1d.tgz".
 
+  <Exceptions>
+    None.
+
+  <Side Effects>
+    None.
+
+  <Returns>
+    A string of the installer name for the specified OS and version.
+  """
+
+  base_name = INSTALLER_NAME + version + "_" + dist
+  if "win" in dist:
+    base_name += ".zip"
+  else:    
+    base_name += ".tgz"
+  return base_name
 
 
-def check_args(argstr):
-    """
-    Checks that each character in the argument string is in valid_flags;
-    returns a tuple containing False and the offending char if there are
-    invalid characters.
-    Also checks that there is at least one flag from each string in one_of,
-    returns a tuple containing False and "req:" + the unsatisfied requirement
-    string otherwise.
-    Returns a tuple containing True and an empty string if no problems.
-    """
-    valid_flags = "mwliat"
-    one_of = {"mwlia": False}
-    passed = True
-    offense = ""
-    for char in argstr:
-        if char not in valid_flags:
-            passed = False
-            if char not in offense:
-                offense += char
-        for reqstr in one_of:
-            if char in reqstr:
-                one_of[reqstr] = True
-    for reqstr in one_of:
-        if not one_of[reqstr]:
-            return (False, "req:" + reqstr)
-    return (passed, offense)
+def check_flags(flags):
+  """
+  <Purpose>
+    Checks that each character in 'flags' is a valid flag and that there is at
+    least one valid flag (i.e., m,w,l,i,a).
+
+  <Arguments>
+    flags:
+
+      String containing the flags passed in by the user.
+
+  <Exceptions>
+    None.
+
+  <Side Effects>
+    None.
+
+  <Returns>
+    If there is an invalid flag, returns a tuple containing False and the
+    offending flag(s). If there is not at least one valid flag, this function
+    returns a tuple containing False and the empty strings. Otherwise, if there
+    are no problems, a tuple with True and the empty string is returned.
+  """
+
+  valid_flags = "mwliat"
+  required_flags = "mwlia"
+  got_required_flag = False
+  passed = True
+  badflag = ""
+
+  for char in flags:
+    if char not in valid_flags:
+      passed = False
+      if char not in badflag:
+        badflag += char
+    if char in required_flags:
+      got_required_flag = True
+
+  if passed and got_required_flag:
+    return (True, badflag)
+  else:
+    return (False, badflag)
 
 
-def prepare_initial_files(trunk_location, include_tests, pubkey, privkey, output_dir):
-    """
-    <Purpose>
-      Given the location of the repository's trunk, it will prepare the
-      files for the base installers (or for a software update) in a
-      specified location, including all the files necessary for the
-      metainfo file.
-    
-    <Arguments>
-      trunk_location:
-        The path to the trunk directory of the repository, used to
-        find all the requisite files that make up the installer.
-      pubkey:
-        The path to a public key that will be used to generate the
-        metainfo file.
-      privkey: 
-        The path to a private key that will be used to generate the
-        metainfo file.
-      output_dir:
-        The directory where the installer files will be placed.
-    
-    <Exceptions>
-      IOError on bad filepaths.
-    
-    <Side Effects>
-      None.
-      
-    <Returns>
-      None.
-    """
-    # Remember the original working directory
-    orig_dir = os.getcwd()
-    real_pubkey = os.path.realpath(pubkey)
-    real_privkey = os.path.realpath(privkey)
-    os.chdir(trunk_location)
-    # Remember all important locations relative to the trunk
-    dist_dir = os.getcwd() + "/dist"
-    # Run preparetest, including the unit tests if necessary,
-    # adding the files to the temp directory
-    if include_tests:
-        p = subprocess.Popen("python preparetest.py -t " + 
-                             output_dir, shell=True)
-        p.wait()
-    else:
-        p = subprocess.Popen("python preparetest.py " + 
-                             output_dir, shell=True)
-        p.wait()
-    # Make sure that the folder is initially clean and correct
-    clean_folder.clean_folder(dist_dir + "/initial_files.fi", output_dir)
-    # Generate the metainfo file
-    os.chdir(output_dir)
-    writemetainfocommand = "python writemetainfo.py " + real_privkey +" "+real_pubkey+" -n"
-    p = subprocess.Popen(writemetainfocommand, shell=True)
+
+def prepare_gen_install_files(trunk_location, temp_install_dir, include_tests,
+                              pubkey, privkey, finalfiles):
+  """
+  <Purpose>
+    Prepare the general installation files needed for all installers and deposit
+    them in the temporary folder designated to hold the installation files,
+    including the metainfo file.
+
+  <Arguments>
+    trunk_location:
+
+      The path to the trunk directory of the repository, used to find all the
+      requisite files that make up the installer.
+
+    pubkey:
+
+      The path to a public key that will be used to generate the metainfo file.
+
+    privkey: 
+
+      The path to a private key that will be used to generate the metainfo file.
+
+    temp_install_dir:
+
+      The temporary directory where the general installer files will be placed.
+
+    include_tests:
+
+      Boolean variable specifying whether or not to include tests in installer.
+
+    finalfiles:
+
+      Boolean variable specifying whether or not to prepare the final files
+      after the metafile has been written
+
+  <Exceptions>
+    IOError on bad file paths.    
+
+  <Side Effects>
+    All general installation files placed into the specified temporary
+    installation directory.
+
+  <Returns>
+    List of all the files in the temporary installation directory, which will
+    be added to the installer tarball.
+  """
+
+  # Run preparetest to generate and place all the general installation files
+  # in the temporary installation directory
+  os.chdir(trunk_location)
+  if include_tests:
+    p = subprocess.Popen("python preparetest.py -t " + 
+                         temp_install_dir, shell=True)
     p.wait()
-    os.chdir(orig_dir)
+  else:
+    p = subprocess.Popen("python preparetest.py " + 
+                         temp_install_dir, shell=True)
+    p.wait()
 
+  
+  # Clean the folder of unnecessary files before generating metafile
+  clean_folder.clean_folder(trunk_location + "/dist/initial_files.fi",
+                            temp_install_dir)
+    
+  # Generate the metainfo file
+  os.chdir(temp_install_dir)
+  writemetainfocommand = "python writemetainfo.py " + privkey + " " + pubkey + " -n"
+  p = subprocess.Popen(writemetainfocommand, shell=True)
+  p.wait()
 
-
-def prepare_final_files(trunk_location, output_dir):
-    """
-    <Purpose>
-      Copies the files that should not be included in the metainfo file over to the
-      install directory.
-    
-    <Arguments>
-      trunk_location:
-        The path to the trunk directory of the repository, used to
-        find all the requisite files that make up the installer.
-      output_dir:
-        The directory where the installer files will be placed.
-    
-    <Exceptions>
-      IOError on bad filepaths.
-      
-    <Side Effects>
-      None.
-    
-    <Returns>
-      None.
-    """
+  # If specified, copy remaining files that should not be included in the
+  # metafile into the temporary installation directory
+  if finalfiles:
     # Copy the static files to the program directory
-    shutil.copy2(trunk_location + "/dist/nodeman.cfg", output_dir)
-    shutil.copy2(trunk_location + "/dist/resources.offcut", output_dir)
-
+    shutil.copy2(trunk_location + "/dist/nodeman.cfg", temp_install_dir)
+    shutil.copy2(trunk_location + "/dist/resources.offcut", temp_install_dir)
     # Copy the universal installer to the program directory
-    shutil.copy2(trunk_location + "/dist/install.py", output_dir)
+    shutil.copy2(trunk_location + "/dist/install.py", temp_install_dir)
+    # Run clean_folder a final time to ensure the final directory only contains
+    # the necessary files.
+    clean_folder.clean_folder(trunk_location + "/dist/final_files.fi",
+                              temp_install_dir)
 
-    # Run clean_folder a second time to make sure the final
-    # directory is in good shape.
-    clean_folder.clean_folder(trunk_location + "/dist/final_files.fi", output_dir)
+
+  return os.listdir(temp_install_dir)
 
 
 
-def package_win(dist_dir, install_dir, inst_name, output_dir):
-    """
-    <Purpose>
-      Packages the installation files and appends the necessary scripts
-      to create the Windows installer.
-    
-    <Arguments>
-      dist_dir:
-        The location of the dist directory in the trunk.
-      install_dir:
-        The location of the installation files.
-      inst_name:
-        The name that the final installer should have.
-      output_dir:
-        The final location of the installer.
-    
-    <Exceptions>
-      IOError on bad filepaths.
-    
-    <Side Effects>
-      None.
+def package_win_or_winmob(trunk_location, temp_install_dir, temp_tarball_dir,
+                          inst_name, install_files):
+  """
+  <Purpose>
+    Packages the installation files for Windows or Windows Mobile into a zipfile
+    and appends the specific installation scripts for this OS.
+
+  <Arguments>
+    trunk_location:
       
-    <Returns>
-      None.
-    """
-    # First, copy the partial zip file over from the repository
-    shutil.copy2(dist_dir + "/win/partial_win.zip", output_dir + "/" + inst_name)
-    # Now, append the files in the install directory to the
-    # zip file.
-    build_installers.append_to_zip(output_dir + "/" + inst_name, install_dir, INSTALL_DIR)
-    # Finally, add the Windows specific scripts to the zip file
-    build_installers.append_to_zip(output_dir + "/" + inst_name, dist_dir + "/win/scripts", INSTALL_DIR)
+      The location of the repository trunk.
+
+    temp_install_dir:
+
+      The path to the temporary installation directory.
+
+    temp_tarball_dir:
+
+      The path to the directory in which the installer zipfile(s) is stored.
+
+    inst_name:
+
+      The name that the final installer should have.
+
+    install_files:
+
+      A list of the general installation files located in the temporary
+      installation directory.
+
+
+  <Exceptions>
+    IOError on bad file paths.
+
+  <Side Effects>
+    Puts the final tarball in the temporary tarball directory.
+
+  <Returns>
+    None.  
+   """
+
+
+  os.chdir(temp_tarball_dir)
+
+  # Open the Windows zipfile for writing, or create a zipfile for Windows Mobile
+  if not "winmob" in inst_name:
+    shutil.copy2(trunk_location + "/dist/win/partial_win.zip",
+                 temp_tarball_dir + "/" + inst_name)
+    installer_zipfile = zipfile.ZipFile(inst_name, "a")
+  else:
+    installer_zipfile = zipfile.ZipFile(inst_name, "w")
+
+  # Put all general installer files to zipfile
+  os.chdir(temp_install_dir)
+  for fname in install_files:
+    installer_zipfile.write(fname, BASE_INSTALL_DIR + "/" + fname)
+
+  # Put all files specific to this installer into zipfile
+  if not "winmob" in inst_name:
+    os.chdir(trunk_location + WINDOWS_PATH)
+  else:
+    os.chdir(trunk_location + WINMOB_PATH)
+  curdir = os.getcwd()
+  specific_files = os.listdir(curdir)
+
+  # Remove any svn repository files
+  for svn in specific_files:
+    if "svn" in svn:
+      specific_files.remove(svn)
+
+  for fname in specific_files:
+    installer_zipfile.write(fname, BASE_INSTALL_DIR + "/" + fname)
+  installer_zipfile.close()
+    
 
 
 
+def package_linux_or_mac(trunk_location, temp_install_dir, temp_tarball_dir,
+                         inst_name, install_files):
+  """
+  <Purpose>
+    Packages the installation files for Linux or Macintosh into a tarball
+    and appends the specific installation scripts for this OS.
 
-def package_winmob(dist_dir, install_dir, inst_name, output_dir):
-    """
-    <Purpose>
-      Packages the installation files and appends the necessary scripts to create the Linux installer.
+  <Arguments>
+    trunk_location:
       
-    <Arguments>
-      dist_dir:
-        The location of the dist directory in the trunk.
-      install_dir:
-        The location of the installation files.
-      inst_name:
-        The name that the final installer should have.
-      output_dir:
-        The final location of the installer.
+      The location of the repository trunk.
 
-    <Exceptions>
-      IOError on bad filepaths.
+    temp_install_dir:
 
-    <Side Effects>
-      None.
+      The path to the temporary installation directory.
 
-    <Returns>
-      None.      
-    """
-    # First, package up the install directory into a zip file
-    temp_zipfile = inst_name + "temp_" + str(os.getpid()) + ".zip"
-    orig_dir = os.getcwd()
-    os.chdir(install_dir + "/..")
-    p = subprocess.Popen("zip -r " + temp_zipfile + " " 
-                         + INSTALL_DIR + " >/dev/null", shell=True)
-    p.wait()
-    shutil.move(temp_zipfile, orig_dir)
-    os.chdir(orig_dir)
-    shutil.move(temp_zipfile, output_dir + "/" + inst_name)
+    temp_tarball_dir:
+
+      The path to the directory in which the installer tarball(s) is stored.
+
+    inst_name:
+
+      The name that the final installer should have.
+
+    install_files:
+
+      A list of the general installation files located in the temporary
+      installation directory.
+
+
+  <Exceptions>
+    IOError on bad file paths.
+
+  <Side Effects>
+    Puts the final tarball in the temporary tarball directory.
+
+  <Returns>
+    None.  
+   """
+
+  os.chdir(temp_tarball_dir)
+  installer_tarfile = tarfile.open(inst_name, "w:gz")
     
-    # Now, append the Mobile specific files to the tarball
-    build_installers.append_to_zip(output_dir + "/" + inst_name, 
-                                   dist_dir + "/winmob/scripts",
-                                   INSTALL_DIR)
+  # Put all general installer files into the tar file
+  os.chdir(temp_install_dir)
+  for fname in install_files:
+    installer_tarfile.add(fname, BASE_INSTALL_DIR + "/" + fname, False)
+
+  # Put all files specific to this installer into tar file
+  if "linux" in inst_name:
+    os.chdir(trunk_location + LINUX_PATH)
+  else:
+    os.chdir(trunk_location + MAC_PATH)
+  curdir = os.getcwd()
+  specific_files = os.listdir(curdir)
+
+  # Remove any svn repository files
+  for svn in specific_files:
+    if "svn" in svn:
+      specific_files.remove(svn)
+
+  for fname in specific_files:
+    installer_tarfile.add(fname, BASE_INSTALL_DIR + "/" + fname, False)
+  installer_tarfile.close()
 
 
 
-def package_linux(dist_dir, install_dir, inst_name, output_dir):
-    """
-    <Purpose>
-      Packages the installation files and appends the necessary scripts
-      to create the Linux installer.
-    
-    <Arguments>
-      dist_dir:
-        The location of the dist directory in the trunk.
-      install_dir:
-        The location of the installation files.
-      inst_name:
-        The name that the final installer should have.
-      output_dir:
-        The final location of the installer.
-    
-    <Exceptions>
-      IOError on bad filepaths.
-    
-    <Side Effects>
-      None.
+def build(systems, trunk_location, pubkey, privkey, output_dir, version=""):
+  """
+  <Purpose>
+    This function creates a base installer for each specified OS and deposits
+    them in the specified output directory.
+  
+  <Arguments>
+    systems:
       
-    <Returns>
-      None.
-    """
-    # First, package up the install directory into a tarball
-    temp_tarball = inst_name + "temp_" + str(os.getpid()) + ".tgz"
-    orig_dir = os.getcwd()
-    os.chdir(install_dir + "/..")
-    p = subprocess.Popen("tar -czf " + temp_tarball + 
-                         " " + INSTALL_DIR, shell=True)
-    p.wait()
-    shutil.move(temp_tarball, orig_dir)
-    os.chdir(orig_dir)
-    shutil.move(temp_tarball, output_dir + "/" + inst_name)
-    # Now, append the Linux-specific scripts to the tarball
-    build_installers.append_to_tar(output_dir + "/" + inst_name, dist_dir + "/linux/scripts", INSTALL_DIR)
+      A string of the flags (identifying the OS for which to create an
+      installer) specified by the user on the command line.  This string may
+      also contain the optional character "t" to have tests included in the
+      installer.
+
+    trunk_location:
+
+      The path to the trunk directory of the repository, used to find all the
+      requisite files that make up the installer.
+
+    pubkey:
+
+      The path to a public key that should be used to generate the metainfo
+      file.
+
+    privkey:
+
+      The path to a private key that should be used to generate the metainfo
+      file.
+
+    output_dir:
+
+      The directory in which the completed installer(s) will be placed.
+
+    version:
+
+      (Optional) Specifies the version of seattle for which the installer(s) are
+      being created (blank by default) which will be appended to the installer
+      name.
+      For instance, setting version to "0.01a" will produce installers named
+      "seattle0.01a_win.zip", "seattle0.01a_linux.tar", etc.
+
+  <Exceptions>
+    None.
+
+  <Side Effects>
+    Prints status updates and deposits installers into specified output
+    directory.
+
+  <Returns>
+    None.
+  """
+
+  print "Creating installer(s) - this may take a few moments...."
+
+  # Create temporary directory for the installation
+  temp_install_dir = tempfile.mkdtemp()
+  # Create temporary directory for creating the tarball(s)
+  temp_tarball_dir = tempfile.mkdtemp()
+
+
+  # Create all general files to go into installer
+  include_tests = False
+  if "t" in systems:
+      include_tests = True
+  install_files = prepare_gen_install_files(trunk_location, temp_install_dir,
+                                            include_tests, pubkey, privkey,
+                                            True)
 
 
 
-def package_mac(dist_dir, install_dir, inst_name, output_dir):
-    """
-    <Purpose>
-      Packages the installation files and appends the necessary scripts
-      to create the Mac installer.
-    
-    <Arguments>
-      dist_dir:
-        The location of the dist directory in the trunk.
-      install_dir:
-        The location of the installation files.
-      inst_name:
-        The name that the final installer should have.
-      output_dir:
-        The final location of the installer.
-    
-    <Exceptions>
-      IOError on bad filepaths.
-    
-    <Side Effects>
-      None.
-      
-    <Returns>
-      None.
-    """
-    # Uncomment the following to build the Mac installer separately,
-    # but make sure that the appropriate files are in the /mac/scripts
-    # directory first.
-    
-    # First, create a new tarball with the standard files
-    temp_tarball = inst_name + "temp_" + str(os.getpid()) + ".tgz"
-    orig_dir = os.getcwd()
-    os.chdir(install_dir + "/..")
-    p = subprocess.Popen("tar -czf " + temp_tarball + 
-                         " " + INSTALL_DIR, shell=True)
-    p.wait()
-    shutil.move(temp_tarball, orig_dir)
-    os.chdir(orig_dir)
-    shutil.move(temp_tarball, output_dir + "/" + inst_name)
-    
-    # Now, append the Mac specific files to the created tarball
-    build_installers.append_to_tar(output_dir + "/" + inst_name, 
-                                   dist_dir + "/mac/scripts",
-                                   INSTALL_DIR)
-    
+  # Build individual installer(s)
+  packages = []
+
+  # Package the Windows installer
+  if "w" in systems or "a" in systems:
+    inst_name = get_inst_name("win", version)
+    package_win_or_winmob(trunk_location, temp_install_dir, temp_tarball_dir,
+                          inst_name, install_files)
+    packages.append(inst_name)
 
 
-def build(options, trunk_location, pubkey, privkey, output_dir, version=""):
-    """
-    <Purpose>
-      Given the operating systems it should build installers for,
-      the location of the repository's trunk, and an output directory,
-      build will create a base installer for each specified OS and
-      deposit them all in the output directory.
+  # Package the Linux installer
+  if "l" in systems or "a" in systems:
+    inst_name = get_inst_name("linux", version)
+    package_linux_or_mac(trunk_location, temp_install_dir, temp_tarball_dir,
+                         inst_name, install_files)
+    packages.append(inst_name)
 
-    <Arguments>
-      options:
-        Various options that influence how the installer is created.
-        At least one of "m", "l", "w", "i", or "a" must be included to indicate
-        which installer should be created - "m" for Mac, "l" for Linux,
-        "w" for Windows, "i" for Windows Mobile, or "a" for all.
-        Include "t" to indicate that the unit tests should be included \
-        in the installers.
-      trunk_location:
-        The path to the trunk directory of the repository, used
-        to find all the requisite files that make up the installer.
-      pubkey:
-        The path to a public key that should be used to generate
-        the metainfo file.
-      privkey:
-        The path to a private key that should be used to generate 
-        the metainfo file.
-      output_dir:
-        The directory that the base installers will end up in.
-      version:
-        Appended to the name of the installers, blank by default.
-        For instance, setting version to "0.01a" will produce
-        installers named "seattle0.01a_win.zip",
-        "seattle0.01a_linux.tar", etc.
 
-    <Exceptions>
-      IOError on bad filepaths.
-      
-    <Side Effects>
-      Prints status updates.
+  # Package the Mac installer
+  if "m" in systems or "a" in systems:
+    inst_name = get_inst_name("mac", version)
+    package_linux_or_mac(trunk_location, temp_install_dir, temp_tarball_dir,
+                         inst_name, install_files)
+    packages.append(inst_name)
 
-    <Returns
-      None.
-    """
-    if not os.path.exists(trunk_location):
-        raise IOError("Trunk not found at " + trunk_location)
-    if not os.path.exists(output_dir):
-        raise IOError("Output directory does not exist.")
-    if not os.path.exists(pubkey):
-        raise IOError("Public key not found.")
-    if not os.path.exists(privkey):
-        raise IOError("Private key not found.")
-    orig_dir = os.getcwd()
-    
-    # First, create a temp directory
-    temp_dir = "/tmp/" + PROGRAM_NAME + str(os.getpid())
-    if not os.path.exists(temp_dir):
-        os.mkdir(temp_dir)
-    install_dir = temp_dir + "/" + INSTALL_DIR
-    if os.path.exists(install_dir):
-        shutil.rmtree(install_dir)
-    os.mkdir(install_dir)
-    os.chdir(trunk_location)
-    
-    # Remember all important locations relative to the trunk
-    dist_dir = os.getcwd() + "/dist"
-    keys_dir = dist_dir + "/updater_keys"
-    os.chdir(orig_dir)
-    include_tests = False
-    if "t" in options:
-        include_tests = True
-    prepare_initial_files(trunk_location, include_tests, pubkey, privkey, install_dir)
-    prepare_final_files(trunk_location, install_dir)
 
-    # Now, package up the installer for each specified OS.
-    packages = []
-    if "w" in options.lower() or "a" in options.lower():
-        # Package the Windows installer
-        dist = "win"
-        inst_name = get_inst_name(dist, version)
-        package_win(dist_dir, install_dir, inst_name, temp_dir)
-        shutil.copy2(temp_dir + "/" + inst_name, output_dir)
-        packages.append(inst_name)
-    
-    if "l" in options.lower() or "a" in options.lower():
-        # Package the Linux installer
-        dist = "linux"
-        inst_name = get_inst_name(dist, version)
-        package_linux(dist_dir, install_dir, inst_name, temp_dir)
-        shutil.copy2(temp_dir + "/" + inst_name, output_dir)
-        packages.append(inst_name)
+  # Package the Windows Mobile installer
+  if "i" in systems or "a" in systems:
+    inst_name = get_inst_name("winmob", version)
+    package_win_or_winmob(trunk_location, temp_install_dir, temp_tarball_dir,
+                          inst_name, install_files)
+    packages.append(inst_name)
 
-    if "m" in options.lower() or "a" in options.lower():
-        # Package the Mac installer
-        dist = "mac"
-        inst_name = get_inst_name(dist, version)
-        package_mac(dist_dir, install_dir, inst_name, temp_dir)
-        shutil.copy2(temp_dir + "/" + inst_name, output_dir)
-        packages.append(inst_name)
 
-    if "i" in options.lower() or "a" in options.lower():
-        # Package the Windows Mobile installer
-        dist = "winmob"
-        inst_name = get_inst_name(dist, version)
-        package_winmob(dist_dir, install_dir, inst_name, temp_dir)
-        shutil.copy2(temp_dir + "/" + inst_name, output_dir)
-        packages.append(inst_name)
 
-    # Clean up the temp directory
-    shutil.rmtree(temp_dir)
+  # Move the installer tarball(s) to the specified output directory
+  os.chdir(temp_tarball_dir)
+  for tarball in os.listdir(temp_tarball_dir):
+    shutil.copy2(tarball, output_dir)
 
-    print ""
-    print "Done!"
-    print "Created the following files in " + output_dir + ":"
-    for package in packages:
-        print package
+  # Remove the temporary directories
+  shutil.rmtree(temp_install_dir)
+  shutil.rmtree(temp_tarball_dir)
+
+  print ""
+  print "Finished building installers"
+  print ""
+  print "Created the following files in " + output_dir + ":"
+  for package in packages:
+      print package
 
 
     
 def usage():
-    print "usage: python make_base_installer.py m|l|w|i|a|t path/to/trunk/ pubkey privkey output/dir/"
+  print "usage: python make_base_installer.py m|l|w|i|a|t path/to/trunk/ pubkey privkey output/dir/ [version of seattle]"
+  print "flags: m,l,w,i,a,t represent the OS for which the base installer is being created.  m = Macintosh, l = Linux, w = Windows, i = Windows Mobile, a = all systems. t = include tests in installer."
 
 
 
 def main():
-    if len(sys.argv) < 6:
-        usage()
-        return
-    passed, offense = check_args(sys.argv[1])
-    if not passed:
-        if offense.startswith("req:"):
-            print "Requires at least one of these flags: " + offense[4:]
-            usage()
-            return
-        print "Invalid flag(s): " + offense
-        return
-    build(sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5])
+  # Test argument flags
+  flags = sys.argv[1]
+  if len(sys.argv) < 6 or len(sys.argv) > 7:
+    usage()
+    return
+  passed, offense = check_flags(flags)
+  if not passed:
+    if offense == "":
+      print "Requires at least one of these flags: m,l,w,i,a"
+      usage()
+    else:
+      print "Invalid flag(s): " + offense
+    return
+
+  # Test argument paths
+  if not os.path.exists(sys.argv[2]):  # Test trunk
+    raise IOError("Trunk not found at " + trunk_location)
+  if not os.path.exists(sys.argv[5]):  # Test output directory
+    raise IOError("Output directory does not exist.")
+  if not os.path.exists(sys.argv[3]):  # Test public key
+    raise IOError("Public key not found.")
+  if not os.path.exists(sys.argv[4]):  # Test private key
+    raise IOError("Private key not found.")
+
+  # Get full, canonical path names from arguments
+  trunk_location = os.path.realpath(sys.argv[2])
+  pubkey = os.path.realpath(sys.argv[3])
+  privkey = os.path.realpath(sys.argv[4])
+  output_dir = os.path.realpath(sys.argv[5])
+  
+  # Build installer(s)
+  if len(sys.argv) == 6:
+    build(flags, trunk_location, pubkey, privkey, output_dir)
+  else:
+    build(flags, trunk_location, pubkey, privkey, output_dir, sys.argv[6])
+
+
 
 if __name__ == "__main__":
     main()
