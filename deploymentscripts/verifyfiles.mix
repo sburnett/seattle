@@ -144,7 +144,8 @@ def verify_files(installer_tar = None, installer_dict = None, look_dir = '.'):
   elif installer_dict != None:
     fileinfo_dict = persist.restore_object(installer_dict)
   else:
-    fileinfo_dict = get_file_info(installer_fn)
+    # Kon: edit installer_fn to installer_tar
+    fileinfo_dict = get_file_info(installer_tar)
 
   oldcwd = os.getcwd()
 
@@ -226,7 +227,7 @@ def verify_files(installer_tar = None, installer_dict = None, look_dir = '.'):
     # Make note of any files that should be there but were not found.
     if fileinfo_dict[reqfile] != 'found':
       filestatus_dict[reqfile] = "Error:required " + \
-          filestatus_dict[reqfile][0] + " not found"
+          reqfile + " not found"
 
   os.chdir(oldcwd)  
 
@@ -245,7 +246,9 @@ def main():
   <Usage>
     python verifyfiles.py [-writefile | -readfile] in_fn [out_fn] [look_dir]
   """
-  
+  # Kon: just in case, so it won't err out initialize it here
+  #filestatus = {} 
+
   if len(sys.argv) == 2:
     # if there is just one argument, it should be a filename that is a tarball
     # of an installer.
