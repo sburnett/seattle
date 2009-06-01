@@ -448,9 +448,9 @@ class VesselMap(models.Model):
 
     # alpers - add more metadata for to time out incomplete acquisitions
     # pending flag - if all requested acquisitions have not been finalized
-    pending = models.IntegerField("Pending flag")
+    #pending = models.IntegerField("Pending flag")
     # record the time acquired in order to time out if still pending
-    time_acquired = models.DateTimeField("Mapping acquired date")
+    #time_acquired = models.DateTimeField("Mapping acquired date")
 
 
     def __unicode__(self):

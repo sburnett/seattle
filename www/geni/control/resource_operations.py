@@ -27,82 +27,10 @@ from django.db import connection
 from django.db import transaction
 
 from geni.control.models import User, VesselPort, VesselMap
-#from geni.control.repy_dist.changeusers import changeusers
 from geni.control.repy_dist.vessel_operations import release_vessels, acquire_lan_vessels, acquire_wan_vessels, acquire_rand_vessels
 
 # 4 hours worth of seconds
 VESSEL_EXPIRE_TIME_SECS = 14400
-
-def create_vmaps(vessels, geni_user, pending_flag=False):
-    """
-    <Purpose>
-      Creates the VesselMap class instances matching the vessels and
-      saves them to the GENI database associated with the geni_user
-    <Arguments>
-      vessels:
-        An array of vessels for which to create the VesselMap entries
-      geni_user:
-        An instance of class User to match on VesselMap instances
-      pending_flag:
-        An optional argument that when set true will instantiate a 
-        temporary instance of a vmap entry (assumes a daemon is
-        running around cleaning up expired pending vmaps)
-    <Exceptions>
-      None
-    <Side Effects>
-      Creates new vesselmap database entries
-    <Returns>
-      True on success, False on failure
-    """
-    expire_time = datetime.datetime.fromtimestamp(time.time() + 
-                                                  VESSEL_EXPIRE_TIME_SECS)
-    for v in vessels:
-        # find the vessel port entry corresponding to this vessel and 
-        # user's port
-        vports = VesselPort.objects.filter(vessel = v).filter(port = geni_user.port)
-        if len(vports) != 1:
-            return False
-        vport = vports[0]
-        # create and save the new vmap entries
-        print "create and save vmap ", time.time()
-
-
-        vmap = None
-        # alpers - if this is a temporary entry, save it as such
-        if pending_flag:
-            print "vmap: creating temp entry"
-            vmap = VesselMap(vessel_port = vport, user = geni_user, 
-                             expiration = str(expire_time), pending = 0,
-                             time_acquired = datetime.datetime.fromtimestamp(time.time()))
-        else:
-            # we should check here if a vmap has already been made, but is 
-            # pending:
-            vmap = VeselMap.objects.filter(vessel_port = vport, 
-                                           user = geni_user, pending = 1)
-            if len(vmap) > 1:
-                raise "should have only got one entry back, instead got " + \
-                    "%d: %s" % (len(vmap), vmap)
-          
-            # if len == 1, then we've found an entry: activate it!
-            if len(vmap) == 1:
-                vmap = vmap[0]
-                vmap.pending = 0
-                # vmap.save()
-
-            # no entry found, create a new one (should never really happen)
-            else:
-                print "*** a vmap was made from scratch, not from a " + \
-                    "pending entry.."
-                vmap = VesselMap(vessel_port = vport, user = geni_user, 
-                                 expiration = str(expire_time))
-
-        vmap.save()
-        
-
-        print "/create and save vmap ", time.time()
-    return True
-
-
 
 def release_resources(geni_user, resource_id, all):
     """
@@ -145,21 +73,16 @@ def release_resources(geni_user, resource_id, all):
     # cycle through the results of releasing, make sure releasing succeeded
     # before modifying database/objects
     for vessel, (success, msg) in resultdict.iteritems():
-        vmaps = VesselMap.objects.filter(vessel_port__vessel__exact = vessel)
-        if vmaps.count() != 1:
-            print "release_resources: got too many/little matches to specific vessel (%s) when releasing (count = %d); not releasing" % (vessel, vmaps.count())
-            continue
-
-        # if releasing did not succeed, don't bother modifying metadata
-        if not success:
-            print "release_resources: failed to changeusers to \"\", not releasing, reason: %s" % msg
-            continue
-        # if it did succeed, update state
-        else:
-            ret = str(vessel.donation.ip) + ":" + str(vessel.donation.port) + \
-                ":" + str(vessel.name)
-            vmaps[0].delete()
-            geni_user.num_acquired_vessels -= 1
+        # IB: the release of VesselMaps happens in Justin's server now
+#         # if releasing did not succeed, don't bother modifying metadata
+         if not success:
+             print "release_resources: failed to changeusers to \"\", not releasing, reason: %s" % msg
+             continue
+#         # if it did succeed, update state
+         else:
+             ret = str(vessel.donation.ip) + ":" + str(vessel.donation.port) + \
+                 ":" + str(vessel.name)
+             geni_user.num_acquired_vessels -= 1
 
     return ret
             
@@ -218,9 +141,11 @@ def acquire_resources(geni_user, num, env_type):
         geni_user.num_acquired_vessels += num
 
         if num == 1:
+            # acquiring 1 node is equivalent to using a random node type
             acquire_func = acquire_rand_vessels
         else:
             acquire_func = env_type_func_map[int(env_type)]
+            
         # attempt to acquire resources
         success, ret = acquire_func(geni_user, num)
         
@@ -231,10 +156,10 @@ def acquire_resources(geni_user, num, env_type):
             return False, (explanation, summary)
 
         summary, explanation, acquired = ret
-        ret = create_vmaps(acquired, geni_user)
-        if not ret:
-            release_vessels(acquired)
-            raise "create_vmaps failed"
+        # ret = create_vmaps(acquired, geni_user)
+        # if not ret:
+        #    release_vessels(acquired)
+        #    raise "create_vmaps failed"
             
 
         #explanation += "There are  " + str(total_free_vessel_count) + " vessels free. Your port is available on " + str(len(vessels)) + " of them."

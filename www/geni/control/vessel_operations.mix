@@ -20,6 +20,8 @@
 
 import random
 import time
+import xmlrpclib
+import traceback
 
 from django.db import connection
 from django.contrib.auth.models import User as DjangoUser
@@ -54,50 +56,64 @@ def acquire_vessel(vessel, pubkey_list, geni_user):
     userpubkeystringlist = pubkey_list
     nmip = vessel.donation.ip
     nmport = int(vessel.donation.port)
-    vesselname = vessel.name
-    nodepubkey = vessel.donation.owner_pubkey
-    nodeprivkey = vessel.donation.owner_privkey
-    # alpers - too much explanation?
-    # explanation += " %s:%s:%s - \n\n"%(nmip,nmport,vesselname)
-    # explanation += "nodepubkey : %s<br>nodeprivkey: %s<br>"%(nodepubkey,nodeprivkey)
-    # explanation += "calling changeusers with: \npubkeystrlist %s\nnmip %s\nnmport %s\nvesselname %s\nnodepubkey %s\nnodeprivkey %s\n"%(userpubkeystringlist, nmip, nmport, vesselname, nodepubkey, nodeprivkey)
-    # explanation += " Acquiring %s:%s"%(nmip,nmport)
 
-    # alpers - before changeusers, let's create a vmap entry so we can recover
-    #          the vessel if changeusers gets forcefully terminated
+    proxy = xmlrpclib.Server("http://localhost:8000/")
+
+    print "calling AssignVesselToUser with arguments: ", "%s:%s"%(vessel.donation.pubkey, vessel.name), userpubkeystringlist, geni_user.www_user.username
 
     vessel_str = nmip + ":" + str(nmport) + " "
+    try:
+        proxy.AssignVesselToUser("%s:%s"%(vessel.donation.pubkey, vessel.name),
+                                 userpubkeystringlist,
+                                 geni_user.www_user.username)
+    except socket.error:
+        print '-'*60
+        print "%s socket.error Exception caught on call to AssignVesselToUser(%s)"%(time.ctime(), vessel_str)
+        print '-'*60
+        traceback.print_exc(file=sys.stdout)                                                                                                                                                                                                                                                                               
+        print '-'*60
+        return False, "socket.error Exception caught in AssignVesselToUser"
+        # TODO: send an email to alert admins that the server is possibly down
+    except:
+        print '-'*60
+        print "%s Exception caught on call to AssignVesselToUser(%s)"%(time.ctime(), vessel_str)
+        print '-'*60
+        traceback.print_exc(file=sys.stdout)                                                                                                                                                                                                                                                                               
+        print '-'*60
+        return False, "Exception caught in AssignVesselToUser"
 
-    if not geni.control.resource_operations.create_vmaps([vessel], geni_user, pending_flag=True):
-        return False, vessel_str + ": no open ports found for vmap"
+    return True, ""
+        
 
-    print "changeusers ", time.time(), "on", nmip, ":", nmport, ":", vesselname
-    success,msg = changeusers(userpubkeystringlist, nmip, nmport, vesselname, nodepubkey, nodeprivkey)
-    print "/changeusers " , time.time()
+def release_vessel(vessel, pubkey_list, geni_user):
+    # issue the command to remote nodemanager
+    # userpubkeystringlist = pubkey_list
+    nmip = vessel.donation.ip
+    nmport = int(vessel.donation.port)
 
-    if success:
-        return True, ""
-    
-    # alpers - TODO: gotta delete vesselmap here if changeusers failed
-    # first find the right vesselport..
-    vport = VesselPort.objects.filter(vessel = vessel).filter(
-        port = geni_user.port)
-    vport = vport[0]
+    proxy = xmlrpclib.Server("http://localhost:8000/")
+    vessel_str = nmip + ":" + str(nmport) + " "
+    try:
+        proxy.ExpireVessel("%s:%s"%(vessel.donation.pubkey, vessel.name))
+    except socket.error:
+        print '-'*60
+        print "%s socket.error Exception caught on call to ExpireVessel(%s)"%(time.ctime(), vessel_str)
+        print '-'*60
+        traceback.print_exc(file=sys.stdout)                                                                                                                                                                                                                                                                               
+        print '-'*60
+        return False, "socket.error Exception caught in ExpireVessel"
+        # TODO: send an email to alert admins that the server is possibly down
+    except:
+        print '-'*60
+        print "%s Exception caught on call to ExpireVessel(%s)"%(time.ctime(), vessel_str)
+        print '-'*60
+        traceback.print_exc(file=sys.stdout)                                                                                                                                                                                                                                                                               
+        print '-'*60
+        return False, "Exception caught in ExpireVessel"
 
-    # then select the vmap object
-    vmap = VesselMap.objects.filter(vessel_port = vport, user = geni_user, 
-                                    pending = 1)
-    if len(vmap) != 1:
-        return False, "should have selected just one vmap entry, instead got %d: %s" %(len(vmap), vmap)
+    return True, ""
+        
 
-    # don't actually remove object, let's try to inspect list instead.
-    # delete the vmap object from the db
-    vmap.delete()
-    
-    
-
-    explanation = vessel_str + msg
-    return False, explanation
 
 
 def get_base_vessels(geni_user):
@@ -157,7 +173,7 @@ def release_vessels(vessels, num_threads=10):
       msg will contain an debug string for why changeuser failed
     """
 
-    phandle = parallelize_initfunction(vessels, acquire_vessel,
+    phandle = parallelize_initfunction(vessels, release_vessel,
                                        num_threads, [""])
 
     while not parallelize_isfunctionfinished(phandle):
