@@ -219,6 +219,7 @@ def build_and_update(trunk_location, pubkey, privkey, version):
 
     # Now, package each installer
     make_base_installers.package_win_or_winmob(trunk_location, temp_install_dir, temp_tarball_dir, make_base_installers.get_inst_name("win", version), install_files)
+    make_base_installers.package_win_or_winmob(trunk_location, temp_install_dir, temp_tarball_dir, make_base_installers.get_inst_name("winmob", version), install_files)
     make_base_installers.package_linux_or_mac(trunk_location, temp_install_dir, temp_tarball_dir, make_base_installers.get_inst_name("linux", version), install_files)
     make_base_installers.package_linux_or_mac(trunk_location, temp_install_dir, temp_tarball_dir, make_base_installers.get_inst_name("mac", version), install_files)
 
@@ -231,7 +232,7 @@ def build_and_update(trunk_location, pubkey, privkey, version):
 
     # Copy each versioned installer name over the corresponding base
     # base installer
-    for dist in ["win", "linux", "mac"]:
+    for dist in ["win", "winmob","linux", "mac"]:
         versioned_name = make_base_installers.get_inst_name(dist, version)
         unversioned_name = make_base_installers.get_inst_name(dist, "")
         shutil.copy2(DIST_DIR + "/" + versioned_name, DIST_DIR + "/" + unversioned_name)
