@@ -28,11 +28,11 @@ DEBUG = False
 PROGRAM_NAME = "build_and_update"
 UPDATER_SITE = "/home/couvb/public_html/updatesite/test"
 if DEBUG:
-    UPDATER_SITE = "/home/butaud/temp/updatesite/test"
+    UPDATER_SITE = "/home/zackrb/test/updatesite/"
 INSTALL_DIR = "seattle_repy"
 DIST_DIR = "/var/www/dist"
 if DEBUG:
-    DIST_DIR = "/home/butaud/temp/dist"
+    DIST_DIR = "/home/test/dist/"
 
 
 
@@ -247,18 +247,21 @@ def main():
     if len(sys.argv) < 5:
         print "usage: python update_and_build.py trunk/location/ publickey privatekey version"
     else:
+        trunk_location = os.path.realpath(sys.argv[1])
+        pubkey = os.path.realpath(sys.argv[2])
+        privkey = os.path.realpath(sys.argv[3])
         if not DEBUG:
             # Confirm that the user really wants to update all the software
             print "This will update all of the client software!"
             print "Are you sure you want to proceed? (y/n)"
             if raw_input()[0].lower() == "y":
-                build_and_update(sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4])
+                build_and_update(trunk_location, pubkey, privkey, sys.argv[4])
             else:
                 print "Use make_base_installers instead to just create installers."
         else:
             # If we're in DEBUG mode, don't bother to confirm
             print "Operating in debug mode..."
-            build_and_update(sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4])
+            build_and_update(trunk_location, pubkey, privkey, sys.argv[4])
 
 
 
