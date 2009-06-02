@@ -32,7 +32,7 @@ if DEBUG:
 INSTALL_DIR = "seattle_repy"
 DIST_DIR = "/var/www/dist"
 if DEBUG:
-    DIST_DIR = "/home/test/dist/"
+    DIST_DIR = "/home/zackrb/test/dist/"
 
 
 
@@ -212,7 +212,7 @@ def build_and_update(trunk_location, pubkey, privkey, version):
     p.wait()
     # Zack: Exclude the files that did not belong in the metafile
     for fname in install_files:
-      if "nodeman.cfg" != fname and "resources.offcut" != fname
+      if "nodeman.cfg" != fname and "resources.offcut" != fname \
          and "install.py" != fname: 
          shutil.copy2(fname, update_dir)
 
