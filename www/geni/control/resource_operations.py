@@ -87,7 +87,7 @@ def release_resources(geni_user, resource_id, all):
     return ret
             
 
-@transaction.commit_manually    
+#@transaction.commit_manually    
 def acquire_resources(geni_user, num, env_type):
     """
     <Purpose>
@@ -130,42 +130,44 @@ def acquire_resources(geni_user, num, env_type):
     env_type_func_map = {1 : acquire_lan_vessels,
                          2 : acquire_wan_vessels,
                          3 : acquire_rand_vessels}
+
+    
+    # charge the user for requested resources
+    geni_user.num_acquired_vessels += num
+    geni_user.save()
+
     try:
-        num_available = geni_user.vessel_credit_remaining()
-        if num > num_available:
+        credit_limit = geni_user.vessel_credit_limit()
+        if num > credit_limit:
             # user wants too much
+            geni_user.num_acquired_vessels -= num
+            geni_user.save()
             summary = "You do not have enough donations to acquire %d vessels"%(num)
             return False, (explanation, summary)
 
-        # charge the user for requested resources
-        geni_user.num_acquired_vessels += num
 
         if num == 1:
             # acquiring 1 node is equivalent to using a random node type
             acquire_func = acquire_rand_vessels
         else:
             acquire_func = env_type_func_map[int(env_type)]
-            
+        
         # attempt to acquire resources
         success, ret = acquire_func(geni_user, num)
         
         if not success:
+            geni_user.num_acquired_vessels -= num
+            geni_user.save()
             summary, explanation = ret
             explanation += "No more nodes available."
-            transaction.rollback()
+            #transaction.rollback()
             return False, (explanation, summary)
-
+    
         summary, explanation, acquired = ret
-        # ret = create_vmaps(acquired, geni_user)
-        # if not ret:
-        #    release_vessels(acquired)
-        #    raise "create_vmaps failed"
-            
-
         #explanation += "There are  " + str(total_free_vessel_count) + " vessels free. Your port is available on " + str(len(vessels)) + " of them."
             
     except:
-        transaction.rollback()
+        #transaction.rollback()
         # a hack to get the traceback information into a string by
         # printing to file and then reading back from file
         #traceback.print_tb(file=sys.stdout)
@@ -173,6 +175,6 @@ def acquire_resources(geni_user, num, env_type):
         summary += ''.join(traceback.format_exception(sys.exc_info()[0],sys.exc_info()[1],sys.exc_info()[2]))
         return False, (explanation, summary)
     else:
-        transaction.commit()
+        #transaction.commit()
         summary += " Acquired %d vessel(s). "%(num)
         return True, (num, explanation, summary)

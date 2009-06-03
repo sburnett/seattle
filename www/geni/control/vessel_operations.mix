@@ -85,7 +85,7 @@ def acquire_vessel(vessel, pubkey_list, geni_user):
     return True, ""
         
 
-def release_vessel(vessel, pubkey_list, geni_user):
+def release_vessel(vessel, pubkey_list):
     # issue the command to remote nodemanager
     # userpubkeystringlist = pubkey_list
     nmip = vessel.donation.ip
