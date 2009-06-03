@@ -91,6 +91,7 @@ def release_resources(geni_user, resource_id, all):
 def charge_user(geni_user, num):
     # charge the user for requested resources
     geni_user.num_acquired_vessels += num
+    geni_user.save()
     transaction.commit()
 
 
@@ -137,12 +138,14 @@ def acquire_resources(geni_user, num, env_type):
                          2 : acquire_wan_vessels,
                          3 : acquire_rand_vessels}
 
+    connection.cursor().execute('set transaction isolation level read committed')
+
     
     charge_user(geni_user, num)
 
     try:
         credit_limit = geni_user.vessel_credit_limit()
-        if num > credit_limit:
+        if geni_user.num_acquired_vessels > credit_limit:
             # user wants too much
             charge_user(geni_user, -1 * num)
             summary = "You do not have enough donations to acquire %d vessels"%(num)
