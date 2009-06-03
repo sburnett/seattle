@@ -106,7 +106,7 @@ class User(models.Model):
             print "ERROR : more than one possbile www_user"
             return False, None
         users = User.objects.filter(www_user = djusers[0])
-        if djusers.count() != 1:
+        if users.count() != 1:
             print "ERROR : more than 1 possible geni user"
             return False, None
         return True, users[0]
