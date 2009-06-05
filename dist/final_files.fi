@@ -69,7 +69,7 @@ req createnodekeys.py
 req runonce.py
 req writemetainfo.py
 req parallelize.repy
-req seattlestarter.py
+req get_seattlestopper_lock.py
 req windows_api.py
 req win_cpu_nanny.py
 req uniqueid.repy
