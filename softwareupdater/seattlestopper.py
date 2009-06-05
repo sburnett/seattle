@@ -4,24 +4,24 @@
 
 <Started>
   October 2008
+    Revised June 4, 2009
 
 <Author>
   Justin Cappos
   Carter Butaud
+    Revised by Zachary Boka
 
 <Purpose>
-  Forces the seattle node manager and software updater to quit if
-  they are running, then holds onto the locks and sleeps forever
-  so they can't start again.
+  Forces the seattle node manager and software updater to quit if they are
+  running, then holds onto the locks and sleeps forever so they can't start
+  again, or until the start_seattle script is run and kills this program.
 """
 
 import runonce
-import os
-import sys
 import nonportable
 import time
 
-locklist = [ "seattlenodemanager", "softwareupdater.old", "softwareupdater.new" ]
+locklist = ["seattlenodemanager", "softwareupdater.old", "softwareupdater.new"]
 
 def killall():
   """
@@ -42,34 +42,35 @@ def killall():
     None.
   """
   for lockname in locklist:
-    retval = runonce.getprocesslock(lockname)
-    if retval == True:
+    lockstate = runonce.getprocesslock(lockname)
+    if lockstate == True:
       # The process wasn't running
-      print "The lock '"+lockname+"' was not held."
-    elif retval == False:
+      print "The lock '" + lockname + "' was not being held."
+    elif lockstate == False:
       # The process is running, but I can't stop it
-      print "The lock '" + lockname + "' was held by an unknown process."
+      print "The lock '" + lockname + "' is being held by an unknown process."
     else:
       # We got the pid, we can stop the process
-      print "Stopping the process (pid: " + str(retval) + ") with lock " + lockname + "."
-      nonportable.portablekill(retval)
+      print "Stopping the process (pid: " + str(lockstate) + ") with lock '" + lockname + "'."
+      nonportable.portablekill(lockstate)
 
       # Now acquire the lock for ourselves, looping until we
       # actually get it.
-      while (runonce.getprocesslock(lockname) != True):
-        pass
+      retrievedlock = runonce.getprocesslock(lockname)
+      while retrievedlock != True:
+        nonportable.portablekill(retrievedlock)
+        retrievedlock = runonce.getprocesslock(lockname)
 
 def main():
   
   # Is seattlestopper.py already running?
-  retval = runonce.getprocesslock("seattlestopper")
-  if retval == True:
+  lockstate = runonce.getprocesslock("seattlestopper")
+  if lockstate == True:
     killall()     
-    while True:
-      # Now sleep forever, checking every 30 secs to make sure we
-      # shouldn't quit.
-      if runonce.stillhaveprocesslock("seattlestopper"):
-        time.sleep(30)
+    # Now sleep forever, checking every 30 secs to make sure we
+    # shouldn't quit.
+    while runonce.stillhaveprocesslock("seattlestopper") == True:
+      time.sleep(30)
   else:
     print "seattlestopper.py is already running."
 
