@@ -78,17 +78,19 @@ def register(request):
             if form.cleaned_data['gen_upload_choice'] == 2 and txt_pubkey == "":
                 return HttpResponse("Enter a public key")
             
-            # JAC: Need to verify the public key is valid
-            try:
-              possiblepubkey = rsa_string_to_publickey(txt_pubkey)
-            except ValueError:
-              # This will occur when the key isn't even a key (i.e. they 
-              # uploaded junk
-              return HttpResponse("Cannot convert key.   Please generate your public key using Seash.")
+            # if they specified a public key we must check it
+            if txt_pubkey != "":
+              # JAC: Need to verify the public key is valid
+              try:
+                possiblepubkey = rsa_string_to_publickey(txt_pubkey)
+              except ValueError:
+                # This will occur when the key isn't even a key (i.e. they 
+                # uploaded junk
+                return HttpResponse("Cannot convert key.   Please generate your public key using Seash.")
 
-            # JAC: Need to verify the public key is valid
-            if not rsa_is_valid_publickey(possiblepubkey):
-              return HttpResponse("The public key you uploaded is not valid.   Please generate using Seash.")
+              # JAC: Need to verify the public key is valid
+              if not rsa_is_valid_publickey(possiblepubkey):
+                return HttpResponse("The public key you uploaded is not valid.   Please generate using Seash.")
 
             # this saves the user's record to the database
             new_user = form.save()
