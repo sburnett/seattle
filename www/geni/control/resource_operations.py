@@ -82,10 +82,26 @@ def release_resources(geni_user, resource_id, all):
          else:
              ret = str(vessel.donation.ip) + ":" + str(vessel.donation.port) + \
                  ":" + str(vessel.name)
-             geni_user.num_acquired_vessels -= 1
+             charge_user(geni_user, -1)
 
     return ret
             
+
+
+# I used this for logging.   I'll leave this in for future debugging...
+#import os
+#logfo = None
+#
+#def logthis(string):
+#  global logfo
+#  if not logfo:
+#    logfo = open("/tmp/logthis."+str(os.getpid()), "w") 
+#
+#  print >> logfo, time.time(), string
+#  logfo.flush()
+
+
+  
 
 @transaction.commit_manually
 def charge_user(geni_user, num):
@@ -144,7 +160,7 @@ def acquire_resources(geni_user, num, env_type):
     charge_user(geni_user, num)
 
     try:
-        credit_limit = geni_user.vessel_credit_limit()
+        credit_limit = geni_user.only_vessel_credit_limit()
         if geni_user.num_acquired_vessels > credit_limit:
             # user wants too much
             charge_user(geni_user, -1 * num)

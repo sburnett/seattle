@@ -200,12 +200,26 @@ class User(models.Model):
         <Returns>
           The number of vessels this user may acquire >= 0.
         """
-        remaining = self.vessel_credit_limit() - self.num_acquired_vessels
+        remaining = self.only_vessel_credit_limit() - self.num_acquired_vessels
         if remaining < 0:
             # this may happen when the vessels are in expiration mode
             # but aren't expired yet
             return 0
         return remaining
+
+    def only_vessel_credit_limit(self):
+        """JAC: Whomever wrote vessel_credit_limit really screwed it up.   
+        It updates the num_donations and other fields for no discernable reason
+        I'm afraid to change it because it may cause other parts of the code
+        to break so instead I'll create this."""
+
+        percent_credits, total_vessels = self.get_user_credits()
+        free_percent = self.get_user_free_percent()
+        total_vessels_free = int((total_vessels * free_percent * 1.0) / 100.0)
+
+        # TODO: this should be :
+        # return self.vcount_base + self.vcount_via_donations + self.vcount_via_shares
+        return total_vessels_free
 
     def vessel_credit_limit(self):
         """
