@@ -18,6 +18,10 @@ del generatekeys.py
 del newvessel.resources
 del restrictions.test
 del softwareupdater.logfile
+del key_daemon.repy
+del key_daemon_parser.repy
+del nm_remote_api.py
+del rhizoma.py
 
 req advertise.py
 req centralizedadvertise.repy
@@ -76,3 +80,25 @@ req uniqueid.repy
 req timeout_xmlrpclib.py
 req listops.repy
 req LICENSE.TXT
+req xmlrpc_server.repy
+req darwin_api.py
+req urllib.repy
+req linux_api.py
+req freebsd_api.py
+req base64.repy
+req xmlrpc_common.repy
+req pycryptorsa.repy
+req getvesselresources.repy
+req semaphore.repy
+req xmlparse.repy
+req argparse.repy
+req urlparse.repy
+req repyunit.repy
+req timefromservice.repy
+req xmlrpc_client.repy
+req nix_common_api.py
+req cv.repy
+req nmrestrictionsprocessor.py
+req nmstatusinterface.py
+req nmthreadingerror.py
+req freebsd_kinfo.py
