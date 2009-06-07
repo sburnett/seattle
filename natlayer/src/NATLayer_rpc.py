@@ -32,6 +32,10 @@ NAT_STATE_DATA["mux"] = None # Initialize to nothing
 # Holds the ports we are listening on
 NAT_LISTEN_PORTS = {}
 
+
+# a lock used for stopcomm and nat_persst
+NAT_STOP_LOCK = getlock()
+
 #########################################################################
 
 # Wrapper function around the NATLayer for clients        
@@ -174,7 +178,7 @@ def nat_waitforconn_alive():
   
 
 # Wrapper function around the NATLayer for servers  
-def nat_waitforconn(localmac, localport, function, forwarderIP=None, forwarderPort=None, forwarderCltPort=None, errdel=None):
+def nat_waitforconn(localmac, localport, function, forwarderIP=None, forwarderPort=None, forwarderCltPort=None, errdel=None,persist=True):
   """
   <Purpose>
     Allows a server to accept connections from behind a NAT.
@@ -209,9 +213,16 @@ def nat_waitforconn(localmac, localport, function, forwarderIP=None, forwarderPo
     # Delete the mux
     NAT_STATE_DATA["mux"] = None
   
+  #save the user specified values in case we have to redo the waitforconn
+  orig_forwarderIP = forwarderIP
+  orig_forwarderPort = forwarderPort
+  orig_forwarderCltPort = forwarderCltPort
+
+
   # Do we already have a mux? If not create a new one
   if NAT_STATE_DATA["mux"] == None:
-    
+
+
     # Get a forwarder to use
     if forwarderIP == None or forwarderPort == None or forwarderCltPort == None:
       forwarders_list = nat_forwarder_list_lookup()
@@ -290,12 +301,45 @@ def nat_waitforconn(localmac, localport, function, forwarderIP=None, forwarderPo
       # Something is wrong, raise Exception
       raise EnvironmentError, "Failed to begin listening!"
    
+
+  # Setup a function to check that the waitforconn is still
+  # functioning, and peroform a new waitforconn if its now
+  if persist:
+    settimer(10,nat_persist,[localmac, localport, function, orig_forwarderIP, 
+              orig_forwarderPort, orig_forwarderCltPort, errdel])
+ 
+ 
   
   # Return the localmac and localport, for stopcomm
   return (localmac,localport)
   
-     
+
+
+# if the forwarder or mux fails redo the waitforconn unless
+# stopcomm has been called   
+def nat_persist(localmac, localport, function, forwarderIP, 
+              forwarderPort, forwarderCltPort, errdel):
+  
+  # WHILE STOPCOMM HAS NOT BEEN CALLED 
+  #TODO there is a race condition with stopcomm
+  
+  while True:
+    NAT_STOP_LOCK.acquire()  
+    if not (localmac in NAT_LISTEN_PORTS and 
+         localport in NAT_LISTEN_PORTS[localmac]):
+      NAT_STOP_LOCK.release()
+      return
+
+    if not nat_isalive():
+      nat_waitforconn(localmac, localport, function, forwarderIP, 
+              forwarderPort, forwarderCltPort, errdel)
+    NAT_STOP_LOCK.release() 
+    sleep(10)
+  
+  
     
+
+
 # Stops the socketReader for the given natcon  
 def nat_stopcomm(handle):
   """
@@ -307,6 +351,8 @@ def nat_stopcomm(handle):
         Handle returned by nat_waitforconn.
   
   """
+  NAT_STOP_LOCK.acquire()
+  
   # Get the mux
   mux = NAT_STATE_DATA["mux"]
   
@@ -352,6 +398,8 @@ def nat_stopcomm(handle):
       # Disable advertisement
       nat_toggle_advertisement(False, False)
   
+  NAT_STOP_LOCK.release()
+
 
 # Pings a forwarder to get our external IP
 def getmy_external_ip(forwarderIP=None,forwarderCltPort=None):
