@@ -22,21 +22,21 @@ import time
 
 
 locklist = ["seattlenodemanager", "softwareupdater.old", "softwareupdater.new",\
-                "seattlestopper"]
+            "seattlestopper"]
 
 
 def main():
   # Give time for any changes in acquiring/relinquishing keys to take effect
   time.sleep(2)
   for lockname in locklist:
-      status = runonce.getprocesslock(lockname)
-      if status == True:
-        print "The lock '" + lockname + "' was not being held."
-        runonce.releaseprocesslock(lockname)
-      elif status == False:
-        print "There was an error getting the lock '" + lockname + "'."
-      else:
-        print "The lock '" + lockname + "' is currently being used by process pid: " + str(status)
+    status = runonce.getprocesslock(lockname)
+    if status == True:
+      print "The lock '" + lockname + "' was not being held."
+      runonce.releaseprocesslock(lockname)
+    elif status == False:
+      print "There was an error getting the lock '" + lockname + "'."
+    else:
+      print "The lock '" + lockname + "' is currently being used by process pid: " + str(status)
 
 
 
