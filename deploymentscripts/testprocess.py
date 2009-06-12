@@ -196,8 +196,16 @@ if (updater_num == 1):
   updater_pid = (updater_out.split())[1]
   
   #get the memory usage for the process
-  ps = subprocess.Popen('ps o pid,size ' + str(updater_pid) + ' | grep -v PID', shell=True, stdout=subprocess.PIPE)
-  rawstring = ps.stdout.read()
+  for count in range(1,10):
+    ps = subprocess.Popen('ps o pid,size ' + str(updater_pid) + ' | grep -v PID', shell=True, stdout=subprocess.PIPE)
+    rawstring = ps.stdout.read()
+    #make sure we have at least two lines of output
+    if len(rawstring)>=2:
+      break
+      
+  if len(rawstring)<2:
+    raise Exception, "unexpected output from ps:" + str(rawstring)
+  
   updater_mem = (rawstring.split())[1]
 
   #check if the memory usage (in KB) is too large or to small, typical usage is about 4500KB
@@ -215,8 +223,17 @@ if (updater_num == 1):
   updater_pid = (updater_out.split())[1]
   
   #get the state code for the process
-  ps = subprocess.Popen('ps o pid,stat ' + str(updater_pid) + ' | grep -v PID', shell=True, stdout=subprocess.PIPE)
-  rawstring = ps.stdout.read()
+  for count in range(1,10):
+    ps = subprocess.Popen('ps o pid,stat ' + str(updater_pid) + ' | grep -v PID', shell=True, stdout=subprocess.PIPE)
+    rawstring = ps.stdout.read()
+  
+    #make sure we have at least two lines of output
+    if len(rawstring)>=2:
+      break
+      
+  if len(rawstring)<2:
+    raise Exception, "unexpected output from ps:" + str(rawstring)
+    
   rawcode = (rawstring.split())[1]
 
   #we only care about the first character in the status code
@@ -237,8 +254,18 @@ if (updater_num == 1):
   updater_pid = (updater_out.split())[1]
   
   #get the cpu usage for the process
-  ps = subprocess.Popen('ps o pid,cp ' + str(updater_pid) + ' | grep -v PID', shell=True, stdout=subprocess.PIPE)
-  rawstring = ps.stdout.read()
+  for count in range(1,10):
+  
+    ps = subprocess.Popen('ps o pid,cp ' + str(updater_pid) + ' | grep -v PID', shell=True, stdout=subprocess.PIPE)
+    rawstring = ps.stdout.read()
+    
+    #make sure we have at least two lines of output
+    if len(rawstring)>=2:
+      break
+      
+  if len(rawstring)<2:
+    raise Exception, "unexpected output from ps:" + str(rawstring)
+    
   updater_cpu = (rawstring.split())[1]
 
   #check if the cpu usage exceeds 50% (if cp value is above 500)
@@ -272,8 +299,17 @@ if (nm_num == 1):
   nm_pid = (nm_out.split())[1]
   
   #get the memory usage for the process
-  ps = subprocess.Popen('ps o pid,size ' + str(nm_pid) + ' | grep -v PID', shell=True, stdout=subprocess.PIPE)
-  rawstring = ps.stdout.read()
+  for count in range(1,10):
+    ps = subprocess.Popen('ps o pid,size ' + str(nm_pid) + ' | grep -v PID', shell=True, stdout=subprocess.PIPE)
+    rawstring = ps.stdout.read()
+    
+    #make sure we have at least two lines of output
+    if len(rawstring)>=2:
+      break
+      
+  if len(rawstring)<2:
+    raise Exception, "unexpected output from ps:" + str(rawstring)
+    
   nm_mem = (rawstring.split())[1]
 
   #check if the memory usage (in KB) is too large or to small, typical usage is about 70000KB
@@ -291,8 +327,17 @@ if (nm_num == 1):
   nm_pid = (nm_out.split())[1]
   
   #get the state code for the process
-  ps = subprocess.Popen('ps o pid,stat ' + str(nm_pid) + ' | grep -v PID', shell=True, stdout=subprocess.PIPE)
-  rawstring = ps.stdout.read()
+  for count in range(1,10):
+    ps = subprocess.Popen('ps o pid,stat ' + str(nm_pid) + ' | grep -v PID', shell=True, stdout=subprocess.PIPE)
+    rawstring = ps.stdout.read()
+    
+    #make sure we have at least two lines of output
+    if len(rawstring)>=2:
+      break
+      
+  if len(rawstring)<2:
+    raise Exception, "unexpected output from ps:" + str(rawstring)
+    
   rawcode = (rawstring.split())[1]
 
   #we only care about the first character in the status code
@@ -313,8 +358,17 @@ if (nm_num == 1):
   nm_pid = (nm_out.split())[1]
   
   #get the cpu usage for the process
-  ps = subprocess.Popen('ps o pid,cp ' + str(nm_pid) + ' | grep -v PID', shell=True, stdout=subprocess.PIPE)
-  rawstring = ps.stdout.read()
+  for count in range(1,10):
+    ps = subprocess.Popen('ps o pid,cp ' + str(nm_pid) + ' | grep -v PID', shell=True, stdout=subprocess.PIPE)
+    rawstring = ps.stdout.read()
+
+    #make sure we have at least two lines of output
+    if len(rawstring)>=2:
+      break
+      
+  if len(rawstring)<2:
+    raise Exception, "unexpected output from ps:" + str(rawstring)
+    
   nm_cpu = (rawstring.split())[1]
 
   #check if the cpu usage exceeds 50% (if cp value is above 500)
