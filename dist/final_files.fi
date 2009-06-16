@@ -57,6 +57,7 @@ req repypp.py
 req restrictions.py
 req rsa.repy
 req safe.py
+req safe_check.py
 req seash.py
 req servicelogger.py
 req servicelookup.repy
