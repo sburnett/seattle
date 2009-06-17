@@ -403,7 +403,7 @@ def reset_targets(longname_list):
             failed_hosts[vessel] = msg
     
     for (vessel, exception_str) in resultdict['exception']:
-        failed_hosts[vessel] = msg
+        failed_hosts[vessel] = exception_str
 
     if len(failed_hosts.keys()) == 0:
         return (True, "")
