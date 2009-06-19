@@ -399,6 +399,9 @@ if __name__ == '__main__':
     for line in traceback.format_tb(tb):
       exceptionstring = exceptionstring + line
     
+    # log the exception itself
+    exceptionstring = exceptionstring + str(type)+" "+str(value)+"\n"
+
     # If the servicelogger is not yet initialized, this will not be logged.
     servicelogger.log(exceptionstring)
 
