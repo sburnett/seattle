@@ -193,12 +193,12 @@ def getprocesslockmutex(lockname):
   # Does a handle already exist?
   if lockname in mutexhandle:
     # Lets try to get ownership of it
-    locked = windowsAPI.acquireMutex(mutexhandle[lockname], WAIT_TIME)
+    locked = windowsAPI.acquire_mutex(mutexhandle[lockname], WAIT_TIME)
   else:
     # Lets create the mutex, then get ownership
     try:
-      mutexhandle[lockname] = windowsAPI.createMutex('Global\\runonce.'+lockname)
-      locked = windowsAPI.acquireMutex(mutexhandle[lockname], WAIT_TIME)
+      mutexhandle[lockname] = windowsAPI.create_mutex('Global\\runonce.'+lockname)
+      locked = windowsAPI.acquire_mutex(mutexhandle[lockname], WAIT_TIME)
     except windowsAPI.FailedMutex:
       # By default, we don't have the lock, so its okay
       pass
@@ -242,7 +242,7 @@ def releaseprocesslockmutex(lockname):
   if lockname in mutexhandle:
     try:
       # Release the mutex
-      windowsAPI.releaseMutex(mutexhandle[lockname])
+      windowsAPI.release_mutex(mutexhandle[lockname])
     except windowsAPI.NonOwnedMutex, e:
       # Its fine to release when we don't own, handle is not release on failure
       pass
