@@ -282,7 +282,7 @@ def start_task(command):
   # Otherwise, safe to use subprocess  
   else:  
     # Should I use call here?
-    subprocess.Popen(command, shell=True)
+    subprocess.Popen(command, close_fds=True, shell=True)
 
 
 # Armon: Takes an optional exitparams tuple, which should contain
