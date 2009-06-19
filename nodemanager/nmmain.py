@@ -407,8 +407,8 @@ if __name__ == '__main__':
   try:
     main() 
   except Exception,e:
-    exceptionstring = "[FATAL]:"
     (type, value, tb) = sys.exc_info()
+    exceptionstring = "[FATAL]: "+str(type)+" "+str(value)+"\n"   
     
     for line in traceback.format_tb(tb):
       exceptionstring = exceptionstring + line
