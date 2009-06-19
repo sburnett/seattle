@@ -108,6 +108,9 @@ reasonableruntime = 30
 decreaseamount = .5
 
 
+# log a liveness message after this many iterations of the main loop
+LOG_AFTER_THIS_MANY_ITERATIONS = 600  # every 10 minutes
+
 # BUG: what if the data on disk is corrupt?   How do I recover?   What is the
 # "right thing"?   I could run nminit again...   Is this the "right thing"?
 
@@ -359,6 +362,11 @@ def main():
   # we should be all set up now.   
 
   servicelogger.log("[INFO]:Started")
+
+  # I will count my iterations through the loop so that I can log a message
+  # periodically.   This makes it clear I am alive.
+  times_through_the_loop = 0
+
   # BUG: Need to exit all when we're being upgraded
   while True:
 
@@ -386,6 +394,12 @@ def main():
 
     time.sleep(configuration['pollfrequency'])
 
+    # if I've been through the loop enough times, log this...
+    times_through_the_loop = times_through_the_loop + 1
+    if times_through_the_loop % LOG_AFTER_THIS_MANY_ITERATIONS == 0:
+      servicelogger.log("[INFO]: node manager is alive...")
+      
+    
 
 
 if __name__ == '__main__':
