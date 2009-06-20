@@ -27,7 +27,7 @@ DEBUG = False
 
 # For unique temp folders
 PROGRAM_NAME = "build_and_update"
-UPDATER_SITE = "/home/couvb/public_html/updatesite/test"
+UPDATER_SITE = "/home/couvb/public_html/updatesite/1.0"
 if DEBUG:
   UPDATER_SITE = "/home/zack/test/updatesite"
 INSTALL_DIR = "seattle_repy"
