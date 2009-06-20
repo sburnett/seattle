@@ -9,7 +9,7 @@
   Zachary Boka
 
 <Purpose>
-  Removes the 'seattlesotpper' lock being held by any program
+  Removes the 'seattlestopper' lock being held by any program
   (e.g., seattlestopper.py).  This program is meant to be included in the
   start_seattle script, just before the nmmain.py and softwareupdater.py
   programs.
