@@ -27,6 +27,8 @@
 
 import os
 import sys
+import setup_crontab
+import glob
 
 try:
   import preparetest
