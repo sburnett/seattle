@@ -102,12 +102,12 @@ def main():
     #setup the cron job
     setup_crontab.add_crontab(cron_line, "donationtocanonical")
 	
-	cron_line="@reboot /usr/bin/python " + cron_tab_dir + "/canonicaltoonepercent_manyevents.py >> " + cron_log_dir + "/cron_log.canonicaltoonepercent_manyevents 2>&1" + os.linesep
+    cron_line="@reboot /usr/bin/python " + cron_tab_dir + "/canonicaltoonepercent_manyevents.py >> " + cron_log_dir + "/cron_log.canonicaltoonepercent_manyevents 2>&1" + os.linesep
 
     #setup the cron job
     setup_crontab.add_crontab(cron_line, "canonicaltoonepercent_manyevents")
 	
-	cron_line="@reboot /usr/bin/python " + cron_tab_dir + "/onepercenttoonepercent_manyevents.py >> " + cron_log_dir + "/cron_log.onepercenttoonepercent_manyevents 2>&1" + os.linesep
+    cron_line="@reboot /usr/bin/python " + cron_tab_dir + "/onepercenttoonepercent_manyevents.py >> " + cron_log_dir + "/cron_log.onepercenttoonepercent_manyevents 2>&1" + os.linesep
 
     #setup the cron job
     setup_crontab.add_crontab(cron_line, "onepercenttoonepercent_manyevents")
