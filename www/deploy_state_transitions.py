@@ -89,7 +89,7 @@ def main():
   os.chdir(target_dir)
   
   # call the process_mix function to process all mix files in the target directory
-  preparetest.process_mix("repypp.py")
+  preparetest.process_mix(current_dir+"/repypp.py")
 
   #check to see if cron setup was requested, if yes run cron_setup
   if cron_setup:
