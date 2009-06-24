@@ -113,6 +113,11 @@ def main():
 
     #setup the cron job
     setup_crontab.add_crontab(cron_line, "onepercenttoonepercent_manyevents")
+	
+    cron_line="@reboot /usr/bin/python " + cron_tab_dir + "/expire_vessels.py >> " + cron_log_dir + "/cron_log.expire_vessels 2>&1" + os.linesep
+
+    #setup the cron job
+    setup_crontab.add_crontab(cron_line, "expire_vessels")
 
 
 
