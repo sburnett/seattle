@@ -66,9 +66,7 @@ def parse_instructions(instr_path):
     line_count += 1
     # Filter out newlines
     line = re.sub("\n", "", line)
-    # Filter out comments, but save original line
-# WHAT ARE WE SAVING THE ORIGINAL LINE FOR??????????
-    raw_line = line  
+    # Filter out comments
     line = re.sub(r"#.*", "", line)
     # Escape periods
     line = re.sub(r"\.", r"\.", line)
@@ -163,7 +161,7 @@ def main():
   else:
     if not os.path.exists(sys.argv[1]):
       raise IllegalArgError("Instructions file does not exist: " + sys.argv[1])
-    if not os.path.exists(sys.argv[2]):
+    elif not os.path.exists(sys.argv[2]):
       raise IllegalArgError("Given directory does not exist: " + sys.argv[2])
     else:
       clean_folder(sys.argv[1], sys.argv[2])

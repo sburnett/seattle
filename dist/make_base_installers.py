@@ -497,10 +497,10 @@ def usage():
 
 def main():
   # Test argument flags
-  flags = sys.argv[1]
   if len(sys.argv) < 6 or len(sys.argv) > 7:
     usage()
     return
+  flags = sys.argv[1]
   passed, offense = check_flags(flags)
   if not passed:
     if offense == "":
