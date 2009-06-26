@@ -85,8 +85,7 @@ def parse_instructions(instr_path):
                 + instr_path)
 
   # Check that no file is both required and deleted
-# IS THERE NOT A BETTER ALGORITHM FOR THIS????????????
-# WHAT IF THERE IS A FILE   FILE.PYC  -- WIL THIS ALGORITHM CATCH THAT IT WAS ALSO SUPPOSED TO BE ONE OF THE DELETED FILES?
+  # Zack: Unable to come up with a better algorithm for this at the moment
   for del_file in del_files:
     for req_file in req_files:
       for part in req_file.split(","):
@@ -129,29 +128,23 @@ def clean_folder(instr_path, dir_to_clean):
     deleted = False
     for del_file in del_files:
       if re.match(del_file, filename):
-        deleted = True # DON'T SET THIS TO TRUE IF IT DOESN'T ACTUALLY DELETE???
-        try: # DOES THIS REALLY NEED TO BE A TRY STATEMENT?????
-          os.remove(dir_to_clean + "/" + filename)
-        except OSError:
-          # If it can't delete for some reason, move on
-          pass
+        deleted = True
+        os.remove(dir_to_clean + "/" + filename)
     if not deleted:
       required = False
       for i in range(len(req_files)):
-        for part in req_files[i].split(","):  # COME UP WITH A BETTER VARIABLE NAME THAN "part"
-          part = part.strip()
-          if re.match(part, filename):
+        for subfile in req_files[i].split(","):
+          subfile = subfile.strip()
+          if re.match(subfile, filename):
             req_files_found[i] = True
             required = True
-# PUT THE CODE (LINE 153) THAT CHECKS FOR MISSING REQUIRED FILES HERE????
       if not required:
         unrecognized_files.append(filename)
   for filename in unrecognized_files:
     output("Warning: unrecognized file " + filename)
-  for i in range(len(req_files_found)):
-    if not req_files_found[i-1]:  # WILL THIS WORK AS BOOLEAN, OR WILL IT JUST SEE THAT THERE IS SOME VALUE FOR reqfile AND NEVER GO TO THE OUTPUT?
-# is this correct to do i-1?  see above, line 128 --> is there any value for req_files_found[0]?
-      output("Error: required file " + req_files[i-1] + " not found")
+  for i in range(len(req_files)):
+    if not req_files_found[i]:
+      output("Error: required file " + req_files[i] + " not found")
 
 
 
