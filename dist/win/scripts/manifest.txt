@@ -14,7 +14,7 @@ Included in the Windows installer, this will start the python scripts
 that comprise seattle when called.
 
 ==stop_seattle.bat==
-Included in the Windows installer, this runs seattlestopper.py in the
+Included in the Windows installer, this runs impose_seattlestopper_lock.py in the
 background when called.
 
 ==uninstall.bat==

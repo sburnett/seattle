@@ -10,8 +10,8 @@
 
 <Purpose>
   Removes the 'seattlestopper' lock being held by any program
-  (e.g., seattlestopper.py).  This program is meant to be included in the
-  start_seattle script, just before the nmmain.py and softwareupdater.py
+  (e.g., impose_seattlestopper_lock.py).  This program is meant to be included
+  in the start_seattle script, just before the nmmain.py and softwareupdater.py
   programs.
 """
 

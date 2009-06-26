@@ -1,6 +1,6 @@
 """
 <Program Name>
-  seattlestopper.py
+  impose_seattlestopper_lock.py
 
 <Started>
   October 2008
@@ -63,7 +63,7 @@ def killall():
 
 def main():
   
-  # Is seattlestopper.py already running?
+  # Is impose_seattlestopper_lock.py already running?
   lockstate = runonce.getprocesslock("seattlestopper")
   if lockstate == True:
     killall()     
@@ -72,7 +72,7 @@ def main():
     while runonce.stillhaveprocesslock("seattlestopper") == True:
       time.sleep(30)
   else:
-    print "seattlestopper.py is already running."
+    print "impose_seattlestopper_lock.py is already running."
 
 if __name__ == '__main__':
   main()

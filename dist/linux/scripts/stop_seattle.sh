@@ -1,3 +1,3 @@
 #!/bin/sh
 
-python seattlestopper.py&
+python impose_seattlestopper_lock.py&

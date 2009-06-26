@@ -31,6 +31,7 @@ if callfunc == "initialize":
           print "Interrupted system call, retrying test..."
         else:
           print "TEST FAILED on try ",x-1,": ",e
+          print "Performing test ",x,":"
           success = False
           break
       else:

@@ -15,7 +15,7 @@
 
 import re
 import os
-import seattlestopper
+import impose_seattlestopper_lock
 import tempfile
 import sys
 
@@ -33,7 +33,7 @@ def uninstall(silent = 0):
     """
     <Purpose>
       Kills any seattle processes that are running using
-      seattlestopper and removes the starter line from
+      impose_seattlestopper_lock and removes the starter line from
       the crontab.
 
     <Arguments>
@@ -51,7 +51,7 @@ def uninstall(silent = 0):
       None.
     """
     # Kill seattle
-    seattlestopper.killall()
+    impose_seattlestopper_lock.killall()
     crontab_f = os.popen("crontab -l")
     # Used module tempfile as suggested in Jacob Appelbaum's patch
     fd, s_tmp = tempfile.mkstemp("temp", "seattle")

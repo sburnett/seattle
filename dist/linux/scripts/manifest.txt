@@ -14,7 +14,7 @@ Included in the Linux installer, it starts the scripts that comprise
 seattle in the background when run.
 
 ==stop_seattle.sh=
-Included in the Linux installer, it runs seattlestopper.py in the
+Included in the Linux installer, it runs impose_seattlestopper_lock.py in the
 background when called.
 
 ==uninstall.py==

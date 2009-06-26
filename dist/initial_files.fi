@@ -69,7 +69,7 @@ req softwareupdater.py
 req statusstorage.py
 req time.repy
 req tracebackrepy.py
-req seattlestopper.py
+req impose_seattlestopper_lock.py
 req createnodekeys.py
 req runonce.py
 req writemetainfo.py

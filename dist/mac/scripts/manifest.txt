@@ -14,7 +14,7 @@ Included in the Mac installer, it starts the scripts that comprise
 seattle in the background when called.
 
 ==stop_seattle.sh==
-Included in the Mac installer, it starts seattlestopper.py in the
+Included in the Mac installer, it starts impose_seattlestopper_lock.py in the
 background when called.
 
 ==uninstall.py==

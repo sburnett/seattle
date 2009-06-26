@@ -14,7 +14,7 @@
 """
 import sys
 import os
-import seattlestopper
+import impose_seattlestopper_lock
 
 
 
@@ -39,7 +39,7 @@ class UninstallError(Exception):
 def uninstall(starter_script):
   """
   <Purpose>
-    Shuts down all seattle processes using seattlestopper.py
+    Shuts down all seattle processes using impose_seattlestopper_lock.py
     and removes the starter script from the startup folder.
 
   <Arguments>
@@ -59,7 +59,7 @@ def uninstall(starter_script):
       raise UninstallError("Could not find startup file.")
         
     # Stop all instances of seattle from running
-    seattlestopper.killall()
+    impose_seattlestopper_lock.killall()
     
     # Remove the startup script
     os.remove(starter_script)
