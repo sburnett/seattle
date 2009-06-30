@@ -82,6 +82,18 @@ def main():
 
   os.chdir(current_dir)
 
+  #copy necessary files over
+  #an alternative to the copy_to_target code, is to run preparetest on the
+  #target folder and remove the next few lines of code
+  preparetest.copy_to_target("../trunk/repy/*", target_dir)
+  preparetest.copy_to_target("../trunk/nodemanager/*", target_dir)
+  preparetest.copy_to_target("../trunk/portability/*", target_dir)
+  preparetest.copy_to_target("../trunk/seattlelib/*", target_dir)
+  preparetest.copy_to_target("../trunk/seash/*", target_dir)
+  preparetest.copy_to_target("../trunk/softwareupdater/*", target_dir)
+  preparetest.copy_to_target("../trunk/autograder/nm_remote_api.mix", target_dir)
+  preparetest.copy_to_target("../trunk/keydaemon/*", target_dir)
+  
   #the next few lines is necessary unless the file is manually copied over
   preparetest.copy_to_target("../trunk/www/node_state_transitions/*", target_dir)
   
@@ -89,7 +101,7 @@ def main():
   os.chdir(target_dir)
   
   # call the process_mix function to process all mix files in the target directory
-  preparetest.process_mix(current_dir+"/repypp.py")
+  preparetest.process_mix("repypp.py")
 
   #check to see if cron setup was requested, if yes run cron_setup
   if cron_setup:
