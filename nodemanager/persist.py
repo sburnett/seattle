@@ -110,6 +110,10 @@ def restore_object(filename):
 
   # I need to find the directory of the object.   
   filedirectory = os.path.dirname(filename)
+
+  # I need to find the filename of the object.   
+  filenameonly = os.path.basename(filename)
+
   # however, for some silly reason, this sometimes returns '' instead of '.'
   if filedirectory == '':
     filedirectory = '.'
@@ -120,7 +124,7 @@ def restore_object(filename):
   # either filename or filename+'.new' must exist (or else something is wrong)
   filelist = os.listdir(filedirectory)
   
-  if filename not in filelist and filename+'.new' not in filelist:
+  if filenameonly not in filelist and filenameonly+'.new' not in filelist:
     raise ValueError, "Filename '"+filename+"' missing."
 
   # the recovery protocol is:
