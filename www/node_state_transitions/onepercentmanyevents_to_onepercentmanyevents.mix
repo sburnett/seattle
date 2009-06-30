@@ -1,0 +1,53 @@
+""" 
+Author: Justin Cappos
+
+Module: Polling program for GENI.   It looks for donations, sets them up, and
+        writes the new info in the database.   This is the changes to support
+        lots of events (50)
+
+Start date: June 29th, 2009.   I'm trying to recover what was lost
+
+
+"""
+
+include pollinglib.py
+from django.db import transaction
+
+
+def updatedb(nmhandle, node, retdict, *args):
+  host, portstring = node.split(':')
+  port = int(portstring)
+  nodeID = rsa_publickey_to_string(retdict['nodekey'])
+  
+  dbnode = genidb.lookup_node(nodeID)
+  if not dbnode:
+    raise NodeError("Node "+node+" with ID '"+nodeID+"' does not have an entry in the database")
+
+  genidb.update_node(dbnode, retdict, host, port, 'Ready')
+  print time.ctime(), "updated node db record with version " + str(dbnode.version) + ", status " + str(dbnode.status)
+
+  # hack to make changes reflect in the db  
+  try:
+    transaction.commit()
+  except transaction.TransactionManagementError:
+    pass
+
+  return
+
+
+def noop(*args):
+  # in some cases I don't want to do anything
+  pass
+
+
+def main():
+
+  # The format is: (startstate, endstate, function, args...)
+  statefunctionargtuplelist = [(onepercentmanyeventspublickey, onepercentmanyeventspublickey, noop, updatedb)]
+
+  # sleep for 10 seconds between each iteration of processing vessels
+  locateandprocessvessels(statefunctionargtuplelist, 'onepercentmanyevents_to_onepercentmanyevents', 10, acceptnewnode=False, parallelinstances=10)
+  
+
+if __name__ == '__main__':
+  main()

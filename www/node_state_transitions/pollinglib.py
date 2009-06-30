@@ -120,10 +120,14 @@ onepercent2publickey = rsa_file_to_publickey("onepercent2.publickey")
 genilookuppublickey = rsa_file_to_publickey("genilookup.publickey")
 movingtogenilookuppublickey = rsa_file_to_publickey("movingtogenilookup.publickey")
 
+# Used as the many events onepercent publickey -- This has 50 events per vessel
+movingtoonepercentmanyeventspublickey = rsa_file_to_publickey("movingtoonepercentmanyevents.publickey")
+onepercentmanyeventspublickey = rsa_file_to_publickey("onepercentmanyevents.publickey")
 
 knownstates = [canonicalpublickey, acceptdonationpublickey, 
                movingtoonepercentpublickey, onepercentpublickey,
                movingtoonepercent2publickey, onepercent2publickey,
+               movingtoonepercentmanyeventspublickey, onepercentmanyeventspublickey,
                genilookuppublickey, movingtogenilookuppublickey]
 
 
