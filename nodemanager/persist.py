@@ -106,7 +106,7 @@ def commit_object(object, filename):
 def restore_object(filename):
 
   # BUG FIX:   Previously I just did os.listdir('.') below.   This makes 
-  # this function fail if hte file isn't in this directory.
+  # this function fail if the file isn't in this directory.
 
   # I need to find the directory of the object.   
   filedirectory = os.path.dirname(filename)
