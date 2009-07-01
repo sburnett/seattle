@@ -198,54 +198,44 @@ def startvessel(vesselname, argstring):
   # Armon: this is required to fetch the networkrestrictions information from the configuration
   configuration = persist.restore_object("nodeman.cfg")
 
-  # fixing a bug (thanks Brent!) that I was in the wrong directory when 
-  # writing files...
-  # change directory so that the sandboxes current directory is in its dir...
-  os.chdir(vesselname)
+  
+  # Armon: Generate the IP/Iface preferences if they exist
+  ip_iface_preference_flags = ""
 
-  # ... but always reset it...
-  try:
-    # Armon: Get an abolute path to the parent directory
-    currentDirectory = "\"" + os.path.abspath(os.getcwd()) + "\""
-
-    # Armon: Generate the IP/Iface preferences if they exist
-    ip_iface_preference_flags = ""
-    
-    # Only add the flags if everything necessary exists
-    if 'networkrestrictions' in configuration and 'repy_restricted' in configuration['networkrestrictions'] \
-      and configuration['networkrestrictions']['repy_restricted'] and 'repy_user_preference' in configuration['networkrestrictions']:
-        # Generate the preference list
-        for (is_ip, value) in configuration['networkrestrictions']['repy_user_preference']:
-          # Append the correct flag
-          if is_ip:
-            ip_iface_preference_flags += "--ip "
-          else:
-            ip_iface_preference_flags += "--iface "
+  # Only add the flags if everything necessary exists
+  if 'networkrestrictions' in configuration and 'repy_restricted' in configuration['networkrestrictions'] \
+    and configuration['networkrestrictions']['repy_restricted'] and 'repy_user_preference' in configuration['networkrestrictions']:
+      # Generate the preference list
+      for (is_ip, value) in configuration['networkrestrictions']['repy_user_preference']:
+        # Append the correct flag
+        if is_ip:
+          ip_iface_preference_flags += "--ip "
+        else:
+          ip_iface_preference_flags += "--iface "
           
-          # Append the value
-          ip_iface_preference_flags += "'"+value+"' "
+        # Append the value
+        ip_iface_preference_flags += "'"+value+"' "
         
-        # Check for the --nootherips flag
-        if 'repy_nootherips' in configuration['networkrestrictions'] and configuration['networkrestrictions']['repy_nootherips']:
-          # Append the flag
-          ip_iface_preference_flags += "--nootherips "
+      # Check for the --nootherips flag
+      if 'repy_nootherips' in configuration['networkrestrictions'] and configuration['networkrestrictions']['repy_nootherips']:
+        # Append the flag
+        ip_iface_preference_flags += "--nootherips "
     
-    # Armon: Check if we are using windows API, and if it is windows mobile
-    if windowsAPI != None and windowsAPI.MobileCE:
-      # First element should be the script (repy)
-      command[0] = "\"" + repy_constants.PATH_SEATTLE_INSTALL + "repy.py"  + "\""
-      # Second element should be the parameters
-      command[1] = ip_iface_preference_flags + "--logfile " + vesseldict[vesselname]['logfilename'] + " --stop "+ vesseldict[vesselname]['stopfilename'] + " --status " + vesseldict[vesselname]['statusfilename'] + " --cwd " + updir + " --servicelog " + vesseldict[vesselname]['resourcefilename']+" "+argstring
+  # Armon: Check if we are using windows API, and if it is windows mobile
+  if windowsAPI != None and windowsAPI.MobileCE:
+    # First element should be the script (repy)
+    command[0] = "\"" + repy_constants.PATH_SEATTLE_INSTALL + "repy.py"  + "\""
+    # Second element should be the parameters
+    command[1] = ip_iface_preference_flags + "--logfile " + vesseldict[vesselname]['logfilename'] + " --stop "+ vesseldict[vesselname]['stopfilename'] + " --status " + vesseldict[vesselname]['statusfilename'] + " --cwd " + updir + " --servicelog " + vesseldict[vesselname]['resourcefilename']+" "+argstring
+    raise Exception, "This will need to be changed to use absolute paths"
     
-    else:  
-      # architecturally, I'm unsure prepending ../ is the best solution...
-      command = "python ../repy.py " + ip_iface_preference_flags + "--logfile ../"+vesseldict[vesselname]['logfilename']+" --stop ../"+vesseldict[vesselname]['stopfilename']+" --status ../"+vesseldict[vesselname]['statusfilename']+ " --cwd " + currentDirectory + " --servicelog ../" + vesseldict[vesselname]['resourcefilename']+" "+argstring
+  else:  
+    # I use absolute paths so that repy can still find the files after it 
+    # changes directories...
+    command = "python repy.py " + ip_iface_preference_flags + "--logfile "+os.path.abspath(vesseldict[vesselname]['logfilename'])+" --stop "+os.path.abspath(vesseldict[vesselname]['stopfilename'])+" --status "+os.path.abspath(vesseldict[vesselname]['statusfilename'])+ " --cwd " + os.path.abspath(vesselname) + " --servicelog " + os.path.abspath(vesseldict[vesselname]['resourcefilename'])+" "+argstring
 
-    start_task(command)
+  start_task(command)
 
-  finally:
-    # reset the path
-    os.chdir('..')
 
   starttime = nonportable.getruntime()
 
