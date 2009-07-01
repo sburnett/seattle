@@ -30,50 +30,60 @@ logfile = None
 servicevessel = None
 
 
-def get_servicevessel():
+def get_servicevessel(maindirectory = '.'):
   """
   <Purpose>
-    Get a service vessel directory from vesseldict. If none of the
-    service vessel directory exists, create a new directory with the first
-    service vessel. If there is no service vessel returned, do nothing.
+    Get the service vessel directory using vesseldict. 
     
   <Arguments>
-    None
+    maindirectory:   This is the directory where repy.py, vesseldict, etc.
+                     are stored.   The default is the current directory.
              
   <Exceptions>
-    None
+    TypeError if maindirectory is not a string
         
   <Side Effects>
-    servicevessel will be changed to the correct vessel directory
+    None
     
   <Returns>
-    None
+    The service vessel.  If there is more than one,
+    return the "first one" in the vesseldict (note this is a dictionary and
+    so the order will be consistent but with little meaning).  If there is no 
+    service vessel, return '.'
   """
 
   global servicevessel
   
+  # this is the public key for seattle
   ownerkey = "22599311712094481841033180665237806588790054310631222126405381271924089573908627143292516781530652411806621379822579071415593657088637116149593337977245852950266439908269276789889378874571884748852746045643368058107460021117918657542413076791486130091963112612854591789518690856746757312472362332259277422867 12178066700672820207562107598028055819349361776558374610887354870455226150556699526375464863913750313427968362621410763996856543211502978012978982095721782038963923296750730921093699612004441897097001474531375768746287550135361393961995082362503104883364653410631228896653666456463100850609343988203007196015297634940347643303507210312220744678194150286966282701307645064974676316167089003178325518359863344277814551559197474590483044733574329925947570794508677779986459413166439000241765225023677767754555282196241915500996842713511830954353475439209109249856644278745081047029879999022462230957427158692886317487753201883260626152112524674984510719269715422340038620826684431748131325669940064404757120601727362881317222699393408097596981355810257955915922792648825991943804005848347665699744316223963851263851853483335699321871483966176480839293125413057603561724598227617736944260269994111610286827287926594015501020767105358832476708899657514473423153377514660641699383445065369199724043380072146246537039577390659243640710339329506620575034175016766639538091937167987100329247642670588246573895990251211721839517713790413170646177246216366029853604031421932123167115444834908424556992662935981166395451031277981021820123445253"
   ownerinfo = ""  
-  vesseldict = persist.restore_object("vesseldict")
+
+  # A TypeError should happen if maindirectory is of the wrong type
+  vesseldictlocation = os.path.join(maindirectory, "vesseldict")
+
+  try:
+    vesseldict = persist.restore_object(vesseldictlocation)
+  except ValueError, e:
+    # this means that the vessel doesn't exist.   Let's return the current
+    # directory...
+    return '.'
 
   service_vessels = servicelookup_get_servicevessels(vesseldict, ownerkey, ownerinfo)
   
-  if service_vessels:
-    found = False
-    i = 0;
-    while i < len(service_vessels) and (not found):
-      found = os.path.isdir(service_vessels[i])
-      i = i + 1
-    
-    if found:
-      servicevessel = service_vessels[i-1]
-    else:
-      servicevessel = os.mkdir(service_vessels[0])
+  # We're iterating through items that are in an arbitrary order (the order 
+  # they were in the vesseldict).   We will return the first one that matches
+  for service_vessel in service_vessels:
+
+    # if the service_vessel directory exists, then return it!
+    if os.path.isdir(os.path.join(maindirectory, service_vessel)):
+      return service_vessel
+  else:
+    # no good, 
+    return '.'
       
-  return servicevessel
   
 
-def init(logname):
+def init(logname,cfgdir = '.'):
   """
   <Purpose>
     Sets up the service logger to use the given logname, and the nodeman.cfg
@@ -95,20 +105,20 @@ def init(logname):
     None
   """
 
-  global logfile, servicevessel
+  global logfile
+  global servicevessel
   
-  servicevessel = get_servicevessel()
+  servicevessel = get_servicevessel(cfgdir)
   
-  if servicevessel != None:
-    logfile = logging.circular_logger(servicevessel + '/' + logname, use_nanny=False)
+  logfile = logging.circular_logger(servicevessel + '/' + logname, use_nanny=False)
   
   
 def multi_process_log(message, logname, cfgdir):
   """
   <Purpose>
     Logs the given message to a log.  Does some trickery to make sure there
-    no more than 10 logs are ever there. If the logfile or servicevessel is not
-    set, this will do nothing.
+    no more than 10 logs are ever there.   If init hasn't been called, this 
+    will perform the same actions.
     
   <Arguments>
     message - The message that should be written to the log.
@@ -123,20 +133,21 @@ def multi_process_log(message, logname, cfgdir):
     The given message might be written to the log.
     
   <Returns>
-    None
+    True if the message is logged.   False if the message isn't written because
+    there are too many logs.
   """
   global servicevessel
+  global logfile
+  
+  # If we've initialized, then log and continue...
+  if logfile != None and servicevessel != None:
+    log(message)
+    return True
+ 
   
   if servicevessel == None:
-    # We need to make sure we are in the directory with vesseldict
-    cwd = os.getcwd()
-    os.chdir(cfgdir)
-    servicevessel = get_servicevessel()
-    os.chdir(cwd)
+    servicevessel = get_servicevessel(cfgdir)
   
-  if servicevessel == None:
-    return
-    
   logcount = 0
 
   servicefiles = os.listdir(cfgdir + '/' + servicevessel)
@@ -153,48 +164,16 @@ def multi_process_log(message, logname, cfgdir):
       
   if logcount >= 10:
     # If there are 10 or more logfiles already present, we don't want to create
-    # another.  To deal with the possibility of a time of check / time of use
-    # vulnerability, I will recheck this after I write the file, and deal with
-    # it then.  For simplicity we will just return in this case.  We might do
-    # something fancier here later.
-    return
+    # another.  We'll ignore any race conditions with this because this should
+    # be a rare case.   
+    return False
   else:
+    # set up the circular logger, log the message, and return
     logfile = logging.circular_logger(cfgdir + '/' + servicevessel + '/' + logname)
-    logfile.write(str(time.time()) + ':PID-' +str(os.getpid()) + ':' +
-      str(message) + '\n')
-    logfile.close()
-    
-    # Redo the check to make sure there weren't huge amounts of logs created
-    # after we checked.  If so, lets delete ourselves so we don't contribute
-    # to the mess.
-    logcount = 0
-    
-    servicefiles = os.listdir(cfgdir + '/' + servicevessel)
-    for servicefile in servicefiles:
-      # Count all the log files.  There is always either a .old or .new for
-      # every log
-      if servicefile.endswith('.old'):
-        logcount = logcount + 1
-      elif servicefile.endswith('.new'):
-        if (servicefile[:-4] + ".old") not in servicefiles:
-          # If there is a new file but no old file, we will count it
-          logcount = logcount + 1
-    
-    if logcount >= 10:
-      # Make sure we try to remove both the .old and .new files.
-      try:
-        # We will try our best to remove the file, but if it fails, we can't
-        # do much about it.
-        os.remove(cfgdir + '/' + servicevessel + '/' + logname + '.old')
-      except Exception:
-        pass
-        
-      try:
-        # We will try our best to remove the file, but if it fails, we can't
-        # do much about it.
-        os.remove(cfgdir + '/' + servicevessel + '/' + logname + '.new')
-      except Exception:
-        pass
+    log(message)
+
+    return True
+
 
 
 def log(message):
@@ -207,7 +186,7 @@ def log(message):
     message - The message to log.
     
   <Exceptions>
-    ServiceLogError if init has not been called.
+    ValueError if init has not been called.
     Exception if writing to the log fails somehow.
     
   <Side Effects>
@@ -218,8 +197,7 @@ def log(message):
   """
 
   if logfile == None or servicevessel == None:
-    # If we don't have a current log file, lets just return
-    return
+    # If we don't have a current log file, let's raise an exception
+    raise ValueError, "Service log must be initialized before logging (logfile:'"+str(logfile)+"', servicevessel:'"+str(servicevessel)+"')"
 
-  logfile.write(str(time.time()) + ':PID-' + str(os.getpid()) + 
-    ':' + str(message) + '\n')
+  logfile.write(str(time.time()) + ':PID-' + str(os.getpid()) + ':' + str(message) + '\n')
