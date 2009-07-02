@@ -23,6 +23,11 @@
   If you make ANY changes to this file please let Ivan know so that the
   other script can continue to function correctly. Thanks. (IB 01/19/09)
 
+  This file is also used directly by trunk/dist/make_base_installers.py. Also
+  let Zack know if any adaptions are made to this file so the base installers
+  can continue to be created correctly.  See ticket #501 about removing or
+  adapting make_base_installer.py's dependence on this file.  (Zack 7/2/09)
+
 """
 
 import sys
