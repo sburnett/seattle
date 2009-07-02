@@ -17,9 +17,12 @@ import urllib
 
 import sha
 
-import repyhelper
+# I'm doing this for portability / clarity for whomever needs to replace
+# this later.   timeout_xmlrpclib is merely xmlrpclib with timeouts on sockets
 
-repyhelper.translate_and_import("xmlrpc_client.repy")
+# BUG: This is known to have dangerous side effects on some OSes (like
+# Windows).   All sockets will timeout now!
+import timeout_xmlrpclib as xmlrpclib
 
 
 proxylist = []
@@ -53,12 +56,14 @@ def announce(key, value, ttlval):
 
 
     # This code block is adopted from put.py from OpenDHT
-    pxy = xmlrpc_client_Client(currentproxy)
-    keytosend = xmlrpc_common_Binary(sha.new(str(key)).digest())
-    valtosend = xmlrpc_common_Binary(value)
+    pxy = xmlrpclib.ServerProxy(currentproxy)
+    keytosend = xmlrpclib.Binary(sha.new(str(key)).digest())
+    valtosend = xmlrpclib.Binary(value)
 
     try:
-      pxy.send_request("put", (keytosend, valtosend, ttl, "put.py"))
+      # In the current version of xmlrpclib, an obsolescence warning will be
+      # printed here.   This is problem with the standard lib, not this code...
+      pxy.put(keytosend, valtosend, ttl, "put.py")
       # if there isn't an exception, we succeeded
       break
     except (socket.error, socket.gaierror, socket.timeout):
@@ -90,21 +95,23 @@ def lookup(key, maxvals=100):
 
 
     # This code block is adopted from get.py from OpenDHT
-    pxy = xmlrpc_client_Client(currentproxy)
+    pxy = xmlrpclib.ServerProxy(currentproxy)
     maxvalhash = int(maxvals)  
     # I don't know what pm is for but I assume it's some sort of generator / 
     # running counter
-    pm = xmlrpc_common_Binary("")
-    keyhash = xmlrpc_common_Binary(sha.new(str(key)).digest())
+    pm = xmlrpclib.Binary("")
+    keyhash = xmlrpclib.Binary(sha.new(str(key)).digest())
 
 
     listofitems = []
     # If the proxy fails, then we will go to the next one...
     while currentproxy:
       try:
+        # In the current version of xmlrpclib, an obsolescence warning will be
+        # printed here.   This is problem with the standard lib, not this code...
         try:
-          vals, pm = pxy.send_request("get", (keyhash, maxvalhash, pm, "get.py"))
-        except xmlrpc_common_XMLParseError, e:
+          vals, pm = pxy.get(keyhash, maxvalhash, pm, "get.py")
+        except xmlrpclib.ProtocolError, e:
           raise Exception, e
         # if there isn't an exception, we succeeded
 
