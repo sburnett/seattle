@@ -27,7 +27,6 @@ from django.db import connection
 from django.contrib.auth.models import User as DjangoUser
 
 from geni.control.models import Vessel, Donation
-import geni.control.resource_operations
 from geni.control.repy_dist.changeusers import changeusers
 
 from repyportability import *
