@@ -19,6 +19,7 @@ from repyportability import *
 # These are used to build a threaded XMLRPC server...
 import SocketServer
 import SimpleXMLRPCServer
+import time
 
 # A threaded XMLRPC server class, I'll use this just like SimpleXMLRPCServer
 class ThreadedXMLRPCServer(SocketServer.ThreadingMixIn, SimpleXMLRPCServer.SimpleXMLRPCServer):
@@ -32,14 +33,22 @@ class ThreadedXMLRPCServer(SocketServer.ThreadingMixIn, SimpleXMLRPCServer.Simpl
 import NodeManagerAPI
 import DatabaseAPI
 
+
+import persist
+
 # the list of vesselnames that need to be cleaned up before reuse...
 cleanuplist = []
+
+cleanuplistlock = getlock()
 
 # should we print debugging output?
 DEBUG = True
 DEBUGrequestcountdict = {}
 DEBUGrequestcountdict['AssignVesselToUser'] = 0
 DEBUGrequestcountdict['ExpireVessel'] = 0
+
+# need sys to flush output to stdout/stderr
+import sys
 
 # used in _atomically_getorcreatelock
 lockgettinglock = getlock()
@@ -156,7 +165,12 @@ def AssignVesselToUser(vesselname,userkeylist,username, VESSEL_EXPIRE_TIME_SECS 
     except:
       # this vessel has a problem, please clean the user keys before trying to 
       # assign it to someone else
-      cleanuplist.append(vesselname)
+      cleanuplistlock.acquire()
+      try:
+        cleanuplist.append(vesselname)
+        persist.commit_object(cleanuplist, 'cleanuplist')
+      finally:
+        cleanuplistlock.release()
       raise
 
     try:
@@ -166,7 +180,12 @@ def AssignVesselToUser(vesselname,userkeylist,username, VESSEL_EXPIRE_TIME_SECS 
     except:
       # this vessel has a problem, please clean the user keys before trying to 
       # assign it to someone else
-      cleanuplist.append(vesselname)
+      cleanuplistlock.acquire()
+      try:
+        cleanuplist.append(vesselname)
+        persist.commit_object(cleanuplist, 'cleanuplist')
+      finally:
+        cleanuplistlock.release()
       raise
 
   finally:
@@ -216,7 +235,12 @@ def ExpireVessel(vesselname):
     DatabaseAPI.remove_vesselname_from_vesselmap(vesselname)
 
     # add the vessel to the cleanuplist...
-    cleanuplist.append(vesselname)
+    cleanuplistlock.acquire()
+    try:
+      cleanuplist.append(vesselname)
+      persist.commit_object(cleanuplist, 'cleanuplist')
+    finally:
+      cleanuplistlock.release()
 
   finally:
     thisvessellock.release()
@@ -237,20 +261,36 @@ def _cleanup_vessels():
     try:
       for vesselname in cleanuplist[:]:
         try:
+          print time.time(),vesselname, "before database api"
+          sys.stdout.flush()
           # somehow get the key from the database...
           ownerpublickey, ownerprivatekey = DatabaseAPI.get_ownerkeys_given_vesselname(vesselname)
  
+          print time.time(),vesselname, "before database api convert"
+          sys.stdout.flush()
           try:
             vesselip, vesselport, vesselid = DatabaseAPI.convert_vesselname_to_ipportid(vesselname)
           except Exception, e:
             print "Horrible internal error!!! '"+str(e)+"'"
             exitall()
 
+          print time.time(),vesselname, "Before change users"
+          sys.stdout.flush()
           NodeManagerAPI.dosignedcall(vesselip, vesselport, ownerpublickey, ownerprivatekey, "ChangeUsers", vesselid, '')
+          # clean up the vessel state
+          print time.time(),vesselname, "Before reset vessel"
+          sys.stdout.flush()
+          NodeManagerAPI.dosignedcall(vesselip, vesselport, ownerpublickey, ownerprivatekey, "ResetVessel", vesselid)
         except Exception, e:
           print e
           continue
-        cleanuplist.remove(vesselname)
+
+        cleanuplistlock.acquire()
+        try:
+          cleanuplist.remove(vesselname)
+          persist.commit_object(cleanuplist, 'cleanuplist')
+        finally:
+          cleanuplistlock.release()
 
         DEBUGcleanedcount = DEBUGcleanedcount + 1
 
@@ -259,7 +299,8 @@ def _cleanup_vessels():
       pass
 
     if DEBUG: 
-      print DEBUGcleanedcount, len(cleanuplist), DEBUGrequestcountdict
+      print time.time(),DEBUGcleanedcount, len(cleanuplist), DEBUGrequestcountdict
+      sys.stdout.flush()
 
     sleep(2)
 
@@ -272,6 +313,10 @@ def main():
   # give the database and node manager api a chance to init
   DatabaseAPI.init_database()
   NodeManagerAPI.init_nmapi()
+
+  global cleanuplist
+  # get the cleanup data...
+  cleanuplist = persist.restore_object('cleanuplist')
 
   # Register the XMLRPCServer in a threaded manner...
   server = ThreadedXMLRPCServer(("127.0.0.1",LISTENPORT), allow_none=True)
