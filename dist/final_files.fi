@@ -95,7 +95,8 @@ req xmlparse.repy
 req argparse.repy
 req urlparse.repy
 req repyunit.repy
-req timefromservice.repy
+req tcp_time.repy
+req ntp_time.repy
 req xmlrpc_client.repy
 req nix_common_api.py
 req cv.repy
