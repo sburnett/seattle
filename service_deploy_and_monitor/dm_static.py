@@ -172,7 +172,7 @@ def main():
 # if there is a failure
 
   #TODO change to logging
-  print 'INFO: Forwarder deployment manager started.'
+  print 'INFO: Deployment manager started.'
 
   deploy_on(RESOURCE_LIST)
   
