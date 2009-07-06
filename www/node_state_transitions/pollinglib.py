@@ -255,7 +255,8 @@ def locateandprocessvessels(statefunctionargtuplelist, uniquename, sleeptime, ac
       args = statefunctionargtuple[4:]
 
       # I likely need to do something smart here when this fails...
-      nodelist = advertise.lookup(startstate)
+      # Get a list of at most 10M nodes...
+      nodelist = advertise.lookup(startstate, maxvals = 10*1024*1024)
 
       # shuffle the nodelist to avoid reoccurring failures on processing
       # the same node over and over -- allows us to eventually process
