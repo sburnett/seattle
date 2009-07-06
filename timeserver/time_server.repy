@@ -47,7 +47,9 @@ def send_time_to_client(ip,port,sockobj,thiscommhandle,listencommhandle):
 
   serverTime = str(time_gettime())
 
-  sockobj.send(serverTime)
+  # EK the $ will be used as a flag so the client knows he has seen
+  # the entire message
+  sockobj.send(serverTime+'$')
 
   stopcomm(thiscommhandle)
 
@@ -67,11 +69,16 @@ if callfunc == 'initialize':
     ip = '127.0.0.1'
 
 
+  # manually set the function composition of time.repy to ensure
+  # this service is not used recursively
+  time_set_pref(['ntp'])
+
+
   # Establish time via a connection to a NTP server
   obtainingtime = True
   while obtainingtime:
     try:
-      time_updatetime(port)
+      time_updatetime(port)  
     except Exception,e:
       print e, " trying again to connect to a NTP"  # print exception, try again
     else:
