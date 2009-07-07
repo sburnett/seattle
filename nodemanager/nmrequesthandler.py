@@ -102,9 +102,12 @@ def handle_request(socketobj):
     safe_close(socketobj)
     return
 
-  # Other exceptions only should happen on an internal error
+  # Other exceptions only should happen on an internal error and should be
+  # captured by servicelogger.log
   except Exception,e:
     try:
+      servicelogger.log(str(traceback.format_stack()))
+      servicelogger.log(str(e))
       traceback.print_exc()
       session_sendmessage(socketobj,"Internal Error\nError")
     except:
