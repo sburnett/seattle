@@ -23,6 +23,7 @@ del key_daemon_parser.repy
 del nm_remote_api.py
 del rhizoma.py
 
+
 req advertise.py
 req centralizedadvertise.repy
 req checkpythonversion.py
@@ -104,6 +105,11 @@ req nmrestrictionsprocessor.py
 req nmstatusinterface.py
 req nmthreadingerror.py
 req freebsd_kinfo.py
+req md5py.repy
+req binascii.repy
+req sshkey_paramiko.repy
+req pyDes.repy
+req sshkey.repy
 
 # Files added during install build:
 req metainfo

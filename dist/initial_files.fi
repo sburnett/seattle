@@ -104,3 +104,8 @@ req nmrestrictionsprocessor.py
 req nmstatusinterface.py
 req nmthreadingerror.py
 req freebsd_kinfo.py
+req md5py.repy
+req binascii.repy
+req sshkey_paramiko.repy
+req pyDes.repy
+req sshkey.repy
