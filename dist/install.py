@@ -271,7 +271,7 @@ def setup_startup(prog_path):
     
     # Now that we have the startup folder and we know seattle is not installed,
     # customize the starter file.
-    preprocess_file(startupscript, {"%PROG_PATH%": prog_path})
+    preprocess_file(prog_path + os.sep + get_starter_file_name(), {"%PROG_PATH%": prog_path})
 
     # And copy it to the startup folder.
     shutil.copy(prog_path + os.sep + get_starter_file_name(), sysrelease + os.sep + get_starter_file_name())
