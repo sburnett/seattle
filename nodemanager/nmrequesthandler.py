@@ -14,13 +14,18 @@ I think this is fairly straightforward...   Get requests, check them, and
 pass them to the appropriate API function
 """
 
+from repyportability import *
   
+import repyhelper
 
 # repy signeddata to protect request information
-include signeddata.repy
+repyhelper.translate_and_import("signeddata.repy")
 
 # get requests (encapsulated in session messages)
-include session.repy
+repyhelper.translate_and_import("session.repy")
+
+# for using time_updatetime
+repyhelper.translate_and_import("time.repy")
 
 # the API for the node manager
 import nmAPI
@@ -31,8 +36,7 @@ import socket
 # for logging informative errors
 import traceback
 
-# for using time_updatetime
-from repyportability import *
+
 
 import servicelogger
 

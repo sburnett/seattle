@@ -1,8 +1,9 @@
+import repyhelper
 # simple keypair creator...
 import sys
 import random
 
-include rsa.repy
+repyhelper.translate_and_import("rsa.repy")
 
 # need to support random number generation
 randomfloat = random.random

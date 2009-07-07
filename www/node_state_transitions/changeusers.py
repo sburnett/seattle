@@ -1,8 +1,9 @@
 from repyportability import *
 import advertise
-include time.repy
-include nmclient.repy
-include rsa.repy
+import repyhelper
+repyhelper.translate_and_import("time.repy")
+repyhelper.translate_and_import("nmclient.repy")
+repyhelper.translate_and_import("rsa.repy")
 
 # needs to be done once...
 initialized_time = False

@@ -20,8 +20,11 @@ import time
 import random
 
 
-include rsa.repy
-include signeddata.repy
+import repyhelper
+
+repyhelper.translate_and_import("rsa.repy")
+repyhelper.translate_and_import("signeddata.repy")
+repyhelper.translate_and_import("time.repy")
 
 randomfloat = random.random
 

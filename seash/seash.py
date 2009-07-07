@@ -43,16 +43,17 @@ try:
 except ImportError:
   pass
 
+import repyhelper
 
-include nmclient.repy
+repyhelper.translate_and_import("nmclient.repy")
 
-include time.repy
+repyhelper.translate_and_import("time.repy")
 
-include rsa.repy
+repyhelper.translate_and_import("rsa.repy")
 
-include listops.repy
+repyhelper.translate_and_import("listops.repy")
 
-include parallelize.repy
+repyhelper.translate_and_import("parallelize.repy")
 
 import traceback
 

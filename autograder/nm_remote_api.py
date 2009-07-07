@@ -29,9 +29,11 @@ import nmAPI
 
 from repyportability import *
 
-include nmclient.repy
-include rsa.repy
-include parallelize.repy
+import repyhelper
+
+repyhelper.translate_and_import("nmclient.repy")
+repyhelper.translate_and_import("rsa.repy")
+repyhelper.translate_and_import("parallelize.repy")
 
 # global state
 key = {}

@@ -30,14 +30,16 @@ import tempfile
 import runonce
 import nonportable  # Used for sys.exit
 
+import repyhelper
+
 # Import servicelogger to do logging
 import servicelogger
 
 # This gives us do_sleep
 import misc
 
-include signeddata.repy
-include sha.repy
+repyhelper.translate_and_import("signeddata.repy")
+repyhelper.translate_and_import("sha.repy")
 
 # Armon: The port that should be used to update our time using NTP
 TIME_PORT = 51234
