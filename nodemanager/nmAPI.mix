@@ -269,8 +269,13 @@ def start_task(command):
   # Check if we are using windows API, and if it is windows mobile
   if windowsAPI != None and windowsAPI.MobileCE:
     windowsAPI.launchPythonScript(command[0], command[1])
+
+  # On windows, close_fds isn't supported.
+  elif windowsAPI != None:
+    subprocess.Popen(command, shell=True)
+
   # Otherwise, safe to use subprocess  
-  else:  
+  else:
     # Should I use call here?
     subprocess.Popen(command, close_fds=True, shell=True)
 
