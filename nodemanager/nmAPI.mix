@@ -232,7 +232,10 @@ def startvessel(vesselname, argstring):
   else:  
     # I use absolute paths so that repy can still find the files after it 
     # changes directories...
-    command = "python repy.py " + ip_iface_preference_flags + "--logfile "+os.path.abspath(vesseldict[vesselname]['logfilename'])+" --stop "+os.path.abspath(vesseldict[vesselname]['stopfilename'])+" --status "+os.path.abspath(vesseldict[vesselname]['statusfilename'])+ " --cwd " + os.path.abspath(vesselname) + " --servicelog " + os.path.abspath(vesseldict[vesselname]['resourcefilename'])+" "+argstring
+    
+    # ERIC: I changed this to use relitive paths because spaces in filenames
+    # were causing errors on Windows
+    command = "python repy.py " + ip_iface_preference_flags + "--logfile ../"+vesseldict[vesselname]['logfilename']+" --stop ../"+vesseldict[vesselname]['stopfilename']+" --status ../"+vesseldict[vesselname]['statusfilename']+ " --cwd "+vesselname + " --servicelog ../" + vesseldict[vesselname]['resourcefilename']+" "+argstring
 
   start_task(command)
 
@@ -246,6 +249,8 @@ def startvessel(vesselname, argstring):
     # our work.   Let's tell the user what happened...
     if newtimestamp != oldtimestamp and newstatus != None:
       break
+
+    
 
     # sleep while busy waiting...
     time.sleep(.5)
@@ -273,12 +278,12 @@ def start_task(command):
   # On windows, close_fds isn't supported.
   elif windowsAPI != None:
     subprocess.Popen(command, shell=True)
-
+    
   # Otherwise, safe to use subprocess  
   else:
     # Should I use call here?
     subprocess.Popen(command, close_fds=True, shell=True)
-
+    
 
 # Armon: Takes an optional exitparams tuple, which should contain
 # an integer exit code and a string message,
