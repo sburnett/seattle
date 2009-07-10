@@ -359,7 +359,7 @@ def main():
     nmmainfile = file('nmmain.py', 'r')
     nmmaindata = nmmainfile.read()
     nmmainfile.close()
-    if 'version = "0.5a"' in nmmaindata:
+    if 'version = "1234"' in nmmaindata:
       print 'Second update a success!'
     else:
       print 'Second update failed to happen within 2 minutes'

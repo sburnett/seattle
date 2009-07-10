@@ -64,6 +64,31 @@ def rsa_string_to_publickey(mystr):
   return {'e':long(mystr.split()[0]), 'n':long(mystr.split()[1])}
   
 
+# Edit nmmain_filename so that the version string is new_version.
+def change_nmmain_version(nmmain_filename, new_version):
+  print 'Changing ' + nmmain_filename + ' to version: ' + new_version
+
+  # Read in the current nmmain.py
+  nmmainfile = file(nmmain_filename, 'r')
+  nmmain_orig_lines = nmmainfile.readlines()
+  nmmainfile.close()
+
+  nmmain_new_lines = []
+
+  # Create a new list of lines a version line that has new_version.
+  for line in nmmain_orig_lines:
+    if line.startswith('version ='):
+      nmmain_new_lines.append('version = "' + new_version + '"\n')
+      #nmmain_new_lines.append('version = "' + new_version + '"  # changed from: ' + line)
+    else:
+      nmmain_new_lines.append(line)
+
+  # Write the new lines to nmmain.py
+  nmmainfile = file(nmmain_filename, 'w')
+  nmmainfile.writelines(nmmain_new_lines)
+  nmmainfile.close()
+
+
 def create_folders(topdir='../'):
   """
   <Purpose>
@@ -158,22 +183,8 @@ def create_folders(topdir='../'):
 ## cause nmmain.py to be updated.                                    ##
 #######################################################################
 
-  print 'Changing nmmain...'
-
   # Make changes to nmmain.py (change version to be 0.2a)
-  # Read in the current nmmain.py
-  nmmainfile = file('nmmain.py', 'r')
-  nmmaindata = nmmainfile.read()
-  nmmainfile.close()
-
-  # replace 'version = "xxxx"' with version = "0.2a"
-  vindex = nmmaindata.find('version = "')
-  nmmaindata = nmmaindata[:vindex] + 'version = "0.2a"' + nmmaindata[vindex+16:]
-
-  # write this change back to nmmain.py
-  nmmainfile = file('nmmain.py', 'w')
-  nmmainfile.write(nmmaindata)
-  nmmainfile.close()
+  change_nmmain_version('nmmain.py', "0.999a")
 
   print 'Writing updated nmmain.py metainfo...'
   # This is the directory which should be fully correct, and just update nmmain.py
@@ -270,22 +281,7 @@ writemetainfo.py e6c00469d77bd645a43b9ae7b734af66ed231d6a 40524
   
   # Write another update to nmmain to confirm that updates after the key change
   # still work as well.
-  print 'Changing nmmain...'
-
-  # Make changes to nmmain.py (change version to be 0.2a)
-  # Read in the current nmmain.py
-  nmmainfile = file('nmmain.py', 'r')
-  nmmaindata = nmmainfile.read()
-  nmmainfile.close()
-
-  # replace 'version = "xxxx"' with version = "0.5a"
-  vindex = nmmaindata.find('version = "')
-  nmmaindata = nmmaindata[:vindex] + 'version = "0.5a"' + nmmaindata[vindex+16:]
-
-  # write this change back to nmmain.py
-  nmmainfile = file('nmmain.py', 'w')
-  nmmainfile.write(nmmaindata)
-  nmmainfile.close()
+  change_nmmain_version('nmmain.py', "1234")
   
   # This is the directory that will perform the update after the key was
   # changed, so this update should still work.
