@@ -128,8 +128,14 @@ def clean_folder(instr_path, dir_to_clean):
     deleted = False
     for del_file in del_files:
       if re.match(del_file, filename):
-        deleted = True
-        os.remove(dir_to_clean + "/" + filename)
+        if del_file != ".*\.pyc" and filename.endswith(".pyc"):
+          pass  # do nothing because the del_file ends in .py but will try the 
+                # filename that will get deleted ends with .pyc (this was 
+                # previously deleted and will thus cause an error if we try to
+                # delete it again!).  BUG!!! Ticket
+        else:
+          deleted = True
+          os.remove(dir_to_clean + "/" + filename)
     if not deleted:
       required = False
       for i in range(len(req_files)):
