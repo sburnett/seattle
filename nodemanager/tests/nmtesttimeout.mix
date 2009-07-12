@@ -24,12 +24,15 @@ if callfunc == 'initialize':
 
   nmclient_set_handle_info(nmhandle, myhandleinfo)
 
-  # get the vessel to use...
-  myvessel = nmclient_listaccessiblevessels(nmhandle,pubkey)[0][0]
-
-  # a 100K file...
+  # create a 100K string of data...
   data = "hellodata!"*10000
+
+
   try: 
+    # get the vessel to use... (may timeout...)
+    myvessel = nmclient_listaccessiblevessels(nmhandle,pubkey)[0][0]
+
+    # add the string of data (definitely should timeout)
     nmclient_signedsay(nmhandle, "AddFileToVessel", myvessel, "hello",data)
   except NMClientException:
     # we should have timed out...
