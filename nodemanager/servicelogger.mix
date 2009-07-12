@@ -20,6 +20,9 @@ import os
 import logging
 import time
 import persist
+# we need to get and process exception information
+import sys
+import traceback
 
 # We don't import from repyportability because when this is imported from
 # within repy, restrictions files are no longer honored.
@@ -179,8 +182,8 @@ def multi_process_log(message, logname, cfgdir):
 def log(message):
   """
   <Purpose>
-    Logs the given text to the given log file inside the service directory. If the 
-    logfile or servicevessel is not set, this will do nothing.
+    Logs the given text to the given log file inside the service directory. If 
+    the logfile or servicevessel is not set, this will raise an exception.
     
   <Argument>
     message - The message to log.
@@ -201,3 +204,36 @@ def log(message):
     raise ValueError, "Service log must be initialized before logging (logfile:'"+str(logfile)+"', servicevessel:'"+str(servicevessel)+"')"
 
   logfile.write(str(time.time()) + ':PID-' + str(os.getpid()) + ':' + str(message) + '\n')
+
+
+
+
+def log_last_exception():
+  """
+  <Purpose>
+    Logs the last exception (and traceback).  If there isn't an exception, it 
+    will instead log a message indicating there was no exception.
+    
+  <Argument>
+    None.
+  
+  <Exceptions>
+    ValueError if init has not been called.
+    Exception if writing to the log fails somehow.
+    
+  <Side Effects>
+    The exception is written to the circular log buffer.
+    
+  <Returns>
+    None
+  """
+
+  exceptiontype, exceptionvalue, exceptiontraceback = sys.exc_info()
+  # If there wasn't an exception...
+  if exceptiontraceback == None:
+    log('asked to log a non-existent exception')
+  else:
+    # otherwise, use the traceback module to format it and then write it out
+    exceptionstringlist = traceback.format_exception(exceptiontype, exceptionvalue, exceptiontraceback)
+    exceptionstring = ''.join(exceptionstringlist)
+    log(exceptionstring)

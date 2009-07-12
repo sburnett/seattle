@@ -190,6 +190,7 @@ def start_accepter():
           waitforconn(bind_ip, possibleport, nmconnectionmanager.connection_handler)
         except Exception, e:
           servicelogger.log("[ERROR]: when calling recvmess for the connection_handler: " + str(e))
+          servicelogger.log_last_exception()
         else:
           myname = str(bind_ip) + ":" + str(possibleport)
           break
@@ -335,6 +336,7 @@ def main():
 
       except OSError, e:
         servicelogger.log("[ERROR]:Unable to patch events limit in resource file "+ file_to_modify + ", exception " + str(e))
+        servicelogger.log_last_exception()
   
   
   
@@ -407,17 +409,8 @@ if __name__ == '__main__':
   try:
     main() 
   except Exception,e:
-    (type, value, tb) = sys.exc_info()
-    exceptionstring = "[FATAL]: "
-    
-    for line in traceback.format_tb(tb):
-      exceptionstring = exceptionstring + line
-    
-    # log the exception itself
-    exceptionstring = exceptionstring + str(type)+" "+str(value)+"\n"
-
     # If the servicelogger is not yet initialized, this will not be logged.
-    servicelogger.log(exceptionstring)
+    servicelogger.log_last_exception()
 
     # Since the main thread has died, this is a fatal exception,
     # so we need to forcefully exit

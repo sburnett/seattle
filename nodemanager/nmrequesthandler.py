@@ -84,7 +84,7 @@ def handle_request(socketobj):
 
     # I can't handle this, let's exit
     # BUG: REMOVE LOGGING IN PRODUCTION VERSION (?)
-    servicelogger.log(str(e))
+    servicelogger.log_last_exception()
     return
 
   # handle the request as appropriate
@@ -106,9 +106,7 @@ def handle_request(socketobj):
   # captured by servicelogger.log
   except Exception,e:
     try:
-      servicelogger.log(str(traceback.format_stack()))
-      servicelogger.log(str(e))
-      traceback.print_exc()
+      servicelogger.log_last_exception()
       session_sendmessage(socketobj,"Internal Error\nError")
     except:
       pass

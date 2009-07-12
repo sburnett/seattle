@@ -141,3 +141,4 @@ def handle_threading_error():
     except Exception, exp:
       # Forge on, regardless of errors
       servicelogger.log("[ERROR]:Failed to reset vessel (Handling ThreadErr). Exception: "+str(exp))
+      servicelogger.log_last_exception()

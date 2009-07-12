@@ -75,6 +75,7 @@ def safe_download(serverpath, filename, destdir, filesize):
     return True
   except Exception,e:
     servicelogger.log(str(e) + ' ' + serverpath+filename)
+    servicelogger.log_last_exception()
     return False
  
 #  # how much we have left to download
@@ -685,7 +686,7 @@ if __name__ == '__main__':
   try:
     init()
   except Exception, e:
-    servicelogger.log(str(e))
+    servicelogger.log_last_exception()
     raise e
 
   # in case there is an unexpected exception, continue (we'll sleep first thing
@@ -697,6 +698,6 @@ if __name__ == '__main__':
       # If there is a SystemExit exception, we should probably actually exit...
       raise
     except Exception, e:
-      servicelogger.log(str(e))
+      servicelogger.log_last_exception()
       # Otherwise we will keep on trucking
       pass

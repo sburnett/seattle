@@ -111,7 +111,7 @@ class advertthread(threading.Thread):
             # mark when we advertise
             lastadvertisedict[rsa_publickey_to_string(advertisekey)] = getruntime()
           except Exception, e:
-            servicelogger.log(e)
+            servicelogger.log_last_exception()
             # print the error and exit (we'll be restarted)
             return
 
