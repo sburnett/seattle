@@ -191,12 +191,10 @@ def do_rsync(serverpath, destdir, tempdir):
       if len(reasons) == 1 and reasons[0] == 'Cannot check expiration':
         # we should probably allow this.  The node may be offline 
         servicelogger.log("Warning:"+str(reasons))
-        #print "Warning:"+str(reasons)
         pass
       elif 'Timestamps match' in reasons:
         # Already seen this one...
         servicelogger.log(reasons)
-        #print str(reasons)
         return []
 
     elif shoulduse == False:
@@ -214,7 +212,6 @@ def do_rsync(serverpath, destdir, tempdir):
             # If there is a different fatal comment still there, still log it
             # and don't perform the update.
             servicelogger.log(reasons)
-            #print str(reasons)
             return []
             
           if comment in signeddata_warning_comments:
@@ -226,7 +223,6 @@ def do_rsync(serverpath, destdir, tempdir):
           # Act as we do above when timestamps match
           # Already seen this one...
           servicelogger.log(reasons)
-          #print str(reasons)
           return []
       else:
         # Let's assume this is a bad thing and exit
