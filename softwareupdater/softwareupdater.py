@@ -440,10 +440,10 @@ def software_updater_start(mutexname):
     pass
   else:
     if gotlock:
-      sys.stderr.write("Another software updater old process (pid: "+str(gotlock)+") is running")
+      servicelogger.log("Another software updater old process (pid: "+str(gotlock)+") is running")
       sys.exit(55)
     else:
-      sys.stderr.write("Another software updater old process is running")
+      servicelogger.log("Another software updater old process is running")
       sys.exit(55)
   
   # start normal operation
@@ -489,10 +489,10 @@ def fresh_software_updater():
     pass
   else:
     if gotlock:
-      sys.stderr.write("Another software updater old process (pid: "+str(gotlock)+") is running")
+      servicelogger.log("Another software updater old process (pid: "+str(gotlock)+") is running")
       sys.exit(55)
     else:
-      sys.stderr.write("Another software updater old process is running")
+      servicelogger.log("Another software updater old process is running")
       sys.exit(55)
   # Should be ready to go...
 
@@ -579,7 +579,7 @@ def restart_client(filenamelist):
     runonce.releaseprocesslock('seattlenodemanager')
   elif retval == False:
     # Someone has the lock, but I can't do anything...
-    sys.stderr.write("The lock 'seattlenodemanager' is held by an unknown process")
+    servicelogger.log("The lock 'seattlenodemanager' is held by an unknown process")
   else:
     # I know the process ID!   Let's stop the process...
     nonportable.portablekill(retval)
@@ -635,7 +635,7 @@ def main():
       # Make sure we still have the process lock.
       # If not, we should exit
       if not runonce.stillhaveprocesslock('softwareupdater.old'):
-        sys.stderr.write('We no longer have the processlock\n')
+        servicelogger.log('We no longer have the processlock\n')
         sys.exit(55)
 
 
