@@ -77,6 +77,10 @@ def create_metainfo_file(privatekeyfilename, publickeyfilename, new=False):
     if filename.endswith('.swp'):
       continue
     
+    # ignore repy preprocessed files...
+    if filename.endswith('_repy.py'):
+      continue
+
     # ignore directories... -Brent
     if os.path.isdir(filename):
       continue
