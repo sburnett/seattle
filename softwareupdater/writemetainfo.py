@@ -16,8 +16,6 @@ from repyportability import *
 import sys
 import os  
 import os.path
-import time
-import random
 
 
 import repyhelper
@@ -26,7 +24,6 @@ repyhelper.translate_and_import("rsa.repy")
 repyhelper.translate_and_import("signeddata.repy")
 repyhelper.translate_and_import("time.repy")
 
-randomfloat = random.random
 
 # Armon: The port that should be used to update our time using NTP
 TIME_PORT = 51345
