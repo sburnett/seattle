@@ -76,6 +76,7 @@ import shutil
 import time
 import urllib
 import tempfile
+import traceback
 # To determine the OS type
 import nonportable
 
@@ -154,7 +155,7 @@ def kill_webserver(pid, url):
     None
   """
   if nonportable.ostype == 'Windows':
-    windows_api.killProcess(pid)
+    windows_api.kill_process(pid)
   else:
     os.kill(pid, signal.SIGKILL)
 
@@ -370,8 +371,12 @@ def main():
   ######################################
   # End Software updater restart tests #
   ######################################
+  except:
+    traceback.print_exc()
   finally:
     # Clean up the temporary server directory.
+    # This throws an exception on Windows if a file is still in use (for example,
+    # if the webserver started in a test couldn't be shut down).
     shutil.rmtree(tmpserver) 
   
 
