@@ -10,3 +10,4 @@ cd "%PROG_PATH%"
 python get_seattlestopper_lock.py
 python nmmain.py > /dev/null 2> /dev/null < /dev/null&
 python softwareupdater.py > /dev/null 2> /dev/null < /dev/null&
+echo "seattle has been started...."
