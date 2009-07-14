@@ -27,6 +27,7 @@ import random
 import shutil
 import socket   # we'll make it so we don't hang...
 import tempfile
+import traceback    # For exception logging if the servicelogger fails.
 import runonce
 import nonportable  # Used for sys.exit
 
@@ -53,8 +54,69 @@ softwareurl = "http://seattle.cs.washington.edu/couvb/updatesite/0.1/"
 softwareupdatepublickey = {'e':82832270266597330072676409661763231354244983360850404742185516224735762244569727906889368190381098316859532462559839005559035695542121011189767114678746829532642015227757061325811995458461556243183965254348908097559976740460038862499279411461302045605434778587281242796895759723616079286531587479712074947611, 'n':319621204384190529645831372818389656614287850643207619926347176392517761801427609535545760457027184668587674034177692977122041230031985031724339016854308623931563908276376263003735701277100364224187045110833742749159504168429702766032353498688487937836208653017735915837622736764430341063733201947629404712911592942893299407289815035924224344585640141382996031910529762480483482480840200108190644743566141062967857181966489101744929170144756204101501136046697030104623523067263295405505628760205318871212056879946829241448986763757070565574197490565540710448548232847380638562809965308287901471553677400477022039092783245720343246522144179191881098268618863594564939975401607436281396130900640289859459360314214324155479461961863933551434423773320970748327521097336640702078449006530782991443968680573263568609595969967079764427272827202433035192418494908184888678872217792993640959292902948045622147093326912328933981365394795535990933982037636876825043938697362285277475661382202880481400699819441979130858152032120174957606455858082332914545153781708896942610940094268714863253465554125515897189179557899347310399568254877069082016414203023408461051519104976942275899720740657969311479534442473551582563833145735116565451064388421}
 
 
-# initialize the servicelogger to log on the softwareupdater file
-servicelogger.init("softwareupdater")
+
+# This code is in its own function called later rather than directly in the
+# global scope right here because otherwise we need to ensure that the
+# safe_log* methods are defined above this code or else they would cause a
+# NameError because they aren't defined yet.
+def safe_servicelogger_init():
+  """
+  This initializes the servicelogger in a way that will not throw an exception
+  even if servicelogger.init() does.
+  """
+  # initialize the servicelogger to log on the softwareupdater file
+  try:
+    servicelogger.init("softwareupdater")
+  except:
+    # We assume that if servicelogger.init() fails, then safe_log will
+    # fall back on using 'print' because servicelogger.log() calls
+    # will throw a ValueError.
+    safe_log("Servicelogger.init() failed. Will try to use stdout. The exception from servicelogger.init() was:")
+    safe_log_last_exception()
+
+
+
+def safe_log(message):
+  """
+  Log a message in a way that cannot throw an exception. First try to log using
+  the servicelogger, then just try to print the message.
+  """
+  try:
+    servicelogger.log(message)
+  except:
+    try:
+      print message
+    except:
+      # As the standard output streams aren't closed, it would seem that this
+      # should never happen. If it does, though, what can we do to log the
+      # message, other than directly write to a file?
+      pass
+
+
+
+def safe_log_last_exception():
+  """
+  Log the last exception in a way that cannot throw an exception. First try to
+  log using the servicelogger, then just try to print the message.
+  """
+  try:
+    # Get the last exception in case the servicelogger fails.
+    exceptionstr = traceback.format_exc()
+  except:
+    pass
+  
+  try:
+    servicelogger.log_last_exception()
+  except:
+    try:
+      print exceptionstr
+    except:
+      # As the standard output streams aren't closed, it would seem that this
+      # should never happen. If it does, though, what can we do to log the
+      # message, other than directly write to a file?
+      pass
+
+
 
 
 def get_file_hash(filename):
@@ -70,12 +132,15 @@ def get_file_hash(filename):
 # we'll fail. (BUG: doesn't do this yet.   I use timeouts, but they don't
 # always work)
 def safe_download(serverpath, filename, destdir, filesize):
+  # TODO: filesize isn't being used.
+  # TODO: raise an RsyncError from here if the download fails instead of
+  #       returning True/False.
   try:
     urllib.urlretrieve(serverpath+filename,destdir+filename)
     return True
   except Exception,e:
-    servicelogger.log(str(e) + ' ' + serverpath+filename)
-    servicelogger.log_last_exception()
+    safe_log_last_exception()
+    safe_log('[safe_download] Failed to download ' + serverpath + filename)
     return False
  
 #  # how much we have left to download
@@ -161,7 +226,7 @@ def do_rsync(serverpath, destdir, tempdir):
 
   # Incorrectly signed, we don't update...
   if not signeddata_issignedcorrectly(newmetafiledata, softwareupdatepublickey):
-    servicelogger.log("New metainfo not signed correctly.  Not updating")
+    safe_log("[do_rsync] New metainfo not signed correctly. Not updating.")
     return []
 
   try:
@@ -189,12 +254,13 @@ def do_rsync(serverpath, destdir, tempdir):
     elif shoulduse == None:
       # hmm, a warning...   
       if len(reasons) == 1 and reasons[0] == 'Cannot check expiration':
-        # we should probably allow this.  The node may be offline 
-        servicelogger.log("Warning:"+str(reasons))
-        pass
+        # we should probably allow this.  The node may be offline
+        # JCS: if it's offline, how is it downloading the metainfo or even
+        # getting past the time_updatetime() calls above?
+        safe_log("[do_rsync] Warning: " + str(reasons))
       elif 'Timestamps match' in reasons:
         # Already seen this one...
-        servicelogger.log(reasons)
+        safe_log("[do_rsync] The metainfo indicates no update is needed: " + str(reasons))
         return []
 
     elif shoulduse == False:
@@ -211,22 +277,22 @@ def do_rsync(serverpath, destdir, tempdir):
           if comment in signeddata_fatal_comments:
             # If there is a different fatal comment still there, still log it
             # and don't perform the update.
-            servicelogger.log(reasons)
+            safe_log("[do_rsync] Serious problem with signed metainfo: " + str(reasons))
             return []
             
           if comment in signeddata_warning_comments:
             # If there is a different warning comment still there, log the
             # warning.  We will take care of specific behavior shortly.
-            servicelogger.log(comment)
+            safe_log("[do_rsync] " + str(comment))
             
         if 'Timestamps match' in reasons:
           # Act as we do above when timestamps match
           # Already seen this one...
-          servicelogger.log(reasons)
+          safe_log("[do_rsync] The metainfo indicates no update is needed: " + str(reasons))
           return []
       else:
         # Let's assume this is a bad thing and exit
-        servicelogger.log(reasons)
+        safe_log("[do_rsync] Something is wrong with the metainfo: " + str(reasons))
         return []
 
   # now it's time to update
@@ -252,16 +318,24 @@ def do_rsync(serverpath, destdir, tempdir):
 
     filename, filehash, filesize = linelist
     
+    shoulddownloadfile = False
+    
     # if the file is missing or the hash is different, we want to download...
-    if not os.path.exists(destdir+filename) or get_file_hash(destdir+filename) != filehash:
+    if not os.path.exists(destdir+filename):
+      shoulddownloadfile = True
+      safe_log("[do_rsync] Downloading file " + filename + " because it doesn't already exist at " + destdir+filename)
+    elif get_file_hash(destdir+filename) != filehash:
+      shoulddownloadfile = True
+      safe_log("[do_rsync] Downloading file " + filename + " because the hash changed.")
+      
+    if shoulddownloadfile:
       # get the file
       safe_download(serverpath, filename, tempdir, filesize)
 
-      # oh crap!   The hash doesn't match what we thought
+      # The hash doesn't match what we expected it to be according to the signed metainfo.
       if get_file_hash(tempdir+filename) != filehash:
-        servicelogger.log("Hash mismatch on file '"+filename+"':" + filehash +
+        safe_log("[do_rsync] Hash mismatch on file '"+filename+"':" + filehash +
             " vs " + get_file_hash(tempdir+filename))
-        shutil.copy(tempdir+filename, '/homes/iws/couvb/'+filename+'.oddness') 
         raise RsyncError, "Hash of file '"+filename+"' does not match information in metainfo file"
 
       # put this file in the list of files we need to update
@@ -269,6 +343,7 @@ def do_rsync(serverpath, destdir, tempdir):
 
 
   # copy the files to the local dir...
+  safe_log("[do_rsync] Updating files: " + str(updatedfiles))
   for filename in updatedfiles:
     shutil.copy(tempdir+filename, destdir+filename)
     
@@ -328,7 +403,7 @@ def init():
     See fresh_software_updater and software_updater_start.
 
   <Side Effects>
-    If we can't get the lock, we will exit.  The standard streams are closed.
+    If we can't get the lock, we will exit.
     We will hold the softwareupdater.new lock while trying to start, but if
     all goes well, we will release that lock and aquire the 
     softwareupdater.old lock.
@@ -345,10 +420,10 @@ def init():
     # exit quietly
     sys.exit(55)
 
-  # Close the standard streams so the user doesnt have to worry about it.
+  # Close stdin because we don't read from stdin at all. We leave stdout and stderr
+  # open because we haven't done anything to make sure that output to those (such as
+  # uncaught python exceptions) go somewhere else useful.
   sys.stdin.close()
-  sys.stdout.close()
-  sys.stderr.close()
 
   # don't hang if the socket is slow (in some ways, this doesn't always work)
   # BUG: http://mail.python.org/pipermail/python-list/2008-January/471845.html
@@ -369,9 +444,9 @@ def init():
   try:
     do_rsync(softwareurl, "download.test/",tempdir)
   except Exception:
-     # We continue if this happens later, 
-     # so we should do so now as well
-     pass
+    # We continue if this happens later, 
+    # so we should do so now as well
+    pass
   finally:
     shutil.rmtree(tempdir)
       
@@ -414,8 +489,12 @@ def software_updater_start(mutexname):
   <Return>
     None
   """
+
+  safe_log("[software_updater_start] This is a new software updater process started by an existing one.")
+
   # if "stop" file exists, then exit
   if os.path.exists("softwareupdater.stop."+mutexname):
+    safe_log("[software_updater_start] There's a stop file. Exiting.")
     sys.exit(2)
 
   # write "OK" file
@@ -423,6 +502,8 @@ def software_updater_start(mutexname):
   
   # while "OK" file exists
   while os.path.exists("softwareupdater.OK."+mutexname):
+    safe_log("[software_updater_start] Waiting for the file softwareupdater.OK."+mutexname+" to be removed.")
+    misc.do_sleep(1.0)
     # if "stop" file exists, then exit
     if os.path.exists("softwareupdater.stop."+mutexname):
       sys.exit(3)
@@ -436,12 +517,14 @@ def software_updater_start(mutexname):
     pass
   else:
     if gotlock:
-      servicelogger.log("Another software updater old process (pid: "+str(gotlock)+") is running")
+      safe_log("[software_updater_start] Another software updater old process (pid: "+str(gotlock)+") is running")
       sys.exit(55)
     else:
-      servicelogger.log("Another software updater old process is running")
+      safe_log("[software_updater_start] Another software updater old process is running")
       sys.exit(55)
-  
+ 
+  safe_log("[software_updater_start] This software updater process is now taking over.")
+ 
   # start normal operation
   return
 
@@ -485,13 +568,14 @@ def fresh_software_updater():
     pass
   else:
     if gotlock:
-      servicelogger.log("Another software updater old process (pid: "+str(gotlock)+") is running")
+      safe_log("[fresh_software_updater] Another software updater old process (pid: "+str(gotlock)+") is running")
       sys.exit(55)
     else:
-      servicelogger.log("Another software updater old process is running")
+      safe_log("[fresh_software_updater] Another software updater old process is running")
       sys.exit(55)
   # Should be ready to go...
 
+  safe_log("[fresh_software_updater] Fresh software updater started.")
 
 
 def get_mutex():
@@ -525,6 +609,8 @@ def restart_software_updater():
     not start correctly, we will return None.
   """
 
+  safe_log("[restart_software_updater] Attempting to restart software updater.")
+
   # find an unused mutex 
   thismutex = get_mutex()
 
@@ -540,10 +626,13 @@ def restart_software_updater():
       runonce.releaseprocesslock('softwareupdater.old')
       os.remove("softwareupdater.OK."+thismutex)
       # I'm happy, it is taking over
+      safe_log("[restart_software_updater] The new instance of the software updater is running. This one is exiting.")
       sys.exit(10)
 
   # else write "stop" file because it failed...
   file("softwareupdater.stop."+thismutex,"w").close()
+
+  safe_log("[restart_software_updater] Failed to restart software updater. This instance will continue.")
 
   # I continue normal operation
   return
@@ -570,16 +659,19 @@ def restart_client(filenamelist):
   # kill nmmain if it is currently running
   retval = runonce.getprocesslock('seattlenodemanager')
   if retval == True:
+    safe_log("[restart_client] Obtained the lock 'seattlenodemanager', it wasn't running.")
     # I got the lock, it wasn't running...
     # we want to start a new one, so lets release
     runonce.releaseprocesslock('seattlenodemanager')
   elif retval == False:
     # Someone has the lock, but I can't do anything...
-    servicelogger.log("The lock 'seattlenodemanager' is held by an unknown process")
+    safe_log("[restart_client] The lock 'seattlenodemanager' is held by an unknown process. Will try to start it anyways.")
   else:
+    safe_log("[restart_client] Stopping the nodemanager.")
     # I know the process ID!   Let's stop the process...
     nonportable.portablekill(retval)
   
+  safe_log("[restart_client] Starting the nodemanager.")
 
   # run the node manager.   I rely on it to do the smart thing (handle multiple
   # instances, etc.)
@@ -631,7 +723,7 @@ def main():
       # Make sure we still have the process lock.
       # If not, we should exit
       if not runonce.stillhaveprocesslock('softwareupdater.old'):
-        servicelogger.log('We no longer have the processlock\n')
+        safe_log('[main] We no longer have the processlock\n')
         sys.exit(55)
 
 
@@ -658,7 +750,6 @@ def main():
     if updatedlist == []:
       continue
 
-   
     # if there were updates, the metainfo file should be one of them...
     assert('metainfo' in updatedlist)
 
@@ -678,11 +769,14 @@ def main():
     
 
 if __name__ == '__main__':
+  # Initialize the service logger.
+  safe_servicelogger_init()
+  
   # problems here are fatal.   If they occur, the old updater won't stop...
   try:
     init()
   except Exception, e:
-    servicelogger.log_last_exception()
+    safe_log_last_exception()
     raise e
 
   # in case there is an unexpected exception, continue (we'll sleep first thing
@@ -694,6 +788,8 @@ if __name__ == '__main__':
       # If there is a SystemExit exception, we should probably actually exit...
       raise
     except Exception, e:
-      servicelogger.log_last_exception()
-      # Otherwise we will keep on trucking
-      pass
+      # Log the exception and let main() run again.
+      safe_log_last_exception()
+      # Sleep a little to prevent a fast loop if the exception is happening
+      # before any other calls to do_sleep().
+      misc.do_sleep(1.0)
