@@ -27,7 +27,7 @@ DEBUG = False
 
 # For unique temp folders
 PROGRAM_NAME = "build_and_update"
-UPDATER_SITE = "/home/couvb/public_html/updatesite/1.0"
+UPDATER_SITE = "/home/couvb/public_html/updatesite/0.1"
 if DEBUG:
   UPDATER_SITE = "/home/zack/test/updatesite"
 INSTALL_DIR = "seattle_repy"
@@ -80,7 +80,7 @@ def confirm_paths_version(trunk_location, pubkey, version):
     check.
   """
 
-  softwareupdater_path = trunk_location + "/softwareupdater/softwareupdater.mix"
+  softwareupdater_path = trunk_location + "/softwareupdater/softwareupdater.py"
   nm_path = trunk_location + "/nodemanager/nmmain.py"
   if not os.path.exists(softwareupdater_path):
     raise IOError("Could not find softwareupdater script at " + softwareupdater_path)
@@ -175,9 +175,9 @@ def build_and_update(trunk_location, pubkey, privkey, version):
                                                                 pubkey, version)
   if not (urls_match and keys_match and versions_match):
     if not urls_match:
-      print "Updater location does not match with url in softwareupdater.mix."
+      print "Updater location does not match with url in softwareupdater.py."
     if not keys_match:
-      print "Given public key does not match with key in softwareupdater.mix."
+      print "Given public key does not match with key in softwareupdater.py."
     if not versions_match:
       print "Given version does not match with version in nmmain.py"
     return
