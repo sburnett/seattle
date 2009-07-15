@@ -86,7 +86,7 @@ def get_servicevessel(maindirectory = '.'):
       
   
 
-def init(logname,cfgdir = '.'):
+def init(logname,cfgdir = '.', maxbuffersize=1024*1024):
   """
   <Purpose>
     Sets up the service logger to use the given logname, and the nodeman.cfg
@@ -97,6 +97,7 @@ def init(logname,cfgdir = '.'):
               to be used in the event of multi process locking
     cfgdir - The directory containing nodeman.cfg, by default it is the current
              directory
+    maxbuffersize - The size of the circular logging buffer.
              
   <Exceptions>
     Exception if there is a problem reading from cfgdir/nodeman.cfg
@@ -113,7 +114,7 @@ def init(logname,cfgdir = '.'):
   
   servicevessel = get_servicevessel(cfgdir)
   
-  logfile = logging.circular_logger(servicevessel + '/' + logname, use_nanny=False)
+  logfile = logging.circular_logger(servicevessel + '/' + logname, mbs = maxbuffersize, use_nanny=False)
   
   
 def multi_process_log(message, logname, cfgdir):
