@@ -524,6 +524,21 @@ def install(prog_path):
   if OS not in SUPPORTED_OSES:
     raise UnsupportedOSError
 
+
+  # Anthony - This will test if os.urandom is implemented on the OS
+  # If we did not check here and os.urandom raised a NotImplementedError
+  # the next step (setup_start) would surely fail when it tried
+  # to generate a keypair.
+  try:
+    os.urandom(1)
+  except NotImplementedError:
+    output("Failed.")
+    output("No source of OS-specific randomness")
+    output("On a UNIX-like system this would be /dev/urandom, and on Windows it is CryptGenRandom.")
+    output("Please email the Seattle project for additional support")
+    return
+
+
   prog_path = os.path.realpath(prog_path)
   
   # First, setup seattle to run at startup
