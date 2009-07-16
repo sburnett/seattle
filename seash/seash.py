@@ -55,9 +55,9 @@ repyhelper.translate_and_import("listops.repy")
 
 repyhelper.translate_and_import("parallelize.repy")
 
-import traceback
+repyhelper.translate_and_import("advertise.repy")   #  used to do OpenDHT lookups
 
-import advertise            #  used to do OpenDHT lookups
+import traceback
 
 import os.path    # fix path names when doing upload, loadkeys, etc.
 
@@ -1296,9 +1296,9 @@ update             -- Update information about the vessels
   
         # they are trying to only do some types of lookup...
         if len(userinputlist) > 1:
-          nodelist = advertise.lookup(keys[currentkeyname]['publickey'],lookuptype=userinputlist[1:])
+          nodelist = advertise_lookup(keys[currentkeyname]['publickey'],lookuptype=userinputlist[1:])
         else:
-          nodelist = advertise.lookup(keys[currentkeyname]['publickey'])
+          nodelist = advertise_lookup(keys[currentkeyname]['publickey'])
 
         # If there are no vessels for a user, the lookup may return ''
         for nodename in nodelist[:]:
