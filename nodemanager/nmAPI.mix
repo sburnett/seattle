@@ -200,7 +200,8 @@ def startvessel(vesselname, argstring):
 
   
   # Armon: Generate the IP/Iface preferences if they exist
-  ip_iface_preference_flags = ""
+  ip_iface_preference_flags = []
+  ip_iface_preference_str = ""    # Needed for Win Mobile
 
   # Only add the flags if everything necessary exists
   if 'networkrestrictions' in configuration and 'repy_restricted' in configuration['networkrestrictions'] \
@@ -209,35 +210,44 @@ def startvessel(vesselname, argstring):
       for (is_ip, value) in configuration['networkrestrictions']['repy_user_preference']:
         # Append the correct flag
         if is_ip:
-          ip_iface_preference_flags += "--ip "
+          ip_iface_preference_flags.append("--ip")
+          ip_iface_preference_str += "--ip "
         else:
-          ip_iface_preference_flags += "--iface "
+          ip_iface_preference_flags.append("--iface")
+          ip_iface_preference_str += "--iface "
           
         # Append the value
-        ip_iface_preference_flags += "'"+value+"' "
+        ip_iface_preference_flags.append(value)
+        ip_iface_preference_str += "'" + value + "' "
         
       # Check for the --nootherips flag
       if 'repy_nootherips' in configuration['networkrestrictions'] and configuration['networkrestrictions']['repy_nootherips']:
         # Append the flag
-        ip_iface_preference_flags += "--nootherips "
+        ip_iface_preference_flags.append("--nootherips")
+        ip_iface_preference_str += "--nootherips "
     
   # Armon: Check if we are using windows API, and if it is windows mobile
   if windowsAPI != None and windowsAPI.MobileCE:
     # First element should be the script (repy)
     command[0] = "\"" + repy_constants.PATH_SEATTLE_INSTALL + "repy.py"  + "\""
     # Second element should be the parameters
-    command[1] = ip_iface_preference_flags + "--logfile " + vesseldict[vesselname]['logfilename'] + " --stop "+ vesseldict[vesselname]['stopfilename'] + " --status " + vesseldict[vesselname]['statusfilename'] + " --cwd " + updir + " --servicelog " + vesseldict[vesselname]['resourcefilename']+" "+argstring
+    command[1] = ip_iface_preference_str + "--logfile \"" + vesseldict[vesselname]['logfilename'] + "\" --stop \""+ vesseldict[vesselname]['stopfilename'] + "\" --status \"" + vesseldict[vesselname]['statusfilename'] + "\" --cwd \"" + updir + "\" --servicelog \"" + vesseldict[vesselname]['resourcefilename']+"\" "+argstring
     raise Exception, "This will need to be changed to use absolute paths"
     
   else:  
     # I use absolute paths so that repy can still find the files after it 
     # changes directories...
     
-    # ERIC: I changed this to use relitive paths because spaces in filenames
-    # were causing errors on Windows
-    command = "python repy.py " + ip_iface_preference_flags + "--logfile ../"+vesseldict[vesselname]['logfilename']+" --stop ../"+vesseldict[vesselname]['stopfilename']+" --status ../"+vesseldict[vesselname]['statusfilename']+ " --cwd "+vesselname + " --servicelog ../" + vesseldict[vesselname]['resourcefilename']+" "+argstring
+    # Conrad: switched this to sequence-style Popen invocation so that spaces
+    # in files work. Switched it back to absolute paths.
+    command = ["python", "repy.py"] + ip_iface_preference_flags + [
+        "--logfile", os.path.abspath(vesseldict[vesselname]['logfilename']),
+        "--stop",    os.path.abspath(vesseldict[vesselname]['stopfilename']),
+        "--status",  os.path.abspath(vesseldict[vesselname]['statusfilename']),
+        "--cwd",     os.path.abspath(vesselname),
+        "--servicelog", os.path.abspath(vesseldict[vesselname]['resourcefilename'])] + argstring.split()
 
-  start_task(command)
+    start_task(command)
 
 
   starttime = nonportable.getruntime()
@@ -275,14 +285,14 @@ def start_task(command):
   if windowsAPI != None and windowsAPI.MobileCE:
     windowsAPI.launchPythonScript(command[0], command[1])
 
-  # On windows, close_fds isn't supported.
-  elif windowsAPI != None:
-    subprocess.Popen(command, shell=True)
-    
   # Otherwise, safe to use subprocess  
+  # Python 2.5.x and lower on windows, close_fds isn't supported.
+  elif windowsAPI != None:
+    subprocess.Popen(command)
+    
   else:
     # Should I use call here?
-    subprocess.Popen(command, close_fds=True, shell=True)
+    subprocess.Popen(command, close_fds=True)
     
 
 # Armon: Takes an optional exitparams tuple, which should contain
@@ -785,11 +795,3 @@ def setrestrictions(vesselname, restrictionsdata):
   os.rename("resource.temp",vesseldict[vesselname]['resourcefilename'])
   
   return "\nSuccess"
-
-    
-
-
-
-
-
-
