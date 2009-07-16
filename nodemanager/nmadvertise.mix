@@ -14,7 +14,7 @@ from repyportability import *
 # needed to convert keys to strings
 include rsa.repy
 
-import advertise
+include advertise.repy
 
 import misc
 
@@ -107,7 +107,7 @@ class advertthread(threading.Thread):
         # port to all keys I support
         for advertisekey in advertisekeylist:
           try:
-            advertise.announce(advertisekey, str(myname), adTTL)
+            advertise_announce(advertisekey, str(myname), adTTL)
             # mark when we advertise
             lastadvertisedict[rsa_publickey_to_string(advertisekey)] = getruntime()
           except Exception, e:
