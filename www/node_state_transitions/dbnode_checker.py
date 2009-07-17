@@ -64,6 +64,8 @@ def handle_donation(donation):
     <Returns>
         None
     """
+    print time.ctime(), "Processing donation: ", donation
+    
     host = donation.ip
     port = int(donation.port)
 
@@ -110,34 +112,27 @@ def handle_donations_parallel(donations):
     <Returns>
         None
     """
-    # our parallelism factor
-    num_threads = 20
+    # We'll use a single thread to make this not really parallelized while we
+    # are dealing with potential bugs among the node state transition scripts.
+    num_threads = 1
+    
+    print "Running node checks parallelized using " + str(num_threads) + " thread(s)."
 
-    while donations != []:
-        if len(donations) < num_threads:
-            # we can process all the donations in one parallel swoop
-            parallel_donations = donations
+    try:
+      phandle = parallelize_initfunction(donations, handle_donation, num_threads)
+    except ParallelizeError, e:
+      print time.ctime(), traceback.format_exc()
+
+    # wait for handle_donation threads to finish
+    while not parallelize_isfunctionfinished(phandle):
+      sleep(1.0)
             
-        else:
-            # we can process a portion (num_threads to be exact) of donations
-            parallel_donations = donations[:num_threads]
-            donations = donations[num_threads:]
+    resultdict = parallelize_getresults(phandle)
 
-        try:
-            phandle = parallelize_initfunction(parallel_donations, handle_donation, num_threads)
-        except ParallelizeException:
-            print time.ctime(), "parallelize_initfunction raised ParallelizeException"
-            break
-
-        # wait for handle_donation threads to finish
-        while not parallelize_isfunctionfinished(phandle):
-            sleep(0.1)
-                
-        resultdict = parallelize_getresults(phandle)
-
-        # print any exceptions that might have occurred in the threads
-        for donation, exception_str in resultdict['exception']:
-            print time.ctime(), "handle_donation(%s) raised Exception: %s"%(donation, exception_str)
+    # print any exceptions that might have occurred in the threads
+    for donation, exception_str in resultdict['exception']:
+      print time.ctime(), "handle_donation(%s) raised Exception: %s"%(donation, exception_str)
+        
     return
 
 
@@ -188,31 +183,48 @@ def main():
     """
     # to parallelize execution or not
     parallelize = True
-
+    
     # loop forever    
     while True:
-    	# grab all currently donation node records from the db
-        donations = genidb.get_nodes()
+      
+      # Grab all donation node records from the db.
+      # Using list(queryset) forces evaluation of the query and returns a list.
+      # This is largely because we can't pass a QuerySet to the call to 
+      # handle_donations_parallel because it expects a list that it can pass to
+      # parallelize_initfunction directly.
+      # Of course, the nodes might have been changed in the database before the
+      # call to handle_donation is actually made. We need to be careful with
+      # that. This script didn't consider this before so we'll just wait for
+      # the rewrite of these scripts to deal with that (e.g. lock node,
+      # query db for fresh data about the node, do checks and update db, unlock node).
+      donations = list(genidb.get_nodes())
 
-        # handle the donation records either in parallel or not
-        if parallelize:
-            handle_donations_parallel(donations)
-        else:
-            handle_donations_non_parallel(donations)
+      print time.ctime(), "Starting loop through " + str(len(donations)) + " nodes."
+      
+      # handle the donation records either in parallel or not
+      if parallelize:
+        handle_donations_parallel(donations)
+      else:
+        handle_donations_non_parallel(donations)
   
-        # this is an essential hack to make django not use internal models caching:
-	# http://www.mail-archive.com/django-users@googlegroups.com/msg14826.html
-	try:
-            transaction.commit()
-        except transaction.TransactionManagementError:
-            pass
+      # this is an essential hack to make django not use internal models caching:
+	    # http://www.mail-archive.com/django-users@googlegroups.com/msg14826.html
+      try:
+        transaction.commit()
+      except transaction.TransactionManagementError:
+        pass
           
-        sleep(30*60)
-	print time.ctime(), "."
-
+      # Sleep a few minutes just to make sure we don't hit any nodes too
+      # frequently if there is something wrong with the script or the database.
+      print time.ctime(),  "Finished loop through " + str(len(donations)) + " nodes. Sleeping a bit."
+      sleep(5 * 60)
+        
 	
+  
+  
+  
 if __name__ == '__main__':
-  logfn = "log.dbnode_checker.old"
+  logfn = "log.dbnode_checker"
   # set up the circular logger (at least 50 MB buffer)
   loggerfo = logging.circular_logger(logfn, 50*1024*1024)
 
