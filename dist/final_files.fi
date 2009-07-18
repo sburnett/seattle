@@ -34,9 +34,10 @@ del centralizedadvertise_repy.py
 del time_repy.py
 del sha_repy.py
 del ntp_time_repy.py
+del time_interface_repy.py
 
-
-req advertise.py
+req time_interface.repy
+req advertise.repy
 req centralizedadvertise.repy
 req checkpythonversion.py
 req emulcomm.py
@@ -59,7 +60,7 @@ req nmrequesthandler.py
 req nmresourcemath.py
 req nmstatusmonitor.py
 req nonportable.py
-req openDHTadvertise.py
+req openDHTadvertise.repy
 req persist.py
 req random.repy
 req repy.py

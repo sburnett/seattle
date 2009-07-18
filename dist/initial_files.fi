@@ -23,7 +23,8 @@ del key_daemon_parser.repy
 del nm_remote_api.py
 del rhizoma.py
 
-req advertise.py
+req time_interface.repy
+req advertise.repy
 req centralizedadvertise.repy
 req checkpythonversion.py
 req emulcomm.py
@@ -46,7 +47,7 @@ req nmrequesthandler.py
 req nmresourcemath.py
 req nmstatusmonitor.py
 req nonportable.py
-req openDHTadvertise.py
+req openDHTadvertise.repy
 req persist.py
 req random.repy
 req repy.py
