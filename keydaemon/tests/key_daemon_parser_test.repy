@@ -15,14 +15,21 @@
   Assumes key_daemon.repy was started with the following arguments on the
   same computer:
   
-  key_daemon --port 12345 --ip 127.0.0.1
+  key_daemon --port 12345 --ip 127.0.0.1 --maxkeys 20 --keylength 32
+  
+  (keylength is optional, but it assumes a full cache and with a small key length 
+  this is achieved much faster)
   
   Note: for testing purposes, it might be of interest to set the --keylength
   parameter to a small size such as 16 or 32 for faster key generation.
   
 """
 
+
+
 include key_daemon_parser.repy
+
+
 
 def run_daemon_tests():
   """
@@ -42,20 +49,30 @@ def run_daemon_tests():
   <Returns>
     None.
   """
-
+  # get the ip
+  ip = getmyip()
+  
   # Test just ip/port related stuff first, but suppress 'print'
   expect(False, get_keypair('0.0.0.0', 123, False), 'Bad IP')
-  expect(False, get_keypair('127.0.0.12', 123, False), 
-    'Good IP, not listening')
-  expect(False, get_keypair('127.0.0.1', -5, False), 
-    'Good IP, bad port')
+  expect(False, get_keypair(ip, 123, False), 
+      'Good IP, not listening')
+  expect(False, get_keypair(ip, -5, False), 
+      'Good IP, bad port')
   expect(False, get_keypair('0', -5, False), 'bad IP, bad port')
   # The following might sometimes return a false positive if server has keys
-  expect(False, get_keypair('127.0.0.1', 12345, False, 0), 
-    'Good IP & port as int, instant timeout')
-  expect(True, get_keypair('127.0.0.1', "12345", False, 180), 
-    'Good IP & port as str, reasonable timeout')
+  expect(False, get_keypair(ip, 12345, False, 0), 
+      'Good IP & port as int, instant timeout')
+  expect(True, get_keypair(ip, "12345", False, 180), 
+      'Good IP & port as str, reasonable timeout')
+      
+  # Try to see if the server'll crash, or if it'll tell us it's out of keys
+  # Make sure to use a restrictions file that allows at least 30 sockets to be
+  # opened.
+  for i in range(30):
+    print (get_keypair(ip, 12345, False, 180))
 
+    
+    
 def expect(expected_value, daemon_parser_response, test_description = ""):
   """
   <Purpose>

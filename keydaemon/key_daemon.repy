@@ -20,7 +20,7 @@
   
   Usage:
     key-daemon --port # [--maxkeys 60] [--keylength 1024] [--recvtimeout 240]
-                        [--keyrefresh 5] [--ip #ip#]
+                        [--keyrefresh 1] [--ip #ip#]
    
   Paramaters (may be specified in any order):
     --port            Required. Sets the port the daemon will start on. No
@@ -74,7 +74,7 @@ def fill_keys_cache():
   if len(mycontext['key_cache']) < mycontext['max_keys']:
     while len(mycontext['key_cache']) < mycontext['max_keys']:
       print 'Generating key '+str(1 + len(mycontext['key_cache']))+ \
-        ' of '+str(mycontext['max_keys'])
+          ' of '+str(mycontext['max_keys'])
       generated_key = rsa_gen_pubpriv_keys(mycontext['default_keylen'])
       pubkey_string = rsa_publickey_to_string(generated_key[0])
       privkey_string = rsa_privatekey_to_string(generated_key[1])
@@ -106,6 +106,8 @@ def close_socket(socket_to_close):
     socket_to_close.close()
   except Exception, e:
     print e
+    
+    
 
 def wait_for_connection(ip, port, sockobj, thiscommhandle, listencommhandle):
   """
@@ -116,8 +118,8 @@ def wait_for_connection(ip, port, sockobj, thiscommhandle, listencommhandle):
     closed after the key has been sent.
     
     A keypair will either be pulled from cache (if one exists at time of 
-    connection request), or one will be generated and sent to the remote
-    user.
+    connection request), or we'll respond to the client telling that we have 
+    no keys.
 
   <Arguments>
     None. Shouldn't be called manually.
@@ -128,7 +130,9 @@ def wait_for_connection(ip, port, sockobj, thiscommhandle, listencommhandle):
     more connections.
     
     Throws IndexError exception when we try to .pop() on our cache if it is
-    empty. Then we catch it and generate a new key on the fly.
+    empty. Then we catch it and then set the keys to return over the socket as
+    empty and this'll tell the client that we're out of keys and that they have
+    to check back later.
     
     Function exits if the not remote client doesn't send a "NEWKEY\n" string 
     to request a new string as the first thing it does.
@@ -180,20 +184,25 @@ def wait_for_connection(ip, port, sockobj, thiscommhandle, listencommhandle):
   print '\n['+str(thiscommhandle)+'] remote user ['+str(ip)+'] requesting key'
   print '\n['+str(thiscommhandle)+'] trying cache for key...'
   
-  # Try to .pop() our cache for a key, and if that errors out with an
-  # IndexError then generate a new key. Finally try to send the keypair
-  # back over the socket and close the connection after the transaction.
+
   try:
-    key_tuple = mycontext['key_cache'].pop(0)
-    pubkey_to_return = key_tuple[0]
-    privkey_to_return = key_tuple[1]
+    # Try to .pop() our cache for a key
+    key_pair = mycontext['key_cache'].pop(0)
+    # these are the keys that'll be returned over the socket
+    pubkey_to_return = key_pair[0]
+    privkey_to_return = key_pair[1]
+    
+  # index error occurs if we have no more keys in our cache
   except IndexError, e: 
-    print '\n['+str(thiscommhandle)+'] cache is empty, generating new key'
-    key_tuple = rsa_gen_pubpriv_keys(mycontext['default_keylen'])
-    pubkey_to_return = rsa_publickey_to_string(key_tuple[0])
-    privkey_to_return = rsa_privatekey_to_string(key_tuple[1])
+    # if we have no keys, go ahead and set the keys to be returned as blank
+    # and the parser will know that this means that we're out of keys.
+    print '\n['+str(thiscommhandle)+'] cache is empty, telling the client'
+    pubkey_to_return = ''
+    privkey_to_return = ''
+    
   finally:
     try:
+      # Finally try to send the keypair
       sockobj.send(pubkey_to_return+'\n'+privkey_to_return+'\n')
       print "\n["+str(thiscommhandle)+"] got a key"
     except Exception, e:
@@ -201,8 +210,11 @@ def wait_for_connection(ip, port, sockobj, thiscommhandle, listencommhandle):
       print "\n["+str(thiscommhandle)+"] Error: trouble sending keys back " + \
         "to the remote host ("+str(ip)+")."
     finally:
+      # Clean up the socket and exit
       sockobj.close()
 
+
+      
 if callfunc == 'initialize':
   """
   <Purpose>
@@ -238,19 +250,20 @@ if callfunc == 'initialize':
   if argparse_scan_bool(callargs, '--port'):
     # Port exists, we verified that from the previous line
     port = argparse_scan_int(callargs, '--port')
+    
     mycontext['key_cache'] = [] # initialize key_cache to blank list
-    mycontext['max_keys'] = argparse_scan_int(callargs, '--maxkeys', 60)    
-    # TODO: if keylength is of type string, it wont auto-cast to int, is this
+    mycontext['max_keys'] = int(argparse_scan_int(callargs, '--maxkeys', 60))
+    
+    # question: if keylength is of type string, it wont auto-cast to int, is this
     # desired behavior from rsa.repy?
     mycontext['default_keylen'] = int(argparse_scan_int(callargs, 
-      '--keylength', 1024))
-    
-    
+        '--keylength', 1024))
+
     mycontext['recv_timeout'] = int(argparse_scan_int(callargs, 
-      '--recvtimeout', 240))
+        '--recvtimeout', 240))
     # multiply by 60 seconds -> 60s per minute, arg takes in minutes
     mycontext['key_refresh_rate'] = 60 * argparse_scan_int(callargs, 
-      '--keyrefresh', 5)
+        '--keyrefresh', 1)
       
     # IP has default value of getmyip()
     ip = argparse_scan_str(callargs, '--ip', getmyip())

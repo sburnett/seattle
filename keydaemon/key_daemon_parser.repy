@@ -17,6 +17,8 @@
   See function definition for sample usage.
 """
 
+
+  
 def keydaemon_parser_connection_timeout(socketobj):
   """
   <Purpose>
@@ -27,7 +29,7 @@ def keydaemon_parser_connection_timeout(socketobj):
     socketobj:   the daemon socket
     
   <Exceptions>
-    None.
+    None
 
   <Side Effects>
     None.
@@ -38,8 +40,9 @@ def keydaemon_parser_connection_timeout(socketobj):
   
   mycontext['key_daemon_timer_trigger'] = True
   socketobj.close()
-
   
+  
+ 
 def get_keypair(ip, port, verbose = True, default_timeout = 180):
   """
   <Purpose>
@@ -87,14 +90,16 @@ def get_keypair(ip, port, verbose = True, default_timeout = 180):
     if verbose:
       print 'Connecting...'
       
+    # Open the connection and set the timeout (and flag denoting the timeout)
     mycontext['key_daemon_timer_trigger'] = False
     daemon_socket = openconn(ip, int(port))
     timeout_timer = settimer(default_timeout, 
       keydaemon_parser_connection_timeout, (daemon_socket,))
-      
+    
     if verbose:
       print 'Connected! Sending key request...'
     
+    # request the newkey
     daemon_socket.send('newkey\n')
   except Exception, e:
     if verbose:
@@ -102,6 +107,7 @@ def get_keypair(ip, port, verbose = True, default_timeout = 180):
       
     return (False, 'Socket Error', 'Trouble connecting to host ('+str(ip)+ \
       ':'+str(port)+')')
+
   else: # Connected
     newline_counter = 0 # will count \n's that we receive on our socket
     incoming_data = '' # incoming data buffer
@@ -109,9 +115,13 @@ def get_keypair(ip, port, verbose = True, default_timeout = 180):
     if verbose:
       print 'Waiting for key...'
     
+    # we need to loop until we get two \n's, but we have to also check
+    # that the timeout hasn't been hit (this is the timer_trigger)
     while newline_counter < 2 and not mycontext['key_daemon_timer_trigger']:
         try:
+          # receive data
           incoming_data += daemon_socket.recv(512)
+          # count the \n's
           newline_counter = incoming_data.count('\n')
         except Exception, e:
           if verbose:
@@ -120,23 +130,34 @@ def get_keypair(ip, port, verbose = True, default_timeout = 180):
           # catches socket closed, then exits while loop because of flag
           continue
     
+    # if the timeout flag has been triggered and we haven't gotten
+    # two \n's this means that we haven't received all of the 
+    # necessary data.
     if mycontext['key_daemon_timer_trigger'] and newline_counter < 2:
       if verbose:
         print 'Socket timed out. Exiting function with timeout error.'
         
       return (False, 'Timeout Error', 'A response could not be obtained' + \
-        ' in the specified amount of time ('+str(default_timeout)+' seconds).')
+          ' in the specified amount of time ('+str(default_timeout)+' seconds).')
         
-    # Cancel timer so we 
-    # 1. can release resources, and 
-    # 2. don't accidentally trigger it (shouldn't have any side effects anyway)
+    # Cancel timer so we can release resources.
     canceltimer(timeout_timer)
 
     if verbose:
       print 'Key received successfully!'
       
     # [pubkey]\n[privkey]\n -> becomes array of two items after splitlines()
+    # in the case that it's not a key, we'll have
+    # \n\n
     keypair = incoming_data.splitlines()
     public_key_string = keypair[0]
     private_key_string = keypair[1]
-    return (True, public_key_string, private_key_string)
+    
+    # now we need to check whether we actually received a key or if the server
+    # is out of keys
+    if public_key_string and private_key_string:
+      # good, non empty strings so we've got our keys, return those
+      return (True, public_key_string, private_key_string)
+    else:
+      # oops, no more keys :(
+      return (False, 'Server Error', 'Server is out of keys')
