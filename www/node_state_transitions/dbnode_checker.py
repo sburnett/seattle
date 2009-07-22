@@ -128,6 +128,8 @@ def handle_donations_parallel(donations):
       sleep(1.0)
             
     resultdict = parallelize_getresults(phandle)
+    
+    parallelize_closefunction(phandle)
 
     # print any exceptions that might have occurred in the threads
     for donation, exception_str in resultdict['exception']:
