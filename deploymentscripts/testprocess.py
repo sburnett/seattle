@@ -211,6 +211,7 @@ if (updater_num == 1):
   #check if the memory usage (in KB) is too large or to small, typical usage is about 4500KB
   if (int(updater_mem) > 9000):
     print "[SoftwareUpdater] Software Updater memory usage is unusually high."
+    print "[SoftwareUpdater] Software Updater memory usage is ("+str(updater_mem)+")"
   elif (int(updater_mem) < 2000):
     print "[SoftwareUpdater] Software Updater memory usage is unusually low."
 
