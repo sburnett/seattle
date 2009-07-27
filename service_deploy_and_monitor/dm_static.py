@@ -15,17 +15,8 @@
   This program is intended to be run continously so that it can periodically
   check how many forwarders are running and re-deploy forwardrs as nessciary.
 
-  Uses a static list of hardcoded resources, this will be replaced by
-  a dynamic program in the future
-
-  
-  
-  EXTENSIONS: THis program can optionally include one extension that performs a
-  application specific check.  The extension name is entered on the command line
-  and the extension contangs two methods
-
-    ext_setup() # sets up any nessicary state for the extension
-    ext_detect_failues(RESOURCE_LIST) # returns a list of failed nodes (see detect_failures())
+  Uses a static list of resources provided by a comma seperated file
+  WARNING: Ensure there are no spaces at the end of lines in this file.
 
 """
 
@@ -35,7 +26,6 @@ import time
 import repyhelper
 
 
-# TODO xml rpc faults
 # TODO add logging
 
 # constants
@@ -46,9 +36,8 @@ XMLRPC_SERVER = 'http://seattlegeni.cs.washington.edu:9001'
 # global state
 RESOURCE_LIST = []  # a List of dictionaires, each dictionary represents a node
 MONITOR_STATE = {}  # dictionary to hold global monitor state,
-
-
-
+FAIL_COUNTS = {} # track those nodes that we have faild to contact several times
+FAIL_MAX = 3 # number of times we can fail to reach a node before we give up on it
 
 
 def deploy_on(resources):
@@ -137,7 +126,6 @@ def deploy_on(resources):
   
 def detect_failures():
   # returns a list of nodes that are not running
-
   fail_list = []
   for node in RESOURCE_LIST:
     try:
@@ -166,9 +154,28 @@ def detect_failures():
 
 
 
+def increment_failure(list):
+# increments the failure count of each node in list
+# if fail count = FAIL_MAX the node is removed from the list 
+# or resources.
+# 
+# when the resource list is empty exit this program
+
+  for node in list:
+    key = node['node_ip']+node['vessel_id']
+    FAIL_COUNTS[key] += 1
+    if FAIL_COUNTS[key] > FAIL_MAX:
+      RESOURCE_LIST.remove(node)
+      print 'ERROR: The following resource can not be reached. '+str(node)
+    
+  if len(RESOURCE_LIST) < 1:
+    print 'ERROR: All resources have failed, doing harsh exit'
+    sys.exit() 
+
+
 
 def main():
-# run a loop forever re-deploying services on new resources
+# run a loop forever re-deploying services
 # if there is a failure
 
   #TODO change to logging
@@ -183,6 +190,7 @@ def main():
         
     # get a list of the resources that have stopped running
     failed_resources = detect_failures()
+    increment_failure(failed_resources)
 
     if len(failed_resources) > 0:
 
@@ -208,8 +216,8 @@ if __name__ == "__main__":
   time_updatetime(34612)  
 
   # check the number of call arguments
-  if len(sys.argv) != 4 and len(sys.argv) != 5:
-    print 'USAGE: <username> <file_name to deploy> <program args> |<extension module name, for example: dm_foo_ext> |'
+  if len(sys.argv) != 5:
+    print 'USAGE: <username> <file_name to deploy> <program args> <resource file>' 
     sys.exit()
 
   
@@ -238,32 +246,38 @@ if __name__ == "__main__":
   MONITOR_STATE['pubkey'] = rsa_string_to_publickey(pubkey)
   MONITOR_STATE['privatekey'] = rsa_string_to_privatekey(privatekey)
   
+
+  # read in resources
+  file_obj = open(sys.argv[4])
+  lines = file_obj.readlines()
+  file_obj.close()
+  for nextline in lines:
+    nextline = nextline[:-1] #remove \n
+    (ip,port,vid) = nextline.split(',')
+    RESOURCE_LIST.append({'node_ip':ip,'node_port':int(port),'vessel_id':vid})  
   
-  # if an extension was specified on the command line bring it in
-  if len(sys.argv) == 5:
-    MONITOR_STATE['extension'] = __import__(sys.argv[4])
-    MONITOR_STATE['extension'].ext_setup() #setup extension state
 
-
-
-  #statically set the resource list
-  RESOURCE_LIST.append({'node_ip':'128.111.52.63','node_port':1224,'vessel_id':'v26'})
-  RESOURCE_LIST.append({'node_ip':'128.42.142.43','node_port':1224,'vessel_id':'v26'})
-  RESOURCE_LIST.append({'node_ip':'143.107.111.234','node_port':1224,'vessel_id':'v30'})
-  RESOURCE_LIST.append({'node_ip':'128.112.139.108','node_port':1224,'vessel_id':'v32'})
-  RESOURCE_LIST.append({'node_ip':'212.201.44.82','node_port':1224,'vessel_id':'v17'})
-  RESOURCE_LIST.append({'node_ip':'128.2.223.64','node_port':1224,'vessel_id':'v30'})
-  RESOURCE_LIST.append({'node_ip':'72.36.112.72','node_port':1224,'vessel_id':'v75'})
-  RESOURCE_LIST.append({'node_ip':'194.117.20.214','node_port':1224,'vessel_id':'v12'})
-  RESOURCE_LIST.append({'node_ip':'133.11.240.57','node_port':1224,'vessel_id':'v34'})
-  RESOURCE_LIST.append({'node_ip':'129.24.211.29','node_port':1224,'vessel_id':'v31'})
-
-
+  # set the initial FAIL_COUNTS
+  for node in RESOURCE_LIST:
+    #use the ip and vessel id as a key
+    FAIL_COUNTS[node['node_ip']+node['vessel_id']] = 0
 
   main()
+
+
+
   
 
 
+	
+	
+	
+	
+	
+	
+	
+	
+	
 	
 	
 	
