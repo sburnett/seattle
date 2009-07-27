@@ -18,7 +18,7 @@ include ntp_time.repy
 
 include advertise.repy
 
-include session.repy 
+
 
 
 
@@ -46,8 +46,8 @@ def time_server_announce(ipPortstring):
 def send_time_to_client(ip,port,sockobj,thiscommhandle,listencommhandle):
 
   serverTime = str(time_gettime())
-
-  session_sendmessage(sockobj,serverTime)
+  sockobj.send(serverTime+'$')
+  
   
   #countingis done after sending the time so clients get a fast response
   mycontext['count_lock'].acquire()
