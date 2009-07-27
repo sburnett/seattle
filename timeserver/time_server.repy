@@ -13,12 +13,12 @@
 
 """
 
+# this program will NOT use tcp_time
+include ntp_time.repy  
 
-include time.repy
+include advertise.repy
 
-include centralizedadvertise.repy
-
-
+include session.repy 
 
 
 
@@ -29,7 +29,7 @@ def time_server_announce(ipPortstring):
   announced = False
   while announced != True:
     try:
-      announced = centralizedadvertise_announce("time_server",ipPortstring,300)
+      announced = advertise_announce("time_server",ipPortstring,300)
     except Exception,e:
       print e, " trying again to announce presence to the central server"
       sleep(60)            # Announce failed, retry in 60 seconds
@@ -47,9 +47,17 @@ def send_time_to_client(ip,port,sockobj,thiscommhandle,listencommhandle):
 
   serverTime = str(time_gettime())
 
-  # EK the $ will be used as a flag so the client knows he has seen
-  # the entire message
-  sockobj.send(serverTime+'$')
+  session_sendmessage(sockobj,serverTime)
+  
+  #countingis done after sending the time so clients get a fast response
+  mycontext['count_lock'].acquire()
+  mycontext['count']+=1
+  
+  if mycontext['count'] % 10 == 0:
+    print 'serviced requests: '+str(mycontext['count'])
+  mycontext['count_lock'].release()
+  
+
 
   stopcomm(thiscommhandle)
 
@@ -68,11 +76,10 @@ if callfunc == 'initialize':
     port = 12345
     ip = '127.0.0.1'
 
-
-  # manually set the function composition of time.repy to ensure
-  # this service is not used recursively
-  time_set_pref(['ntp'])
-
+  # track how many connections are made so we have an idea of how
+  # often this service is used
+  mycontext['count'] = 0
+  mycontext['count_lock'] = getlock()  
 
   # Establish time via a connection to a NTP server
   obtainingtime = True
