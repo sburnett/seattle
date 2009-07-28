@@ -197,7 +197,9 @@ if (updater_num == 1):
   
   #get the memory usage for the process
   for count in range(1,10):
-    ps = subprocess.Popen('ps o pid,size ' + str(updater_pid) + ' | grep -v PID', shell=True, stdout=subprocess.PIPE)
+    # JAC: I've changed this from 'size' to 'rss' because this is more accurate
+    # for systems that don't have memory paged out (see: #468)
+    ps = subprocess.Popen('ps o pid,rss ' + str(updater_pid) + ' | grep -v PID', shell=True, stdout=subprocess.PIPE)
     rawstring = ps.stdout.read()
     #make sure we have at least two lines of output
     if len(rawstring)>=2:
