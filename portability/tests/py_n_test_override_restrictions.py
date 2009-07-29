@@ -12,5 +12,5 @@ import repyhelper
 override_restrictions()
 
 # in the call to this, it will do 'exitall' if the restrictions are in place
-repyhelper.translate_and_import("rz_restrictions.veryslowread_test.py")
+repyhelper.translate_and_import("printifreadisfast.repy")
 
