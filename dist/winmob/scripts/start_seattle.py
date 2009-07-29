@@ -20,7 +20,7 @@ def start_seattle(prog_dir):
   """
   <Purpose>
     Launches the python processes necessary for seattle. Uses
-    windows_api.launchPythonScript for mobile portability.
+    windows_api.launch_python_script for mobile portability.
 
   <Arguments>
     prog_dir:
@@ -35,9 +35,9 @@ def start_seattle(prog_dir):
   <Returns>
     None.
   """
-  windows_api.launchPythonScript(prog_dir + "/get_seattlestopper_lock.py")
-  windows_api.launchPythonScript(prog_dir + "/nmmain.py")
-  windows_api.launchPythonScript(prog_dir + "/softwareupdater.py")
+  windows_api.launch_python_script(prog_dir + "/get_seattlestopper_lock.py")
+  windows_api.launch_python_script(prog_dir + "/nmmain.py")
+  windows_api.launch_python_script(prog_dir + "/softwareupdater.py")
 
 
 

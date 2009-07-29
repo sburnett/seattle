@@ -494,7 +494,7 @@ def start_seattle(prog_path):
     p = subprocess.Popen('"' + starter_fn + '"', shell=True)
     p.wait()
   elif OS == "WindowsCE":
-    windows_api.launchPythonScript(starter_fn)
+    windows_api.launch_python_script(starter_fn)
   else:
     p = subprocess.Popen(starter_fn, shell=True)
     p.wait()

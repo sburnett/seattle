@@ -37,12 +37,12 @@ import windows_api
 import ctypes # Used to query for max file handles
 
 # Get disk info, using current directory
-diskInfo = windows_api.diskUtil(None)
+diskInfo = windows_api.disk_util(None)
 totalDisk = diskInfo["totalBytes"]
 freeDisk = diskInfo["freeBytes"]
   
 # Get meminfo
-memInfo = windows_api.globalMemoryInfo()
+memInfo = windows_api.global_memory_info()
 totalMem = memInfo["totalPhysical"]
 
 if windows_api.MobileCE:
