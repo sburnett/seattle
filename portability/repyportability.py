@@ -1,16 +1,107 @@
 
-# I'm going to neuter the calls here...
+# I'm importing these so I can neuter the calls so that they aren't 
+# restricted...
 import nanny
 import restrictions
+
+
+# JAC: Save the calls in case I want to restore them.   This is useful if 
+# repy ends up wanting to use either repyportability or repyhelper...
+# This is also useful if a user wants to enforce restrictions on the repy
+# code they import via repyhelper (they must use 
+# restrictions.init_restriction_tables(filename) as well)...
+oldrestrictioncalls = {}
+oldrestrictioncalls['nanny.tattle_quantity'] = nanny.tattle_quantity
+oldrestrictioncalls['nanny.tattle_add_item'] = nanny.tattle_add_item
+oldrestrictioncalls['nanny.tattle_remove_item'] = nanny.tattle_remove_item
+oldrestrictioncalls['nanny.tattle_check'] = nanny.tattle_check
+oldrestrictioncalls['restrictions.assertisallowed'] = restrictions.assertisallowed
+
 
 def do_nothing(*args):
   pass
 
-nanny.tattle_quantity = do_nothing
-nanny.tattle_add_item = do_nothing
-nanny.tattle_remove_item = do_nothing
-nanny.tattle_check = do_nothing
-restrictions.assertisallowed = do_nothing
+# Overwrite the calls so that I don't have restrictions (the default)
+def override_restrictions():
+  """
+   <Purpose>
+      Turns off restrictions.   Resource use will be unmetered after making
+      this call.   (note that CPU / memory / disk space will never be metered
+      by repyhelper or repyportability)
+
+   <Arguments>
+      None.
+         
+   <Exceptions>
+      None.
+
+   <Side Effects>
+      Resource use is unmetered / calls are unrestricted.
+
+   <Returns>
+      None
+  """
+  nanny.tattle_quantity = do_nothing
+  nanny.tattle_add_item = do_nothing
+  nanny.tattle_remove_item = do_nothing
+  nanny.tattle_check = do_nothing
+  restrictions.assertisallowed = do_nothing
+
+
+# Sets up restrictions for the program
+# THIS IS ONLY METERED FOR REPY CALLS AND DOES NOT INCLUDE CPU / MEM / DISK 
+# SPACE
+def initialize_restrictions(restrictionsfn):
+  """
+   <Purpose>
+      Sets up restrictions.   This allows some resources to be metered 
+      despite the use of repyportability / repyhelper.   CPU / memory / disk 
+      space will not be metered.   Call restrictions will also be enabled.
+
+   <Arguments>
+      restrictionsfn:
+        The file name of the restrictions file.
+         
+   <Exceptions>
+      None.
+
+   <Side Effects>
+      Enables restrictions.
+
+   <Returns>
+      None
+  """
+  restrictions.init_restriction_tables(restrictionsfn)
+  nanny.initialize_consumed_resource_tables()
+  enable_restrictions()
+
+def enable_restrictions():
+  """
+   <Purpose>
+      Turns on restrictions.   There must have previously been a call to
+      initialize_restrictions().  CPU / memory / disk space will not be 
+      metered.   Call restrictions will also be enabled.
+
+   <Arguments>
+      None.
+         
+   <Exceptions>
+      None.
+
+   <Side Effects>
+      Enables call restrictions / resource metering.
+
+   <Returns>
+      None
+  """
+  # JAC: THIS WILL NOT ENABLE CPU / MEMORY / DISK SPACE
+  nanny.tattle_quantity = oldrestrictioncalls['nanny.tattle_quantity']
+  nanny.tattle_add_item = oldrestrictioncalls['nanny.tattle_add_item'] 
+  nanny.tattle_remove_item = oldrestrictioncalls['nanny.tattle_remove_item'] 
+  nanny.tattle_check = oldrestrictioncalls['nanny.tattle_check'] 
+  restrictions.assertisallowed = oldrestrictioncalls['restrictions.assertisallowed'] 
+  
+
 from emulmisc import *
 from emulcomm import *
 from emulfile import *
@@ -24,3 +115,5 @@ originalfile = file
 open = emulated_open
 file = emulated_open
 
+# Override by default!
+override_restrictions()
