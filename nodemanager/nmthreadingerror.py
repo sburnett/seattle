@@ -100,7 +100,7 @@ def handle_threading_error():
   allocatedThreads = get_allocated_threads()
   
   # Get the number os system threads currently
-  systemThreads = nonportable.osAPI.getSystemThreadCount()
+  systemThreads = nonportable.os_api.get_system_thread_count()
   
   # Log this information
   servicelogger.log("[ERROR]:System Threads: "+str(systemThreads)+"  Repy Allocated Threads: "+str(allocatedThreads))
