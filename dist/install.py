@@ -489,7 +489,7 @@ def start_seattle(prog_path):
   <Returns>
     None.
   """
-  starter_fn = prog_path + os.sep + get_starter_file_name()
+  starter_fn = '"' + prog_path + os.sep + get_starter_file_name() + '"'
   if OS == "Windows":
     p = subprocess.Popen('"' + starter_fn + '"', shell=True)
     p.wait()
