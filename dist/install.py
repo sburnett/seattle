@@ -306,9 +306,7 @@ def setup_startup(prog_path):
     # Generate a temp file with the user's crontab plus our task
     # (tempfile module used as suggested in Jacob Appelbaum's patch)
     cron_line = '*/10 * * * * "' + prog_path + '/' + \
-        get_starter_file_name() + '" >> "' + prog_path + \
-        '/cron_log.txt"' + ' 2>> "' + prog_path + \
-        '/cron_log.txt"' + os.linesep
+        get_starter_file_name() + '" >> /dev/null 2>&1'
     crontab_f = subprocess.Popen("crontab -l", shell=True, stdout=subprocess.PIPE).stdout
     filedescriptor, tmp_location = tempfile.mkstemp("temp", "seattle")
     for line in crontab_f:
