@@ -16,3 +16,11 @@ from emulcomm import *
 from emulfile import *
 from emultimer import *
 
+# This is needed because otherwise we're using the old versions of file and
+# open.   We should change the names of these functions when we design
+# repy 0.2
+originalopen = open
+originalfile = file
+open = emulated_open
+file = emulated_open
+
