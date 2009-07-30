@@ -9,6 +9,10 @@ Included in the Windows installer, this will run the install script
 ==manifest.txt==
 This file (see description at top).
 
+==ReadMe==
+Includes an introduction to Seattle, installation and uninstall instructions,
+along with contact information and a legal statement.
+
 ==start_seattle.bat==
 Included in the Windows installer, this will start the python scripts
 that comprise seattle when called.
