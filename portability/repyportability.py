@@ -18,7 +18,7 @@ oldrestrictioncalls['nanny.tattle_check'] = nanny.tattle_check
 oldrestrictioncalls['restrictions.assertisallowed'] = restrictions.assertisallowed
 
 
-def do_nothing(*args):
+def _do_nothing(*args):
   pass
 
 # Overwrite the calls so that I don't have restrictions (the default)
@@ -41,11 +41,11 @@ def override_restrictions():
    <Returns>
       None
   """
-  nanny.tattle_quantity = do_nothing
-  nanny.tattle_add_item = do_nothing
-  nanny.tattle_remove_item = do_nothing
-  nanny.tattle_check = do_nothing
-  restrictions.assertisallowed = do_nothing
+  nanny.tattle_quantity = _do_nothing
+  nanny.tattle_add_item = _do_nothing
+  nanny.tattle_remove_item = _do_nothing
+  nanny.tattle_check = _do_nothing
+  restrictions.assertisallowed = _do_nothing
 
 
 # Sets up restrictions for the program
