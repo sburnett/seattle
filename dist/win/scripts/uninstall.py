@@ -68,14 +68,20 @@ def uninstall(starter_script):
     print "seattle was successfully uninstalled."
     print "You may now delete the directory containing seattle, if you wish."
 
+    servicelogger.log(time.strftime(" seattle was UNINSTALLED on: %m-%d-%Y %H:%M:%S"))
+
   except UninstallError, (e):
-    print "Install failed:", e.parameter
+    print "Uninstall failed:", e.parameter
     print "To uninstall manually, remove the file " + os.path.basename(starter_script) + " from your startup folder, then restart your computer."
     print "You can then delete the directory containing seattle, if you wish."
 
 
 
 def main():
+
+  # Initialize the service logger.
+  servicelogger.init('installInfo')
+
   if len(sys.argv) < 2:
     print "Usage: python uninstall.py path\\to\\startup\\script"
   else:

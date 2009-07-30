@@ -581,6 +581,8 @@ def install(prog_path):
            get_uninstaller_name() + ".")
     output("After running it, you can remove the directory containing seattle.")
 
+    servicelogger.log(time.strftime(" seattle was installed on: %m-%d-%Y %H:%M:%S"))
+
   else:
     output("Failed.")
 
@@ -621,6 +623,10 @@ def main():
   install.install(prog_path).
   Parses command line arguments and calls install() accordingly.
   """
+
+  #Initialize the service logger.
+  servicelogger.init('installInfo')
+
   global SILENT_MODE
   opts = None
   args = None

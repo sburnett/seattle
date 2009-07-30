@@ -71,9 +71,14 @@ def uninstall(silent = 0):
         output("Could not detect a seattle installation on your computer.", silent)
     os.unlink(s_tmp)
 
+    servicelogger.log(time.strftime(" seattle was UNINSTALLED on: %m-%d-%Y %H:%M:%S"))
+
 
 
 def main():
+    # Initialize the service logger.
+    servicelogger.init('installInfo')
+
     if len(sys.argv) < 2:
         uninstall()
     else:
