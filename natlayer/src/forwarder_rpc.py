@@ -15,12 +15,10 @@ Description:
 
 """
 
-
 # Get the NATLayer
-include NATLayer_rpc.py
+include NATLayer_rpc.repy
 
-# Get the RPC constants
-include RPC_Constants.py
+
 
 FORWARDER_STATE = {"ip":"127.0.0.1","Next_Conn_ID":0}
 MAX_CLIENTS_PER_SERV = 4*2 # How many clients per server, the real number is this divided by 2
@@ -46,8 +44,8 @@ MAC_ID_LOCK = getlock()
 MAC_ID_LOOKUP = {}
 
 # Controls Debug messages
-DEBUG1 = True  # Prints general debug messages
-DEBUG2 = True  # Prints verbose debug messages
+DEBUG1 = False  # Prints general debug messages
+DEBUG2 = False  # Prints verbose debug messages
 DEBUG3 = False  # Prints Ultra verbose debug messages
 
 
@@ -80,6 +78,49 @@ def connection_info(conn_id, value):
   return (True, info)
 
 
+
+# determine if a client needs to use nat to establish bi-directional connections
+def is_connection_bi_directional(conn_id,value):
+  
+   ret_value = False # assume innocent until proven guilty
+
+   # value is a dictionary of the form
+   # {locaip:the ip of the client,waitport:the port the client established for waiting}
+
+   # get the connection info
+   # info = {"ip":remoteip,"port":remoteport,"sock":sock,"type":type}
+   info = CONNECTIONS[conn_id]
+
+   # if locaip != external ip the client needs to use nat
+   if (value['localip'] != info['ip']):
+     ret_value = True
+     
+
+   # if the ips match try to make a connection
+   else:
+     try:
+       test_sock = openconn(value['localip'],value['waitport'])
+     except Exception:
+       ret_value = True # failed to make connection
+       
+     else:
+     
+       test_str = "test connection ok"
+       test_sock.send(test_str)
+     
+       recieved = 0
+       msg=''
+       while recieved < len(test_str):
+         msg += test_sock.recv(len(test_str)-recieved)
+         recieved += len(msg)
+       test_sock.close()
+       ret_value = (msg != test_str)
+       
+  
+   return (True,ret_value)
+
+
+
 # Registers a new server
 def register_server(conn_id, value):
   # The value is the MAC address to register under
@@ -105,8 +146,6 @@ def _timed_dereg_server(id,mux):
   # DEBUG
   if DEBUG3: print getruntime(), "De-registering server ID#",id
   
-  _safe_close(mux)
-  
   CONNECTIONS_LOCK.acquire()
   try:
     # Delete the server entry
@@ -114,9 +153,13 @@ def _timed_dereg_server(id,mux):
   except KeyError:
     # The mux may have already been cleaned up by the main thread
     pass
-  
   CONNECTIONS_LOCK.release()
-
+  
+  # close the mux if its still active
+  # NOTE do this AFTER removing from connections or the mux will
+  # trigger the error delegate many many times
+  _safe_close(mux) 
+  
 
   # decrement the count of servers connected
   server_wait_dict = mycontext['server_wait_info']
@@ -170,13 +213,10 @@ def deregister_server(conn_id,srvmac):
     else:
       mux = None
   
-    # Set timer to close the multiplexer in WAIT_INTERVAL(3) second
-    # This is because we cannot close the connection immediately or the RPC call would fail
-    settimer(WAIT_INTERVAL,_timed_dereg_server, [conn_id,mux])
+    # close the connection immidiately and let the rpc call fail
+    _timed_dereg_server(conn_id,mux)
   
-    # DEBUG    
-    if DEBUG3: print getruntime(), "Set timer to de-register server ID#",conn_id,"Time:",WAIT_INTERVAL
-      
+          
   return (True, None)
 
 
@@ -283,7 +323,7 @@ def new_client(conn_id, value):
     return (True,NAT_STATUS_CONFIRMED)
   except Exception, exp:
     # DEBUG
-    if DEBUG3: print getruntime(), "Error while opening virtual socket to ",servermac,"Error:",str(exp)
+    if DEBUG2: print getruntime(), "Error while opening virtual socket to ",servermac,"Error:",str(exp)
     
     return (False,NAT_STATUS_FAILED)
 
@@ -296,9 +336,9 @@ def new_rpc(conn_id, sock):
   try:
     # Get the RPC object
     rpc_dict = RPC_decode(sock)
-    print 'decoded rpc'
+    
     # DEBUG
-    if DEBUG1: print getruntime(),"#"+str(conn_id),"RPC Request:",rpc_dict
+    if DEBUG2: print getruntime(),"#"+str(conn_id),"RPC Request:",rpc_dict
     
     # Get the RPC call id
     if RPC_REQUEST_ID in rpc_dict:
@@ -340,7 +380,7 @@ def new_rpc(conn_id, sock):
         # Give the function the conn_id, and the value to the request
         # Store the status, and the return value
         status,retvalue = func(conn_id,value)
-      
+        
       else:
         # The request has failed, not allowed
         status = False
@@ -365,8 +405,11 @@ def new_rpc(conn_id, sock):
     response = RPC_encode(statusdict) 
   
     # Send the response
-    sock.send(response)
-  
+    try:
+      sock.send(response)
+    except:
+      return # the other side of this connection is no longer availabe
+
     # Check if there is more RPC calls
     if additional:
       # Recurse
@@ -437,18 +480,18 @@ def _mux_internal_error(mux, errorloc, excep):
   # Extract the connection ID
   conn_id = mux.socketInfo["conn_id"]
   
-  # DEGUG
+  # DEGUG 2
   if DEBUG2: print getruntime(),"#",conn_id,"Multiplexer had fatal error in:",errorloc,"due to:",excep 
   
   # De-register this multiplexer
   deregister_server(conn_id,None)
 
+
+
+
 # Handle new servers
 def new_server(remoteip, remoteport, sock, thiscommhandle, listencommhandle):
-  # DEBUG
-  if DEBUG2: print getruntime(),"Server Conn.",remoteip,remoteport
   
-
   server_wait_dict = mycontext['server_wait_info']
   server_wait_dict['lock'].acquire()
   
@@ -467,6 +510,8 @@ def new_server(remoteip, remoteport, sock, thiscommhandle, listencommhandle):
     
     # stop advertising the forwarder
     nat_toggle_advertisement(False)    
+
+  if DEBUG2: print getruntime(),"Server Conn.",remoteip,remoteport
 
   server_wait_dict['lock'].release()
 
@@ -488,16 +533,13 @@ def new_server(remoteip, remoteport, sock, thiscommhandle, listencommhandle):
   # Helper wrapper function
   def rpc_wrapper(remoteip, remoteport, client_sock, thiscommhandle, listencommhandle):
     new_rpc(id, client_sock)
+    
 
   # Set the RPC waitforconn
   mux.waitforconn(RPC_VIRTUAL_IP, RPC_VIRTUAL_PORT, rpc_wrapper)
   
   # Create an entry for the server
   _connection_entry(id,sock,mux,remoteip,remoteport,TYPE_MUX)
-
-
-
-
 
 
  
@@ -528,19 +570,36 @@ def inbound_connection(remoteip, remoteport, sock, thiscommhandle, listencommhan
   
 
 
+def common_entry(remoteip,remoteport,sock,tch,lch):
+  # a common entry point for all incomming connections
+
+  # get the type of connection
+  try:
+    type = sock.recv(1)
+  except:
+    return
+
+  if type == 'S':
+    # new servers
+    new_server(remoteip,remoteport,sock,tch,lch)
+  elif type =='C':
+    # new clients
+    inbound_connection(remoteip,remoteport,sock,tch,lch)
+  else:
+    if DEBUG1: print getruntime(), "Closed inbound connection, inncorect type specified."
+    sock.close()
+
+
 # Main function
 def main():
   # Forwarder IP
   ip = getmyip()
   FORWARDER_STATE["ip"] = ip
-  
-  # Setup a port for servers to connect
-  server_wait_handle = waitforconn(ip, mycontext['SERVER_PORT'], new_server)
+
+  # setup a common entry point for both clients and servers
+  server_wait_handle = waitforconn(ip, mycontext['SERVER_PORT'], common_entry)
   mycontext['server_wait_info']={'active':True,'lock':getlock()}
 
-  # Setup a port for clients to connect
-  client_wait_handle = waitforconn(ip, mycontext['CLIENT_PORT'], inbound_connection)
-  
   # Advertise the forwarder
   nat_forwarder_advertise(ip,mycontext['SERVER_PORT'],mycontext['CLIENT_PORT'])
   nat_toggle_advertisement(True)
@@ -549,30 +608,12 @@ def main():
   if DEBUG1: print getruntime(),"Forwarder Started on",ip
 
 
- 
-  # print connections for debugging
-  while True:
-    sleep(CHECK_INTERVAL)
-    
-    # check periodically to make sure the forwarder isnt deadlocked 
-    # for no reason
-    server_wait_dict = mycontext['server_wait_info']
-    server_wait_dict['lock'].acquire()
-    if (not server_wait_dict['active']) and (count_servers() < MAX_SERVERS):
-      
-      # start advertising the forwarder
-      nat_toggle_advertisement(True)
-
-      if DEBUG1: print 'allowing new servers to connect'
-      server_wait_dict['active'] = True
-    server_wait_dict['lock'].release()
-
-
 
 
 
 # Dictionary maps valid RPC calls to internal functions
 RPC_FUNCTIONS = {RPC_EXTERNAL_ADDR:connection_info, 
+                 RPC_BI_DIRECTIONAL:is_connection_bi_directional,
                   RPC_REGISTER_SERVER:register_server,
                   RPC_DEREGISTER_SERVER:deregister_server,
                   RPC_REGISTER_PORT:reg_waitport,
@@ -582,6 +623,7 @@ RPC_FUNCTIONS = {RPC_EXTERNAL_ADDR:connection_info,
 # This dictionary defines the security requirements for a function
 # So that it is handled in new_rpc rather than in every RPC function
 RPC_FUNCTION_SECURITY = {RPC_EXTERNAL_ADDR:set([TYPE_MUX, TYPE_SOCK]), # Both types of connections can use this function
+                  RPC_BI_DIRECTIONAL:set([TYPE_SOCK]),
                   RPC_REGISTER_SERVER:set([TYPE_MUX]), # The registration/deregistration functions are only for servers
                   RPC_DEREGISTER_SERVER:set([TYPE_MUX]),
                   RPC_REGISTER_PORT:set([TYPE_MUX]),
@@ -592,10 +634,16 @@ RPC_FUNCTION_SECURITY = {RPC_EXTERNAL_ADDR:set([TYPE_MUX, TYPE_SOCK]), # Both ty
 # Check if we are suppose to run
 if callfunc == "initialize":
   
-  if len(callargs) != 2:
-    print ' usage: forwarder_rpc.py SERVER_PORT CLIENT_PORT'
+  if len(callargs) != 1:
+    print ' usage: forwarder_rpc.py PORT PORT'
     exitall()
 
+
+  # NOTE, this looks funny because the forwarder use to use
+  # different ports for client and server, im leaving it with the two port
+  # logic to make it easy to change back if we change our minds in the future
+  # for now both client and server port will be the same
+
   mycontext['SERVER_PORT'] = int(callargs[0])  # What real port to listen on for servers
-  mycontext['CLIENT_PORT'] = int(callargs[1])  # What real port to listen on for clients
+  mycontext['CLIENT_PORT'] = int(callargs[0])  # What real port to listen on for clients
   main()

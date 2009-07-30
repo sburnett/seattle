@@ -1,4 +1,4 @@
-include NATLayer_rpc.py
+include NATLayer_rpc.repy
 
 # This test connects a server to a forwarder and uses waitforconn
 # Then it is tested to make sure it works properly with 3 clients.
@@ -87,7 +87,7 @@ def long_execution():
 
 if callfunc == "initialize":
   # Create server connection, force local forwarder
-  whandle = nat_waitforconn(serverMac, 10000, new_client, getmyip(), 12345, 23456) 
+  whandle = nat_waitforconn(serverMac, 10000, new_client, getmyip(), 12345, 12345) 
   
   sleep(2)
   

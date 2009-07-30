@@ -3,8 +3,8 @@
 # Builds the tests
 
 
-# from trunk run python preparetest -t ${prepared_test_dir}
-prepared_test_dir='test'
+# from trunk run python preparetest ${prepared_test_dir}
+prepared_test_dir='basictest'
 
 
 # Make the built directory if necessary
@@ -26,10 +26,11 @@ cp ./resource/* ./built/
 echo "Copying Script files..."
 cp -R ./scripts ./built/
 
-# Link to repy and repypp
+# copy files from a prepared test directory WITHOUT TESTS
+# i.e don't use the -t option for preparetest
 cd built/
-ln -s ../../${prepared_test_dir}/repy.py repy.py
-ln -s ../../${prepared_test_dir}/repypp.py repypp.py
+cp -s ../../${prepared_test_dir}/* .
+
 
 # Copy multiplexer files
 # Go into the source

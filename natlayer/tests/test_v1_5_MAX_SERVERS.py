@@ -1,4 +1,4 @@
-include NATLayer_rpc.py
+include NATLayer_rpc.repy
 
 # This test connects the maximum number of servers to a forwarder.
 # It then tests...
@@ -46,19 +46,20 @@ if callfunc == "initialize":
   # do open conns to fake connections for up to max servers
   for i in range(MAX_CONNECTED):
     sleep(.5)
-    server_list.append(openconn(mycontext['forwarderip'],12345))
-     
+    sock = openconn(mycontext['forwarderip'],12345)
+    sock.send('S')
+    server_list.append(sock) 
 
   try:
     # Create server connection, force local forwarder
     whandle = nat_waitforconn(serverMac, 10000, new_client, 
-                             mycontext['forwarderip'], 12345,23456)    
+                             mycontext['forwarderip'], 12345,12345)    
 
   except Exception:
     pass # this should occur, so do nothing
   else:
     print 'No exception thrown when extra servers were connected'
-    stopcomm(whandle)
+    nat_stopcomm(whandle)
 
   
 
@@ -71,11 +72,11 @@ if callfunc == "initialize":
   
   # Create server connection, force local forwarder
   whandle = nat_waitforconn(serverMac2, 10000, new_client, 
-                              mycontext['forwarderip'], 12345,23456) 
+                              mycontext['forwarderip'], 12345,12345) 
   
   
   for sock in server_list:
     sock.close()
 
-  stopcomm(whandle)
+  nat_stopcomm(whandle)
   exitall()

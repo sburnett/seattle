@@ -1,4 +1,4 @@
-include NATLayer_rpc.py
+include NATLayer_rpc.repy
 
 # This test connects a server to a forwarder and uses waitforconn
 # Then it is tested to make the forwarder will reject clients once the max number
@@ -47,7 +47,7 @@ if callfunc == "initialize":
   # Create server connection, force local forwarder
   whandle = nat_waitforconn(serverMac, 10000, new_client, 
                   forwarderIP=mycontext['forwarderip'],
-                  forwarderPort=12345,forwarderCltPort=23456) 
+                  forwarderPort=12345,forwarderCltPort=12345) 
   
   number_connected = 0
 
@@ -57,7 +57,7 @@ if callfunc == "initialize":
     if len(clientmac) <12: clientmac +='_'
     try:
       client_list.append(nat_openconn(serverMac, 10000,
-             forwarderIP=mycontext['forwarderip'],forwarderPort=23456))
+             forwarderIP=mycontext['forwarderip'],forwarderPort=12345))
       number_connected +=1
     except Exception:
       if number_connected != MAX_CONNECTED: 

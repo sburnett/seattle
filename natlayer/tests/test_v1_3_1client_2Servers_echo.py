@@ -1,4 +1,4 @@
-include NATLayer_rpc.py
+include NATLayer_rpc.repy
 
 # This test connects 2 servers to a forwarder and uses waitforconn
 # Then it is tested to make sure a client can talk to two servers via
@@ -108,9 +108,9 @@ if callfunc == "initialize":
   
   # Setup client sockets
   clientsock1 = nat_openconn(serverMac1, 10000,
-             forwarderIP=mycontext['forwarderip'],forwarderPort=23456)
+             forwarderIP=mycontext['forwarderip'],forwarderPort=12345)
   clientsock2 = nat_openconn(serverMac2, 20000, 
-             forwarderIP=mycontext['forwarderip'],forwarderPort=23456)
+             forwarderIP=mycontext['forwarderip'],forwarderPort=12345)
 
   # Setup timer to kill us if we exceed our time limit
   handle = settimer(TIME_LIMIT, long_execution, ())

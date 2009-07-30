@@ -1,11 +1,9 @@
-include NATLayer_rpc.py
+include NATLayer_rpc.repy
 
 # This test connects a server to a forwarder and uses waitforconn
-# Then it is tested to make sure it works properly with 3 clients.
-# However, after the second client a stopcomm is issued, so the 3rd client should not be able to connect
+# Then it is tested to make sure it works properly with 2 clients.
+# However, after the first client a stopcomm is issued, so the 2nd client should not be able to connect
 # Then numbers 1-50 are exchanged
-# This test is based on test_4_server_stopcomm, however it uses the NATLayer function wrappers
-# and avoids directly using the objects, except where necessary for the unit test
 
 # There is no expected output
 
@@ -85,10 +83,11 @@ def long_execution():
 
 if callfunc == "initialize":
   # Create server connection, force local forwarder
-  whandle = nat_waitforconn(serverMac, 10000, new_client, getmyip(), 12345, 23456) 
+  whandle = nat_waitforconn(serverMac, 10000, new_client, getmyip(), 12345, 12345) 
   
+
   # Setup client sockets, force use of local forwarder for the tests
-  clientsock1 = nat_openconn(serverMac, 10000, forwarderIP=getmyip(),forwarderPort=23456)
+  clientsock1 = nat_openconn(serverMac, 10000, forwarderIP=getmyip(),forwarderPort=12345)
 
   # Setup timer to kill us if we exceed our time limit
   handle = settimer(TIME_LIMIT, long_execution, ())
@@ -96,9 +95,20 @@ if callfunc == "initialize":
   # Try to connect client 1+2
   client_message(clientsock1, 50)
   
-
-  # Quit even if any threads are left
+  # do the stopcomm
   nat_stopcomm(whandle)
-  canceltimer(handle)
-  clientsock1.close()
+  
+  # try a new connection
+  try: 
+    clientsock2 = nat_openconn(serverMac, 10000, forwarderIP=getmyip(),forwarderPort=12345)
+  except:
+    canceltimer(handle)
+    clientsock1.close()
+    
+  else:
+    clientsock2.close()
+    print 'ERROR: client was able to connect after stopcomm'
+  
+  exitall()
 
+ 
