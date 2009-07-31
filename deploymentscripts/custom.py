@@ -231,13 +231,18 @@ def upgrade_node():
 
   # build up a command list that we'll execute that'll upgrade the node
   cmd_list = []
+  
   # uninstall, and then delete old .tgz if one exists.
   cmd_list.append('python uninstall.py; cd ~/; rm -rf seattle_linux.tgz ')
   
   # download the newest file
   cmd_list.append('cd ~/; wget https://seattlegeni.cs.washington.edu/geni/download/flibble/seattle_linux.tgz')
     
-  # Untar, then move to move all files to the old install directory.
+  # remove the old seattle_repy directory
+  cmd_list.append('cd ~/; rm -rf '+sys.argv[1])
+  
+  # Untar, then move to move all files to the 'old install directory' 
+  # (if it's the same itll just display some error).
   cmd_list.append('cd ~/; tar -xf seattle_linux.tgz; cp -rf seattle_repy/ '+sys.argv[1]+'/..')
   
   # Change into seattle_repy directory and execute python install.py, then start seattle
@@ -246,7 +251,6 @@ def upgrade_node():
   # delete old install
   cmd_list.append('cd ~/; rm -rf seattle_linux.tgz')
 
-  
   cmd_string = "; ".join(cmd_list)
   out, err = shellexec(cmd_string)
   format_print(out, err)
@@ -349,12 +353,21 @@ def check_if_update(out):
   <Returns>
     None.
   """
+  valid_versions = ['0.1k']
   
   # checks if node needs to be updated
-  is1i_node = out.find('0.1i') > -1
-  is1j_node = out.find('0.1j') > -1
   is1k_node = out.find('0.1k') > -1
-  if not is1k_node and not is1i_node and not is1j_node:
+  
+  # flag that'll keep track whether the node needs to be upgraded
+  has_valid_version = False
+  
+  # check all the versions possible
+  for each_valid_version in valid_versions:
+    if out.find(each_valid_version) > -1:
+      has_valid_version = True
+  
+  
+  if not has_valid_version:
     print "Starting node update"
     upgrade_node()
     # get the possibly new version from the file and dump it.

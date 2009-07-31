@@ -1,0 +1,95 @@
+README
+Deployment scripts
+
+Purpose
+
+  This file will teach you how to use the automatic deployment packages.
+
+Introduction and Setup
+  
+  Since all the computers use pubkey authentication, we must then make sure that
+  ssh-agent will take care of our authentication with the remote hosts, so in order 
+  to do that we will execute the following two lines:
+  
+    eval `ssh-agent`
+    ssh-add
+    
+  The first line will evaluate the "stuff" printed to stdout from ssh-agent,
+  and the second line will attempt to use the data and prompt you for your
+  passphrase for use with the keys.  This is necessary if your RSA key has a
+  passphrase so that in batch mode one can easily access many hosts and not
+  have to type in the key over and over again.
+  
+  Next, you have to make sure all the files are in the needed directory. 
+  
+  Make sure you run preparetest.py on the directory you plan on placing all 
+  of these files.
+  
+  Currently using the following additional files are used (paths as of r2459, 
+  but they shouldn't really change):
+  
+    \trunk\www\node_state_transitions\*.publickey
+    iplist2.list (the list of PL and UW machines) can be obtained from Kon/Justin C. 
+        upon request.
+    hashes.dict file can be generated with the following command line 
+      (after running the file through the repypp.py)
+
+        python verifyfiles.py -writefile [in_fn] hashes.dict [look_dir]    
+      where in_fn is the path to the latest seattle install tgz (local file), and look_dir is the path to seattle_repy folder 
+      (easiest to just   place in directory and run, or run after a preparetest.py)
+  
+  After you're sure to have placed all of those files in some directory, you must place
+  all the files from the deploymentscripts/ branch as well in there.
+  
+  
+Running the deployment scripts
+
+  To run the deployment scripts, a simple command must be executed:
+  
+    python deploy_main.py
+    
+  Other parameters may be specified (see deploy_main.py for further information 
+  of parameters).  One commonly executed line might be
+  
+    python deploy_main.py -c custom.py
+    
+  where -c specifies a custom script, and custom.py is the custom script to be
+  executed.
+  
+Q&A
+
+  1.  So where did you say the logs go?
+    The logs created by the program go into deploy.logs and if the directory
+    exists at the time of execution of deploy.py, then the old log directory
+    will be suffixed with an integer and the logs will still be logged to 
+    the deploy.logs folder.  The file make_summary.py will also summarize the files
+    and create an html page whose extension is the timestamp.  It will also update the
+    master.log file which is used by the webserver in order to serve up files.
+    
+  2.  How many custom scripts can I include?
+    You can include any number of custom scripts, but in this version of the
+    release only the FIRST script will be executed.  You can theoretically
+    launch one script from another script though.
+    
+  3.  What are the other files in the directory?
+    deploy_main.py:  File responsible for typically general stuff
+    deploy_threading.py:   Responsible for threading-related stuff
+    deploy_network.py: Responsible for network related stuff (uploading, 
+      downloading files from hosts, etc)
+    make_summary.py:  File that can be run at any time - assumes deploy.logs 
+      folder exists, and from that folder it builds a summary log file.
+      The file is a summary, but is still comprehensive since it checks
+      all the child folder of deploy.logs for certain log files.
+    hashes.dict:  The file created by verifyfiles.mix that simply contains the
+      hashes of the files necessary for that version (created from tgz, see 
+      verifyfiles.mix for more details)
+    iplist2.list: This file contains all of the ips/hostnames that will be
+      connected to.  See iplist2.list for file format.
+    runlocaltests.py: The file is executed remotely and is what runs all the
+      threads on a remote host.
+    create_tar.py:  Creates the tar to be deployed as necessary
+    cleanup_deploy.py: Soon to be obsolete, but cleans up and sets up some 
+      directories on the remote host
+    custom.py:  A sample file that demonstrates how additional scripts are 
+      able to execute on a remote host.  This is where you would add custom
+      code to run

@@ -125,11 +125,12 @@ def node_was_reachable(node):
     True on node was reachable.
     False on node was unreachable.
   """  
-  # if the node is in not found inside the unreachebl_hosts set, then it was
+  # if the node is in not found inside the unreachable_hosts set, then it was
   # obviously reachable
   return node not in set(thread_communications['unreachable_host'])
 
 
+  
 def add_instructional_node(node):
   """
   <Purpose>
@@ -160,6 +161,7 @@ def add_instructional_node(node):
     thread_communications['instructional_machines'] = [node]
 
 
+    
 def subtract_host_left(hosts, sub_counter = True):
   """
   <Purpose>
@@ -187,7 +189,7 @@ def subtract_host_left(hosts, sub_counter = True):
   # perform set subtraction and cast back to a list.
   threading_lock()
   thread_communications['hosts_left'] =\
-    list(set(thread_communications['hosts_left']) - set(hosts))
+      list(set(thread_communications['hosts_left']) - set(hosts))
   threading_unlock()
   if sub_counter:
     threading_lock_and_sub()
@@ -444,7 +446,7 @@ def pid_timeout():
                 time.sleep(1)
             if remote_host:
               deploy_logging.logerror("Forced kill of PID "+str(process_to_kill)+" due to timeout! The host"+\
-                      " on this thread is "+remote_host)
+                  " on this thread is "+remote_host)
             else:
               deploy_logging.logerror("Forced kill of PID "+str(process_to_kill)+" due to timeout!")
             # subtract from out running thread count and remove host
@@ -464,32 +466,16 @@ def pid_timeout():
           pass
         except Exception, e:
           deploy_logging.logerror("Unexpected error in pid_timeout thread "+\
-            "while killing a child process: "+str(e))
-        """
-        else:
-          # we killed a process that has already terminated?
-          if remote_host:
-            try:
-              threading_lock()
-              thread_communications['hosts_left'].remove(remote_host)
-              threading_unlock()
-            except ValueError, e:
-              # host is removed already, dont worry about it
-              pass
-            except Exception, e:
-              # some unexpected error
-              print e
-            else:
-              # we removed the process from our list, now sub the counter!
-              threading_lock_and_sub()
-        """
+              "while killing a child process: "+str(e))
+              
+    # if we had any killed PIDs
     if killed_pids:
       # remove the killed pids from the list
       threading_lock()
-      print 'before:'+str(thread_communications['running_process_ids'])
+      # print 'before:'+str(thread_communications['running_process_ids'])
       thread_communications['running_process_ids'] =\
-        list(set(thread_communications['running_process_ids']) - set(killed_pids))
-      print 'after:'+str(thread_communications['running_process_ids'])
+          list(set(thread_communications['running_process_ids']) - set(killed_pids))
+      # print 'after:'+str(thread_communications['running_process_ids'])
       threading_unlock()
         
 def monitor_timeout(pid, sleep_time, remote_host, user):
@@ -499,7 +485,7 @@ def monitor_timeout(pid, sleep_time, remote_host, user):
   # thread
 
   thread.start_new_thread(set_pid_timeout, (pid, 2 * int(sleep_time), 
-    remote_host, user))
+      remote_host, user))
   return
               
 

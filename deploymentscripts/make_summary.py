@@ -90,7 +90,10 @@ def build_summary():
   
   # will have version that map to # of currently installed
   node_version_dict = {}
+  # This'll keep track of the # of not installed computers
   node_version_dict['Not Installed'] = 0
+  # This'ss kep track of the node ips/hostnames that have seattle missing
+  node_version_dict['Not Installed Node Name'] = []
   
   # this dictionary will be used to build up our html page with all the node 
   # information. the keys to this dictionary are the nodenames, they map to an 
@@ -101,7 +104,7 @@ def build_summary():
   
   # used as the headers for the table built up in html_dict
   html_dict_headers = ['Node Name', 'NodeManager Status', 
-    'SoftwareUpdater Status', 'Node Version', 'Node Status', 'Details']
+      'SoftwareUpdater Status', 'Node Version', 'Node Status', 'Details']
   
   # the html FN that we'll be using
   
@@ -165,6 +168,7 @@ def build_summary():
               
               # next we need the SU status
               SU_success_status, SU_desc_string, bgcolor  = deploy_stats.check_is_su_running(node_file_as_string)
+              # if it is running then increment the running counter by 1
               if SU_success_status or SU_desc_string.lower().find('not') == -1:
                 su_nm_stats['SU is running'] += 1
               temp_array.append((SU_desc_string, bgcolor))
@@ -253,6 +257,10 @@ def build_summary():
             else: # no seattle installed!            
               temp_array = ['', '', '', ('Seattle is not installed', deploy_html.colors_map['Warning'])]
               node_version_dict['Not Installed'] = node_version_dict['Not Installed'] + 1
+              # mark the node as not having seattle installed, we'll write a 
+              # file that'll have all the missing seattle installs on the nodes
+              # also, logfolder is the name of the node.
+              node_version_dict['Not Installed Node Name'].append(logfolder)
 
             html_link = deploy_html.make_link_to_detailed(logfolder, uniq_fn)
             temp_array.append(html_link)            
@@ -278,11 +286,36 @@ def build_summary():
   summary_file_handle.close()
   
   # this'll generate the actual html files from the tables and dicts
+  
+  # this generates the node-states table
   html_node_states_counter = deploy_html.html_table_from_dict(node_states_counter, ['Node State', 'Number of nodes'])
+  
+  # this generates the number of nodes in each state table
   html_num_states = deploy_html.html_table_from_dict(num_node_states, ['Number of states', 'Occurence of said number of keys'])
+  
+  # this generates the table of nm/su stats (X running NM, Y running SU, etc)
   html_su_nm_stats = deploy_html.html_table_from_dict(su_nm_stats, su_nm_stats_header)
+  
+  # this generates the table with the version breakdown
   html_version_info = deploy_html.html_table_from_dict(node_version_dict, ['Node Version', 'Number of nodes'])
+  
+  # this generates the main table of nodes and infos.
   html_main_table = deploy_html.html_table_from_dict2(html_dict, html_dict_headers)
+  
+  # write to a file the clean nodes (nodes where seattle is not installed)
+  try:
+    # this is the file we'll write to
+    empty_nodes_fh = open('missing.list', 'w+')
+    # for each node...
+    for each_node in node_version_dict['Not Installed Node Name']:
+      # write it to file
+      empty_nodes_fh.write(str(each_node)+'\n')
+    # close the filehandle
+    empty_nodes_fh.close()
+  except Exception, e:
+    print 'Error while trying to write missing.list in make_summary'
+    print e
+    
   
   # write the html to a file
   deploy_html.html_write(uniq_fn, html_main_table)
@@ -301,7 +334,9 @@ def build_summary():
   # total responsive machines = sum up all versions
   sum = 0
   for each_key in node_version_dict.keys():
-    sum += node_version_dict[each_key]
+    # make sure it's not a string key
+    if each_key.find('Not') == -1:
+      sum += node_version_dict[each_key]
     
   deploy_html.html_add_to_top(uniq_fn, str(sum)+' hosts responded in a timely fashion '+\
       'and ran our tests.')

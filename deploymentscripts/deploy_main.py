@@ -35,7 +35,7 @@
 
   NOTE: -i is for compatability, and is technically not needed.
   
-  python deploy.py [-v 0|1|2] [ --nokeep ] [ -h | --help ] [-c customscript1 customscript2]
+  python deploy.py [-v 0|1|2] [ --nokeep ] [ -h | --help ] [-c customscript1]
         [-i instructional_list] [--cleanonly]
 
 
@@ -43,7 +43,7 @@
       Very silent running mode. With many hosts, it may look like the script is
        frozen so this is not recommended.
   -v 1
-      Default verbosity level. Same as -v 3 but makes more compact log files by
+      Default verbosity level. Same as -v 2 but makes more compact log files by
         filtering out excess information.
   -v 2
       Specifies if a more verbose mode is to be used. When verbose 
@@ -61,7 +61,7 @@
   -c fn1 fn2 ...
       Must be followed by a valid python script file.  This file will be packaged
         and distributed to all the computers.  NOTE: As of this version, only ONE
-        script will execute remotely.
+        script file will execute remotely.
   -i instructional_list
       Must be followed by a valid IP list file. The hostnames/ips in this file
         will be treated slightly different (lower threadcount to avoid connection
@@ -98,17 +98,12 @@ import deploy_threading
 # directory or not. -v means false, -vv means true.
 verbosity = 1
 
-# custom list
-custom_list_file = ''
-
-# default number of tries to retry a connection if it was refused
-number_of_default_retries = 3
+# This'll keep track of the additional files that we'll package with the deployment.
+# currently, this is not being used, but will be a list of strings
+custom_list_file = []
 
 # The file that we read our hostlist from.
 custom_host_file = 'iplist2.list'
-
-# The variable that'll keep track of the custom scripts we'll be using
-#custom_script_name = ''
 
 
 
@@ -511,7 +506,7 @@ def get_current_time():
 
   
   
-def get_remote_hosts_from_file(fname = custom_host_file):
+def get_remote_hosts_from_file(fname = custom_host_file, nolog = False):
   """
   <Purpose>
     Returns a list of the IP as read from file specified. 
@@ -530,6 +525,8 @@ def get_remote_hosts_from_file(fname = custom_host_file):
       Optional. Default is 'iplist.list'. The filename containing the IPs of
         the remote machines.  File must be in the same directory as this 
         script.
+    nolog:
+      Optional. Default is False. If set to true, then nothing will be written to the logfile.
     
   <Exceptions>
     Catches a thrown exception if the IP file is not found.
@@ -586,8 +583,9 @@ def get_remote_hosts_from_file(fname = custom_host_file):
               file_of_ips.close()
               return False
 
-            # add (username, remote_host) pair
-            users_ip_tuple_list.append((current_username, line.rstrip('\n ')))
+            # add (username, remote_host) pair while casting remote_host to lowercase in case
+            # it's a hostname for easy comparison if needed everywhere
+            users_ip_tuple_list.append((current_username, line.rstrip('\n ').lower()))
             # set flag that we have at least one ip
             have_one_ip = True
 
@@ -597,11 +595,13 @@ def get_remote_hosts_from_file(fname = custom_host_file):
       # lets make the list a set, which is a cheap way of getting rid of
       # duplicates, then cast back to list.
       finalized_list = list(set(users_ip_tuple_list))
-      deploy_logging.log('Setup', "Found "+str(len(finalized_list))+" unique hosts to connect to.")
+      if not nolog:
+        deploy_logging.log('Setup', "Found "+str(len(finalized_list))+" unique hosts to connect to.")
       file_of_ips.close()
       return finalized_list
     file_of_ips.close()
     return False
+
 
 
 

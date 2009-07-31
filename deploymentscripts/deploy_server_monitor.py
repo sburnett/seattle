@@ -226,15 +226,30 @@ def script_monitor():
     None. 
   """
   
+  # sleep counter is the counting how many time's we've had to wait on the scripts
+  # after 10 retries (50 mins): kill all hung ssh/scp
+  # after 20 retries (50 more mins): kill and cleanup the scripts
+  sleep_counter = 0
+  
   # if the timeout is up, make sure that the last round of tests has finished
   while deploymentscript_is_running():
     # while it's still running, sleep 5 mins at a time until it's not done
-    time.sleep(60 * 5)
+    sleep_counter += 1
+    if sleep_counter == 10:
+      stop_ssh_scp()
+      time.sleep(60 * 5)
+    elif sleep_counter == 20:
+      stop_deployment_scripts()
+      stop_ssh_scp()
+    else:
+      time.sleep(60 * 5)
   
   # kill all old, possibly hung ssh-processes
   # bug?: this'll close anyone's ssh-session who's connected as 
-  # nsr@blackbox when scripts connect.
+  # nsr@blackbox when scripts cleanup
+  
   stop_ssh_scp()
+  
   #check_ssh_agent()
   # run in non-blocking way.
   deploy_main.shellexec2('python deploy_main.py -c custom.py > /dev/null 2> /dev/null < /dev/null&')
@@ -265,7 +280,7 @@ def is_monitor_already_running():
   
   # check to see whether another instance of this script is already running
   out, err, retcode = deploy_main.shellexec2("ps -ef | grep deploy_server_monitor | grep -v grep "+\
-    "| awk '{ if ($1 == \"nsr\") print $1 } ' | sort | uniq -c | awk ' { print $1 } '")
+      "| awk '{ if ($1 == \"nsr\") print $1 } ' | sort | uniq -c | awk ' { print $1 } '")
   if out:
     try:
       num_running = int(out)
@@ -308,7 +323,7 @@ def main():
     if sys.argv[1] == 'kill':
       # stop the web server
       stop_web_server()
-      # sto the deployment scripts
+      # stop the deployment scripts
       stop_deployment_scripts()
       # cleanup any hung ssh/scp possibly left over from the deployment scripts
       stop_ssh_scp()
