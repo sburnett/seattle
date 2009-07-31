@@ -18,6 +18,8 @@ import os
 import impose_seattlestopper_lock
 import tempfile
 import sys
+import servicelogger
+import time
 
 STARTER_SCRIPT_NAME = "start_seattle.sh"
 

@@ -9,7 +9,7 @@ Included in the Windows installer, this will run the install script
 ==manifest.txt==
 This file (see description at top).
 
-==ReadMe==
+==README==
 Includes an introduction to Seattle, installation and uninstall instructions,
 along with contact information and a legal statement.
 

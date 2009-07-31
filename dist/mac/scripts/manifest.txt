@@ -9,7 +9,7 @@ located in trunk/dist) when called.
 ==manifest.txt==
 This file (see description at top).
 
-==ReadMe==
+==README==
 Includes an introduction to Seattle, installation and uninstall instructions,
 along with contact information and a legal statement.
 
