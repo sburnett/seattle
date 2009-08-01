@@ -10,7 +10,7 @@ Description:
 
   Servers connect via a multiplexer while clients connect with real sockets.
   A virtual socket from the server and a real socekt from the client are
-  put together in an exchance message method where data is exchanged.
+  put together in an exchange message method where data is exchanged.
 
 
 """
@@ -44,7 +44,7 @@ MAC_ID_LOCK = getlock()
 MAC_ID_LOOKUP = {}
 
 # Controls Debug messages
-DEBUG1 = False  # Prints general debug messages
+DEBUG1 = True  # Prints general debug messages
 DEBUG2 = False  # Prints verbose debug messages
 DEBUG3 = False  # Prints Ultra verbose debug messages
 
@@ -256,22 +256,31 @@ def dereg_waitport(conn_id,value):
 
 # Exchanges messages between two sockets  
 def exchange_mesg(serverinfo, fromsock, tosock):
+  
+  #increment number of active connections
+  CONNECTIONS_LOCK.acquire()
+  serverinfo["num_clients"] += 1
+  CONNECTIONS_LOCK.release()
+  
   # DEBUG
   if DEBUG3: print getruntime(), "Exchanging messages between",fromsock,"and",tosock,"for server",serverinfo
   try:
     while True:
       mesg = fromsock.recv(RECV_SIZE)
       tosock.send(mesg)
-      
   except Exception, exp:
     # DEBUG
     if DEBUG3: print getruntime(), "Error exchanging messages between",fromsock,"and",tosock,"Error:",str(exp)
-    # Something went wrong, close the read socket
-    _safe_close(fromsock)
+   
     # Decrement the connected client count
+    CONNECTIONS_LOCK.acquire()
     serverinfo["num_clients"] -= 1
-
-
+    CONNECTIONS_LOCK.release()
+    
+     # Something went wrong, close the read socket
+    _safe_close(tosock)
+    _safe_close(fromsock)
+    
 
 # Handle new clients
 def new_client(conn_id, value):
@@ -306,12 +315,7 @@ def new_client(conn_id, value):
     if DEBUG2: print getruntime(),"Client Conn. Successful",rpc_response
     
     conninfo["sock"].send(RPC_encode(rpc_response))
-    
-    # Add 2 client connections (really just 1)
-    # This is because each exchange_mesg will decrement num_clients 
-    # So there will be 2 decrements
-    serverinfo["num_clients"] += 2
-    
+
     # Spawn a thread to exchange the messages between the server and client
     settimer(.2, exchange_mesg,[serverinfo,virtualsock,conninfo["sock"]])
     
@@ -577,6 +581,7 @@ def common_entry(remoteip,remoteport,sock,tch,lch):
   try:
     type = sock.recv(1)
   except:
+    sock.close()
     return
 
   if type == 'S':
@@ -585,6 +590,13 @@ def common_entry(remoteip,remoteport,sock,tch,lch):
   elif type =='C':
     # new clients
     inbound_connection(remoteip,remoteport,sock,tch,lch)
+
+  # TODO, this is for testing only
+  elif type =='Q':
+    print "\n"+str(CONNECTIONS)+"\n"
+    sock.close()
+    return
+    
   else:
     if DEBUG1: print getruntime(), "Closed inbound connection, inncorect type specified."
     sock.close()
