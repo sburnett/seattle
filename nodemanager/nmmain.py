@@ -405,8 +405,8 @@ def main():
   # Start accepter...
   myname = start_accepter()
 
-  #TODO remove this print for production
-  print 'myname = '+str(myname)
+  #send our advertised name to the log
+  servicelogger.log('myname = '+str(myname))
 
   # Start worker thread...
   start_worker_thread(configuration['pollfrequency'])
