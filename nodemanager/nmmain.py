@@ -1,6 +1,7 @@
 """ 
 Author: Justin Cappos
   Modified by Brent Couvrette to make use of circular logging.
+  Modified by Eric Kimbrel to add NAT traversal
 
 
 Module: Node Manager main program.   It initializes the other modules and
@@ -71,6 +72,16 @@ import traceback
 
 import servicelogger
 
+import repyhelper #used to bring in NAT Layer
+
+# import the natlayer for use
+# this requires all NATLayer dependincies to be in the current directory
+repyhelper.translate_and_import('NATLayer_rpc.repy')
+repyhelper.translate_and_import('sha.repy')
+repyhelper.translate_and_import('rsa.repy')
+
+
+
 # Armon: To handle user preferrences with respect to IP's and Interfaces
 # I will re-use the code repy uses in emulcomm
 import emulcomm
@@ -114,10 +125,15 @@ LOG_AFTER_THIS_MANY_ITERATIONS = 600  # every 10 minutes
 # BUG: what if the data on disk is corrupt?   How do I recover?   What is the
 # "right thing"?   I could run nminit again...   Is this the "right thing"?
 
-version = "testing"
+version = "0.1e"
 
 # Our settings
 configuration = {}
+
+# Lock and condition to determine if the acceptor thread has started
+acceptor_state = {'lock':getlock(),'started':False}
+
+
 
 # Initializes emulcomm with all of the network restriction information
 # Takes configuration, which the the dictionary stored in nodeman.cfg
@@ -164,14 +180,26 @@ def started_waitable_thread(threadid):
 
 # has the thread started?
 def is_accepter_started():
-  for thread in threading.enumerate():
-    if 'SocketSelector' in str(thread):
-      return True
-  else:
-    return False
+  acceptor_state['lock'].acquire()
+  result = acceptor_state['started']
+  acceptor_state['lock'].release()
+  return result
 
 
 def start_accepter():
+  
+
+  
+  use_nat = False # if nat layer fails don't use it
+  
+  try:
+    # see if we can currently have a bi-directional connection
+    use_nat = nat_check_bi_directional(getmyip(), configuration['ports'][0])
+  except Exception,e:
+    servicelogger.log("Excpetion occured trying to contact forwarder to detect nat "+str(e))
+    use_nat = False
+
+
   # do this until we get the accepter started...
   while True:
 
@@ -187,12 +215,38 @@ def start_accepter():
         
       for possibleport in configuration['ports']:
         try:
-          waitforconn(bind_ip, possibleport, nmconnectionmanager.connection_handler)
+          
+          if use_nat:
+            # use the sha hash of the nodes public key with the vessel
+            # number as an id for this node
+            unique_id = rsa_publickey_to_string(configuration['publickey'])
+            unique_id = sha_hexhash(unique_id)
+            unique_id = unique_id+str(configuration['service_vessel'])
+            
+            nat_waitforconn(unique_id, possibleport,
+                    nmconnectionmanager.connection_handler)
+
+          # do a local waitforconn (not using a forowarder)
+          # this makes the node manager easily accessible locally
+          waitforconn(bind_ip, possibleport, 
+                    nmconnectionmanager.connection_handler)
+        
         except Exception, e:
-          servicelogger.log("[ERROR]: when calling recvmess for the connection_handler: " + str(e))
+          servicelogger.log("[ERROR]: when calling waitforconn for the connection_handler: " + str(e))
           servicelogger.log_last_exception()
         else:
-          myname = str(bind_ip) + ":" + str(possibleport)
+          # the waitforconn was completed so the acceptor is started
+          acceptor_state['lock'].acquire()
+          acceptor_state['started']= True
+          acceptor_state['lock'].release()
+
+          # assign the nodemanager name
+          # if NAT is being used NAT$ will tell the connection client
+          # to use nat_openconn with unique_id to contact this node
+          if use_nat: 
+            myname = 'NAT$'+unique_id+":"+str(possibleport)
+          else: 
+            myname = str(bind_ip) + ":" + str(possibleport)
           break
 
       else:
@@ -351,6 +405,9 @@ def main():
   # Start accepter...
   myname = start_accepter()
 
+  #TODO remove this print for production
+  print 'myname = '+str(myname)
+
   # Start worker thread...
   start_worker_thread(configuration['pollfrequency'])
 
@@ -372,11 +429,10 @@ def main():
   # BUG: Need to exit all when we're being upgraded
   while True:
 
-    if not is_accepter_started():
-      servicelogger.log("[WARN]:At " + str(time.time()) + " restarting accepter...")
-      newname = start_accepter(vesseldict)
-      # I have just updated the name for the advert thread...
-      nmadvertise.myname = newname
+    # E.K Previous there was a check to ensure that the acceptor
+    # thread was started.  There is no way to actually check this
+    # and this code was never executed, so i removed it completely
+
         
     if not is_worker_thread_started():
       servicelogger.log("[WARN]:At " + str(time.time()) + " restarting worker...")
