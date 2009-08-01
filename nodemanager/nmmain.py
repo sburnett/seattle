@@ -133,6 +133,9 @@ configuration = {}
 # Lock and condition to determine if the acceptor thread has started
 acceptor_state = {'lock':getlock(),'started':False}
 
+# whether or not to use the natlayer, this option is passed in via command line
+# -nat
+AUTO_USE_NAT = False
 
 
 # Initializes emulcomm with all of the network restriction information
@@ -189,17 +192,18 @@ def is_accepter_started():
 def start_accepter():
   
 
+  if AUTO_USE_NAT == False:
+    # check to see if we should use the nat layer
+    try:
+      # see if we can currently have a bi-directional connection
+      use_nat = nat_check_bi_directional(getmyip(), configuration['ports'][0])
+    except Exception,e:
+      servicelogger.log("Excpetion occured trying to contact forwarder to detect nat "+str(e))
+      use_nat = False
+  else:
+    use_nat = True
+    
   
-  use_nat = False # if nat layer fails don't use it
-  
-  try:
-    # see if we can currently have a bi-directional connection
-    use_nat = nat_check_bi_directional(getmyip(), configuration['ports'][0])
-  except Exception,e:
-    servicelogger.log("Excpetion occured trying to contact forwarder to detect nat "+str(e))
-    use_nat = False
-
-
   # do this until we get the accepter started...
   while True:
 
@@ -222,7 +226,7 @@ def start_accepter():
             unique_id = rsa_publickey_to_string(configuration['publickey'])
             unique_id = sha_hexhash(unique_id)
             unique_id = unique_id+str(configuration['service_vessel'])
-            
+            print 'trying nat wait'
             nat_waitforconn(unique_id, possibleport,
                     nmconnectionmanager.connection_handler)
 
@@ -404,7 +408,7 @@ def main():
 
   # Start accepter...
   myname = start_accepter()
-
+  
   #send our advertised name to the log
   servicelogger.log('myname = '+str(myname))
 
@@ -461,6 +465,11 @@ def main():
 
 
 if __name__ == '__main__':
+  
+  # take a command line argument to force use of natlayer
+  if len(sys.argv) ==2 and sys.argv[1] == '-nat':
+    AUTO_USE_NAT = True
+
   # Armon: Add some logging in case there is an uncaught exception
   try:
     main() 
