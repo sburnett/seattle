@@ -1,10 +1,11 @@
 """
 <Program Name>
-  univ_install.py
+  seattleinstaller.py
 
 <Started>
   February 10, 2009
     Amended June 11, 2009
+    Amended July 30, 2009
 
 <Author>
   Carter Butaud
@@ -12,8 +13,8 @@
 
 <Purpose>
   Installs seattle on any supported system. This means setting up the computer
-  to run seattle at startup, generating node keys, creating an uninstaller,
-  customizing configuration files, and starting seattle itself.
+  to run seattle at startup, generating node keys, customizing configuration
+  files, and starting seattle itself.
 """
 
 # Let's make sure the version of python is supported
@@ -27,7 +28,8 @@ import sys
 import getopt
 import tempfile
 import re
-import fileinput
+import servicelogger
+import time
 
 # Python should do this by default, but doesn't on Windows CE
 sys.path.append(os.getcwd())
@@ -36,18 +38,26 @@ import createnodekeys
 import repy_constants
 import persist # Armon: Need to modify the NM config file
 
+
+
+
 SILENT_MODE = False
+KEYBITSIZE = 1024
 OS = nonportable.ostype
 SUPPORTED_OSES = ["Windows", "WindowsCE", "Linux", "Darwin"]
+SUPPORTED_WINDOWS_VERSIONS = ["XP", "Vista", "CE"]
 
-# Import subprocess if not WindowsCE
+# Import subprocess if not in WindowsCE
 subprocess = None
 if OS != "WindowsCE":
   import subprocess
 
-# windows_api = None
+# Import windows_api if in Windows or WindowsCE
+windows_api = None
 if OS == "Windows" or OS == "WindowsCE":
   import windows_api
+
+
 
 
 class UnsupportedOSError(Exception):
@@ -57,25 +67,29 @@ class AlreadyInstalledError(Exception):
   pass
 
 
+
+
 def output(text):
   """
   For internal use.
-  If the program is not in silent mode, prints the inputted text.
+  If the program is not in silent mode, prints the input text.
   """
   if not SILENT_MODE:
     print text
 
 
 
-def preprocess_file(fname, subs, comment="#"):
+
+def preprocess_file(filename, substitute_dict, comment="#"):
   """
   <Purpose>
-    Looks through the given file and makes all substitutions indicated.
+    Looks through the given file and makes all substitutions indicated in lines
+    the do not begin with a comment.
 
   <Arguments>
-    fname:
+    filename:
       Path to the file which will be preprocesses.
-    subs:
+    substitute_dict:
       Map of words to be substituted to their replacements, e.g.,
       {"word_in_file_1": "replacement1", "word_in_file_2": "replacement2"}
     comment:
@@ -92,15 +106,34 @@ def preprocess_file(fname, subs, comment="#"):
   <Returns>
     None.
   """
+  edited_lines = []
+  base_fn = open(filename, "r")
 
-  # Zack: Used the fileinput module rather than writing entire fname file to new
-  #       file with substitutions and copying it back.
-  for line in fileinput.FileInput(fname,inplace=1):
-    for sub_out in subs:
-      if sub_out in line and (comment == "" or not line.startswith(comment)):
-        line = line.replace(sub_out,subs[sub_out])
-    print line,
-  fileinput.close()
+  for fileline in base_fn:
+    commentedLine = ""
+
+    if comment == "" or not fileline.startswith(comment):
+
+      # Substitute the replacement string into the uncommented file line
+      # First, test whether there is an in-line comment.
+      if comment != "" and comment in fileline:
+        splitLine = fileline.split(comment)
+        fileline = splitLine[0]
+        for splitcomment in splitLine[1:]:
+          commentedLine = commentedLine + comment + splitcomment
+
+      for substitute in substitute_dict:
+        fileline = fileline.replace(substitute, substitute_dict[substitute])
+
+    edited_lines.append(fileline + commentedLine)
+
+  base_fn.close()
+
+  # Now, write those modified lines to the actual starter file location
+  final_fn = open(filename, "w")
+  final_fn.writelines(edited_lines)
+  final_fn.close()
+
 
 
 
@@ -123,97 +156,132 @@ def get_win_startup_folder(version):
   <Returns>
     The path to the startup folder if it can be found, an empty string otherwise.
   """
-  if "Windows" not in OS or version not in ["XP", "Vista", "CE"]:
-    # If it's not a known version, return blank for failure
-    return ""
+  if (OS != "Windows" and OS != "WindowsCE") or version not in SUPPORTED_WINDOWS_VERSIONS:
+    # The OS is not a version of Windows or a supported version of Windows
+    raise UnsupportedOSError
 
-  try:
-    # See if the installer executable found the startup folder
-    # in the registry
-    startup_file = open("startup.dat")
-    startup_path = ""
-    for line in startup_file:
-      if line:
-        startup_path = line
-      if startup_path and os.path.exists(startup_path):
-        return startup_path
-      else:
-        raise Exception
-
-  except:
+  else:
     try:
-      # If that file doesn't exist or is invalid, try checking the registry key.
-      key_handle = _winreg.OpenKey(_winreg.HKEY_CURRENT_USER, "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Shell Folders")
-      (startup_path, data_type) = _winreg.QueryValueEx(key_handle, "Startup")
-      if startup_path and os.path.exists(startup_path):
-        return startup_path   
+      # See if the installer executable found the startup folder
+      # in the registry
+      startup_file = open("startup.dat")
+      startup_path = ""
+      for line in startup_file:
+        if line:
+          startup_path = line
+        if startup_path and os.path.exists(startup_path):
+          return startup_path
+        else:
+          raise Exception
 
     except:
-      # If that fails, look in a couple obvious places, based on OS version
-      if version == "Vista":
-        # Look in probable Vista places
-        startup_path = os.environ.get("HOMEDRIVE") + os.environ.get("HOMEPATH") + "\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Startup"
-        if os.path.exists(startup_path):
-          return startup_path
+      try:
+        # If that file doesn't exist or is invalid, try checking the registry key.
+        key_handle = _winreg.OpenKey(_winreg.HKEY_CURRENT_USER, "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Shell Folders")
+        (startup_path, data_type) = _winreg.QueryValueEx(key_handle, "Startup")
+        if startup_path and os.path.exists(startup_path):
+          return startup_path   
 
-      elif version == "XP":
-        # Look in probable XP places
-        startup_path = os.environ.get("HOMEDRIVE") + os.environ.get("HOMEPATH") + "\\Start Menu\\Programs\\Startup"
-        if os.path.exists(startup_path):
-          return startup_path
+      except:
+        # If that fails, look in a couple obvious places, based on OS version
+        if version == "Vista":
+          # Look in probable Vista places
+          startup_path = os.environ.get("HOMEDRIVE") + os.environ.get("HOMEPATH") + "\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Startup"
+          if os.path.exists(startup_path):
+            return startup_path
 
-      # Zack: Deleted duplicate copy of "if os.path.exists(...) block
-      elif version == "CE":
-        # Look in probable Mobile places
-        startup_path = "\\Windows\\Startup"
-        if os.path.exists(startup_path):
-          return startup_path
+        elif version == "XP":
+          # Look in probable XP places
+          startup_path = os.environ.get("HOMEDRIVE") + os.environ.get("HOMEPATH") + "\\Start Menu\\Programs\\Startup"
+          if os.path.exists(startup_path):
+            return startup_path
 
-      # Else return blank to indicate failure
-      return ""
+        elif version == "CE":
+          # Look in probable Mobile places
+          startup_path = "\\Windows\\Startup"
+          if os.path.exists(startup_path):
+            return startup_path
+          # Zack: Deleted duplicate copy of "if os.path.exists(...) block
+
+
+          # Else return blank to indicate failure
+        return ""
+
+
 
 
 def get_starter_file_name():
   """
   <Purpose>
-    Returns what the name of the starter file on the current operating system
-    should be.
+    Returns the name of the starter file on the current operating system.
 
   <Arguments>
     None.
 
   <Exceptions>
-    None.
+    UnsupportedOSError if the operating system requested is not supported.
 
   <Side Effects>
     None.
 
   <Returns>
-    The name of the starter file on systems that should have a starter file, or an
-    empty string on systems that shouldn't.
+    A string containing the name of the starter file.
   """
 
   if OS == "Windows":
     return "start_seattle.bat"
   elif OS == "WindowsCE":
     return "start_seattle.py"
-  # Zack: Made an "else" block for all other OS types because it has already
-  #       been checked in the install(...) method that the OS is supported.
-  else:
+  elif OS == "Linux" or OS == "Darwin":
     return "start_seattle.sh"
+  else:
+    raise UnsupportedOSError
 
 
-def get_uninstaller_name():
+
+
+def get_stopper_file_name():
   """
   <Purpose>
-    Returns what the name of the uninstaller file on the current operating system
-    should be.
+    Returns the name of the stopper file on the current operating syste
 
   <Arguments>
     None.
 
   <Exceptions>
+    UnsupportedOSError if the operating system requested is not supported.
+
+  <Side Effects>
     None.
+
+  <Returns>
+    A string containing the name of the stopper file.  Returns an empty string
+    if the supported operating system does not contain a stopper file.
+  """
+
+  if OS == "Windows":
+    return "stop_seattle.bat"
+  elif OS == "WindowsCE":
+    return ""
+  elif OS == "Linux" or OS == "Darwin":
+    return "stop_seattle.sh"
+  else:
+    raise UnsupportedOSError
+
+
+
+
+def get_uninstaller_file_name():
+  """
+  <Purpose>
+    Returns the name of the uninstaller file on the current operating
+    system.
+
+  <Arguments>
+    None.
+
+  <Exceptions>
+    UnsupportedOSError if teh operating system requested is not supported.
 
   <Side Effects>
     None.
@@ -225,16 +293,20 @@ def get_uninstaller_name():
     return "uninstall.bat"
   elif OS == "WindowsCE":
     return "uninstall.py"
-  else:
+  elif OS == "Linux" or OS == "Darwin":
     return "uninstall.sh"
+  else:
+    raise UnsupportedOSError
+
 
 
 
 def setup_startup(prog_path):
   """
   <Purpose>
-    Sets up seattle to run at startup on the current computer. On Windows, this means adding a script to the
-    startup folder, while on Unix systems it means adding a line to the crontab.
+    Sets up seattle to run at startup on the current computer. On Windows, this
+    means adding a script to the startup folder, while on Unix systems it means
+    adding a line to the crontab.
 
   <Arguments>
     prog_path:
@@ -253,63 +325,51 @@ def setup_startup(prog_path):
     False if it fails.
   """
 
-  # First check to make sure it's a supported os
+  # First check to make sure the OS is supported
   if OS == "Windows" or OS == "WindowsCE":
     # Try setting up the startup folder on a Windows system
-    sysrelease = get_win_startup_folder(platform.release())
-    if not sysrelease:
+    startup_path = get_win_startup_folder(platform.release())
+    if not startup_path:
       return False
 
     # Check to see if we've already installed a startup script here
-    startupscript = sysrelease + os.sep + get_starter_file_name()
+    startupscript = startup_path + os.sep + get_starter_file_name()
     if os.path.exists(startupscript):
       raise AlreadyInstalledError
-    
-    #BUG fix ticket 320. keys need to be generated before setting up the cron tab to avoid a race condition. 
-    #In the windows case we should handle this in a consistent manner and set up the node keys before we modify the statup settings.
-    generate_keys(prog_path)
-    
-    # Now that we have the startup folder and we know seattle is not installed,
-    # customize the starter file.
-    preprocess_file(prog_path + os.sep + get_starter_file_name(), {"%PROG_PATH%": prog_path})
 
-    # And copy it to the startup folder.
-    shutil.copy(prog_path + os.sep + get_starter_file_name(), sysrelease + os.sep + get_starter_file_name())
-    
-    return (sysrelease + os.sep + get_starter_file_name())
+    # Now that we have the startup folder, and we know seattle is not installed,
+    # customize the start, stop, and uninstall batch files so the client is not
+    # required to be in the seattle directory to run them.
+    for batchfile in [get_starter_file_name(), get_stopper_file_name(), get_uninstaller_file_name()]:
+      preprocess_file(prog_path + os.sep + get_starter_file_name(), {"%PROG_PATH%": prog_path})
 
-  else:
-    # Assume we're running on a Linux system, so add a line to the crontab
-    
-    # First, customize the starter file in the install directory
-    preprocess_file(prog_path + os.sep + get_starter_file_name(),
-                    {"%PROG_PATH%": prog_path})
+    # Copy the start batch file to the startup folder.
+    shutil.copy(prog_path + os.sep + get_starter_file_name(), startup_path + os.sep + get_starter_file_name())
 
-    # Next check to see if the line is already there
-    crontab_f = subprocess.Popen("crontab -l", shell=True, stdout=subprocess.PIPE).stdout
+    return startupscript
+
+
+  elif OS == "Linux" or OS == "Darwin":
+    # First check to see if crontab has already been modified to run seattle
+    crontab_contents = subprocess.Popen("crontab -l", shell=True, stdout=subprocess.PIPE).stdout
     found = False
-    for line in crontab_f:
+    for line in crontab_contents:
       if re.search(os.sep + get_starter_file_name(), line):
         found = True
         break
-    crontab_f.close()
+    crontab_contents.close()
     if found:
       raise AlreadyInstalledError
   
-    # Now we know they don't, so we should add it
-    
-    
-    #BUG fix ticket 320. keys need to be generated before setting up the cron tab to avoid a race condition
-    #generate the node keys
-    generate_keys(prog_path)
+    # Since seattle is not already installed, crontab should be modified
     
     # Generate a temp file with the user's crontab plus our task
     # (tempfile module used as suggested in Jacob Appelbaum's patch)
     cron_line = '*/10 * * * * "' + prog_path + '/' + \
         get_starter_file_name() + '" >> /dev/null 2>&1'
-    crontab_f = subprocess.Popen("crontab -l", shell=True, stdout=subprocess.PIPE).stdout
+    crontab_contents = subprocess.Popen("crontab -l", shell=True, stdout=subprocess.PIPE).stdout
     filedescriptor, tmp_location = tempfile.mkstemp("temp", "seattle")
-    for line in crontab_f:
+    for line in crontab_contents:
       os.write(filedescriptor, line)
     os.write(filedescriptor, cron_line)
     os.close(filedescriptor)
@@ -320,7 +380,14 @@ def setup_startup(prog_path):
     return True
 
 
-def setup_uninstaller(prog_path, starter_file):
+  else:
+    # The operating system is not supported
+    raise UnsupportedOSError
+
+
+
+
+def setup_win_uninstaller(prog_path, starter_file):
   """
   <Purpose>
     On Windows, customizes the base uninstaller located in the install directory so
@@ -343,13 +410,14 @@ def setup_uninstaller(prog_path, starter_file):
   <Returns>
     None.
   """
-  if "Windows" not in OS:
+  if OS != "Windows" and OS != "WindowsCE":
     raise UnsupportedOSError
-  if not os.path.exists(starter_file):
+  elif not os.path.exists(starter_file):
     raise IOError
-  if not os.path.exists(prog_path + os.sep + get_uninstaller_name()):
+  elif not os.path.exists(prog_path + os.sep + get_uninstaller_file_name()):
     raise IOError
-  preprocess_file(prog_path + os.sep + get_uninstaller_name(), {"%STARTER_FILE%": starter_file})     
+
+  preprocess_file(prog_path + os.sep + get_uninstaller_file_name(), {"%STARTER_FILE%": starter_file})     
 
 
 
@@ -374,10 +442,10 @@ def setup_sitecustomize(prog_path):
   <Returns>
     None.
   """
-  original_fn = prog_path + os.sep + "sitecustomize.py"
+  original_fname = prog_path + os.sep + "sitecustomize.py"
   if not OS == "WindowsCE":
     raise UnsupportedOSError
-  elif not os.path.exists(original_fn):
+  elif not os.path.exists(original_fname):
     raise IOError("Could not find sitecustomize.py under " + prog_path)
   else: 
     python_dir = os.path.dirname(repy_constants.PATH_PYTHON_INSTALL)
@@ -386,32 +454,10 @@ def setup_sitecustomize(prog_path):
     elif os.path.exists(python_dir + os.sep + "sitecustomize.py"):
       raise IOError("sitecustomize.py already existed in python directory")
     else:
-      preprocess_file(original_fn, {"%PROG_PATH%": prog_path})
-      shutil.copy(original_fn, python_dir + os.sep + "sitecustomize.py")
+      preprocess_file(original_fname, {"%PROG_PATH%": prog_path})
+      shutil.copy(original_fname, python_dir + os.sep + "sitecustomize.py")
 
 
-def setup_constants(prog_path):
-  """
-  <Purpose>
-    Customizes necessary constants in repy_constants.py.
-
-  <Arguments>
-    prog_path:
-      Path to the directory in which seattle is being installed.
-
-  <Exceptions>
-    IOError if repy_constants.py does not exist under prog_path.
-
-  <Side Effects>
-    None.
-
-  <Returns>
-    None.
-  """
-  if not os.path.exists(prog_path + os.sep + "repy_constants.py"):
-    raise IOError("Cannot find file: repy_constants.py")
-  preprocess_file(prog_path + os.sep + "repy_constants.py",
-                  {"%PROG_PATH%": prog_path})
 
 
 def generate_keys(prog_path):
@@ -434,38 +480,10 @@ def generate_keys(prog_path):
   """
   orig_dir = os.getcwd()
   os.chdir(prog_path)
-  createnodekeys.initialize_keys()
+
+  createnodekeys.initialize_keys(KEYBITSIZE)
   os.chdir(orig_dir)
   
-
-def setup_permissions(prog_path):
-  """
-  <Purpose>
-    On a Linux system, sets the permissions to scripts in the install directory correctly.
-
-  <Arguments>
-    prog_path:
-      Path to the directory in which seattle is being installed.
-
-  <Exceptions>
-    UnsupportedOSError if run on a Windows system.
-    IOError if any of the scripts do not exist.
-
-  <Side Effects>
-    None.
-  
-  <Returns>
-    None.
-  """
-
-  if "Windows" in OS:
-    raise UnsupportedOSError
-  scripts = [get_starter_file_name(), get_uninstaller_name()]
-  for script in scripts:
-    if not os.path.exists(prog_path + os.sep + script):
-      raise IOError("Could not find script " + script + " under prog_path.")
-    os.chmod(prog_path + os.sep + script, 0744)
-
 
 
 
@@ -487,15 +505,16 @@ def start_seattle(prog_path):
   <Returns>
     None.
   """
-  starter_fn = '"' + prog_path + os.sep + get_starter_file_name() + '"'
+  starter_file_path = '"' + prog_path + os.sep + get_starter_file_name() + '"'
   if OS == "Windows":
-    p = subprocess.Popen('"' + starter_fn + '"', shell=True)
+    p = subprocess.Popen('"' + starter_file_path + '"', shell=True)
     p.wait()
   elif OS == "WindowsCE":
-    windows_api.launch_python_script(starter_fn)
+    windows_api.launch_python_script(starter_file_path)
   else:
-    p = subprocess.Popen(starter_fn, shell=True)
+    p = subprocess.Popen(starter_file_path, shell=True)
     p.wait()
+
 
 
 
@@ -537,19 +556,29 @@ def install(prog_path):
     return
 
 
+
   prog_path = os.path.realpath(prog_path)
   
-  # First, setup seattle to run at startup
-  output("Generating node keys and preparing seattle to run at startup, this may take a few minutes...")
+  # First, generate the Node Manager keys since seattle does not need to be
+  # setup to run at boot in order to be executed manually
+
+  output("Generating the Node Manager rsa keys and preparing seattle to run at startup.  This may take a few minutes...")
+
+  # To avoid a race condition with cron on non-Windows systems, the keys must
+  # always be generated before setting up seattle to run at boot
+  generate_keys(prog_path)
+    
+
+  # Second, setup seattle to run at startup
   startup_success = setup_startup(prog_path)
   if startup_success:
-    output("Done!")
+    output("Keys generated! Seattle is setup to run at startup!")
   
     # Next, if it is a Windows system and we were able to find the startup folder,
     # customize the uninstaller
     if "Windows" in OS:
-      output("Creating uninstaller...")
-      setup_uninstaller(prog_path, startup_success)
+      output("Customizing uninstaller...")
+      setup_win_uninstaller(prog_path, startup_success)
       output("Done!")
 
     # Next, setup the sitecustomize.py file, if running on WindowsCE
@@ -558,36 +587,23 @@ def install(prog_path):
       setup_sitecustomize(prog_path)
       output("Done!")
 
-    # Next, customize the constants file
-    output("Configuring seattle constants...")
-    setup_constants(prog_path)
-    output("Done!")
-  
-    # If on a Linux-like system, make sure that the scripts have the right permissions
-    if "Windows" not in OS:
-      output("Setting script permissions...")
-      setup_permissions(prog_path)
-      output("Done!")
-    
     # Everything has been installed, so start seattle
     output("Starting seattle...")
     start_seattle(prog_path)
-    output("Started!")
-  
+
 
     # The install went smoothly.
     output("seattle was successfully installed and has been started!")
-    output("If you would like to uninstall seattle at any time, just run " +
-           get_uninstaller_name() + ".")
-    output("After running it, you can remove the directory containing seattle.")
+    output("To learn more about useful, optional scripts related to running seattle, see the README file.")
 
     servicelogger.log(time.strftime(" seattle was installed on: %m-%d-%Y %H:%M:%S"))
 
-  else:
-    output("Failed.")
+  else: 
+    # We weren't able to find the startup folder for Windows systems    
+    servicelogger.log(time.strftime(" seattle was NOT installed on this system because the starter file could not be located: %m-%d-%Y at %H:%M:%S"))
 
-    # We weren't able to find the startup folder
-    output("seattle could not be installed correctly to run at startup.")
+    output("seattle was not able to be setup to run at startup.")
+    output("seattle could not be installed correctly to run at startup on your machine because the starter folder for your system could not be located.")
     output("To manually run seattle at any time, just run " +
             get_starter_file_name() + ".")
 
@@ -597,7 +613,7 @@ def usage():
   Intended for internal use.
   Prints command line usage of script.
   """
-  print "python install.py [--nm-ip ip] [--nm-iface iface] [--repy-ip ip] [--repy-iface iface] [--repy-nootherips] [--onlynetwork] [-s] [install_dir]"
+  print "python seattleinstaller.py [nm-key-bitsize [--nm-ip ip] [--nm-iface iface] [--repy-ip ip] [--repy-iface iface] [--repy-nootherips] [--onlynetwork] [-s] [install_dir]]"
   print "Info:"
   print "--nm-ip IP\t\tSpecifies a preferred IP for the NM. Multiple may be specified, they will be used in the specified order."
   print "--nm-iface iface\tSpecifies a preferred interface for the NM. Multiple may be specified, they will be used in the specified order."
@@ -623,16 +639,22 @@ def main():
   install.install(prog_path).
   Parses command line arguments and calls install() accordingly.
   """
-
   #Initialize the service logger.
   servicelogger.init('installInfo')
+
+  #Set the specified bitsize for the nodemanager keys
+  global KEYBITSIZE
+  if len(sys.argv) > 1:
+    KEYBITSIZE = int(sys.argv[1])
+
 
   global SILENT_MODE
   opts = None
   args = None
   try:
     # Armon: Changed getopt to accept parameters for Repy and NM IP/Iface restrictions, also a special disable flag
-    opts, args = getopt.getopt(sys.argv[1:], "hs",["nm-ip=","nm-iface=","repy-ip=","repy-iface=","repy-nootherips","onlynetwork"])
+    # Zack: changed sys.argv[1:] to sys.argv[2:] because KEYBITSIZE global is specified by the first parameter.  see usage()  --> KEYBITSIZE must be specified first and is not optional if other arguments are being passed in
+    opts, args = getopt.getopt(sys.argv[2:], "hs",["nm-ip=","nm-iface=","repy-ip=","repy-iface=","repy-nootherips","onlynetwork"])
   except getopt.GetoptError, err:
     print str(err)
     usage()

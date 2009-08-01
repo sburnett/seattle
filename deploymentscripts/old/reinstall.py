@@ -172,7 +172,7 @@ def install_new(parent_dir):
 
         # Run the installer script, passing it the install directory
         # as its argument and telling it to run silently.
-        os.popen("python " + parent_dir + "/" + install_dir + "/install.py " + 
+        os.popen("python " + parent_dir + "/" + install_dir + "/seattleinstaller.py " + 
                  parent_dir + "/" + install_dir + " -s")
         
     except ReinstallError, e:

@@ -22,7 +22,7 @@ import persist
 
 
 # init the keys...
-def initialize_keys():
+def initialize_keys(keybitsize):
 
   # initialize my configuration file.   This involves a few variables:
   #    pollfrequency --  the amount of time to sleep after a check when "busy
@@ -34,7 +34,7 @@ def initialize_keys():
   # Only the public key and private key are set here...
   configuration = persist.restore_object('nodeman.cfg')
 
-  keys = rsa_gen_pubpriv_keys(640)
+  keys = rsa_gen_pubpriv_keys(keybitsize)
   configuration['publickey'] = keys[0]
   configuration['privatekey'] = keys[1]
 

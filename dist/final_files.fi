@@ -128,4 +128,4 @@ req sshkey.repy
 req metainfo
 req resources.offcut
 req nodeman.cfg
-req install.py
+req seattleinstaller.py

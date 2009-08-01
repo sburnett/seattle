@@ -1,6 +1,6 @@
 """
 <Program Name>
-  uninstall.py
+  seattleuninstaller.py
 
 <Started>
   October 2008
@@ -86,7 +86,7 @@ def main():
         uninstall()
     else:
         if sys.argv[1] == "-h":
-            print "Usage: python uninstall.py [-s]"
+            print "Usage: python seattleuninstaller.py [-s]"
         elif sys.argv[1] == "-s":
             uninstall(1)
 

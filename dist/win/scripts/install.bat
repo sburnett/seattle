@@ -1,2 +1,2 @@
 @echo off
-python install.py
+python seattleinstaller.py

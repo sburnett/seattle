@@ -61,7 +61,7 @@ Installer download Page for Customized Installer
 						<ol>
 							<li>Download the Seattle tarball to your computer</li>
 						   	<li>Extract the tarball to the directory in which you would like to install Seattle.</li>
-							<li>Navigate to that directory and run ./install.sh (or python install.py).</li>
+							<li>Navigate to that directory and run ./install.sh (or python seattleinstaller.py).</li>
 						</ol>
 						<br />
 						To check that Seattle is running, try running: ps Aww | grep nmmain.py | grep -v grep
@@ -73,7 +73,7 @@ Installer download Page for Customized Installer
 						<ol>
 							<li>Download the Seattle tarball to your computer</li>
 						   	<li>Extract the tarball to the directory in which you would like to install Seattle.</li>
-							<li>Navigate to that directory and run ./install.sh (or python install.py).</li>
+							<li>Navigate to that directory and run ./install.sh (or python seattleinstaller.py).</li>
 						</ol>
 						<br />
 						To check that Seattle is running, try running: ps -f | grep nmmain.py | grep -v grep

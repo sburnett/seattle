@@ -207,7 +207,7 @@ def build_and_update(trunk_location, pubkey, privkey, version):
   os.chdir(temp_install_dir)
   for fname in install_files:
     if "nodeman.cfg" != fname and "resources.offcut" != fname \
-        and "install.py" != fname: 
+        and "seattleinstaller.py" != fname: 
       shutil.copy2(fname, UPDATER_SITE)
 
 

@@ -1,5 +1,5 @@
 # Armon: This tests the installer's behavior when handling network restriction flags
-# It does so by passing various flags to install.py and checking the generated nodeman.cfg file.
+# It does so by passing various flags to seattleinstaller.py and checking the generated nodeman.cfg file.
 #
 import persist
 import subprocess
@@ -19,14 +19,14 @@ def restore_copy():
   # Copy a version of the backup
   shutil.copyfile("nodeman.cfg.bak","nodeman.cfg")
 
-# Launches install.py with arguments, returns the generated config
+# Launches seattleinstaller.py with arguments, returns the generated config
 # Includes the --onlynetwork flag
 def test_launch(arguments):
   # Setup a clean slate
   restore_copy()
 
   # Create the cmdline option
-  command = "python install.py --onlynetwork "+arguments
+  command = "python seattleinstaller.py --onlynetwork "+arguments
 
   # Call subprocess
   proc = subprocess.Popen(command,shell=True)

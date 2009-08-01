@@ -233,7 +233,7 @@ def upgrade_node():
   cmd_list = []
   
   # uninstall, and then delete old .tgz if one exists.
-  cmd_list.append('python uninstall.py; cd ~/; rm -rf seattle_linux.tgz ')
+  cmd_list.append('python seattleuninstaller.py; cd ~/; rm -rf seattle_linux.tgz ')
   
   # download the newest file
   cmd_list.append('cd ~/; wget https://seattlegeni.cs.washington.edu/geni/download/flibble/seattle_linux.tgz')
@@ -245,8 +245,8 @@ def upgrade_node():
   # (if it's the same itll just display some error).
   cmd_list.append('cd ~/; tar -xf seattle_linux.tgz; cp -rf seattle_repy/ '+sys.argv[1]+'/..')
   
-  # Change into seattle_repy directory and execute python install.py, then start seattle
-  cmd_list.append('cd '+sys.argv[1]+'; python install.py; ./start_seattle.sh')  
+  # Change into seattle_repy directory and execute python seattleinstaller.py, then start seattle
+  cmd_list.append('cd '+sys.argv[1]+'; python seattleinstaller.py; ./start_seattle.sh')  
   
   # delete old install
   cmd_list.append('cd ~/; rm -rf seattle_linux.tgz')

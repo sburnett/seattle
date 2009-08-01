@@ -16,7 +16,7 @@ Describes the structure of the base installers as they should be at a halfway
 point, to make sure there are no errors before one of the installer building
 steps. Passed as input to clean_folder.py by the base installer builder.
 
-==install.py==
+==seattleinstaller.py==
 The script that installs seattle repy on any supported operating system. It
 is included in the installers by the base installer builder.
 

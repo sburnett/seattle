@@ -260,8 +260,8 @@ def main():
     # 2. Untar
     cmd_list.append('tar -xf seattle_linux.tgz')
     
-    # 3. Change into seattle_repy directory and execute python install.py and start seattle
-    cmd_list.append('cd seattle_repy; python install.py; ./start_seattle.sh ')
+    # 3. Change into seattle_repy directory and execute python seattleinstaller.py and start seattle
+    cmd_list.append('cd seattle_repy; python seattleinstaller.py; ./start_seattle.sh ')
     
     # merge into a command string
     cmd_str = '; '.join(cmd_list)

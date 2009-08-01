@@ -5,6 +5,6 @@ if [ "$which_out" = "" ]; then
     echo Please install python and try again.
 else
     cd `echo $0 | sed 's/install.sh//'`
-    python install.py $*
+    python seattleinstaller.py $*
 fi
 exit

@@ -3,7 +3,7 @@ source tb_compat.tcl
 
 set dir "/usr/kimbrl"
 #set command "./runner.sh >& /proj/Seattle/autograder/results/`hostname`.out"
-set command "python install.py -i 10.0.0.$i >& /proj/Seattle/autograder/results/`hostname`.out"
+set command "python seattleinstaller.py -i 10.0.0.$i >& /proj/Seattle/autograder/results/`hostname`.out"
 
 
 # Nodes

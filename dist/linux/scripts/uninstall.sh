@@ -2,4 +2,4 @@
 
 cd `echo $0 | sed 's/uninstall.sh//'`
 
-python uninstall.py
+python seattleuninstaller.py

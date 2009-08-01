@@ -1,6 +1,6 @@
 """
 <Program Name>
-  uninstall.py
+  seattleuninstaller.py
 
 <Started>
   January 12, 2009
@@ -15,6 +15,8 @@
 import sys
 import os
 import impose_seattlestopper_lock
+import servicelogger
+import time
 
 
 
@@ -83,7 +85,7 @@ def main():
   servicelogger.init('installInfo')
 
   if len(sys.argv) < 2:
-    print "Usage: python uninstall.py path\\to\\startup\\script"
+    print "Usage: python seattleuninstaller.py path\\to\\startup\\script"
   else:
     uninstall(sys.argv[1])
 

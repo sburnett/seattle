@@ -211,7 +211,7 @@ def prepare_gen_install_files(trunk_location, temp_install_dir, include_tests,
     shutil.copy2(trunk_location + "/dist/nodeman.cfg", temp_install_dir)
     shutil.copy2(trunk_location + "/dist/resources.offcut", temp_install_dir)
     # Copy the universal installer to the program directory
-    shutil.copy2(trunk_location + "/dist/install.py", temp_install_dir)
+    shutil.copy2(trunk_location + "/dist/seattleinstaller.py", temp_install_dir)
     # Run clean_folder a final time to ensure the final directory only contains
     # the necessary files.
     clean_folder.clean_folder(trunk_location + "/dist/final_files.fi",
