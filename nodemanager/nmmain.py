@@ -226,7 +226,7 @@ def start_accepter():
             unique_id = rsa_publickey_to_string(configuration['publickey'])
             unique_id = sha_hexhash(unique_id)
             unique_id = unique_id+str(configuration['service_vessel'])
-            print 'trying nat wait'
+            servicelogger.log("[INFO]: Trying NAT wait")
             nat_waitforconn(unique_id, possibleport,
                     nmconnectionmanager.connection_handler)
 
