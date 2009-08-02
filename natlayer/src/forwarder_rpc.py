@@ -256,12 +256,11 @@ def dereg_waitport(conn_id,value):
 
 # Exchanges messages between two sockets  
 def exchange_mesg(serverinfo, fromsock, tosock):
-  
-  #increment number of active connections
+  # increment number of active connections
   CONNECTIONS_LOCK.acquire()
   serverinfo["num_clients"] += 1
   CONNECTIONS_LOCK.release()
-  
+
   # DEBUG
   if DEBUG3: print getruntime(), "Exchanging messages between",fromsock,"and",tosock,"for server",serverinfo
   try:
@@ -288,20 +287,30 @@ def new_client(conn_id, value):
   conninfo = CONNECTIONS[conn_id]
   servermac = value["server"]
   port = value["port"]
+
+  # Get the server info dictionary
+  serverinfo = CONNECTIONS[MAC_ID_LOOKUP[servermac]]
+
+  #allow only one client to be prcoessed in per server at a time
+  serverinfo['new_client_lock'].acquire()
+
   
   # Has the server connected to this forwarder?
   if servermac not in MAC_ID_LOOKUP:
+    serverinfo['new_client_lock'].release()
     return (False,NAT_STATUS_NO_SERVER)
   
-  # Get the server info dictionary
-  serverinfo = CONNECTIONS[MAC_ID_LOOKUP[servermac]]
+  
+  
   
   # Check if we have reach the limit of clients
-  if not serverinfo["num_clients"] < MAX_CLIENTS_PER_SERV:
+  if serverinfo["num_clients"] > MAX_CLIENTS_PER_SERV -1:
+    serverinfo['new_client_lock'].release()
     return (False,NAT_STATUS_BSY_SERVER)
   
   # Check if the server is listening on the desired port
   if not port in serverinfo["ports"][servermac]:
+    serverinfo['new_client_lock'].release()
     return (False,NAT_STATUS_FAILED)
   
   # Try to get a virtual socket
@@ -317,8 +326,13 @@ def new_client(conn_id, value):
     conninfo["sock"].send(RPC_encode(rpc_response))
 
     # Spawn a thread to exchange the messages between the server and client
-    settimer(.2, exchange_mesg,[serverinfo,virtualsock,conninfo["sock"]])
     
+    #increment number of active connections
+    settimer(0, exchange_mesg,[serverinfo,virtualsock,conninfo["sock"]])
+    
+    # release the new client lock so more clients can connect
+    serverinfo['new_client_lock'].release()
+
     # Call exchange message to do sent the messages between the client and the server
     exchange_mesg(serverinfo,conninfo["sock"],virtualsock) 
     
@@ -326,6 +340,12 @@ def new_client(conn_id, value):
     # However, we will return normally, and new_rpc will catch an exceptiton
     return (True,NAT_STATUS_CONFIRMED)
   except Exception, exp:
+    # make sure the new client lock is released
+    try:
+      serverinfo['new_client_lock'].release()
+    except:
+      pass
+
     # DEBUG
     if DEBUG2: print getruntime(), "Error while opening virtual socket to ",servermac,"Error:",str(exp)
     
@@ -448,6 +468,7 @@ def _connection_entry(id,sock,mux,remoteip,remoteport,type):
   # Add type specific data
   if type == TYPE_MUX:
     info["mux"] = mux
+    info['new_client_lock'] = getlock() 
     info["num_clients"] = 0
     info["ports"] = {} # Maps each host name to a set of listening ports
     info["mac"] = set() # Set of possible MAC addresses
