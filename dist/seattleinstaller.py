@@ -54,7 +54,7 @@ if OS != "WindowsCE":
 
 # Import windows_api if in Windows or WindowsCE
 windows_api = None
-if OS == "Windows" or OS == "WindowsCE":
+if OS == "WindowsCE":
   import windows_api
 
 
@@ -69,7 +69,7 @@ class AlreadyInstalledError(Exception):
 
 
 
-def output(text):
+def _output(text):
   """
   For internal use.
   If the program is not in silent mode, prints the input text.
@@ -88,14 +88,15 @@ def preprocess_file(filename, substitute_dict, comment="#"):
 
   <Arguments>
     filename:
-      Path to the file which will be preprocesses.
+      The name of the file that will be preprocessed.
     substitute_dict:
       Map of words to be substituted to their replacements, e.g.,
       {"word_in_file_1": "replacement1", "word_in_file_2": "replacement2"}
     comment:
-      A string which demarks commented lines; lines that start with with
-      this will be ignored. Defaults to "#", set as blank to preprocess
-      all lines in the file.
+      A string which demarks commented lines; lines that start with this will
+      be ignored, but lines that contain this symbol will be preprocessed up to
+      that point. Defaults to "#", set as the empty string to preprocess all
+      lines in the file.
 
   <Exceptions>
     IOError on bad filename.
@@ -107,9 +108,9 @@ def preprocess_file(filename, substitute_dict, comment="#"):
     None.
   """
   edited_lines = []
-  base_fn = open(filename, "r")
+  base_fileobj = open(filename, "r")
 
-  for fileline in base_fn:
+  for fileline in base_fileobj:
     commentedLine = ""
 
     if comment == "" or not fileline.startswith(comment):
@@ -127,12 +128,12 @@ def preprocess_file(filename, substitute_dict, comment="#"):
 
     edited_lines.append(fileline + commentedLine)
 
-  base_fn.close()
+  base_fileobj.close()
 
   # Now, write those modified lines to the actual starter file location
-  final_fn = open(filename, "w")
-  final_fn.writelines(edited_lines)
-  final_fn.close()
+  final_fileobj = open(filename, "w")
+  final_fileobj.writelines(edited_lines)
+  final_fileobj.close()
 
 
 
@@ -549,10 +550,10 @@ def install(prog_path):
   try:
     os.urandom(1)
   except NotImplementedError:
-    output("Failed.")
-    output("No source of OS-specific randomness")
-    output("On a UNIX-like system this would be /dev/urandom, and on Windows it is CryptGenRandom.")
-    output("Please email the Seattle project for additional support")
+    _output("Failed.")
+    _output("No source of OS-specific randomness")
+    _output("On a UNIX-like system this would be /dev/urandom, and on Windows it is CryptGenRandom.")
+    _output("Please email the Seattle project for additional support")
     return
 
 
@@ -562,7 +563,7 @@ def install(prog_path):
   # First, generate the Node Manager keys since seattle does not need to be
   # setup to run at boot in order to be executed manually
 
-  output("Generating the Node Manager rsa keys and preparing seattle to run at startup.  This may take a few minutes...")
+  _output("Generating the Node Manager rsa keys and preparing seattle to run at startup.  This may take a few minutes...")
 
   # To avoid a race condition with cron on non-Windows systems, the keys must
   # always be generated before setting up seattle to run at boot
@@ -572,29 +573,29 @@ def install(prog_path):
   # Second, setup seattle to run at startup
   startup_success = setup_startup(prog_path)
   if startup_success:
-    output("Keys generated! Seattle is setup to run at startup!")
+    _output("Keys generated! Seattle is setup to run at startup!")
   
     # Next, if it is a Windows system and we were able to find the startup folder,
     # customize the uninstaller
     if "Windows" in OS:
-      output("Customizing uninstaller...")
+      _output("Customizing uninstaller...")
       setup_win_uninstaller(prog_path, startup_success)
-      output("Done!")
+      _output("Done!")
 
     # Next, setup the sitecustomize.py file, if running on WindowsCE
     if OS == "WindowsCE":
-      output("Configuring python...")
+      _output("Configuring python...")
       setup_sitecustomize(prog_path)
-      output("Done!")
+      _output("Done!")
 
     # Everything has been installed, so start seattle
-    output("Starting seattle...")
+    _output("Starting seattle...")
     start_seattle(prog_path)
 
 
     # The install went smoothly.
-    output("seattle was successfully installed and has been started!")
-    output("To learn more about useful, optional scripts related to running seattle, see the README file.")
+    _output("seattle was successfully installed and has been started!")
+    _output("To learn more about useful, optional scripts related to running seattle, see the README file.")
 
     servicelogger.log(time.strftime(" seattle was installed on: %m-%d-%Y %H:%M:%S"))
 
@@ -602,9 +603,9 @@ def install(prog_path):
     # We weren't able to find the startup folder for Windows systems    
     servicelogger.log(time.strftime(" seattle was NOT installed on this system because the starter file could not be located: %m-%d-%Y at %H:%M:%S"))
 
-    output("seattle was not able to be setup to run at startup.")
-    output("seattle could not be installed correctly to run at startup on your machine because the starter folder for your system could not be located.")
-    output("To manually run seattle at any time, just run " +
+    _output("seattle was not able to be setup to run at startup.")
+    _output("seattle could not be installed correctly to run at startup on your machine because the starter folder for your system could not be located.")
+    _output("To manually run seattle at any time, just run " +
             get_starter_file_name() + ".")
 
 
