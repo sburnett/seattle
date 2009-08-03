@@ -211,6 +211,12 @@ def _generate_python_file_from_repy(repyfilename, generatedfilename, shared_myco
   #the original data and translations
   try:
     fh = open(generatedfilename, "w")
+  except IOError, e:
+    # this is likely a directory permissions error
+    raise TranslationError("Cannot open file for translation '" + repyfilename + "': " + str(e))
+
+  # always close the file
+  try:
     print >> fh, TRANSLATION_TAGLINE, os.path.abspath(repyfilename)
     print >> fh, WARNING_LABEL
     print >> fh, "from repyportability import *"
