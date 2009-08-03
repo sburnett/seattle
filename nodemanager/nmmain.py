@@ -74,6 +74,16 @@ import servicelogger
 
 import repyhelper #used to bring in NAT Layer
 
+# I need to make a cachedir for repyhelper...
+if not os.path.exists('nodemanager.repyhelpercache'):
+  os.mkdir('nodemanager.repyhelpercache')
+
+# prepend this to my python path
+sys.path = ['nodemanager.repyhelpercache'] + sys.path
+repyhelpercachedir = repyhelper.set_importcachedir('nodemanager.repyhelpercache')
+
+
+
 # import the natlayer for use
 # this requires all NATLayer dependincies to be in the current directory
 repyhelper.translate_and_import('NATLayer_rpc.repy')

@@ -33,6 +33,15 @@ import nonportable  # Used for sys.exit
 
 import repyhelper
 
+# I need to make a cachedir for repyhelper...
+if not os.path.exists('softwareupdater.repyhelpercache'):
+  os.mkdir('softwareupdater.repyhelpercache')
+
+# prepend this to my python path
+sys.path = ['softwareupdater.repyhelpercache'] + sys.path
+repyhelpercachedir = repyhelper.set_importcachedir('softwareupdater.repyhelpercache')
+
+
 # Import servicelogger to do logging
 import servicelogger
 
