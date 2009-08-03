@@ -33,7 +33,7 @@ logfile = None
 servicevessel = None
 
 
-def get_servicevessel(maindirectory = '.'):
+def get_servicevessel(maindirectory = '.', readattempts = 3):
   """
   <Purpose>
     Get the service vessel directory using vesseldict. 
@@ -41,9 +41,14 @@ def get_servicevessel(maindirectory = '.'):
   <Arguments>
     maindirectory:   This is the directory where repy.py, vesseldict, etc.
                      are stored.   The default is the current directory.
+
+    readattempts:    The number of times to attempt to read vesseldict.
+                     Default is 3.
              
   <Exceptions>
     TypeError if maindirectory is not a string
+    Exception if reading vesseldict fails (previously recieved OSError
+      from persist.py)
         
   <Side Effects>
     None
@@ -64,12 +69,23 @@ def get_servicevessel(maindirectory = '.'):
   # A TypeError should happen if maindirectory is of the wrong type
   vesseldictlocation = os.path.join(maindirectory, "vesseldict")
 
-  try:
-    vesseldict = persist.restore_object(vesseldictlocation)
-  except ValueError, e:
-    # this means that the vessel doesn't exist.   Let's return the current
-    # directory...
-    return '.'
+  vesseldictloaded = False
+  for dontcare in range(0, readattempts):
+    try:
+      vesseldict = persist.restore_object(vesseldictlocation)
+    except ValueError, e:
+      # this means that the vessel doesn't exist.   Let's return the current
+      # directory...
+      return '.'
+    except OSError:
+      continue
+    else:
+      if type(vesseldict) is dict:
+        vesseldictloaded = True
+        break
+
+  if not vesseldictloaded:
+    raise Exception("Could not load vesseldict.")
 
   service_vessels = servicelookup_get_servicevessels(vesseldict, ownerkey, ownerinfo)
   
