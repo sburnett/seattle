@@ -20,6 +20,8 @@
   $ python expire_vessels.py
 """
 
+import sys
+
 from repyportability import *
 include nmclient.repy
 

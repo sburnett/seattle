@@ -25,6 +25,7 @@
 from repyportability import *
 import os
 import shutil
+import sys
 import tarfile
 import tempfile
 import persist
