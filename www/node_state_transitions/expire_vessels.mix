@@ -31,7 +31,7 @@ import changeusers
 # db api
 import genidb
 # circular logging to a file
-import logging
+import loggingrepy
 
 
 def main():
@@ -87,7 +87,7 @@ def main():
 if __name__ == '__main__':
   logfn = "log.expire_vessels.old"
   # set up the circular logger (at least 50 MB buffer)
-  loggerfo = logging.circular_logger(logfn, 50*1024*1024)
+  loggerfo = loggingrepy.circular_logger(logfn, 50*1024*1024)
 
   # redirect standard out / error to the circular log buffer
   sys.stdout = loggerfo

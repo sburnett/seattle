@@ -27,7 +27,7 @@
 # EMULAB NODES WILL REMAIN RUNNING
 import sys
 import data_interface
-import logging
+import loggingrepy
 import time
 import remote_emulab
 import nm_remote_api
@@ -41,7 +41,7 @@ VERSION = 'beta'
 SEATTLE = 'Seattle'  # the name of our project in emulab
 ASSIGNMENT_NAME = 'agv1' #emulab exp name
 
-loggerfo = logging.circular_logger('autograder_log')
+loggerfo = loggingrepy.circular_logger('autograder_log')
 make_log = True   #logs if true, prints if false
 timestamp = datetime.datetime   # used to time stamp log output
 
@@ -344,4 +344,4 @@ if __name__ == "__main__":
     
   waitforfiles()
 
-  sys.stdout = logging.flush_logger(sys.stdout)
+  sys.stdout = loggingrepy.flush_logger(sys.stdout)

@@ -41,7 +41,7 @@ repyhelper.translate_and_import("nmclient.repy") #include nmclient.repy
 repyhelper.translate_and_import("parallelize.repy") #include parallelize.repy
 
 import genidb  # db api
-import logging # circular logging to a file
+import loggingrepy # circular logging to a file
 
 def handle_donation(donation):
     """
@@ -229,7 +229,7 @@ def main():
 if __name__ == '__main__':
   logfn = "log.dbnode_checker"
   # set up the circular logger (at least 50 MB buffer)
-  loggerfo = logging.circular_logger(logfn, 50*1024*1024)
+  loggerfo = loggingrepy.circular_logger(logfn, 50*1024*1024)
 
   # redirect standard out / error to the circular log buffer
   sys.stdout = loggerfo

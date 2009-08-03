@@ -90,7 +90,7 @@ include parallelize.repy
 import random
 import advertise
 import runonce
-import logging
+import loggingrepy
 import sys
 import time
 import genidb
@@ -220,7 +220,7 @@ def locateandprocessvessels(statefunctionargtuplelist, uniquename, sleeptime, ac
   logfn = "log."+str(uniquename)
 
   # set up the circular logger (at least 50 MB buffer)
-  loggerfo = logging.circular_logger(logfn, 50*1024*1024)
+  loggerfo = loggingrepy.circular_logger(logfn, 50*1024*1024)
 
   # redirect standard out / error to the circular log buffer
   sys.stdout = loggerfo
