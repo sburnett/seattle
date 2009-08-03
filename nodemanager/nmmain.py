@@ -332,8 +332,6 @@ def main():
 
   global configuration
 
-  # Initialize the service logger.
-  servicelogger.init('nodemanager')
 
   # ensure that only one instance is running at a time...
   gotlock = runonce.getprocesslock("seattlenodemanager")
@@ -469,6 +467,10 @@ if __name__ == '__main__':
   # take a command line argument to force use of natlayer
   if len(sys.argv) ==2 and sys.argv[1] == '-nat':
     AUTO_USE_NAT = True
+
+  # Initialize the service logger.   We need to do this before calling main
+  # because we want to print exceptions in main to the service log
+  servicelogger.init('nodemanager')
 
   # Armon: Add some logging in case there is an uncaught exception
   try:
