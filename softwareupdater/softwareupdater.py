@@ -15,21 +15,10 @@ Updated 1/23/2009 use servicelogger to log errors - Xuanhua (Sean)s Ren
 
 """
 
-# this is being done so that the resources accounting doesn't interfere with logging
-from repyportability import *
+
 
 import sys
-
-import urllib      # to retrieve updates
-import os   # needed for remove and path.exists
-import subprocess   # used to start an experiment
-import random
-import shutil
-import socket   # we'll make it so we don't hang...
-import tempfile
-import traceback    # For exception logging if the servicelogger fails.
-import runonce
-import nonportable  # Used for sys.exit
+import os
 
 import repyhelper
 
@@ -40,6 +29,20 @@ if not os.path.exists('softwareupdater.repyhelpercache'):
 # prepend this to my python path
 sys.path = ['softwareupdater.repyhelpercache'] + sys.path
 repyhelpercachedir = repyhelper.set_importcachedir('softwareupdater.repyhelpercache')
+
+
+# this is being done so that the resources accounting doesn't interfere with logging
+from repyportability import *
+
+import urllib      # to retrieve updates
+import subprocess   # used to start an experiment
+import random
+import shutil
+import socket   # we'll make it so we don't hang...
+import tempfile
+import traceback    # For exception logging if the servicelogger fails.
+import runonce
+import nonportable  # Used for sys.exit
 
 
 # Import servicelogger to do logging

@@ -30,12 +30,28 @@ they do not terminate prematurely (restarting them as necessary).
 
 """
 
-#for the number of events patch
-import glob
-
 # Let's make sure the version of python is supported
 import checkpythonversion
 checkpythonversion.ensure_python_version_is_supported()
+
+import os
+import sys
+
+import repyhelper #used to bring in NAT Layer
+
+# I need to make a cachedir for repyhelper...
+if not os.path.exists('nodemanager.repyhelpercache'):
+  os.mkdir('nodemanager.repyhelpercache')
+
+# prepend this to my python path
+sys.path = ['nodemanager.repyhelpercache'] + sys.path
+repyhelpercachedir = repyhelper.set_importcachedir('nodemanager.repyhelpercache')
+
+
+
+#for the number of events patch
+import glob
+
 
 # Armon: Prevent all warnings
 import warnings
@@ -72,16 +88,6 @@ import traceback
 
 import servicelogger
 
-import repyhelper #used to bring in NAT Layer
-
-# I need to make a cachedir for repyhelper...
-if not os.path.exists('nodemanager.repyhelpercache'):
-  os.mkdir('nodemanager.repyhelpercache')
-
-# prepend this to my python path
-sys.path = ['nodemanager.repyhelpercache'] + sys.path
-repyhelpercachedir = repyhelper.set_importcachedir('nodemanager.repyhelpercache')
-
 
 
 # import the natlayer for use
@@ -96,8 +102,6 @@ repyhelper.translate_and_import('rsa.repy')
 # I will re-use the code repy uses in emulcomm
 import emulcomm
 
-# Allows us to get the traceback for the current exception
-import sys
 
 # One problem we need to tackle is should we wait to restart a failed service
 # or should we constantly restart it.   For advertisement and status threads, 
