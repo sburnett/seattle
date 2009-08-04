@@ -22,19 +22,7 @@ del key_daemon.repy
 del key_daemon_parser.repy
 del nm_remote_api.py
 del rhizoma.py
-del rsa_repy.py
-del pycryptorsa_repy.py
-del signeddata_repy.py
-del sockettimeout_repy.py
-del random_repy.py
-del math_repy.py
-del tcp_time_repy.py
-del session_repy.py
-del centralizedadvertise_repy.py
-del time_repy.py
-del sha_repy.py
-del ntp_time_repy.py
-del time_interface_repy.py
+del *_repy.py
 
 req time_interface.repy
 req advertise.repy
@@ -123,6 +111,11 @@ req binascii.repy
 req sshkey_paramiko.repy
 req pyDes.repy
 req sshkey.repy
+req NAT_advertisement.repy
+req textops.repy
+req NATLayer_rpc.repy
+req deserialize.repy
+req Multiplexer.repy
 
 # Files added during install build:
 req metainfo

@@ -110,3 +110,8 @@ req binascii.repy
 req sshkey_paramiko.repy
 req pyDes.repy
 req sshkey.repy
+req NAT_advertisement.repy
+req textops.repy
+req NATLayer_rpc.repy
+req deserialize.repy
+req Multiplexer.repy
