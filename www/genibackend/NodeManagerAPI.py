@@ -68,11 +68,16 @@ def dosignedcall(ip, port, pubkeystring, privkeystring, *callargs):
   """
   nmhandle = nmclient_createhandle(ip, port)
 
-  myhandleinfo = nmclient_get_handle_info(nmhandle)
-  myhandleinfo['publickey'] = rsa_string_to_publickey(pubkeystring)
-  myhandleinfo['privatekey'] = rsa_string_to_privatekey(privkeystring)
-  nmclient_set_handle_info(nmhandle, myhandleinfo)
-
-  nmclient_signedsay(nmhandle, *callargs)
+  # Be sure to clean up the handle.
+  try:
+    myhandleinfo = nmclient_get_handle_info(nmhandle)
+    myhandleinfo['publickey'] = rsa_string_to_publickey(pubkeystring)
+    myhandleinfo['privatekey'] = rsa_string_to_privatekey(privkeystring)
+    nmclient_set_handle_info(nmhandle, myhandleinfo)
+  
+    nmclient_signedsay(nmhandle, *callargs)
+    
+  finally:
+    nmclient_destroyhandle(nmhandle)
 
   
