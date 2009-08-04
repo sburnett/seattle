@@ -328,6 +328,7 @@ def setup_startup(prog_path):
 
   # First check to make sure the OS is supported
   if OS == "Windows" or OS == "WindowsCE":
+    _output("Adding a script to the startup folder...")
     # Try setting up the startup folder on a Windows system
     startup_path = get_win_startup_folder(platform.release())
     if not startup_path:
@@ -351,6 +352,7 @@ def setup_startup(prog_path):
 
 
   elif OS == "Linux" or OS == "Darwin":
+    _output("Adding an entry to the crontab...")
     # First check to see if crontab has already been modified to run seattle
     crontab_contents = subprocess.Popen("crontab -l", shell=True, stdout=subprocess.PIPE).stdout
     found = False
@@ -563,17 +565,19 @@ def install(prog_path):
   # First, generate the Node Manager keys since seattle does not need to be
   # setup to run at boot in order to be executed manually
 
-  _output("Generating the Node Manager rsa keys and preparing seattle to run at startup.  This may take a few minutes...")
+  _output("Generating the Node Manager rsa keys.  This may take a few minutes...")
 
   # To avoid a race condition with cron on non-Windows systems, the keys must
   # always be generated before setting up seattle to run at boot
   generate_keys(prog_path)
+  _output("Keys generated!")
     
 
+  _output("Preparing Seattle to run automatically...")
   # Second, setup seattle to run at startup
   startup_success = setup_startup(prog_path)
   if startup_success:
-    _output("Keys generated! Seattle is setup to run at startup!")
+    _output("Seattle is setup to run at startup!")
   
     # Next, if it is a Windows system and we were able to find the startup folder,
     # customize the uninstaller
