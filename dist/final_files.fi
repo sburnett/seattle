@@ -46,7 +46,7 @@ req emulmisc.py
 req emultimer.py
 req fakelinecache.py
 req idhelper.py
-req logging.py
+req loggingrepy.py
 req math.repy
 req misc.py
 req nanny.py
