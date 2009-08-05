@@ -174,6 +174,10 @@ def _translation_is_needed(repyfilename, generatedfile):
   try:
     fh = open(generatedfile, "r")
     first_line = fh.readline().rstrip()
+    current_line = ''
+    for line in fh:
+      current_line = line
+    last_line = current_line
     fh.close()
   except IOError, e:
     raise TranslationError("Error opening old generated file: " + generatedfile + ": " + str(e))
@@ -182,6 +186,11 @@ def _translation_is_needed(repyfilename, generatedfile):
   #clobbering a file that we didn't create
   if not first_line.startswith(TRANSLATION_TAGLINE):
     raise TranslationError("File name exists but wasn't automatically generated: " + generatedfile)
+
+  if not last_line.startswith(TRANSLATION_TAGLINE):
+    # The file generation wasn't completed...   I think this means we should
+    # silently regenerate (#617)
+    return True
   
   #Check to see if the generated file has the same original source
   old_translation_path = first_line[len(TRANSLATION_TAGLINE):].strip()
@@ -230,6 +239,10 @@ def _generate_python_file_from_repy(repyfilename, generatedfilename, shared_myco
     print >> fh, "callargs =", repr(callargs) 
     print >> fh 
     _process_output_file(fh, repyfilename, generatedfilename)
+    # append the TRANSLATION_TAGLINE so that we can see if the operation was
+    # interrupted (#617)
+    print >> fh
+    print >> fh, TRANSLATION_TAGLINE, os.path.abspath(repyfilename)
   except IOError, e:
     raise TranslationError("Error translating file " + repyfilename + ": " + str(e))
   finally:
