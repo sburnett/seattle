@@ -43,6 +43,9 @@ MAC_ID_LOCK = getlock()
 # Allows a reverse lookup of MAC to Connection ID
 MAC_ID_LOOKUP = {}
 
+#allow only one check at a time to prevent a race on outsockets
+USE_NAT_CHECK_LOCK = getlock()
+
 # Controls Debug messages
 DEBUG1 = True  # Prints general debug messages
 DEBUG2 = False  # Prints verbose debug messages
@@ -98,13 +101,9 @@ def is_connection_bi_directional(conn_id,value):
 
    # if the ips match try to make a connection
    else:
+     USE_NAT_CHECK_LOCK.acquire()
      try:
        test_sock = openconn(value['localip'],value['waitport'])
-     except Exception:
-       ret_value = True # failed to make connection
-       
-     else:
-     
        test_str = "test connection ok"
        test_sock.send(test_str)
      
@@ -113,10 +112,14 @@ def is_connection_bi_directional(conn_id,value):
        while recieved < len(test_str):
          msg += test_sock.recv(len(test_str)-recieved)
          recieved += len(msg)
-       test_sock.close()
        ret_value = (msg != test_str)
+
+     except Exception:
+       _safe_close(test_sock)
+       USE_NAT_CHECK_LOCK.release()
+       ret_value = True # failed to make connection
        
-  
+     
    return (True,ret_value)
 
 
