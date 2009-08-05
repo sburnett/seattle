@@ -110,10 +110,15 @@ class advertthread(threading.Thread):
             advertise_announce(advertisekey, str(myname), adTTL)
             # mark when we advertise
             lastadvertisedict[rsa_publickey_to_string(advertisekey)] = getruntime()
+          
+          # advertise errors are common so note them and move on
+          except AdvertiseError, e:
+            servicelogger.log('AdvertiseError occured, continuing: '+str(e))
           except Exception, e:
-            servicelogger.log_last_exception()
-            # print the error and exit (we'll be restarted)
+            servicelogger.log_last_exception(e)
+            # an unexpected exception occured, exit and restart
             return
+           
 
         # wait to avoid sending too frequently
         misc.do_sleep(adsleepfrequency)
