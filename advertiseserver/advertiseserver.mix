@@ -196,7 +196,7 @@ if callfunc=='initialize':
   time_updatetime(34612)
   
   #initialize the log files
-  logfiledata["call_trace"] = open("log.calltrace",'w')
-  logfiledata["expanded_log"] = open("log.expanded",'w')
+  logfiledata["call_trace"] = open("log.calltrace",'a')
+  logfiledata["expanded_log"] = open("log.expanded",'a')
   
   waitforconn(getmyip(),serverport,handlerequest)
