@@ -15,21 +15,26 @@
   This program is intended to be run continously so that it can periodically
   check how many forwarders are running and re-deploy forwardrs as nessciary.
 
+  The public and private key of the user running the service must be
+  in the current directory.
+
   Uses a static list of resources provided by a comma seperated file
   WARNING: Ensure there are no spaces at the end of lines in this file.
 
 """
 
 import sys
-
 import time
 import repyhelper
 
+repyhelper.translate_and_import("nmclient.repy")
+repyhelper.translate_and_import('rsa.repy')  
+  
 
 # TODO add logging
 
 # constants
-WAIT_TIME = 60 # TODO, bump this way up, maybe every 10 minutes? 
+WAIT_TIME = 180 
 
 XMLRPC_SERVER = 'http://seattlegeni.cs.washington.edu:9001'
 
@@ -37,10 +42,15 @@ XMLRPC_SERVER = 'http://seattlegeni.cs.washington.edu:9001'
 RESOURCE_LIST = []  # a List of dictionaires, each dictionary represents a node
 MONITOR_STATE = {}  # dictionary to hold global monitor state,
 FAIL_COUNTS = {} # track those nodes that we have faild to contact several times
-FAIL_MAX = 3 # number of times we can fail to reach a node before we give up on it
+
+FAIL_MAX = 5 # number of times we can fail to reach a node before we give up on it
 
 
 def deploy_on(resources):
+# deploys the service on a list of resources
+# returns a list of resouces that failed to start
+  
+  timeout = MONITOR_STATE['timeout']
   
   # read in the file to deploy
   # we read this in every time rather than keeping large files around in memory
@@ -53,7 +63,10 @@ def deploy_on(resources):
   else:
     file_obj.close()
 
-    
+  good_list = []
+  bad_list = []  
+
+  
   # deploy the service on each node,
   for node in resources:
     try:
@@ -67,7 +80,8 @@ def deploy_on(resources):
     
     
       # create a node handle
-      nmhandle = nmclient_createhandle(node['node_ip'],node['node_port'],timeout=30)
+      nmhandle = nmclient_createhandle(node['node_ip'],node['node_port'],
+                                       timeout=timeout)
       node['nmhandle'] = nmhandle
 
       # set keys
@@ -108,21 +122,19 @@ def deploy_on(resources):
       #check the vessel status
       vesselinfo = nmclient_getvesseldict(nmhandle)
       if vesselinfo['vessels'][myvessel]['status'] == 'Started':
-        service_running = True
+        good_list.append(node)
       else:
+        bad_list.append(node)
         print 'ERROR": vessel shoud be Started but is '+  vesselinfo['vessels'][myvessel]['status']
     except Exception, e:
       print 'ERROR: '+str(e)
-      server_running = False  
-
-    
-    # add the node to resource dict  
-    if not service_running: 
+      bad_list.append(node)
       print 'ERROR: FAILED to start service on vessel: '+node['node_ip']+':'+node['vessel_id']
  
     
+  return bad_list
   
-  
+
   
 def detect_failures():
   # returns a list of nodes that are not running
@@ -160,17 +172,39 @@ def increment_failure(list):
 # or resources.
 # 
 # when the resource list is empty exit this program
-
   for node in list:
     key = node['node_ip']+node['vessel_id']
     FAIL_COUNTS[key] += 1
     if FAIL_COUNTS[key] > FAIL_MAX:
       RESOURCE_LIST.remove(node)
+      del FAIL_COUNTS[key]
       print 'ERROR: The following resource can not be reached. '+str(node)
     
   if len(RESOURCE_LIST) < 1:
     print 'ERROR: All resources have failed, doing harsh exit'
     sys.exit() 
+
+
+def filter_failures(bad_list):
+  # return a new list that only contains
+  # items that are in bad_list and RESOURCE_LIST
+  
+  ret_list = []
+  for node in bad_list:
+    if node in RESOURCE_LIST:
+      ret_list.append(node)
+
+  return ret_list
+
+
+def remove_duplicates(list):
+  ret_list = []
+  for thing in list:
+    if thing not in ret_list:
+      ret_list.append(thing)
+
+  return ret_list
+
 
 
 
@@ -181,23 +215,27 @@ def main():
   #TODO change to logging
   print 'INFO: Deployment manager started.'
 
-  deploy_on(RESOURCE_LIST)
+  # these arent really bad, im just setting up for the loop
+  bad_list = RESOURCE_LIST 
   
+
   while True:
-  
+    # deploy the service
+    if len(bad_list) > 0:
+      bad_list = deploy_on(bad_list)
+    
+    # wait for some times and then check the service
     time.sleep(WAIT_TIME)
-   
-        
+       
     # get a list of the resources that have stopped running
-    failed_resources = detect_failures()
-    increment_failure(failed_resources)
+    bad_list.extend(detect_failures())
+    bad_list = remove_duplicates(bad_list)
+    increment_failure(bad_list)
 
-    if len(failed_resources) > 0:
+    # remove nodes that have failed too many times
+    bad_list = filter_failures(bad_list)
 
-      #TODO change to logging
-      print 'ERROR: '+str(len(failed_resources))+' have failed: '
-      print 'trying to restart'
-      deploy_on(failed_resources)
+    
 
 
             
@@ -206,23 +244,25 @@ def main():
 if __name__ == "__main__":
 # setup global state and check command line arguments  
 
-  # for node manager interaction
-  repyhelper.translate_and_import("nmclient.repy")
-  repyhelper.translate_and_import('rsa.repy')  
-  
-
-  #TODO how do we decided what port to use for this?
-  # we need the ntp time for signed comms with a nodemanager
   time_updatetime(34612)  
 
   # check the number of call arguments
-  if len(sys.argv) != 5:
-    print 'USAGE: <username> <file_name to deploy> <program args> <resource file>' 
+  if len(sys.argv) < 5 or len(sys.argv) > 6:
+    print 'USAGE: <username> <file_name to deploy> <program args> <resource file> | <timeout> |' 
     sys.exit()
-
   
+  # set the optional timeout argument if it was supplied
+  elif len(sys.argv) == 6:
+    MONITOR_STATE['timeout'] = int(sys.argv[5])
+  else:
+    MONITOR_STATE['timeout'] = 30 # 30seconds default
+
+  username = sys.argv[1]
   MONITOR_STATE['file_name'] = sys.argv[2]
-  # ensure the file exists
+  MONITOR_STATE['file_args'] = sys.argv[3]
+
+  # ensure the file exists, don't read it in, because we don't need to
+  # keep it in memory forever
   try:
     file_obj = open(MONITOR_STATE['file_name'])
   except Exception, e:
@@ -231,22 +271,16 @@ if __name__ == "__main__":
   else:
     file_obj.close()
   
-  MONITOR_STATE['file_args'] = sys.argv[3]
-
-  
-  key_file = open(sys.argv[1]+".publickey")
+  # read in public and private keys for the user
+  key_file = open(username+".publickey")
   pubkey = key_file.read()
   key_file.close()
-
-  key_file = open(sys.argv[1]+".privatekey")
+  key_file = open(username+".privatekey")
   privatekey = key_file.read()
   key_file.close()
-  
-  #convert the key strings to key dicts
   MONITOR_STATE['pubkey'] = rsa_string_to_publickey(pubkey)
   MONITOR_STATE['privatekey'] = rsa_string_to_privatekey(privatekey)
   
-
   # read in resources
   file_obj = open(sys.argv[4])
   lines = file_obj.readlines()
