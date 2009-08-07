@@ -55,6 +55,8 @@ repyhelper.translate_and_import("listops.repy")
 
 repyhelper.translate_and_import("parallelize.repy")
 
+repyhelper.translate_and_import("domainnameinfo.repy")
+
 repyhelper.translate_and_import("advertise.repy")   #  used to do OpenDHT lookups
 
 import traceback
@@ -729,6 +731,8 @@ show users      -- Display the user keys for the vessels
 show ownerinfo  -- Display owner information for the vessels
 show advertise  -- Display advertisement information about the vessels
 show ip         -- Display the ip addresses of the nodes
+show hostname   -- Display the hostnames of the nodes
+show location   -- Display location information (countries) for the nodes
 show owner      -- Display a vessel's owner
 show targets    -- Display a list of targets
 show identities -- Display the known identities
@@ -1045,6 +1049,73 @@ update             -- Update information about the vessels
               print thisnodeIP
   
           continue
+
+# show hostname        -- Display the hostnames of the nodes
+        # catch a misspelling
+        elif userinputlist[1] == 'hostnames' or userinputlist[1] == 'hostname' or userinputlist[1] == 'host' or userinputlist[1] == 'hosts':
+
+          if not currenttarget:
+            raise UserError("Error, command requires a target")
+
+          
+          # we should only visit a node once...
+          printedIPlist = []
+          for longname in targets[currenttarget]:
+            thisnodeIP = vesselinfo[longname]['IP']
+
+            if thisnodeIP not in printedIPlist:
+              printedIPlist.append(thisnodeIP)
+              print thisnodeIP,
+              try: 
+                nodeinfo = socket.gethostbyaddr(thisnodeIP)
+              except (socket.herror,socket.gaierror, socket.timeout, socket.error):
+                print 'has unknown host information'
+              else:
+                print 'is known as',nodeinfo[0]
+  
+          continue
+
+
+
+# show location        -- Display location information about the nodes
+        # catch a misspelling
+        elif userinputlist[1] == 'locations' or userinputlist[1] == 'location':
+
+          if not currenttarget:
+            raise UserError("Error, command requires a target")
+
+          
+          # we should only visit a node once...
+          printedIPlist = []
+          for longname in targets[currenttarget]:
+            thisnodeIP = vesselinfo[longname]['IP']
+
+            # if we haven't visited this node
+            if thisnodeIP not in printedIPlist:
+              printedIPlist.append(thisnodeIP)
+              # print the ip (will print more in a sec.)
+              print thisnodeIP,
+              try: 
+                nodeinfo = socket.gethostbyaddr(thisnodeIP)
+              except (socket.herror,socket.gaierror, socket.timeout, socket.error):
+                # couldn't look up the name...
+                print 'has unknown location information'
+              else:
+                hostname = nodeinfo[0]
+                try:
+                  # figure out what the name means
+                  mylocationstring = domainnameinfo_gethostlocation(hostname)
+                except UnknownHostLocationError:
+                  # We don't know...
+                  print "has unknown location information (name '"+hostname+"')"
+                else:
+                  # yeah!   We know
+                  print 'is at:',mylocationstring
+                
+  
+          continue
+
+
 
 # show timeout    -- Display the timeout for nodes
         elif userinputlist[1] == 'timeout' or userinputlist[1] == 'timeouts':
