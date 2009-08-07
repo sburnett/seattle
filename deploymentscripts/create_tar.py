@@ -90,7 +90,7 @@ def main():
 
   print "Starting tar-maker script.."
   # String of files we're going to be looking for
-  files="runlocaltests.py testprocess.py verifyfiles.mix cleanup_deploy.py hashes.dict"
+  files="runlocaltests.py testprocess.py verifyfiles.mix cleanup_deploy.py hashes.dict upgrade_nodes.sh"
 
   # TODO: add list of 'optional files' to include
 

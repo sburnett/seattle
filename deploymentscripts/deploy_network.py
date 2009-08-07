@@ -126,7 +126,7 @@ def remote_get_log(user, remote_host):
     
     # download the tar file from remote host
     out, err, returncode = remote_download_file(remote_host+'.tgz', 
-      './deploy.logs/'+remote_host+'/'+remote_host+'.tgz', user, remote_host)
+        './deploy.logs/'+remote_host+'/'+remote_host+'.tgz', user, remote_host)
 
     deploy_logging.log('Downloading logs', 'Logs downloaded from '+remote_host)
     # now try to untar the files
@@ -159,7 +159,7 @@ def remote_get_log(user, remote_host):
       # Only log if we error and need to narrow this down. otherwise,
       # it gets really spammy.    
       deploy_logging.logerror(remote_host+": Some kind of err in remote_get_log. ("+\
-        remote_host+") , error:"+str(e)+")")
+          remote_host+") , error:"+str(e)+")")
   return
 
 
@@ -249,9 +249,9 @@ def remote_shellexec(command_string, user, remote_host, retry_on_refusal = 3, co
   # the remote host's ip is not trusted (cached) in known_hosts file.
   
   ssh_proc_handle = subprocess.Popen('ssh -T -o BatchMode=yes -o ConnectTimeout='+\
-    str(connect_timeout)+' -o StrictHostKeyChecking=no '\
-    ' '+user+'@'+remote_host, shell=True, stdin=subprocess.PIPE,
-    stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+      str(connect_timeout)+' -o StrictHostKeyChecking=no '\
+      ' '+user+'@'+remote_host, shell=True, stdin=subprocess.PIPE,
+      stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
   # get the process ID
   ssh_proc_pid = ssh_proc_handle.pid
@@ -282,8 +282,7 @@ def remote_shellexec(command_string, user, remote_host, retry_on_refusal = 3, co
 
 
 
-def remote_download_dir(remote_source_dir, local_dest_dir, user, remote_host, 
-  retry_on_refusal = 3, connect_timeout = default_connection_timeout):
+def remote_download_dir(remote_source_dir, local_dest_dir, user, remote_host, retry_on_refusal = 3, connect_timeout = default_connection_timeout):
   """
   <Purpose>
     This uses scp to download a directory from a remote computer.
@@ -356,7 +355,7 @@ def remote_download_dir(remote_source_dir, local_dest_dir, user, remote_host,
       # run again, but this time decrement retry counter
       out, err, returncode = remote_download_dir(remote_source_dir, 
           local_dest_dir, user, remote_host, retry_on_refusal - 1, 
-          connect_timeout=default_connection_timeout)
+          connect_timeout = default_connection_timeout)
 
   # format the string
   out, err = deploy_logging.format_stdout_and_err(out, err)
@@ -365,8 +364,7 @@ def remote_download_dir(remote_source_dir, local_dest_dir, user, remote_host,
 
 
 
-def remote_download_file(remote_fn_path, local_fn_path, user, remote_host, 
-  retry_on_refusal = 3, connect_timeout = default_connection_timeout):
+def remote_download_file(remote_fn_path, local_fn_path, user, remote_host, retry_on_refusal = 3, connect_timeout = default_connection_timeout):
   """
   <Purpose>
     This uses scp to download a file from a remote computer.
@@ -437,8 +435,8 @@ def remote_download_file(remote_fn_path, local_fn_path, user, remote_host,
     if didwesleep:
       # run again, but this time decrement retry counter
       out, err, returncode = remote_download_file(remote_fn_path, 
-        local_fn_path, user, remote_host, retry_on_refusal - 1, 
-        connect_timeout=default_connection_timeout)
+          local_fn_path, user, remote_host, retry_on_refusal - 1, 
+          connect_timeout = default_connection_timeout)
 
   # format the string
   out, err = deploy_logging.format_stdout_and_err(out, err)
@@ -447,8 +445,7 @@ def remote_download_file(remote_fn_path, local_fn_path, user, remote_host,
 
 
 
-def remote_upload_file(local_fn_path, user, remote_host, 
-  retry_on_refusal = 3, connect_timeout = default_connection_timeout):
+def remote_upload_file(local_fn_path, user, remote_host, retry_on_refusal = 3, connect_timeout = default_connection_timeout):
   """
   <Purpose>
     This uses scp to upload a file to a remote computer.
@@ -487,9 +484,9 @@ def remote_upload_file(local_fn_path, user, remote_host,
     raise Exception('Please check calling method.')
   
   scp_proc_handle = subprocess.Popen('scp -o BatchMode=yes -o '+\
-    'ConnectTimeout='+str(connect_timeout)+' -o StrictHostKeyChecking=no '+\
-    ' '+local_fn_path+' '+user+"@"+remote_host+":", shell = True, 
-    stdout = subprocess.PIPE, stderr = subprocess.PIPE)
+      'ConnectTimeout='+str(connect_timeout)+' -o StrictHostKeyChecking=no '+\
+      ' '+local_fn_path+' '+user+"@"+remote_host+":", shell = True, 
+      stdout = subprocess.PIPE, stderr = subprocess.PIPE)
 
   scp_proc_pid = scp_proc_handle.pid
 
@@ -510,7 +507,7 @@ def remote_upload_file(local_fn_path, user, remote_host,
     if didwesleep:
       # run again, but this time decrement retry counter
       out, err, returncode = remote_upload_file(local_fn_path, user, 
-        remote_host, retry_on_refusal - 1, connect_timeout = default_connection_timeout)
+          remote_host, retry_on_refusal - 1, connect_timeout = default_connection_timeout)
 
   # format the string
   out, err = deploy_logging.format_stdout_and_err(out, err)
@@ -559,7 +556,7 @@ def sleep_on_conn_refused(out, err, timesleft):
   if out_bool or err_bool:
     # sleep then try again
     deploy_logging.log('WARNING', "Connection refused, forced sleeping to overcome "+\
-      "timeout ("+str(timesleft)+" timeouts left)")
+        "timeout ("+str(timesleft)+" timeouts left)")
     time.sleep(60/timesleft) # each time you sleep a little longer
     return True
   return False

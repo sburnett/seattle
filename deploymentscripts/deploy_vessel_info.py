@@ -83,6 +83,7 @@ def main():
     
     nodes_in_state = get_nodes_for_key(current_key)
     
+    total_counter = 0
     try:
       # write all of these nodes to file
       advertised_nodes_handle = open('advertised_nodes_list.list', 'a')
@@ -91,12 +92,17 @@ def main():
       advertised_nodes_handle.write('\n\n# '+knownstates_string_representation[i])
       print 'writing to file...',
       
+      counter = 0
+      total_counter += counter
       for each_node in nodes_in_state:
         # strip the :port from each node, make sure it's not an empty string
         if each_node:
           nodeip, sep, port = each_node.rpartition(':')
           advertised_nodes_list.append(nodeip)
           advertised_nodes_handle.write('\n'+str(nodeip))
+          counter += 1
+      advertised_nodes_handle.write('\n\tA total of '+str(counter))
+      advertised_nodes_handle.close()
       print 'Finished'
       
     except Exception, e:
@@ -137,15 +143,19 @@ def main():
   networkiplist = []
   
   for each_host in advertised_nodes_list:
-    reversedlookup = deploy_helper.dnslookup(each_host)
-    print str(each_host)+' resolves to '+reversedlookup.strip('\r\n. ')
-    
-    if each_host == reversedlookup:
-      networkiplist.append(each_host)
+    try:
+      reversedlookup = deploy_helper.dnslookup(each_host)
+    except Exception, e:
+      print each_host + ":\t"+e
     else:
-      dns_dict[each_host] = reversedlookup.strip('\r\n. ')
-      dns_dict[reversedlookup.strip('\r\n. ')] = each_host
-      advertise_reversedns.append(reversedlookup.strip('\r\n. '))
+      print str(each_host)+' resolves to '+reversedlookup.strip('\r\n. ')
+      
+      if each_host == reversedlookup:
+        networkiplist.append(each_host)
+      else:
+        dns_dict[each_host] = reversedlookup.strip('\r\n. ')
+        dns_dict[reversedlookup.strip('\r\n. ')] = each_host
+        advertise_reversedns.append(reversedlookup.strip('\r\n. '))
   
   try:
     # write the reverse dns's looked up
@@ -156,6 +166,7 @@ def main():
   except Exception, e:
     print e
     
+  # combine the two lists
   all_advertised_nodes = advertise_reversedns + advertised_nodes_list
   
   uniq_counter = 0

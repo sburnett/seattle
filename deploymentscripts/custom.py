@@ -26,7 +26,19 @@ import sys
 import os
 
 
-
+def shellexec_each_line(cmd_list):
+  final_out = ''
+  final_err = ''
+  for each_command in cmd_list:
+    print each_command
+    out, err = shellexec(each_command)
+    final_out += out
+    final_err += err
+    format_print(out, err)
+  return final_out, final_err
+    
+    
+    
 def shellexec(cmd_str):
   """
   <Purpose>
@@ -115,7 +127,7 @@ def main(installpath):
   format_print(out, err)
   
   # check if we need to upgrade
-  # check_if_update(out)
+  check_if_update(out)
   
   #shellexec('rm -rf '+installpath+'/seattle_repy')
   
@@ -155,6 +167,8 @@ def main(installpath):
     print e
     return
 
+    
+    
 def stop_seattle():
   """
   <Purpose>
@@ -175,8 +189,34 @@ def stop_seattle():
   
   installpath = sys.argv[1]
   out, err = shellexec(installpath+'/stop_seattle.sh')
+  format_print(out, err)
   return
 
+  
+  
+def start_seattle():
+  """
+  <Purpose>
+    Makes a call to start seattle on current node.
+
+  <Arguments>
+    None.
+
+  <Exceptions>
+    None.
+
+  <Side Effects>
+    None.
+
+  <Returns>
+    None.
+  """  
+  installpath = sys.argv[1]
+  out, err = shellexec('chmod +x '+installpath+'/start_seattle.sh')
+  format_print(out, err)
+  out, err = shellexec(installpath+'/start_seattle.sh')
+  format_print(out, err)
+  return
 
   
 def check_highest_mem_use():
@@ -203,6 +243,13 @@ def check_highest_mem_use():
   print err
 
 
+def is_nm_running():
+  out, err = shellexec('ps -ef | grep nmmain.py | grep -v grep ')
+  return out.find('nmmain.py') > -1
+
+def is_su_running():
+  out, err = shellexec('ps -ef | grep softwareupdater.py | grep -v grep ')
+  return out.find('softwareupdater.py') > -1
   
 def upgrade_node():
   """
@@ -224,36 +271,55 @@ def upgrade_node():
   """
   
   # stop seattle first. 
-  stop_seattle()
-  
+  # stop_seattle()
   # we need to 'cd ~/' since the cwd will be the current install directory 
   # but we want to do everything from ~/ to make it easier.
-
+  """
+  # the path to the seattle installation directory
+  seattle_path = sys.argv[1]
+  
   # build up a command list that we'll execute that'll upgrade the node
   cmd_list = []
+  print '1'
+  cmd_list.append('cd ~/; cd '+seattle_path+'; ./uninstall.sh; cd ~/ ')
+
+  # we're not at one level above the install directory for seattle, so make a temp
+  cmd_list.append('rm -rf deploy.temp; mkdir deploy.temp')
+
+  # TODO replace with method so it'll check if we 404ed or not
+  cmd_list.append('cd deploy.temp; wget https://seattlegeni.cs.washington.edu/geni/download/flibble/seattle_linux.tgz') 
+
+  cmd_list.append('tar -xf seattle_linux.tgz')
+
+  cmd_list.append('cd ~; cp -rf ~/deploy.temp/seattle_repy/ '+seattle_path+'/..')
+  # path is relative to ~/
   
-  # uninstall, and then delete old .tgz if one exists.
-  cmd_list.append('python seattleuninstaller.py; cd ~/; rm -rf seattle_linux.tgz ')
-  
-  # download the newest file
-  cmd_list.append('cd ~/; wget https://seattlegeni.cs.washington.edu/geni/download/flibble/seattle_linux.tgz')
-    
-  # remove the old seattle_repy directory
-  cmd_list.append('cd ~/; rm -rf '+sys.argv[1])
-  
-  # Untar, then move to move all files to the 'old install directory' 
-  # (if it's the same itll just display some error).
-  cmd_list.append('cd ~/; tar -xf seattle_linux.tgz; cp -rf seattle_repy/ '+sys.argv[1]+'/..')
-  
-  # Change into seattle_repy directory and execute python seattleinstaller.py, then start seattle
-  cmd_list.append('cd '+sys.argv[1]+'; python seattleinstaller.py; ./start_seattle.sh')  
-  
-  # delete old install
-  cmd_list.append('cd ~/; rm -rf seattle_linux.tgz')
+  #print 'Starting installation...'
+  #cmd_list.append('cd '+seattle_path+'; chmod +x start_seattle.sh; ./install.sh')
+  #print 'Ending installation...'
+  #cmd_list.append('rm -rf ~/deploy.temp')
 
   cmd_string = "; ".join(cmd_list)
+  print 'before'
   out, err = shellexec(cmd_string)
+  print 'after'
   format_print(out, err)
+  """
+  
+  #print 'before'
+  out, err = shellexec('tar -xf deploy.tar upgrade_nodes.sh; chmod +x upgrade_nodes.sh; cp -fr upgrade_nodes.sh '+sys.argv[1])
+  #if out.find('ERROR 404'):
+  #  upgrade_node()
+  #  return
+  #else:
+  format_print(out, err)
+  
+  out, err = shellexec('cd '+sys.argv[1]+'; ./upgrade_nodes.sh; rm upgrade_nodes.sh; cd ~/; rm upgrade_nodes.sh')
+  format_print(out, err)
+  #print 'after'
+  
+
+
   return
   
   
@@ -297,7 +363,14 @@ def is_cron_running():
   print 'crond is running: '+str(crond_running)+'\n'
   return crond_running
   
-  
+ 
+
+def key_error():
+  seattle_path = sys.argv[1]
+  out, err = shellexec("cd "+seattle_path+"/v2; cat nodemanager* | grep KeyError | grep publickey")
+  return out.find('publickey') > -1
+    
+ 
   
 def start_cron():
   """
@@ -353,10 +426,8 @@ def check_if_update(out):
   <Returns>
     None.
   """
-  valid_versions = ['0.1k']
   
-  # checks if node needs to be updated
-  is1k_node = out.find('0.1k') > -1
+  valid_versions = ['0.1l', '0.1m']
   
   # flag that'll keep track whether the node needs to be upgraded
   has_valid_version = False
@@ -364,16 +435,26 @@ def check_if_update(out):
   # check all the versions possible
   for each_valid_version in valid_versions:
     if out.find(each_valid_version) > -1:
-      has_valid_version = True
+      has_valid_version = True 
   
   
   if not has_valid_version:
-    print "Starting node update"
+    print "\n\nStarting node update"
     upgrade_node()
     # get the possibly new version from the file and dump it.
     out, err = shellexec('grep ^version '+sys.argv[1]+'/nmmain.py')  
     format_print(out, err)
-    print "Node update complete"
+    print "Node update complete\n\n"
+  else:
+    # if SU is running and the NM is not, then regen the keys
+    #if is_su_running() and not is_nm_running():
+    if key_error():
+      upgrade_node()
+    elif not is_su_running() or not is_nm_running():
+      print 'Restarting seattle on this node'
+      stop_seattle()
+      start_seattle()
+      
   return
 
 if __name__ == "__main__":

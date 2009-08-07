@@ -198,7 +198,7 @@ def worker(cmd, username, host):
   
   out, err, retcode = deploy_network.remote_shellexec(cmd, username, host)
   
-  format_print(out, err)
+  format_print('|\n\n Log from node: '+host+'\n'+out, err)
   
   # do an atomic subtract on the number of threads running
   thread_lock.acquire()
@@ -252,16 +252,19 @@ def main():
     # build up a command string that'll download and install seattle
     cmd_list = []
     
+    # try to uninstall seattle_repy, then remove dir
+    cmd_list.append('cd seattle_repy; ./stop_seattle.sh; ./uninstall.sh')
     # 1. Remove old file, and download the file
-    cmd_list.append('rm -rf seattle_linux.tgz')
+    cmd_list.append('cd ~; rm -rf seattle_linux.tgz; rm -rf seattle_repy')
     
     cmd_list.append('wget https://seattlegeni.cs.washington.edu/geni/download/flibble/seattle_linux.tgz')
+    
     
     # 2. Untar
     cmd_list.append('tar -xf seattle_linux.tgz')
     
-    # 3. Change into seattle_repy directory and execute python seattleinstaller.py and start seattle
-    cmd_list.append('cd seattle_repy; python seattleinstaller.py; ./start_seattle.sh ')
+    # 3. Change into seattle_repy directory and execute python install.py and start seattle
+    cmd_list.append('cd seattle_repy; python install.py; ./start_seattle.sh ')
     
     # merge into a command string
     cmd_str = '; '.join(cmd_list)

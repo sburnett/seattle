@@ -35,7 +35,7 @@
 
   NOTE: -i is for compatability, and is technically not needed.
   
-  python deploy.py [-v 0|1|2] [ --nokeep ] [ -h | --help ] [-c customscript1]
+  python deploy.py [-v 0|1|2] [ --nokeep ] [ -h | --help ] [-c customscript1 customscript2]
         [-i instructional_list] [--cleanonly]
 
 
@@ -43,7 +43,7 @@
       Very silent running mode. With many hosts, it may look like the script is
        frozen so this is not recommended.
   -v 1
-      Default verbosity level. Same as -v 2 but makes more compact log files by
+      Default verbosity level. Same as -v 3 but makes more compact log files by
         filtering out excess information.
   -v 2
       Specifies if a more verbose mode is to be used. When verbose 
@@ -61,7 +61,7 @@
   -c fn1 fn2 ...
       Must be followed by a valid python script file.  This file will be packaged
         and distributed to all the computers.  NOTE: As of this version, only ONE
-        script file will execute remotely.
+        script will execute remotely.
   -i instructional_list
       Must be followed by a valid IP list file. The hostnames/ips in this file
         will be treated slightly different (lower threadcount to avoid connection
@@ -98,12 +98,17 @@ import deploy_threading
 # directory or not. -v means false, -vv means true.
 verbosity = 1
 
-# This'll keep track of the additional files that we'll package with the deployment.
-# currently, this is not being used, but will be a list of strings
-custom_list_file = []
+# custom list
+custom_list_file = ''
+
+# default number of tries to retry a connection if it was refused
+number_of_default_retries = 3
 
 # The file that we read our hostlist from.
 custom_host_file = 'iplist2.list'
+
+# The variable that'll keep track of the custom scripts we'll be using
+custom_script_name = ''
 
 
 
@@ -357,7 +362,7 @@ def main():
           # check that the file exists
           if os.path.isfile(custom_script):
             print '\tAdding '+custom_script
-            custom_script_name += custom_script+' '
+            custom_script_name += custom_script+'  '
           else:
             print 'Error: '+custom_script+', a custom script is not found'
             return
@@ -604,7 +609,6 @@ def get_remote_hosts_from_file(fname = custom_host_file, nolog = False):
 
 
 
-
 def deploy():
   """
   <Purpose>
@@ -628,9 +632,10 @@ def deploy():
   <Returns>
     None.
   """
-
+  global custom_host_file
+  
   # Get list of hosts
-  myhosts = get_remote_hosts_from_file()
+  myhosts = get_remote_hosts_from_file(custom_host_file)
 
   if not myhosts: # if we didn't find any hosts.. crap out!
     print "Didn't find any remote hosts file!"
@@ -668,9 +673,10 @@ def deploy():
 
   # if we had unreachable hosts..    
   if deploy_threading.has_unreachable_hosts():
-    # try 2 more times for hosts that failed, so we're going to 
-    # TODO TODO TODO KON KON KON
-    for i in range(1):      
+    # Currently, set NOT to retry hosts.  Since it's running regularly as a service,
+    # there is no need as 99% of these hosts time out anyway, so it just takes
+    # a lot longer than it should. 
+    for i in range(0):      
       
       # increase timeout time by 25% each time
       deploy_network.default_connection_timeout =\
