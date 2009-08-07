@@ -63,6 +63,7 @@ import traceback
 
 import os.path    # fix path names when doing upload, loadkeys, etc.
 
+import sys
 
 
 
@@ -730,7 +731,7 @@ show info       -- Display general information about the vessels
 show users      -- Display the user keys for the vessels
 show ownerinfo  -- Display owner information for the vessels
 show advertise  -- Display advertisement information about the vessels
-show ip         -- Display the ip addresses of the nodes
+show ip [to file] -- Display the ip addresses of the nodes
 show hostname   -- Display the hostnames of the nodes
 show location   -- Display location information (countries) for the nodes
 show owner      -- Display a vessel's owner
@@ -1031,12 +1032,29 @@ update             -- Update information about the vessels
 
 
 
-# show ip         -- Display the ip addresses of the nodes
+# show ip [to file] -- Display the ip addresses of the nodes
         # catch a misspelling
         elif userinputlist[1] == 'ip' or userinputlist[1] == 'ips':
 
           if not currenttarget:
             raise UserError("Error, command requires a target")
+
+          # print to the terminal (stdout)
+          if len(userinputlist) == 2:
+            # write data here...
+            outfo = sys.stdout
+
+          # print to a file
+          elif len(userinputlist) == 4:
+            
+            if not (userinputlist[2] == 'to' or userinputlist[2] == 'TO' or 
+                userinputlist[2] == '>'):
+              raise UserError("Usage: show ip [to filename]")
+            outfo = open(userinputlist[3],"w+")
+
+          # bad input...
+          else:
+            raise UserError("Usage: show ip [to filename]")
 
           
           # we should only visit a node once...
@@ -1046,8 +1064,12 @@ update             -- Update information about the vessels
 
             if thisnodeIP not in printedIPlist:
               printedIPlist.append(thisnodeIP)
-              print thisnodeIP
+              print >> outfo, thisnodeIP
   
+          # if it's a file, close it...
+          if len(userinputlist) == 4:
+            outfo.close()
+
           continue
 
 # show hostname        -- Display the hostnames of the nodes
