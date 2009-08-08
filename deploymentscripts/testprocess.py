@@ -388,9 +388,9 @@ if(nm_out != ""):
   try:
     nmclient_rawsay(getmyip(), 1224, "GetVessels")
     
-  except NMClientException:
+  except NMClientException, e:
     #in the event of an exception, log the problem"
-    print "[NodeManager] Node Manager is not responding to requests on port 1224."
+    print "[NodeManager] When contacting the Node Manager, received error '"+str(e)+"'"
     
 #print ProcessCheckerFinished regardless of whether there were any failures.
 print "ProcessCheckerFinished"
