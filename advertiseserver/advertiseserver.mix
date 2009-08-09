@@ -175,7 +175,6 @@ def handlerequest(remoteIP, remoteport, sockobj, ch, mainch):
     else:
     
       #log the request information
-      log_lock.acquire()
       expanded_message = str(time_gettime())+": Unknown Request " + str(request_id) + " message = " + request + "\n"
       write_to_log(logfiledata["expanded_log"], expanded_message)
     
