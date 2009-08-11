@@ -17,12 +17,22 @@ import sys
 import os  
 import os.path
 
+# Used to import repy scripts without polluting the current directory.
+import shutil
+import tempfile
 
 import repyhelper
+
+repycachedir = tempfile.mkdtemp()
+
+sys.path = [repycachedir] + sys.path
+repyhelpercachedir = repyhelper.set_importcachedir(repycachedir)
 
 repyhelper.translate_and_import("rsa.repy")
 repyhelper.translate_and_import("signeddata.repy")
 repyhelper.translate_and_import("time.repy")
+
+shutil.rmtree(repycachedir)
 
 
 # Armon: The port that should be used to update our time using NTP
