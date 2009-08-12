@@ -114,6 +114,7 @@ def is_connection_bi_directional(conn_id,value):
          recieved += len(msg)
        ret_value = (msg != test_str)
        test_sock.close() #be sure to close the connection!
+       USE_NAT_CHECK_LOCK.release()
      except Exception:
        _safe_close(test_sock)
        USE_NAT_CHECK_LOCK.release()
