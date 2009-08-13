@@ -733,7 +733,9 @@ def splitvessel(vesselname, resourcedata):
     raise BadRequest(str(e))
 
   os.rename("resource.temp","resource."+newname2)
+  # newname1 becomes the leftovers...
   setup_vessel(newname1, vesselname)
+  # newname2 is what the user requested
   setup_vessel(newname2, vesselname)
   destroy_vessel(vesselname)
     
