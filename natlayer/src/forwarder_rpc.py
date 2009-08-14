@@ -102,6 +102,7 @@ def is_connection_bi_directional(conn_id,value):
    # if the ips match try to make a connection
    else:
      USE_NAT_CHECK_LOCK.acquire()
+     test_sock = None # prevent an error in the except block if the socket is never assgiend
      try:
        test_sock = openconn(value['localip'],value['waitport'])
        test_str = "test connection ok"
