@@ -37,12 +37,6 @@ import shutil
 
 import threading
 
-# This will fail on WinCE, and is handled latter
-try:
-  import subprocess
-except:
-  pass
-  
 import time
 
 # used in startvessel and stopvessel
@@ -68,6 +62,7 @@ except: # This will fail on non-windows platforms
   windowsAPI = None
 
 # Armon: Import nonportable to use getruntime
+# Conrad: and Popen()
 import nonportable
 
 offcutfilename = "resources.offcut"
@@ -285,14 +280,9 @@ def start_task(command):
   if windowsAPI != None and windowsAPI.MobileCE:
     windowsAPI.launchPythonScript(command[0], command[1])
 
-  # Otherwise, safe to use subprocess  
-  # Python 2.5.x and lower on windows, close_fds isn't supported.
-  elif windowsAPI != None:
-    subprocess.Popen(command)
-    
+  # If not, use the nonportable.Popen interface.
   else:
-    # Should I use call here?
-    subprocess.Popen(command, close_fds=True)
+    nonportable.Popen(command)
     
 
 # Armon: Takes an optional exitparams tuple, which should contain
