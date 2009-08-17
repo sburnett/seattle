@@ -35,7 +35,6 @@ repyhelpercachedir = repyhelper.set_importcachedir('softwareupdater.repyhelperca
 from repyportability import *
 
 import urllib      # to retrieve updates
-import subprocess   # used to start an experiment
 import random
 import shutil
 import socket   # we'll make it so we don't hang...
@@ -627,7 +626,7 @@ def restart_software_updater():
   thismutex = get_mutex()
 
   # starts new with arg that is the mutex 
-  junkupdaterobject = subprocess.Popen(["python","softwareupdater.py",thismutex])
+  junkupdaterobject = nonportable.Popen(["python","softwareupdater.py",thismutex])
 
   # wait for some time (1 minute) for them to init and stop them if they don't
   for junkcount in range(30):
@@ -687,7 +686,7 @@ def restart_client(filenamelist):
 
   # run the node manager.   I rely on it to do the smart thing (handle multiple
   # instances, etc.)
-  junkprocessobject = subprocess.Popen(["python","nmmain.py"])
+  junkprocessobject = nonportable.Popen(["python","nmmain.py"])
   
   # I don't do anything with the processobject.  The process will run for some 
   # time, perhaps outliving me (if I'm updated first)
