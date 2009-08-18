@@ -618,8 +618,9 @@ def usage():
   Intended for internal use.
   Prints command line usage of script.
   """
-  print "python seattleinstaller.py [nm-key-bitsize [--nm-ip ip] [--nm-iface iface] [--repy-ip ip] [--repy-iface iface] [--repy-nootherips] [--onlynetwork] [-s] [install_dir]]"
+  print "python seattleinstaller.py [--nm-key-bitsize bitsize] [--nm-ip ip] [--nm-iface iface] [--repy-ip ip] [--repy-iface iface] [--repy-nootherips] [--onlynetwork] [-s] [install_dir]]"
   print "Info:"
+  print "--nm-key-bitsize bitsize\tSpecifies the desired bitsize of the Node Manager keys. Default bitsize: " + str(KEYBITSIZE)
   print "--nm-ip IP\t\tSpecifies a preferred IP for the NM. Multiple may be specified, they will be used in the specified order."
   print "--nm-iface iface\tSpecifies a preferred interface for the NM. Multiple may be specified, they will be used in the specified order."
   print "--repy-ip, --repy-iface. See --nm-ip and --nm-iface. These flags only affect repy and are separate from the Node Manager."
@@ -647,19 +648,12 @@ def main():
   #Initialize the service logger.
   servicelogger.init('installInfo')
 
-  #Set the specified bitsize for the nodemanager keys
-  global KEYBITSIZE
-  if len(sys.argv) > 1:
-    KEYBITSIZE = int(sys.argv[1])
-
-
   global SILENT_MODE
   opts = None
   args = None
   try:
     # Armon: Changed getopt to accept parameters for Repy and NM IP/Iface restrictions, also a special disable flag
-    # Zack: changed sys.argv[1:] to sys.argv[2:] because KEYBITSIZE global is specified by the first parameter.  see usage()  --> KEYBITSIZE must be specified first and is not optional if other arguments are being passed in
-    opts, args = getopt.getopt(sys.argv[2:], "hs",["nm-ip=","nm-iface=","repy-ip=","repy-iface=","repy-nootherips","onlynetwork"])
+    opts, args = getopt.getopt(sys.argv[1:], "hs",["nm-key-bitsize=","nm-ip=","nm-iface=","repy-ip=","repy-iface=","repy-nootherips","onlynetwork"])
   except getopt.GetoptError, err:
     print str(err)
     usage()
@@ -671,8 +665,8 @@ def main():
     SILENT_MODE = True
   # The install directory defaults to the current directory.
   install_dir = "."
-  if len(args) > 1:
-    install_dir = args[1]
+  if len(args) > 0:
+    install_dir = args[0]
 
   # Armon: Special flag for testing purposes, disables the actual install
   disable_install = False
@@ -703,6 +697,10 @@ def main():
     elif flag == "--repy-nootherips":
       repy_restricted = True
       repy_nootherips = True
+    elif flag == "--nm-key-bitsize":
+      global KEYBITSIZE
+      KEYBITSIZE = int(value)
+
   
   # Build the configuration dictionary
   config = {}
