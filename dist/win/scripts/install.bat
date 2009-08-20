@@ -1,2 +1,2 @@
 @echo off
-python seattleinstaller.py
+python seattleinstaller.py %*
