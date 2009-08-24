@@ -1,0 +1,13 @@
+{% extends "student/student_base.html" %}
+
+{% block title %}
+Seattle Autograder
+{% endblock title %}
+
+{% block script %}
+{{ block.super }}
+{% endblock script %}
+
+{% block content %}
+    {{info}}
+{% endblock content %}

@@ -1,0 +1,32 @@
+{% extends "instructor/instructor_base.html" %}
+
+{% block title %}
+Seattle Autograder - Create Course
+{% endblock title %}
+
+{% block script %}
+{{ block.super }}
+{% endblock script %}
+
+{% block nav_create_course %}
+<td class="active">New Course</td>
+{% endblock nav_create_course %}
+
+{% block content %}
+    {% if errors %}
+        {{errors}}
+    {% endif %}
+
+    <form action="{% url create_course %}" method="POST">
+    <table class="login">
+        <tr>
+            <td class="key">Course Title: </td>
+            <td class="value"><input type=text name="course_title"></td>
+        </tr>
+        <tr>
+            <td></td>
+            <td class="value"><input type="submit" Value="Create course"/></td>
+        </tr>
+    </table>
+    </form>
+{% endblock content %}

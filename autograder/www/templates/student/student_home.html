@@ -1,0 +1,135 @@
+{% extends "student/student_base.html" %}
+
+{% block title %}
+Seattle Autograder Main
+{% endblock title %}
+
+{% block script %}
+{{ block.super }}
+
+  <script language="javascript">
+    function getItem(id)
+    {
+        var itm = false;
+        if(document.getElementById)
+            itm = document.getElementById(id);
+        else if(document.all)
+            itm = document.all[id];
+        else if(document.layers)
+            itm = document.layers[id];
+
+        return itm;
+    }
+
+    function toggleItem(id)
+    {
+        itm = getItem(id);
+
+        if(!itm)
+            return false;
+
+        if(itm.style.display == 'none')
+            itm.style.display = '';
+        else
+            itm.style.display = 'none';
+
+        return false;
+    }
+    </script>
+
+
+
+
+<script language="JavaScript" type="text/javascript">
+<!-- Copyright 2005, Sandeep Gangadharan -->
+<!-- For more free scripts go to http://www.sivamdesign.com/scripts/ -->
+<!--
+if (document.getElementById) {
+ document.writeln('<style type="text/css"><!--')
+ document.writeln('.texter {display:none} @media print {.texter {display:block;}}')
+ document.writeln('//--></style>') }
+
+function openClose(theID) {
+ if (document.getElementById(theID).style.display == "block") { document.getElementById(theID).style.display = "none" }
+ else { document.getElementById(theID).style.display = "block" } }
+// -->
+</script>
+{% endblock script %}
+
+{% block nav_main %}
+<td class="active">Main</td>
+{% endblock nav_main %}
+
+
+
+{% block content %}
+    <table width=%100>
+    <tr>
+    <td>
+    <h1>Welcome {{name}}</h1>
+    </td>
+    <td align="right">
+    <h2>Course: {{course_name}} <br>Instructor: {{instructor_name}}</h2>
+    </td>
+    </tr>
+    </table>
+    
+    
+    
+    <br>
+    
+    
+        {% if no_assignments %}
+            {{no_assignments}}
+        {% else %}
+            
+            {% for assignment, submission_list in assignment_list %}
+                <table frame="box" style="margin-left:20px;">
+                
+                <tbody>
+                <tr><td align="center" colspan="2" style="background-color: #CCC"><a href="#" onclick="toggleItem('{{assignment.assignment_name}}')">{{assignment.assignment_name}}</a></td></tr>
+                </tbody>
+
+                <tbody id="{{assignment.assignment_name}}">
+                <tr><td>Due Date:</td><td>{{assignment.due_date}}</td></tr>
+                <tr><td>Assignment Submission:</td>
+                    <td><form action="{% url submit_assignment %}" method="POST" enctype="multipart/form-data">
+                    <input type="hidden" name="assignment_id" id="id_which" value="{{ assignment.pk}}"></input>
+                    <input type="file" name="student_submission" id="id_assignment" />
+                    <input type="submit" value="Submit"></input>
+                    </form>
+                    </td>
+                </tr>
+                {% ifequal submission_list.count 0 %}
+                    <tr><td>No submissions received yet</td></tr>
+                {% else %}
+                    <tr><td>
+                    <div onClick="openClose('{{assignment.assignment_name}}_submissions')" style="cursor:hand; cursor:pointer"><b>Submissions Status and Results:</b></div>
+                    <div id="{{assignment.assignment_name}}_submissions" class="texter">
+                    <ul>
+                    {% for submission in submission_list %}
+                        Date submitted: {{submission.time}}
+                        Grading results:  {{submission.grade_results|truncatewords:"4"}}
+                        <br>
+                    {% endfor %}
+                    </ul>
+                    </div>
+                    </td></tr>
+                {% endifequal %}
+                
+                <tr><td>
+                <div onClick="openClose('{{assignment.assignment_name}}_description')" style="cursor:hand; cursor:pointer"><b>Assignment Description:</b></div>
+                <div id="{{assignment.assignment_name}}_description" class="texter">
+                    {{assignment.project.description}}
+                </div>
+                </td>
+                </tr>
+                </tbody>
+                </table>
+                <br>
+            {% endfor %}
+
+        {% endif %}
+        </table>
+        
+{% endblock content %}

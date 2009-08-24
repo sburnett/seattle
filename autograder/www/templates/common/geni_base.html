@@ -1,0 +1,30 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<title>{% block title %}Seattle Autograder{% endblock title%}</title>
+
+  {% block style %}	
+	  <link href="{{ MEDIA_URL }}css/common.css" rel="stylesheet" type="text/css" />
+  {% endblock style %}
+
+  {% block script %}
+
+
+  {% endblock script %}
+	
+</head>
+
+<body>
+  {% block header %}	
+	  <div id="header">
+                <span id="logo">Seattle Autograder</span>
+  	</div>
+	{% endblock header%}	
+
+	{% block navigation %}{% endblock navigation %}
+	{% block content %}{% endblock content %}
+
+</body>
+</html>	

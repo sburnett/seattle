@@ -1,0 +1,149 @@
+{% extends "instructor/instructor_base.html" %}
+
+{% block title %}
+Seattle Autograder Main
+{% endblock title %}
+
+{% block script %}
+{{ block.super }}
+
+    <script language="javascript">
+    function getItem(id)
+    {
+        var itm = false;
+        if(document.getElementById)
+            itm = document.getElementById(id);
+        else if(document.all)
+            itm = document.all[id];
+        else if(document.layers)
+            itm = document.layers[id];
+
+        return itm;
+    }
+
+    function toggleItem(id)
+    {
+        itm = getItem(id);
+
+        if(!itm)
+            return false;
+
+        if(itm.style.display == 'none')
+            itm.style.display = '';
+        else
+            itm.style.display = 'none';
+
+        return false;
+    }
+    </script>
+
+
+
+
+<script language="JavaScript" type="text/javascript">
+<!-- Copyright 2005, Sandeep Gangadharan -->
+<!-- For more free scripts go to http://www.sivamdesign.com/scripts/ -->
+<!--
+if (document.getElementById) {
+ document.writeln('<style type="text/css"><!--')
+ document.writeln('.texter {display:none} @media print {.texter {display:block;}}')
+ document.writeln('//--></style>') }
+
+function openClose(theID) {
+ if (document.getElementById(theID).style.display == "block") { document.getElementById(theID).style.display = "none" }
+ else { document.getElementById(theID).style.display = "block" } }
+// -->
+</script>
+
+{% endblock script %}
+
+
+
+{% block nav_main %}
+<td class="active">Main</td>
+{% endblock nav_main %}
+
+
+
+{% block content %}
+    <h1>Welcome {{name}}</h1>
+    <br>
+
+
+
+
+    {% ifequal course_list.count 0 %}
+        No courses found
+    {% else %}
+        <table>
+            <tr><td><ul>
+            {% for course_name, assignment_list in course_list %}
+                
+                <table frame="box" style="margin-left:20px;">
+                    <tbody><tr><td style="background-color: #CCC" align="center"><a href="#"onclick="toggleItem('{{course_name}}')">{{course_name}}</a></td></tr></tbody>
+                    <tbody id="{{course_name}}" style="display: none;">
+                    {% ifequal assignment_list.count 0 %}
+                        <tr><td>No assignments found for this course</td></tr>
+                    {% else %}
+                        <tr><td><ul>
+                        {% for assignment, submission_list in assignment_list %}
+                            <br>
+                            <table frame="box" style="margin-left:20px;">
+                                <tbody><tr><td style="background-color: #CCC" align="center"><a href="#"onclick="toggleItem('{{course_name}}_{{assignment.assignment_name}}')">{{assignment.assignment_name}}</a></td></tr></tbody>
+                                <tbody id="{{course_name}}_{{assignment.assignment_name}}" style="display: none;">
+                                <tr><td>Due Date:  {{assignment.due_date}}</td></tr>
+                                <tr>
+                                 <td align="center"><form action="{% url grade_assignment %}" method="POST" enctype="multipart/form-data">
+                                            <input type="hidden" name="assignment_id" id="id_which" value="{{ assignment.pk}}"></input>
+                                            <input type="submit" value="Grade All"></input>
+                                            </form>
+                                </td>
+                                </tr>
+                                
+                                
+                                </tr>
+                                <tr><td><div onClick="openClose('{{course_name}}_{{assignment.assignment_name}}_descript')" style="cursor:hand; cursor:pointer"><b>Assignment Description</b></div>
+                                    <div id="{{course_name}}_{{assignment.assignment_name}}_descript" class="texter">{{assignment.project.description}}</div>
+                                </td></tr>
+                                {% ifequal submission_list.count 0 %}
+                                    <tr><td>No submissions received</td></tr>
+                                {% else %}
+                                <tr><td>
+                                <table border="1">
+                                    <tbody><tr><td style="background-color: #CCC" colspan="6"align="center"><a href="#"onclick="toggleItem('{{course_name}}_{{assignment.assignment_name}}_submissions')">Submissions</a></td></tr></tbody>
+                                    <tbody id="{{course_name}}_{{assignment.assignment_name}}_submissions" style="display: none;">
+                                    {% for submission in submission_list %}
+                                        <tr>
+                                        <td>{{submission.student.first_name}} {{submission.student.last_name}}</td>
+                                        <td>{{submission.student.email}}</td>
+                                        <td>{{submission.time}}</td>
+                                        <td>{{submission.grade_results|truncatewords:"4"}}</td>                                        
+                                        <td><form action="{% url grade_submission %}" method="POST" enctype="multipart/form-data">
+                                            <input type="hidden" name="submission_id" id="id_which" value="{{ submission.pk}}"></input>
+                                            <input type="submit" value="Grade"></input>
+                                            </form>
+                                        </td>
+                                        
+                                        </tr>
+                                    {% endfor %}
+                                    </tbody>
+                                    </table>
+                                    </td></tr>
+                                {% endifequal %}      
+                            </tbody>
+                            </table>
+                        {% endfor %}
+                        </ul></td></tr>
+                    {% endifequal %}
+                    </tbody>    
+                    </table>
+                    <br>
+            {% endfor %}
+            </ul></td></tr>
+        </table>
+    {% endifequal %}
+
+
+
+
+{% endblock content %}

@@ -1,0 +1,46 @@
+{% extends "accounts/accounts_base.html" %}
+
+{% block title %}
+Seattle Autograder Login
+{% endblock title %}
+
+{% block script %}
+{{ block.super }}
+{% endblock script %}
+
+{% block nav_login %}
+<td class="active">Login</td>
+{% endblock nav_login %}
+
+{% block content %}
+	<div id="main">
+		<div id="middle">
+        {% if info %}
+        {{ info }}
+        <br>
+        <br>
+        {% endif %}
+        
+          
+        <form action="{% url user_login %}"  method="POST">
+            <table class="login">
+            <tr>
+                <td class="key">Username:</td>
+                <td class="value"><input type=text name="username"></td>
+            </tr>
+            <tr>
+                <td class="key">Password:</td>
+                <td class="value"><input type=password name="password"></td>
+            </tr>
+            <tr>
+            <td></td>
+            <td class="value"><input type="submit" value="Login"/></td>
+            <input type="hidden" name="next" value="{{next}}"/>
+            <input type="hidden" name="jsenabled" value="false" id="jsenabled" />
+            </tr>
+            </table>
+        </form>
+		  
+		</div>
+	</div>
+{% endblock content %}
