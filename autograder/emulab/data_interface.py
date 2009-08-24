@@ -3,219 +3,743 @@
   data_interface.py 
 
 <Started>
-  3/01/2009
+  August 2009
 
 <Author>
-  Eric Kimbrel, kimbrl@cs.washington.edu
+  Jenn Hanson
 
 <Purpose>
   Provides an abstraction layer between autograder logic and the autograder
-  data management levels.  Is not inteded to be used outside of 
-  autograder_runner.py.
+  data management levels.  Does not work outside of autograder.
 
 """
-
-
-
-
 import os
 import shutil
 import tarfile
-
-#TO_GRADE_DIR = '/tmp/sal/ToGrade'
-TO_GRADE_DIR = 'to_grade'
-
-#GRADED_DIR = '/tmp/sal/Graded'
-GRADED_DIR = 'graded'
-
-#STATUS_DIR = '/tmp/sal/Status'
-STATUS_DIR = 'status'
-
-TEST_DIR = 'meta_test'
+import sqlite3
 
 
+#file paths to the various data components
 
-#####TEMPORARY TEST_META_DATA DICT CREATION
-# This is a hard coded dictionary to facilitate the grading of the
-# webserver assignment.  It will be replaced in the future with generic methods
-# that pull assignemnt data from a data base
+#directory containing all the student submission tar files
+SUBMISSIONS_DIR = '/Users/jenn/Desktop/autograder/submissions/'
 
-# return a tuple of test meta data
-def get_test_meta_data(assignment_name):
-  
-  list_of_tests = get_test_names()
+#directory containing all the projects
+PROJECT_DIR = '/Users/jenn/Desktop/built/meta_test/'
 
-  nsfile_list = ['wlan.ns']  
-  nsfile_testsuite_map = {'wlan.ns':list_of_tests}      # map ns files to test_suites (list of tests)
-  
-  test_node_map = {}     #{testname:[{dict contatinging info for a test node}....]
-
-  
-  # the expirament name in emulab will be the assignment name + the nsfile name (without .ns at the end)
-  node1 = 'node-1.'+assignment_name+'wlan.Seattle.emulab.net'
-  node2 = 'node-2.'+assignment_name+'wlan.Seattle.emulab.net'
-
-  # set node1 to student code and node 2 to test for all test
-  # make a test_node_map entry for each test
-  for test_name in list_of_tests:
-    
-    # ORDER MATTERS!  the order of the list is the order of execution
-    test_node_map[test_name] = [{'node':node1,'code':'webserver.repy','get_logs':False,'block':False,'is_student':True,
-                                             'args':'63173'},
-                                       {'node':node2,'code':test_name,'get_logs':True,'block':True,'is_student':False,
-                                             'args':'10.1.1.1 63173'}]
-                                    
-  return (nsfile_list,nsfile_testsuite_map,test_node_map)
-
-
-#returns a list of test names from the TEST_DIR
-def get_test_names():
-  names=[]
-  dir_contents = os.listdir(TEST_DIR)
-  for test in dir_contents:
-    if test[-4:] == 'repy':
-      names.append(test)
-
-  return names
-
-####END TEMPORARY META_DATA CREATION
-
-
-# The following methods currently act on files and directories
-# they should be replaced by database methods.
-# This will likely cause the method signatures to change so the
-# corresponding logic in autograder_runner.py will need to change as well
-
-
-# write 'grading in progress' at the top of a file
-def mark_in_progress(filename):
-  # update status folder to grading in progress
-  file_obj = open(STATUS_DIR+"/"+filename+".txt",'r+')
-  file_obj.write("Grading in progress")
-  file_obj.close()
-  
-
-
-# return the contents of the ns_file specified
-# it is assumed that the ns file will be located
-# in the test directory
-def get_ns_str(ns_file_name):
-  ns_file_obj = open(TEST_DIR+"/"+ns_file_name)
-  ns_file_str = ns_file_obj.read()
-  ns_file_obj.close()
-  return ns_file_str
-  
-
-
-# determine if there are files ready to grade
-def files_need_grading():
-  return len(os.listdir(TO_GRADE_DIR)) > 0
-
-# get a list of files that need to be graded
-def files_to_grade():
-  return os.listdir(TO_GRADE_DIR)
+#database containing autograder information (eg student test scores and results)
+DATABASE = '/Users/jenn/Desktop/autograder/autograderdatabase.db'
 
 
 
-# returns the contents of .repy file that is compressed in a tar file
-# assumes the file in question is in the TO_GRADE directory
-def get_tared_repy_file_data(tarname,filename):
-  tar = tarfile.open(TO_GRADE_DIR+"/"+tarname)
-  names = tar.getnames()
-  for name in names:
-    if name == filename:  
-      file_obj = tar.extractfile(names[0])
-      data = file_obj.read()
-      file_obj.close()
-      tar.close()
-      return names[0], data
-  raise Exception, filename+' not found in '+tarname
+#methods that deal with changing/saving results/scores status
 
 
+def get_results(submission_id):
 
-# move file to the graded folder
-def mark_as_graded(filename):
- shutil.move(TO_GRADE_DIR+"/"+filename, GRADED_DIR+"/"+filename)
+  """
 
-
-# returns the contents of a file located in the TEST_DIR
-def get_test_content(filename):
-  file_obj = open(TEST_DIR+"/"+filename)
-  data = file_obj.read()
-  file_obj.close()
-  return data
-    
+  <Purpose>
 
 
+        Gets the string results stored for the specific student submission
+
+  <Arguments>
 
 
-# TODO Grading Complete is marked after the first test completes
-# It shouldn't be marked complete until all tests have ran
-# save the result of grading to the status dir
-# assumes this file allready exisits in the directory
-def save_grade(results,filename):
-  
-  # check to see if grading status is complete
-  file_obj = open(STATUS_DIR+"/"+filename+".txt",'r')
-  contents = file_obj.read()
-  file_obj.close()
-  if contents.find("Grading Complete") == -1:
-    file_obj = open(STATUS_DIR+"/"+filename+".txt",'w')  
-    file_obj.write("Grading Complete\n<br>")
+        submission_id = an integer that is the primary id for the student_submission in the database
+
+
+  <Exceptions>
+
+
+        Raises Exception if there is no student submission for the submission_id
+
+
+  <Side Effects>
+
+        None.
+
+
+  <Returns>
+
+        String that gives the results of grading the associated student submission.
+
+        This string will either say that it hasn't been graded, grading is in progress, or give detailed results of the grading
+
+  """
+
+
+  # Create a connection to the database
+  conn = sqlite3.connect(DATABASE)
+
+
+  # Create a cursor object to do the interacting.
+  cursor = conn.cursor()
+
+
+  # Query the database for a student submission with matching id
+  cursor.execute('SELECT results FROM course_student_submission WHERE id=?',submission_id)
+  db_query_results = cursor.fetchone()
+
+
+  # Close connections to the database
+  cursor.close()
+  conn.close()
+
+
+  #Check that a submission was found or raise an error
+  if db_query_results == None :
+    error_msg = 'No submission found with the id: '+ str(submission_id)
+    raise Exception(error_msg)
+
   else:
-    file_obj = open(STATUS_DIR+"/"+filename+".txt",'a')
+    return db_query_results[0]
+
+
+
+
+
+
+def get_score(submission_id):
+
+  """
+  <Purpose>
+
+
+        Gets the integer score stored for the specific student submission
+
+
+  <Arguments>
+
+
+        submission_id = an integer that is the primary id for the student_submission in the database
+
+  <Exceptions>
+
+
+Raises Exception if there is no student submission for the submission_id
+
+
+  <Side Effects>
+
+        None.
+
+
+  <Returns>
+
+    
+
+        An integer representing the student's score from grading the submission.  If the submission hasn't been graded yet, 0 is returned.
+
+
+  """
+
+
+  # Create a connection to the database
+  conn = sqlite3.connect(DATABASE)
+
+
+  # Create a cursor object to do the interacting.
+  cursor = conn.cursor()
+
+
+  # Query the database for a student submission with matching id
+  cursor.execute('SELECT score FROM course_student_submission WHERE id=?',submission_id)
+  db_query_results = cursor.fetchone()
+
+
+  # Close connections to the database
+  cursor.close()
+  conn.close()
+
+
+  #Check that a submission was found or raise an error
+  if db_query_results == None :
+    error_msg = 'No submission found with the id: '+ str(submission_id)
+    raise Exception(error_msg)
+
+  else:
+    return db_query_results[0]
+
+
+
+
+
+def change_results(submission_id, new_results):
+
+  """
+
+  <Purpose>
+
+
+Updates the saved results for the student submission
+
+
+  <Arguments>
+
+
+        submission_id = an integer that is the primary id for the student_submission in the database
+
+
+        new_results = string that gives the new grading results for the submission
+
+
+  <Exceptions>
+
+
+Raises Exception if there is no student submission for the submission_id or if new_results is not a string
+
+
+  <Side Effects>
+
+
+        Updates the grade results stored for the particular student submission.
+
+
+  <Returns>
+
+        Nothing.
+
+  """
+
+
+  # Create a connection to the database.
+  conn = sqlite3.connect(DATABASE)
+
+
+  # Create a cursor object to do the interacting.
+  cursor = conn.cursor()
+
+
+  # query the database to make sure there is a student submission matching the id
+  cursor.execute('SELECT * FROM course_student_submission WHERE id=?', (submission_id,))
+  old_result = cursor.fetchone()
+
+
+  #Check that a submission was found or raise an error
+  if db_query_results == None :
+
+    cursor.close()
+    conn.close()
+
+    error_msg = 'No submission found with the id: '+ str(submission_id)
+    raise Exception(error_msg)
+
+  else:
+
+    cursor.execute('UPDATE course_student_submission SET results=? WHERE id=?', (new_results, submission_id))
+   
+    # Commit the changes and close everything.
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+
+
+
+
+def change_score(submission_id, new_score):
+
+  """
+
+  <Purpose>
+
+
+Updates the score for the student submission
+
+
+  <Arguments>
+
+
+        submission_id = an integer that is the primary id for the student_submission in the database
+
+
+        new_score = integer that represents the student's new score for this submission
+
+
+  <Exceptions>
+
+
+Raises Exception if there is no student submission for the submission_id or if new_score is not an integer
+
+
+  <Side Effects>
+
+
+        Updates the score for the corresponding submission.
+
+
+  <Returns>
+
+
+        Nothing.
+
+  """
+
+
+  # Create a connection to the database.
+  conn = sqlite3.connect(DATABASE)
+
+  # Create a cursor object to do the interacting.
+  cursor = conn.cursor()
+
+
+  # query the database to make sure there is a student submission matching the id
+  cursor.execute('SELECT * FROM course_student_submission WHERE id=?', (submission_id,))
+  old_result = cursor.fetchone()
+
+
+  #Check that a submission was found or raise an error
+  if db_query_results == None :
+    cursor.close()
+    conn.close()
+
+    error_msg = 'No submission found with the id: '+ str(submission_id)
+    raise Exception(error_msg)
+
+  else:
+    cursor.execute('UPDATE course_student_submission SET score=? WHERE id=?', (new_score, submission_id))
+
+   
+
+    # Commit the changes and close everything.
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+
+
+
+
+
+#methods that deal with getting ns file stuff
+
+def get_ns_file_list(assignment_id):
+
+
+  """
+
+  <Purpose>
+
+
+Gets the list of ns file names corresponding to this assignment.
+
+
+  <Arguments>
+
+
+assignment_id = unique id for the assignment
+
+
+  <Exceptions>
+
+
+Raises an Exception if there is no assignment for the assignment_id
+
+
+  <Side Effects>
+
+
+        None.
+
+
+  <Returns>
+
+
+List of strings of the ns file names for the assignment
+
+  """
+
+  # make full pathname to test suite directory for the specified assignment
+  ns_pathname = PROJECT_DIR + str(assignment_id) +'/ns_files'
+
+
+  # check if it exists
+  if os.path.isdir(ns_pathname) :
+
+    ns_file_list = []
+    directory_contents = os.listdir(ns_pathname)
+
+    for file_name in directory_contents:
+      if file_name.endswith('.ns') :
+        ns_file_names.append(file_name)
+
+    return ns_file_names
+
+  else :
+    raise Exception('There is no directory of ns files for the assignment with id: '+str(assignment_id))
+
+
+
+
+
+
+def get_ns_contents(assignment_id, ns_file_name):
+
+
+  """
+
+  <Purpose>
+
+
+Gets the contents of a specific ns file 
+
+
+  <Arguments>
+
+
+assignment_id = unique id for the assignment
+
+ns_file_name = name of the ns file from which you want the contents
+
+
+  <Exceptions>
+
+
+Raises an Exception if their is no assignment matching assignment_id or if there is no ns file with ns_file_name for the assignment
+
+
+  <Side Effects>
+
+
+None.
+
+
+  <Returns>
+
+
+Returns the contents of the specified ns file
+
+
+  """
+
+
+  # make full pathname to test suite directory for the specified assignment
+  ns_pathname = PROJECT_DIR + str(assignment_id)+'/ns_files'
+
+
+  # check if it exists
+  if os.path.isdir(ns_pathname) :
+
+    # make pathname to specified file in the test suite directory
+    ns_file_pathname = ns_pathname + '/' + ns_file_name
+
+
+    # check if the file exists
+    if os.path.isfile(ns_file_pathname) :
+
+      # get the contents
+      file_obj = open(ns_file_pathname)
+      file_contents = file_obj.read()
+      file_obj.close()
+      return file_contents
+
+    else :
+
+      raise Exception('There is no ns file with the name  "'+ns_file_name+'" for the assignment with id '+str(assignment_id)
+
+  else :
+
+    raise Exception('There is no ns file directory for the assignment with id: '+str(assignment_id))
+
+
+
+
+
+#methods that deal with getting test suite stuff
+
+
+def get_test_list(assignment_id):
+
+  """
+
+  <Purpose>
+
+
+Gets the list of test files in the test suite for this assignment
+
+
+  <Arguments>
+
+
+        assignment_id = unique id for the assignment
+
+
+  <Exceptions>
+
+
+Raises an Exception if there is no assignment with the assignment_id
+
+
+  <Side Effects>
+
+
+None.
+
+
+  <Returns>
+
+
+Returns a list of strings of the file names of the tests for the specified assignment.
+
+  """
+
+
+  # make full pathname to test suite directory for the specified assignment
+  test_suite_pathname = PROJECT_DIR + str(assignment_id) +'/test_suite'
+
+
+  # check if it exists
+  if os.path.isdir(test_suite_pathname) :
+
+    test_names_list = []
+    directory_contents = os.listdir(test_suite_pathname)
+
+    for test_name in directory_contents:
+      if test_name.endswith('.repy') :
+        test_names.append(test_name)
+
+    return test_names
+
+  else :
+
+    raise Exception('There is no test suite for the assignment with id: '+str(assignment_id))
+
+
+
+
+
+def get_test_contents(assignment_id, test_file_name):
+
+  """
+
+  <Purpose>
+
+
+Gets the contents of a test file 
+
+
+  <Arguments>
+
+
+        assignment_id = unique id for the assignment
+
+
+        test_file_name = name of the test file from which you want the contents
+
+
+  <Exceptions>
+
+
+        Raises an Exception if their is no assignment matching assignment_id or if there is no test file with test_file_name for the assignment
+
+
+  <Side Effects>
+
+
+        None.
+
+
+  <Returns>
+
+
+        Returns the contents of the specified test file
+
+
+  """
+
+
+  # make full pathname to test suite directory for the specified assignment
+  test_suite_pathname = PROJECT_DIR + str(assignment_id) +'/test_suite'
+
+
+  # check if it exists
+  if os.path.isdir(test_suite_pathname) :
+
+    # make pathname to specified file in the test suite directory
+    test_file_pathname = test_suite_pathname + '/' + test_file_name
+
+
+    # check if the file exists
+    if os.path.isfile(test_file_pathname) :
+
+
+      # get the contents
+      file_obj = open(test_file_pathname)
+      file_contents = file_obj.read()
+      file_obj.close()
+      return file_contents
+
+    else :
+
+      raise Exception('There is no test file with the name  "'+test_file_name+'" for the assignment with id '+str(assignment_id)
+
+  else :
+    raise Exception('There is no test suite for the assignment with id: '+str(assignment_id))
+
+
+
+
+
+
+
+#methods that deal with getting student submissions stuff
+def get_student_files_list(submission_id):
+
+  """
+
+  <Purpose>
+
+
+Gets the list of all the file names inside the student's compressed tar file submission
+
+
+  <Arguments>
+
+
+        submission_id = an integer that is the primary id for the student's submission
+
+
+  <Exceptions>
+
+
+        Raises an Exception if there is no student submission for the submission_id.
+
+
+  <Side Effects>
+
+
+        None.
+
+
+  <Returns>
+
+
+        Returns a list of strings of the file names in the specified student submission tar file.
+
+
+  """
+
+
+  # Create a connection to the database
+  conn = sqlite3.connect(DATABASE)
+
+
+  # Create a cursor object to do the interacting.
+  cursor = conn.cursor()
+
+
+  # Query the database for a student submission with matching id
+  cursor.execute('SELECT student_code_filename FROM course_student_submission WHERE id=?', submission_id)
+  db_query_results = cursor.fetchone()
+
+  # Close connections to the database
+  cursor.close()
+  conn.close()
+
+  #Check that a submission was found or raise an error
+  if db_query_results == None :
+    error_msg = 'No submission found with the id: '+ str(submission_id)
+    raise Exception(error_msg)
+
+  else:
+    # make full file path to tarred file
+    submission_filename = SUBMISSIONS_DIR + db_query_results[0]
+
+    # get tarred file
+    tar = tarfile.open(submission_filename)
   
-  file_obj.write(results+"<br>")
-  file_obj.close()
+
+    # get the list of files in the tar
+    file_name_list = tar.getnames()
+    tar.close()
+    return file_name_list
 
 
 
 
-# append both the result of the grade function and
-# the test logs to the status_file
-def save_output(filename,test_name,results,test_log):
+
+def get_submission_contents(submission_id, file_name):
+
+  """
+
+  <Purpose>
+
+
+Gets the contents of a specific file in the student submission's compressed tar file.
+
+
+  <Arguments>
+
+
+        submission_id = an integer that is the primary id for the student_submission in the database
+
+
+        file_name = file name from which you want the contents
+
+
+  <Exceptions>
+
+
+        Raises an Exception if their is no submission matching submission_id or if there is no file with file_name in the submission compressed tar file
+
+
+  <Side Effects>
+
+
+        Nothing.
+
+
+  <Returns>
+
+
+        Returns the contents of the specified file
+
+
+  """
+
+ # Create a connection to the database
+  conn = sqlite3.connect(DATABASE)
+
+  # Create a cursor object to do the interacting.
+  cursor = conn.cursor()
+
+
+  # Query the database for a student submission with matching id
+  cursor.execute('SELECT student_code_filename FROM course_student_submission WHERE id=?', submission_id)
+  db_query_results = cursor.fetchone()
+
+
+  # Close connections to the database
+  cursor.close()
+  conn.close()
+
+
+  #Check that a submission was found or raise an error
+  if db_query_results == None :
+    error_msg = 'No submission found with the id: '+ str(submission_id)
+    raise Exception(error_msg)
+
+  else:
+    # make full file path to tarred file
+    submission_filename = SUBMISSIONS_DIR + db_query_results[0]
+
+
+    # get tarred file
+    tar = tarfile.open(submission_filename)
+
   
-  mark_in_progress = False
 
-  #is grading already in progress
-  file_obj = open(STATUS_DIR+"/"+filename+".txt")
-  progress_str = file_obj.readline()
-  if "grading in progress" not in progress_str:
-    mark_in_progress = True
-    file_obj.close()
-    os.remove(STATUS_DIR+"/"+filename+".txt")  # just remove the file since it has nothing
-  else: file_obj.close()
+    # cycle through names of files in the tar to see if any match 
+    file_names = tar.getnames()
 
-  #save the results of grading to the status file
-  file_obj = open(STATUS_DIR+"/"+filename+".txt",'a')
-  if mark_in_progress: file_obj.write("grading in progress...\n")
-  file_obj.write(results+'\n')
-  file_obj.close()
+    for name in file_names:
+      if name == file_name:  
+        file_obj = tar.extractfile(name)
+        file_contents = file_obj.read()
+        file_obj.close()
+        tar.close()
+        return file_contents
 
-  #save the full test output to a temporary file
-  file_obj = open(STATUS_DIR+"/"+filename+"TEMP.txt",'a')
-  file_obj.write(test_name+' details: \n'+test_log+'\n')
-  file_obj.close()
-
-
-# combine the grade results with the test logs
-def concat_status_files(student_file):
- 
-  file_obj_temp =  open(STATUS_DIR+"/"+student_file+"TEMP.txt")
-  details = file_obj_temp.read()
-  file_obj_temp.close()
-  os.remove(STATUS_DIR+"/"+student_file+"TEMP.txt")
-
-  file_obj_status = open(STATUS_DIR+"/"+student_file+".txt")
-  status_str = file_obj_status.read()
-  file_obj_status.close()
-
-  #replace grading in progress with grading complete
-  status_str.replace("grading in progress","Grading Complete",1)
-
-  file_obj_final = open(STATUS_DIR+"/"+student_file+".txt",'w')
-  file_obj_final.write("Grading Completed \n"+status_str)
-  file_obj_final.write("\nFULL DETAILS\n"+details)
-  file_obj_final.close()
-
-  
+    raise Exception( filename+' not found in the student submission with id '+submission_id)
