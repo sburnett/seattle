@@ -4,7 +4,7 @@ source tb_compat.tcl
 
 # the number of nodes
 set maxnodes %i
-set dir "/usr/kimbrl"
+set dir "/usr/jenn"
 
 
 #intialize the lan list
