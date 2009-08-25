@@ -42,19 +42,6 @@ Used to push out a new release, this script can be run from the command line
 to make new base installers, put them in the web directory, and push an update
 to all the software updaters, using the current code in the repository.
 
-==WINDOWS_LICENSE_Unix_Encoding==
-A Unix encoding of the Windows LICENSE.txt file. Any modifications to the
-LICENSE.txt file from a Unix machine should be done on this file. The file
-should then be copied to the win/script directory where it should finally be
-converted to Windows encoding under the file name LICENSE.txt
-
-==WINDOWS_README_Unix_Encoding==
-A Unix encoding of the Windows README.txt file. Any modifications to the
-README.txt file from a Unix machine should be done on this file. The file
-should then be copied to the win/script directory where it should finally be
-converted to Windows encoding under the file name README.txt
-
-
 ==update_software.py==
 This script can be run from the command line to push an update to all the
 software updaters, using the current code in the repository.
