@@ -14,7 +14,7 @@ This file (see description at top).
 
 ==README==
 Includes an introduction to Seattle, installation and uninstall instructions,
-along with contact information and a legal statement.
+along with contact information.
 
 ==start_seattle.sh==
 Included in the Linux installer, it starts the scripts that comprise

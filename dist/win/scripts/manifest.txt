@@ -2,6 +2,10 @@ This file describes the purpose and usage of all files in the current
 directory and summarizes the purpose of all subdirectories.
 
 =files=
+
+==LICENSE.txt==
+Includes legal information for Seattle.
+
 ==install.bat==
 Included in the Windows installer, this will run the install script
 (seattleinstaller.py, located in trunk/dist) when called.
@@ -11,7 +15,7 @@ This file (see description at top).
 
 ==README==
 Includes an introduction to Seattle, installation and uninstall instructions,
-along with contact information and a legal statement.
+along with contact information.
 
 ==start_seattle.bat==
 Included in the Windows installer, this will start the python scripts

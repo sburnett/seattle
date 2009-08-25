@@ -2,6 +2,10 @@ This file describes the purpose and usage of each file in the current
 directory and summarizes the purpose of each subdirectory.
 
 =files=
+
+==LICENSE==
+Contains the legal information for Seattle.
+
 ==install.sh==
 Included in the Mac installer, it runs the install script (seattleinstaller.py,
 located in trunk/dist) when called.
