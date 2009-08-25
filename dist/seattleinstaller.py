@@ -45,7 +45,7 @@ SILENT_MODE = False
 KEYBITSIZE = 1024
 OS = nonportable.ostype
 SUPPORTED_OSES = ["Windows", "WindowsCE", "Linux", "Darwin"]
-SUPPORTED_WINDOWS_VERSIONS = ["XP", "Vista", "CE"]
+# Supported Windows Versions: XP, Vista
 
 # Import subprocess if not in WindowsCE
 subprocess = None
@@ -57,6 +57,10 @@ windows_api = None
 if OS == "WindowsCE":
   import windows_api
 
+# Import _winreg if in Windows or WindowsCE
+_winreg = None
+if OS == "Windows" or OS == "WindowsCE":
+  import _winreg
 
 
 
@@ -94,9 +98,9 @@ def preprocess_file(filename, substitute_dict, comment="#"):
       {"word_in_file_1": "replacement1", "word_in_file_2": "replacement2"}
     comment:
       A string which demarks commented lines; lines that start with this will
-      be ignored, but lines that contain this symbol will be preprocessed up to
-      that point. Defaults to "#", set as the empty string to preprocess all
-      lines in the file.
+      be ignored, but lines that contain this symbol somewhere else in the line 
+      will be preprocessed up to the first instance of the symbol. Defaults to
+      "#". To preprocess all lines in a file, set as the empty string.
 
   <Exceptions>
     IOError on bad filename.
@@ -111,26 +115,25 @@ def preprocess_file(filename, substitute_dict, comment="#"):
   base_fileobj = open(filename, "r")
 
   for fileline in base_fileobj:
-    commentedLine = ""
+    commentedOutString = ""
 
     if comment == "" or not fileline.startswith(comment):
+      # Substitute the replacement string into the file line.
 
-      # Substitute the replacement string into the uncommented file line
       # First, test whether there is an in-line comment.
       if comment != "" and comment in fileline:
-        splitLine = fileline.split(comment)
+        splitLine = fileline.split(comment,1)
         fileline = splitLine[0]
-        for splitcomment in splitLine[1:]:
-          commentedLine = commentedLine + comment + splitcomment
+        commentedOutString = comment + splitLine[1]
 
       for substitute in substitute_dict:
         fileline = fileline.replace(substitute, substitute_dict[substitute])
 
-    edited_lines.append(fileline + commentedLine)
+    edited_lines.append(fileline + commentedOutString)
 
   base_fileobj.close()
 
-  # Now, write those modified lines to the actual starter file location
+  # Now, write those modified lines to the actual starter file location.
   final_fileobj = open(filename, "w")
   final_fileobj.writelines(edited_lines)
   final_fileobj.close()
@@ -138,75 +141,46 @@ def preprocess_file(filename, substitute_dict, comment="#"):
 
 
 
-def get_win_startup_folder(version):
+def get_filepath_of_win_startup_folder_with_link_to_seattle():
   """
   <Purpose>
-    Given the Windows version it is running on, returns the path to the
-    startup folder if it can be found.
+    Gets what the full filepath would be to a link to the seattle starter script
+    in the Windows startup folder.  Also tests whether or not that filepath
+    exists (i.e., whether or not there is currently a link in the startup folder
+    to run seattle at boot).
   
   <Arguments>
-    version:
-      The current version of Windows; must be either "XP", "Vista", or "CE".
+    None.
 
   <Exceptions>
-    None.
+    UnsupportedOSException if the operating system is not Windows or WindowsCE.
+    IOError may be thrown if an error occurs while accessing a file.
 
   <Side Effects>
     None.
 
   <Returns>
-    The path to the startup folder if it can be found, an empty string otherwise.
+    A tuple is returned whith the first value being the filepath to the link in
+    the startup folder that will run seattle at boot.  The second value is a
+    boolean value: True indicates the link currently exists in the startup
+    folder, and False if it does not.
   """
-  if (OS != "Windows" and OS != "WindowsCE") or version not in SUPPORTED_WINDOWS_VERSIONS:
-    # The OS is not a version of Windows or a supported version of Windows
-    raise UnsupportedOSError
+  if OS == "WindowsCE":
+    startup_path = "\\Windows\\Startup" + os.sep + get_starter_file_name()
+    return (startup_path, os.path.exists(startup_path))
 
-  else:
-    try:
-      # See if the installer executable found the startup folder
-      # in the registry
-      startup_file = open("startup.dat")
-      startup_path = ""
-      for line in startup_file:
-        if line:
-          startup_path = line
-        if startup_path and os.path.exists(startup_path):
-          return startup_path
-        else:
-          raise Exception
-
-    except:
-      try:
-        # If that file doesn't exist or is invalid, try checking the registry key.
-        key_handle = _winreg.OpenKey(_winreg.HKEY_CURRENT_USER, "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Shell Folders")
-        (startup_path, data_type) = _winreg.QueryValueEx(key_handle, "Startup")
-        if startup_path and os.path.exists(startup_path):
-          return startup_path   
-
-      except:
-        # If that fails, look in a couple obvious places, based on OS version
-        if version == "Vista":
-          # Look in probable Vista places
-          startup_path = os.environ.get("HOMEDRIVE") + os.environ.get("HOMEPATH") + "\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Startup"
-          if os.path.exists(startup_path):
-            return startup_path
-
-        elif version == "XP":
-          # Look in probable XP places
-          startup_path = os.environ.get("HOMEDRIVE") + os.environ.get("HOMEPATH") + "\\Start Menu\\Programs\\Startup"
-          if os.path.exists(startup_path):
-            return startup_path
-
-        elif version == "CE":
-          # Look in probable Mobile places
-          startup_path = "\\Windows\\Startup"
-          if os.path.exists(startup_path):
-            return startup_path
-          # Zack: Deleted duplicate copy of "if os.path.exists(...) block
+  elif OS != "Windows":
+    raise UnsupportedOSError("The startup folder only exists on Windows.")
 
 
-          # Else return blank to indicate failure
-        return ""
+  version = platform.release()
+  if version == "Vista":
+    startup_path = os.environ.get("HOMEDRIVE") + os.environ.get("HOMEPATH") + "\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Startup" + os.sep + get_starter_file_name()
+    return (startup_path, os.path.exists(startup_path))
+
+  elif version == "XP":
+    startup_path = os.environ.get("HOMEDRIVE") + os.environ.get("HOMEPATH") + "\\Start Menu\\Programs\\Startup" + os.sep + get_starter_file_name()
+    return (startup_path, os.path.exists(startup_path))
 
 
 
@@ -282,7 +256,7 @@ def get_uninstaller_file_name():
     None.
 
   <Exceptions>
-    UnsupportedOSError if teh operating system requested is not supported.
+    UnsupportedOSError if the operating system requested is not supported.
 
   <Side Effects>
     None.
@@ -302,12 +276,293 @@ def get_uninstaller_file_name():
 
 
 
-def setup_startup(prog_path):
+def search_value_in_win_registry_key(opened_key,seeking_value_name):
   """
   <Purpose>
-    Sets up seattle to run at startup on the current computer. On Windows, this
-    means adding a script to the startup folder, while on Unix systems it means
-    adding a line to the crontab.
+    Searches a given key to see if a given value exists for that key.
+
+  <Arguments>
+    opened_key:
+      An already opened key that will be searched for the given value.  For a
+      key to be opened, it must have had the _winreg.OpenKey(...) or
+      _winreg.CreateKey(...) functions performed on it.
+
+    seeking_value_name:
+      A string containing the name of the value to search for within the
+      opened_key.
+
+  <Exceptions>
+    UnsupportedOSError if the operating system is not Windows or WindowsCE.
+    WindowsError if opened_key has not yet been opened.
+
+  <Side Effects>
+    None.
+
+  <Returns>
+    True if seeking_value_name is found within opened_key.
+    False otherwise.
+
+  """
+  if OS != "Windows" and OS != "WindowsCE":
+    raise UnsupportedOSError("This operating system must be Windows or " \
+                               + "WindowsCE in order to manipulate registry " \
+                               + "keys.")
+
+  # Test to make sure that opened_kay was actually opened by obtaining
+  # information about that key.
+  # Raises a WindowsError if opened_key has not been opened.
+  # subkeycount: the number of subkeys opened_key contains. (not used).
+  # valuescount: the number of values opened_key has.
+  # modification_info: long integer stating when the key was last modified.
+  #                    (not used)
+  subkeycount, valuescount, modification_info = _winreg.QueryInfoKey(opened_key)
+  if valuescount == 0:
+    return False
+
+
+  try:
+    value_data,value_type = _winreg.QueryValueEx(opened_key,seeking_value_name)
+    # No exception was raised, so seeking_value_name was found.
+    return True
+  except WindowsError:
+    return False
+
+
+
+
+def remove_seattle_from_win_startup_folder():
+  """
+  <Purpose>
+    Removes the seattle startup script from the Windows startup folder if it
+    exists.
+
+  <Arguments>
+    None.
+
+  <Exceptions>
+    UnsupportedOSError if the os is not supported (i.e., a Windows machine).
+    IOError may be raised if an error occurs during file and filepath
+      manipulation.
+
+  <Side Effects>
+    Removes the seattle startup script from the Windows startup folder if it
+    exists.
+
+  <Returns>
+    True if the function removed the link to the startup script, meaning it
+         previously existd.
+    False otherwise, meaning that a link to the startup script did not
+    previously exist.
+  """
+  if OS != "Windows" and OS != "WindowsCE":
+    raise UnsupportedOSError("This must be a Windows operating system to " \
+                               + "access the startup folder.")
+
+  # Getting the startup path in order to see if a link to seattle has been
+  # installed there.
+  full_startup_file_path,file_path_exists = \
+      get_filepath_of_win_startup_folder_with_link_to_seattle()
+  if file_path_exists:
+    os.remove(full_startup_file_path)
+    return True
+  else:
+    return False
+
+
+
+
+def add_seattle_to_win_startup_folder(prog_path):
+  """
+  <Purpose>
+    Add the seattle startup script to the Windows startup folder.
+
+  <Arguments>
+    None.
+
+  <Exceptions>
+    UnsupportedOSError if the os is not supported (i.e., a Windows machine).
+    IOError may be raised if an error occurs during file and filepath
+      manipulation.
+
+  <Side Effects>
+    Adds the seattle startup script to the Windows startup folder.
+
+  <Returns>
+    None.
+  """
+  if OS != "Windows" and OS != "WindowsCE":
+    raise UnsupportedOSError("This must be a Windows operating system to " \
+                               + "access the startup folder.")
+
+  # Getting the startup path in order to copy the startup file there which will
+  # make seattle start when the user logs in.
+  full_startup_file_path,file_path_exists = \
+      get_filepath_of_win_startup_folder_with_link_to_seattle()
+  if file_path_exists:
+    raise AlreadyInstalledError("seattle was already installed in the " \
+                                  + "startup folder.")
+  else:
+    shutil.copy(prog_path + os.sep + get_starter_file_name(),
+                full_startup_file_path)
+
+
+
+
+def setup_win_startup(prog_path):
+  """
+  <Purpose>
+    Sets up seattle to run at startup on this Windows machine. First, this means
+    adding a value, with absolute file path to the seattle starter script, to
+    the machine startup registry key which will run seattle at startup
+    regardless of which user logs in. Second, if that fails, this method
+    attempts to add a link to the Windows startup folder which will only run
+    seattle when this user logs in.
+
+  <Arguments>
+    prog_path:
+      The path to the directory where the seattle files are located.
+
+  <Exceptions>
+    UnsupportedOSError if the os is not supported (i.e., a Windows machine).
+    AlreadyInstalledError if seattle has already been installed on the system.
+    IOError may be raised if an error occurs during file and filepath
+      manipulation in one of the sub-functions called by this method.
+
+  <Side Effects>
+    Adds a value named "seattle", which contains the absolute file path to the
+    seattle starter script, to the startup registry key, or adds seattle to the
+    startup folder if adding to the registry key fails.
+
+    If an entry is successfully made to the registry key and a pre-existing link
+    to seattle exists in the startup folder, the entry in the startup foler is
+    removed.
+
+  <Returns>
+    None.
+  """
+
+  # Check to make sure the OS is supported
+  if OS != "Windows" and OS != "WindowsCE":
+    raise UnsupportedOSError("This operating system must be Windows or " \
+                               + "WindowsCE in order to modify a registry " \
+                               + "or startup folder.")
+
+  # The following entire try: block attempts to add seattle to the Windows
+  # registry to run seattle at machine startup regardless of user login.
+  try:
+    # The startup key must first be opened before any operations, including
+    # searching its values, may be performed on it.
+
+    # ARGUMENTS:
+    # _winreg.HKEY_LOCAL_MACHINE: specifies the key containing the subkey used
+    #                             to run programs at machine startup
+    #                             (independent of user login).
+    # "Software\\Microsoft\\Windows\\CurrentVersion\\Run": specifies the subkey
+    #                                                      that runs programs on
+    #                                                      machine startup.
+    # 0: a reserved integer that must be zero.
+    # _winreg.KEY_ALL_ACCESS: an integer that acts as an access map that
+    #                         describes desired security access for this key.
+    #                         In this case, we want all access to the key so it
+    #                         can be modified. (Default: _winreg.KEY_READ)
+    startup_key = _winreg.OpenKey(_winreg.HKEY_LOCAL_MACHINE,
+                            "Software\\Microsoft\\Windows\\CurrentVersion\\Run",
+                            0, _winreg.KEY_ALL_ACCESS)
+  except WindowsError:
+    # Fall through entire try: block to set up seattle in the startup folder.
+    _output("This user does not have permission to access the Windows " \
+                + "registry keys.")
+    servicelogger.log(" seattle was NOT setup in the Windows registry " \
+                        + "because the user does not have permission to " \
+                        + "access the registry.")
+
+
+
+  else:
+    # The key was successfully opened.  Now check to see if seattle was
+    # previously installed in this key. *Note that the key should be closed in
+    # this else: block when it is no longer needed.
+    if search_value_in_win_registry_key(startup_key, "seattle"):
+      # Close the key before raising AlreadyInstalledError.
+      _winreg.CloseKey(startup_key)
+      raise AlreadyInstalledError("seattle is already installed in the " \
+                                    + "Windows registry starup key.")
+
+    try:
+      # seattle has not been detected in the registry from a previous
+      # installation, so attempting to add the value now.
+      
+      # _winreg.SetValueEx(...) creates the value "seattle", if it does not
+      #                         already exist, and simultaneously adds the given
+      #                         data to the value.
+      # ARGUMENTS:
+      # startup_key: the opened subkey that runs programs on startup.
+      # "seattle": the name of the new value to be created under startup_key 
+      #            that will make seattle run at machine startup.
+      # 0: A reserved value that can be anything, though zero is always passed
+      #    to the API according to python documentation for this function.
+      # _winreg.REG_SZ: Specifies the integer constant REG_SZ which indicates
+      #                 that the type of the data to be stored in the value is a
+      #                 null-terminated string.
+      # prog_path + os.sep + get_starter_file_name(): The data of the new
+      #                                               value being created
+      #                                               containing the full path
+      #                                               to seattle's startup
+      #                                               script.
+      _winreg.SetValueEx(startup_key, "seattle", 0, _winreg.REG_SZ,
+                       prog_path + os.sep + get_starter_file_name())
+      servicelogger.log(" seattle was successfully added to the Windows " \
+                          + "registry key to run at startup: " \
+                          + "HKEY.LOCAL_MACHINE\\Software\\Microsoft\\Windows" \
+                          + "\\CurrentVersion\\Run")
+                       
+      
+    except WindowsError:
+      # Fall through entire try: block to setup seattle in the startup folder.
+      _output("This user does not have permission to modify the registry key " \
+                + "to make seattle run at startup.")
+      servicelogger.log(" seattle was NOT setup in the Windows registry " \
+                          + "because the user does not have permission to " \
+                          + "modify the registry.")
+      # Close the key before falling through the try: block.
+      _winreg.CloseKey(startup_key)
+
+
+    else:
+      # Succeeded in adding seattle to the registry key, so now remove seattle
+      # from the startup folder if there is currently a link there from a
+      # previous installation.
+      if remove_seattle_from_win_startup_folder():
+        _output("seattle was detected in the startup folder.")
+        _output("Now that seattle has been successfully added to the " \
+                  + "Windows registry key, the link to run seattle has been " \
+                  + "deleted from the startup folder.")
+        servicelogger.log(" A link to the seattle starter file from a " \
+                            + "previous installation was removed from the " \
+                            + "startup folder during the current installation.")
+      # Close the key before returning.
+      _winreg.CloseKey(startup_key)
+      return
+
+
+
+  # Reaching this point means modifying the registry key failed, so add seattle
+  # to the startup folder.
+  _output("Attempting to add seattle to the startup folder as an " \
+            + "alternative method for running seattle at startup.")
+  add_seattle_to_win_startup_folder(prog_path)
+  servicelogger.log(" A link to the seattle starter script was installed in " \
+                      + "the Windows startup folder rather than in the " \
+                      + "registry.")
+
+
+
+
+def setup_linux_or_mac_startup(prog_path):
+  """
+  <Purpose>
+    Sets up seattle to run at startup on this Linux or Macintosh machine. This
+    means adding an entry to crontab.
 
   <Arguments>
     prog_path:
@@ -321,37 +576,14 @@ def setup_startup(prog_path):
     None.
 
   <Returns>
-    The path to the startup file on Windows if successful.
-    True on Linux if successful.
-    False if it fails.
+    None.
   """
 
-  # First check to make sure the OS is supported
-  if OS == "Windows" or OS == "WindowsCE":
-    _output("Adding a script to the startup folder...")
-    # Try setting up the startup folder on a Windows system
-    startup_path = get_win_startup_folder(platform.release())
-    if not startup_path:
-      return False
+  if OS != "Linux" and OS != "Darwin":
+    raise UnsupportedOSError
 
-    # Check to see if we've already installed a startup script here
-    startupscript = startup_path + os.sep + get_starter_file_name()
-    if os.path.exists(startupscript):
-      raise AlreadyInstalledError
+  else:
 
-    # Now that we have the startup folder, and we know seattle is not installed,
-    # customize the start, stop, and uninstall batch files so the client is not
-    # required to be in the seattle directory to run them.
-    for batchfile in [get_starter_file_name(), get_stopper_file_name(), get_uninstaller_file_name()]:
-      preprocess_file(prog_path + os.sep + get_starter_file_name(), {"%PROG_PATH%": prog_path})
-
-    # Copy the start batch file to the startup folder.
-    shutil.copy(prog_path + os.sep + get_starter_file_name(), startup_path + os.sep + get_starter_file_name())
-
-    return startupscript
-
-
-  elif OS == "Linux" or OS == "Darwin":
     _output("Adding an entry to the crontab...")
     # First check to see if crontab has already been modified to run seattle
     crontab_contents = subprocess.Popen("crontab -l", shell=True, stdout=subprocess.PIPE).stdout
@@ -380,12 +612,7 @@ def setup_startup(prog_path):
     # Now, replace the crontab with that temp file
     os.popen('crontab "' + tmp_location + '"')
     os.unlink(tmp_location)
-    return True
-
-
-  else:
-    # The operating system is not supported
-    raise UnsupportedOSError
+    return
 
 
 
@@ -415,12 +642,11 @@ def setup_win_uninstaller(prog_path, starter_file):
   """
   if OS != "Windows" and OS != "WindowsCE":
     raise UnsupportedOSError
-  elif not os.path.exists(starter_file):
-    raise IOError
   elif not os.path.exists(prog_path + os.sep + get_uninstaller_file_name()):
     raise IOError
 
   preprocess_file(prog_path + os.sep + get_uninstaller_file_name(), {"%STARTER_FILE%": starter_file})     
+
 
 
 
@@ -524,8 +750,8 @@ def start_seattle(prog_path):
 def install(prog_path):
   """
   <Purpose>
-    Goes through all the steps necessary to install seattle on the current system, printing
-    status messages if not in silent mode.
+    Goes through all the steps necessary to install seattle on the current
+    system, printing status messages if not in silent mode.
 
   <Arguments>
     prog_path:
@@ -561,56 +787,83 @@ def install(prog_path):
 
 
   prog_path = os.path.realpath(prog_path)
-  
-  # First, generate the Node Manager keys since seattle does not need to be
-  # setup to run at boot in order to be executed manually
 
-  _output("Generating the Node Manager rsa keys.  This may take a few minutes...")
 
+  _output("Generating the Node Manager rsa keys.  This may take a few " \
+            + "minutes...")
+  # Generate the Node Manager keys separately from setting up seattle to run at
+  # startup since seattle does not need to be setup to run at boot in order to
+  # be executed manually.
   # To avoid a race condition with cron on non-Windows systems, the keys must
-  # always be generated before setting up seattle to run at boot
+  # always be generated before setting up seattle to run at boot.
   generate_keys(prog_path)
   _output("Keys generated!")
     
 
-  _output("Preparing Seattle to run automatically...")
-  # Second, setup seattle to run at startup
-  startup_success = setup_startup(prog_path)
-  if startup_success:
+
+  _output("Preparing Seattle to run automatically at startup...")
+  # This try: block attempts to install seattle to run at startup. If it fails, 
+  # continue on with the rest of the install process.
+  try:
+    if OS == "Windows" or OS == "WindowsCE":
+      setup_win_startup(prog_path)
+    elif OS == "Linux" or OS == "Darwin":
+      setup_linux_or_mac_startup(prog_path)
     _output("Seattle is setup to run at startup!")
-  
-    # Next, if it is a Windows system and we were able to find the startup folder,
-    # customize the uninstaller
-    if "Windows" in OS:
-      _output("Customizing uninstaller...")
-      setup_win_uninstaller(prog_path, startup_success)
-      _output("Done!")
 
-    # Next, setup the sitecustomize.py file, if running on WindowsCE
-    if OS == "WindowsCE":
-      _output("Configuring python...")
-      setup_sitecustomize(prog_path)
-      _output("Done!")
-
-    # Everything has been installed, so start seattle
-    _output("Starting seattle...")
-    start_seattle(prog_path)
+  except UnsupportedOSError,u:
+    raise UnsupportedOSError(u)
+  except AlreadyInstalledError,a:
+    raise AlreadyInstalledError(a)
+  # If an unpredicted error is raised while setting up seattle to run at
+  # startup, it is caught here.
+  except Exception,e:
+    _output("seattle could not be installed to run automatically at startup " \
+              + "for the following reason: " + str(e))
+    _output("Continguing with the installation process now.  To manually run " \
+              + " seattle at any time, just run " + get_starter_file_name())
+    servicelogger.log(time.strftime(" seattle was NOT installed on this " \
+                                      + "system for the following reason: " \
+                                      + str(e) + ". %m-%d-%Y  %H:%M:%S"))
 
 
-    # The install went smoothly.
-    _output("seattle was successfully installed and has been started!")
-    _output("To learn more about useful, optional scripts related to running seattle, see the README file.")
 
-    servicelogger.log(time.strftime(" seattle was installed on: %m-%d-%Y %H:%M:%S"))
 
-  else: 
-    # We weren't able to find the startup folder for Windows systems    
-    servicelogger.log(time.strftime(" seattle was NOT installed on this system because the starter file could not be located: %m-%d-%Y at %H:%M:%S"))
+  # Next, if it is a Windows system, customize the uninstaller.
+  if "Windows" in OS:
+    _output("Customizing seattle scripts...")
 
-    _output("seattle was not able to be setup to run at startup.")
-    _output("seattle could not be installed correctly to run at startup on your machine because the starter folder for your system could not be located.")
-    _output("To manually run seattle at any time, just run " +
-            get_starter_file_name() + ".")
+    # Customize the start, stop, and uninstall batch files so the client is
+    # not required to be in the seattle directory to run them.
+    for batchfile in [get_starter_file_name(), get_stopper_file_name(),
+                      get_uninstaller_file_name()]:
+      preprocess_file(prog_path + os.sep + get_starter_file_name(),
+                      {"%PROG_PATH%": prog_path})
+
+    full_startup_file_path,file_path_exists = \
+        get_filepath_of_win_startup_folder_with_link_to_seattle()
+    setup_win_uninstaller(prog_path, full_startup_file_path)
+    _output("Done!")
+
+  # Next, setup the sitecustomize.py file, if running on WindowsCE.
+  if OS == "WindowsCE":
+    _output("Configuring python...")
+    setup_sitecustomize(prog_path)
+    _output("Done!")
+    
+  # Everything has been installed, so start seattle
+  _output("Starting seattle...")
+  start_seattle(prog_path)
+
+
+  # The install went smoothly.
+  _output("seattle was successfully installed and has been started!")
+  _output("To learn more about useful, optional scripts related to running seattle, see the README file.")
+
+  servicelogger.log(time.strftime(" seattle completed installation on: " \
+                                    + "%m-%d-%Y %H:%M:%S"))
+
+
 
 
 def usage():
@@ -627,6 +880,9 @@ def usage():
   print "--repy-nootherips\tSpecifies that repy is only allowed to use explicit IP's and interfaces."
   print "--onlynetwork\t\tDoes not reinstall Seattle, but updates the network restrictions information."
 
+
+
+
 def in_opts(opts, flag):
   """
   Intended for internal use.
@@ -637,6 +893,9 @@ def in_opts(opts, flag):
     if flag in tup:
       return True
   return False
+
+
+
 
 def main():
   """
