@@ -24,6 +24,7 @@ del nm_remote_api.py
 del rhizoma.py
 del *_repy.py
 
+req domainnameinfo.repy
 req benchmark_resources.py
 req Mac_BSD_resources.py
 req create_installer_state.py
@@ -120,7 +121,7 @@ req sshkey_paramiko.repy
 req pyDes.repy
 req sshkey.repy
 req NAT_advertisement.repy
-req textops.repy
+req textops.py
 req NATLayer_rpc.repy
 req deserialize.repy
 req Multiplexer.repy
