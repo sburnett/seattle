@@ -193,7 +193,24 @@ def prepare_gen_install_files(trunk_location, temp_install_dir, include_tests,
                          temp_install_dir, shell=True)
     p.wait()
 
-  
+  # Copy Anthony Honstain's benchmarking scripts to the installer
+  shutil.copy2(trunk_location + "/resource/benchmark_resources.py", 
+               temp_install_dir)
+  shutil.copy2(trunk_location + "/resource/Mac_BSD_resources.py",
+               temp_install_dir)
+  shutil.copy2(trunk_location + "/resource/create_installer_state.py",
+               temp_install_dir)
+  shutil.copy2(trunk_location + "/resource/measuredisk.py", temp_install_dir)
+  shutil.copy2(trunk_location + "/resource/vessel.restrictions",
+               temp_install_dir)
+  shutil.copy2(trunk_location + "/resource/Linux_resources.py",
+               temp_install_dir)
+  shutil.copy2(trunk_location + "/resource/measure_random.py",
+               temp_install_dir)
+  shutil.copy2(trunk_location + "/resource/Win_WinCE_resources.py",
+               temp_install_dir)
+
+
   # Clean the folder of unnecessary files before generating metafile
   clean_folder.clean_folder(trunk_location + "/dist/initial_files.fi",
                             temp_install_dir)
