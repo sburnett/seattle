@@ -49,10 +49,6 @@ repyhelpercachedir = repyhelper.set_importcachedir('nodemanager.repyhelpercache'
 
 
 
-#for the number of events patch
-import glob
-
-
 # Armon: Prevent all warnings
 import warnings
 # Ignores all warnings
@@ -368,49 +364,6 @@ def main():
   
   # Armon: initialize the network restrictions
   initialize_ip_interface_restrictions(configuration)
-
-
-  ##BUG FIX: insuficient events. We patch each resource file once when node manager is started the first time.
-  if not("patch_number_events" in configuration.keys()):
-    
-    #add the key and commit the change
-    configuration["patch_number_events"] = "true"
-    persist.commit_object(configuration, "nodeman.cfg")
-    
-    #modifcy the number of events in each resource file
-    files_to_modify=glob.glob("resource.v*")
-    
-    for file_to_modify in files_to_modify:
-      
-      try:
-        #write to this buffer
-        file_write_buffer = ""
-        for line in open(file_to_modify):
-          tokenlist = line.split()
-          if len(tokenlist) > 2 and tokenlist[0] == "resource" and tokenlist[1] == "events":
-            num_events = float(tokenlist[2])
-            line_to_write = "resource events " + str(num_events * 10) + "\n" #multiply number of events by 10
-            
-            if num_events > 100: #if number of events is greater than 100
-              #use original line instead, do not change number of events
-              line_to_write = line
-              
-            file_write_buffer = file_write_buffer + line_to_write
-          else:
-            file_write_buffer = file_write_buffer + line
-            
-        #now write the file
-        outfo = open(file_to_modify,"w")
-        print >> outfo, file_write_buffer
-        outfo.close()
-
-      except OSError, e:
-        servicelogger.log("[ERROR]:Unable to patch events limit in resource file "+ file_to_modify + ", exception " + str(e))
-        servicelogger.log_last_exception()
-  
-  
-  
-  
   
   
   # get the external IP address...

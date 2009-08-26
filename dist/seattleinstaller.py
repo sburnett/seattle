@@ -37,8 +37,11 @@ import nonportable
 import createnodekeys
 import repy_constants
 import persist # Armon: Need to modify the NM config file
-
-
+import benchmark_resources
+# Anthony - traceback is imported so that benchmarking can be logged
+# before the vessel state has been created (servicelogger does not work
+# without the v2 directory
+import traceback 
 
 
 SILENT_MODE = False
@@ -46,6 +49,7 @@ KEYBITSIZE = 1024
 OS = nonportable.ostype
 SUPPORTED_OSES = ["Windows", "WindowsCE", "Linux", "Darwin"]
 # Supported Windows Versions: XP, Vista
+RESOURCE_PERCENTAGE = 10
 
 # Import subprocess if not in WindowsCE
 subprocess = None
@@ -785,9 +789,52 @@ def install(prog_path):
     return
 
 
-
   prog_path = os.path.realpath(prog_path)
 
+
+# Run the benchmarks to benchmark system resources and generate
+  # resource files and the vesseldict.
+  _output("System benchmark starting...")
+  # Anthony - this file will be logged to until the v2 directory has
+  # been created, this will not happen until after the benchmarks
+  # have run and the majority of the installer state has been created.
+  benchmark_logfileobj = file("installer_benchmark.log", 'a+')
+    
+  try:
+    benchmark_resources.main(prog_path, RESOURCE_PERCENTAGE, benchmark_logfileobj)
+  except benchmark_resources.InsufficientResourceError:
+    exceptionType, exceptionValue, exceptionTraceback = sys.exc_info()
+    traceback.print_exception(exceptionType, exceptionValue, \
+                              exceptionTraceback, file=benchmark_logfileobj)
+    _output("Failed.")
+    _output("This install cannot succeed because resources are " + \
+            "insufficient. This could be because the percentage of donated " + \
+            "resources is to small or because a custom install had to many " + \
+            "vessels. ")
+    _output("Please email the Seattle project for additional support, if you can send the installer_benchmark.log and vesselinfo files they will help us diagnose the issue.")
+    benchmark_logfileobj.close()
+    return
+  except Exception:
+    exceptionType, exceptionValue, exceptionTraceback = sys.exc_info()
+    traceback.print_exception(exceptionType, exceptionValue, \
+                              exceptionTraceback, file=benchmark_logfileobj)
+    _output("Failed.")
+    _output("Seattle encountered an error, this install cannot succeed either because required installation info is corrupted or resources are insufficient.")
+    _output("Please email the Seattle project for additional support, if you can send the installer_benchmark.log and vesselinfo files they will help us diagnose the issue.")
+    benchmark_logfileobj.close()
+    return
+  
+  # Transfer the contents of the file used to log the benchmark and creation
+  # of vessel states. The service logger cannot be used sooner because
+  # the seattle vessel directory has not yet been created.
+  # Initialize the service logger.
+  servicelogger.init('installInfo')
+  benchmark_logfileobj.seek(0)
+  servicelogger.log(benchmark_logfileobj.read())
+  benchmark_logfileobj.close()
+  os.remove(benchmark_logfileobj.name)
+  
+  _output("Benchmark complete and vessels created!")
 
   _output("Generating the Node Manager rsa keys.  This may take a few " \
             + "minutes...")
@@ -871,8 +918,9 @@ def usage():
   Intended for internal use.
   Prints command line usage of script.
   """
-  print "python seattleinstaller.py [--nm-key-bitsize bitsize] [--nm-ip ip] [--nm-iface iface] [--repy-ip ip] [--repy-iface iface] [--repy-nootherips] [--onlynetwork] [-s] [install_dir]]"
+  print "python seattleinstaller.py [--percent float] [--nm-key-bitsize bitsize] [--nm-ip ip] [--nm-iface iface] [--repy-ip ip] [--repy-iface iface] [--repy-nootherips] [--onlynetwork] [-s] [install_dir]]"
   print "Info:"
+  print "--percent percent\ Specifies the desired percentage of available system resources to donate. Default percentage: " + str(RESOURCE_PERCENTAGE)
   print "--nm-key-bitsize bitsize\tSpecifies the desired bitsize of the Node Manager keys. Default bitsize: " + str(KEYBITSIZE)
   print "--nm-ip IP\t\tSpecifies a preferred IP for the NM. Multiple may be specified, they will be used in the specified order."
   print "--nm-iface iface\tSpecifies a preferred interface for the NM. Multiple may be specified, they will be used in the specified order."
@@ -908,11 +956,12 @@ def main():
   servicelogger.init('installInfo')
 
   global SILENT_MODE
+  global RESOURCE_PERCENTAGE
   opts = None
   args = None
   try:
     # Armon: Changed getopt to accept parameters for Repy and NM IP/Iface restrictions, also a special disable flag
-    opts, args = getopt.getopt(sys.argv[1:], "hs",["nm-key-bitsize=","nm-ip=","nm-iface=","repy-ip=","repy-iface=","repy-nootherips","onlynetwork"])
+    opts, args = getopt.getopt(sys.argv[1:], "hs",["percent=", "nm-key-bitsize=","nm-ip=","nm-iface=","repy-ip=","repy-iface=","repy-nootherips","onlynetwork"])
   except getopt.GetoptError, err:
     print str(err)
     usage()
@@ -941,6 +990,18 @@ def main():
   for (flag, value) in opts:
     if flag == "--onlynetwork":
       disable_install = True
+    elif flag == "--percent":
+      # Check to see that the desired percentage of system resources is valid
+      # I do not see a reason someone couldnt donate 20.5 percent so it
+      # will be allowed for now.
+      try:
+        RESOURCE_PERCENTAGE = float(value)
+      except ValueError:
+        usage()
+        return      
+      if RESOURCE_PERCENTAGE <= 0.0 or RESOURCE_PERCENTAGE > 100.0:
+        usage()
+        return
     elif flag == "--nm-ip":
       nm_restricted = True
       nm_user_preference.append((True, value))
