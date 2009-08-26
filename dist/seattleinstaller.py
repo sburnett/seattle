@@ -46,6 +46,7 @@ import traceback
 
 SILENT_MODE = False
 KEYBITSIZE = 1024
+DISABLE_STARTUP_SCRIPT = False
 OS = nonportable.ostype
 SUPPORTED_OSES = ["Windows", "WindowsCE", "Linux", "Darwin"]
 # Supported Windows Versions: XP, Vista
@@ -848,31 +849,34 @@ def install(prog_path):
     
 
 
-  _output("Preparing Seattle to run automatically at startup...")
-  # This try: block attempts to install seattle to run at startup. If it fails, 
-  # continue on with the rest of the install process.
-  try:
-    if OS == "Windows" or OS == "WindowsCE":
-      setup_win_startup(prog_path)
-    elif OS == "Linux" or OS == "Darwin":
-      setup_linux_or_mac_startup(prog_path)
-    _output("Seattle is setup to run at startup!")
 
-  except UnsupportedOSError,u:
-    raise UnsupportedOSError(u)
-  except AlreadyInstalledError,a:
-    raise AlreadyInstalledError(a)
-  # If an unpredicted error is raised while setting up seattle to run at
-  # startup, it is caught here.
-  except Exception,e:
-    _output("seattle could not be installed to run automatically at startup " \
-              + "for the following reason: " + str(e))
-    _output("Continguing with the installation process now.  To manually run " \
-              + " seattle at any time, just run " + get_starter_file_name())
-    servicelogger.log(time.strftime(" seattle was NOT installed on this " \
-                                      + "system for the following reason: " \
-                                      + str(e) + ". %m-%d-%Y  %H:%M:%S"))
 
+  if not DISABLE_STARTUP_SCRIPT:
+    _output("Preparing Seattle to run automatically at startup...")
+    # This try: block attempts to install seattle to run at startup. If it
+    # fails, continue on with the rest of the install process.
+    try:
+      if OS == "Windows" or OS == "WindowsCE":
+        setup_win_startup(prog_path)
+      elif OS == "Linux" or OS == "Darwin":
+        setup_linux_or_mac_startup(prog_path)
+        _output("Seattle is setup to run at startup!")
+
+    except UnsupportedOSError,u:
+      raise UnsupportedOSError(u)
+    except AlreadyInstalledError,a:
+      raise AlreadyInstalledError(a)
+    # If an unpredicted error is raised while setting up seattle to run at
+    # startup, it is caught here.
+    except Exception,e:
+      _output("seattle could not be installed to run automatically at " \
+                + "startup for the following reason: " + str(e))
+      _output("Continguing with the installation process now.  To manually " \
+                + "run seattle at any time, just run " \
+                + get_starter_file_name())
+      servicelogger.log(time.strftime(" seattle was NOT installed on this " \
+                                        + "system for the following reason: " \
+                                        + str(e) + ". %m-%d-%Y  %H:%M:%S"))
 
 
 
@@ -918,8 +922,9 @@ def usage():
   Intended for internal use.
   Prints command line usage of script.
   """
-  print "python seattleinstaller.py [--percent float] [--nm-key-bitsize bitsize] [--nm-ip ip] [--nm-iface iface] [--repy-ip ip] [--repy-iface iface] [--repy-nootherips] [--onlynetwork] [-s] [install_dir]]"
+  print "python seattleinstaller.py [--usage] [--disable-startup-script] [--percent float] [--nm-key-bitsize bitsize] [--nm-ip ip] [--nm-iface iface] [--repy-ip ip] [--repy-iface iface] [--repy-nootherips] [--onlynetwork] [-s] [install_dir]]"
   print "Info:"
+  print "--disable-startup-script\tDoes not install the Seattle startup script, meaning that Seattle will not automatically start running at machine start up. It is recommended that this option only be used in exceptional circumstances."
   print "--percent percent\ Specifies the desired percentage of available system resources to donate. Default percentage: " + str(RESOURCE_PERCENTAGE)
   print "--nm-key-bitsize bitsize\tSpecifies the desired bitsize of the Node Manager keys. Default bitsize: " + str(KEYBITSIZE)
   print "--nm-ip IP\t\tSpecifies a preferred IP for the NM. Multiple may be specified, they will be used in the specified order."
@@ -961,7 +966,7 @@ def main():
   args = None
   try:
     # Armon: Changed getopt to accept parameters for Repy and NM IP/Iface restrictions, also a special disable flag
-    opts, args = getopt.getopt(sys.argv[1:], "hs",["percent=", "nm-key-bitsize=","nm-ip=","nm-iface=","repy-ip=","repy-iface=","repy-nootherips","onlynetwork"])
+    opts, args = getopt.getopt(sys.argv[1:], "hs",["percent=", "nm-key-bitsize=","nm-ip=","nm-iface=","repy-ip=","repy-iface=","repy-nootherips","onlynetwork","disable-startup-script","usage"])
   except getopt.GetoptError, err:
     print str(err)
     usage()
@@ -1020,6 +1025,14 @@ def main():
     elif flag == "--nm-key-bitsize":
       global KEYBITSIZE
       KEYBITSIZE = int(value)
+    elif flag == "--disable-startup-script":
+      global DISABLE_STARTUP_SCRIPT
+      DISABLE_STARTUP_SCRIPT = True
+      _output("Seattle will not be configured to run automatically at boot.")
+    elif flag == "--usage":
+      usage()
+      return
+
 
   
   # Build the configuration dictionary

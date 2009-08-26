@@ -193,7 +193,8 @@ def uninstall(startup_folder_script_path):
 
   # Check to see if uninstall actually removed seattle from the computer.
   if not removed_from_registry and not removed_from_startup_folder:
-    print "seattle could not be detected as installed on this machine."
+    print "seattle could not be detected as configured to run automatically " \
+        + "at boot on this machine."
     print "If you wish to delete the directory containing seattle, you may " \
         + "do so now."
   elif removed_from_registry or removed_from_startup_folder:

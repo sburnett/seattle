@@ -70,7 +70,7 @@ def uninstall(silent = 0):
         output("If you wish, you may now delete this directory.", silent)
     else:
         os.close(fd)
-        output("Could not detect a seattle installation on your computer.", silent)
+        output("Could not detect seattle as configured to run automatically at boot on this system.", silent)
     os.unlink(s_tmp)
 
     servicelogger.log(time.strftime(" seattle was UNINSTALLED on: %m-%d-%Y %H:%M:%S"))
