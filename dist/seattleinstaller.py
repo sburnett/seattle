@@ -605,8 +605,13 @@ def setup_linux_or_mac_startup(prog_path):
     
     # Generate a temp file with the user's crontab plus our task
     # (tempfile module used as suggested in Jacob Appelbaum's patch)
-    cron_line = '*/10 * * * * "' + prog_path + '/' + \
-        get_starter_file_name() + '" >> /dev/null 2>&1\n'
+    cron_line = '@reboot if [ -a "' + prog_path + '/' \
+        + get_starter_file_name() + '" ]; then "' + prog_path + '/' \
+        + get_starter_file_name() + '" >> "' + prog_path + '/v2/cronlog.txt" ' \
+        + '2>> "' + prog_path + '/v2/cronlog.txt"; else crontab -l | ' \
+        + 'sed \'/start_seattle.sh/d\' > /tmp/seattle_crontab_removal && ' \
+        + 'crontab /tmp/seattle_crontab_removal && ' \
+        + 'rm /tmp/seattle_crontab_removal; fi' + os.linesep
     crontab_contents = subprocess.Popen("crontab -l", shell=True, stdout=subprocess.PIPE).stdout
     filedescriptor, tmp_location = tempfile.mkstemp("temp", "seattle")
     for line in crontab_contents:
@@ -622,7 +627,7 @@ def setup_linux_or_mac_startup(prog_path):
 
 
 
-def setup_win_uninstaller(prog_path, starter_file):
+def setup_win_uninstaller_and_starter_script(prog_path, starter_file):
   """
   <Purpose>
     On Windows, customizes the base uninstaller located in the install directory so
@@ -650,7 +655,8 @@ def setup_win_uninstaller(prog_path, starter_file):
   elif not os.path.exists(prog_path + os.sep + get_uninstaller_file_name()):
     raise IOError
 
-  preprocess_file(prog_path + os.sep + get_uninstaller_file_name(), {"%STARTER_FILE%": starter_file})     
+  for filename in [get_uninstaller_file_name(), get_starter_file_name()]:
+    preprocess_file(prog_path + os.sep + filename, {"%STARTER_FILE%": starter_file})     
 
 
 
@@ -850,7 +856,34 @@ def install(prog_path):
 
 
 
+  # If it is a Windows system, customize the batch files.
+  if "Windows" in OS:
+    _output("Customizing seattle batch files...")
 
+    # Customize the start, stop, and uninstall batch files so the client is
+    # not required to be in the seattle directory to run them.
+    for batchfile in [get_starter_file_name(), get_stopper_file_name(),
+                      get_uninstaller_file_name()]:
+      preprocess_file(prog_path + os.sep + get_starter_file_name(),
+                      {"%PROG_PATH%": prog_path})
+
+    full_startup_file_path,file_path_exists = \
+        get_filepath_of_win_startup_folder_with_link_to_seattle()
+    setup_win_uninstaller_and_starter_script(prog_path, full_startup_file_path)
+    _output("Done!")
+
+
+
+  # Setup the sitecustomize.py file, if running on WindowsCE.
+  if OS == "WindowsCE":
+    _output("Configuring python...")
+    setup_sitecustomize(prog_path)
+    _output("Done!")
+
+
+
+  # Configure seattle to run at startup if this hasn't been disabled by the
+  # command-line option.
   if not DISABLE_STARTUP_SCRIPT:
     _output("Preparing Seattle to run automatically at startup...")
     # This try: block attempts to install seattle to run at startup. If it
@@ -880,31 +913,10 @@ def install(prog_path):
 
 
 
-  # Next, if it is a Windows system, customize the uninstaller.
-  if "Windows" in OS:
-    _output("Customizing seattle scripts...")
-
-    # Customize the start, stop, and uninstall batch files so the client is
-    # not required to be in the seattle directory to run them.
-    for batchfile in [get_starter_file_name(), get_stopper_file_name(),
-                      get_uninstaller_file_name()]:
-      preprocess_file(prog_path + os.sep + get_starter_file_name(),
-                      {"%PROG_PATH%": prog_path})
-
-    full_startup_file_path,file_path_exists = \
-        get_filepath_of_win_startup_folder_with_link_to_seattle()
-    setup_win_uninstaller(prog_path, full_startup_file_path)
-    _output("Done!")
-
-  # Next, setup the sitecustomize.py file, if running on WindowsCE.
-  if OS == "WindowsCE":
-    _output("Configuring python...")
-    setup_sitecustomize(prog_path)
-    _output("Done!")
-    
   # Everything has been installed, so start seattle
   _output("Starting seattle...")
   start_seattle(prog_path)
+
 
 
   # The install went smoothly.
