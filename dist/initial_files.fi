@@ -90,7 +90,6 @@ req win_cpu_nanny.py
 req uniqueid.repy
 req timeout_xmlrpclib.py
 req listops.repy
-req LICENSE.TXT
 req xmlrpc_server.repy
 req darwin_api.py
 req urllib.repy
