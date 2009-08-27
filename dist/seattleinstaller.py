@@ -602,13 +602,17 @@ def setup_linux_or_mac_startup(prog_path):
       raise AlreadyInstalledError
   
     # Since seattle is not already installed, crontab should be modified
+
+    # First, get the service vessel to where any output from cron will be
+    # logged.
+    service_vessel = servicelogger.get_servicevessel()
     
     # Generate a temp file with the user's crontab plus our task
     # (tempfile module used as suggested in Jacob Appelbaum's patch)
-    cron_line = '@reboot if [ -a "' + prog_path + '/' \
+    cron_line = '@reboot if [ -e "' + prog_path + '/' \
         + get_starter_file_name() + '" ]; then "' + prog_path + '/' \
-        + get_starter_file_name() + '" >> "' + prog_path + '/v2/cronlog.txt" ' \
-        + '2>> "' + prog_path + '/v2/cronlog.txt"; else crontab -l | ' \
+        + get_starter_file_name() + '" >> "' + prog_path + '/' \
+        + service_vessel + '/cronlog.txt" 2>&1; else crontab -l | ' \
         + 'sed \'/start_seattle.sh/d\' > /tmp/seattle_crontab_removal && ' \
         + 'crontab /tmp/seattle_crontab_removal && ' \
         + 'rm /tmp/seattle_crontab_removal; fi' + os.linesep
