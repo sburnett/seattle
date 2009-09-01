@@ -208,7 +208,7 @@ def start_accepter():
       # see if we can currently have a bi-directional connection
       use_nat = nat_check_bi_directional(getmyip(), configuration['ports'][0])
     except Exception,e:
-      servicelogger.log("Excpetion occured trying to contact forwarder to detect nat "+str(e))
+      servicelogger.log("Exception occurred trying to contact forwarder to detect nat "+str(e))
       use_nat = False
   else:
     use_nat = True
