@@ -368,8 +368,22 @@ def main():
   
   # get the external IP address...
   # BUG: What if my external IP changes?   (A problem throughout)
-  
-  vesseldict = nmrequesthandler.initialize(emulcomm.getmyip(),configuration['publickey'],version)
+  while True:
+    try:
+      # Try to find our external IP.
+      vesseldict = nmrequesthandler.initialize(emulcomm.getmyip(),configuration['publickey'],version)
+    except Exception, e:
+      # If we aren't connected to the internet, emulcomm.getmyip() raises this:
+      if len(e.args) >= 1 and e.args[0] == "Cannot detect a connection to the Internet.":
+        # So we try again.
+        pass
+      else:
+        # It wasn't emulcomm.getmyip()'s exception. re-raise.
+        raise
+    else:
+      # We succeeded in getting our external IP. Leave the loop.
+      break
+    time.sleep(0.1)
 
   # Start accepter...
   myname = start_accepter()
