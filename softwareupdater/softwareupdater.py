@@ -41,7 +41,8 @@ import socket   # we'll make it so we don't hang...
 import tempfile
 import traceback    # For exception logging if the servicelogger fails.
 import runonce
-import nonportable  # Used for sys.exit
+import harshexit  # Used for portablekill
+import portable_popen
 
 
 # Import servicelogger to do logging
@@ -626,7 +627,7 @@ def restart_software_updater():
   thismutex = get_mutex()
 
   # starts new with arg that is the mutex 
-  junkupdaterobject = nonportable.Popen(["python","softwareupdater.py",thismutex])
+  junkupdaterobject = portable_popen.Popen(["python","softwareupdater.py",thismutex])
 
   # wait for some time (1 minute) for them to init and stop them if they don't
   for junkcount in range(30):
@@ -680,13 +681,13 @@ def restart_client(filenamelist):
   else:
     safe_log("[restart_client] Stopping the nodemanager.")
     # I know the process ID!   Let's stop the process...
-    nonportable.portablekill(retval)
+    harshexit.portablekill(retval)
   
   safe_log("[restart_client] Starting the nodemanager.")
 
   # run the node manager.   I rely on it to do the smart thing (handle multiple
   # instances, etc.)
-  junkprocessobject = nonportable.Popen(["python","nmmain.py"])
+  junkprocessobject = portable_popen.Popen(["python","nmmain.py"])
   
   # I don't do anything with the processobject.  The process will run for some 
   # time, perhaps outliving me (if I'm updated first)

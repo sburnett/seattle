@@ -77,8 +77,11 @@ import misc
 
 import runonce
 
-# for harshexit...
+# for getruntime...
 import nonportable
+
+# for harshexit
+import harshexit
 
 import traceback
 
@@ -431,7 +434,7 @@ def main():
 
     if not runonce.stillhaveprocesslock("seattlenodemanager"):
       servicelogger.log("[ERROR]:The node manager lost the process lock...")
-      nonportable.harshexit(55)
+      harshexit.harshexit(55)
 
     time.sleep(configuration['pollfrequency'])
 
@@ -462,6 +465,6 @@ if __name__ == '__main__':
 
     # Since the main thread has died, this is a fatal exception,
     # so we need to forcefully exit
-    nonportable.harshexit(15)
+    harshexit.harshexit(15)
 
 

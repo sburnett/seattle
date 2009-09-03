@@ -62,8 +62,10 @@ except: # This will fail on non-windows platforms
   windowsAPI = None
 
 # Armon: Import nonportable to use getruntime
-# Conrad: and Popen()
 import nonportable
+
+# import for Popen
+import portable_popen
 
 offcutfilename = "resources.offcut"
 
@@ -280,9 +282,9 @@ def start_task(command):
   if windowsAPI != None and windowsAPI.MobileCE:
     windowsAPI.launchPythonScript(command[0], command[1])
 
-  # If not, use the nonportable.Popen interface.
+  # If not, use the portable_popen.Popen interface.
   else:
-    nonportable.Popen(command)
+    portable_popen.Popen(command)
     
 
 # Armon: Takes an optional exitparams tuple, which should contain

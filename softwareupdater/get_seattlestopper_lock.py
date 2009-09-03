@@ -16,13 +16,13 @@
 """
 
 import runonce
-import nonportable
+import harshexit
 
 # Zack: Removed the code that explicitly called nmmain.py and softwareupdater.py
 def main():
   lockstate = runonce.getprocesslock("seattlestopper")
   while lockstate != True and lockstate:
-    nonportable.portablekill(lockstate)
+    harshexit.portablekill(lockstate)
     lockstate = runonce.getprocesslock("seattlestopper")
 
 

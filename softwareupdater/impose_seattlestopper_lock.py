@@ -18,7 +18,7 @@
 """
 
 import runonce
-import nonportable
+import harshexit
 import time
 
 locklist = ["seattlenodemanager", "softwareupdater.old", "softwareupdater.new"]
@@ -52,13 +52,13 @@ def killall():
     else:
       # We got the pid, we can stop the process
       print "Stopping the process (pid: " + str(lockstate) + ") with lock '" + lockname + "'."
-      nonportable.portablekill(lockstate)
+      harshexit.portablekill(lockstate)
 
       # Now acquire the lock for ourselves, looping until we
       # actually get it.
       retrievedlock = runonce.getprocesslock(lockname)
       while retrievedlock != True:
-        nonportable.portablekill(retrievedlock)
+        harshexit.portablekill(retrievedlock)
         retrievedlock = runonce.getprocesslock(lockname)
 
 def main():
