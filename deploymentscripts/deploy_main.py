@@ -205,9 +205,10 @@ def prep_local_dirs(keep):
       
       # find an 'integer'-suffixed directory that hasn't been taken yet
       dirindex = 1
-      # while the directory exists, keep moving..
+      
       print 'Trying to move old log directory...'
       while os.path.isdir("./deploy.logs."+str(dirindex)+"/") or os.path.isfile('deploy.logs.'+str(dirindex)+'.tgz'):
+        time.sleep(.2)
         dirindex += 1
       # got a folder index that doesn't exist
       shellexec2('mv ./deploy.logs/ ./deploy.logs.'+str(dirindex))
@@ -392,7 +393,7 @@ def main():
           # keeps track of our instructional machines
           
           deploy_threading.thread_communications['machine_list'] =\
-            get_remote_hosts_from_file(hostname_path)
+              get_remote_hosts_from_file(hostname_path)
         else:
           print "ERROR: Specified instructional machine filepath is"+\
             " not a valid file ("+opt[1]+")"
@@ -431,8 +432,12 @@ def main():
     # cleanup the local temp directory
     shellexec2('rm -rf ./deploy.logs/temp/')
 
-    print 'Building summary logfile..'
 
+    print 'Compacting...'
+    # summarize the logfile before building the summary
+    shellexec2('python log_maintenance.py dummyarg')
+    
+    print 'Building summary logfile..'    
     deploy_logging.build_summary()
     print deploy_logging.sep
     deploy_logging.log('Finished', 'All finished.')
@@ -632,10 +637,9 @@ def deploy():
   <Returns>
     None.
   """
-  global custom_host_file
-  
+
   # Get list of hosts
-  myhosts = get_remote_hosts_from_file(custom_host_file)
+  myhosts = get_remote_hosts_from_file()
 
   if not myhosts: # if we didn't find any hosts.. crap out!
     print "Didn't find any remote hosts file!"
@@ -741,49 +745,28 @@ def connect_and_do_work(myhosts, max_threads = deploy_threading.threadsmax):
     None.
   """
   
-  # initializes all the necessary variables to their default
-  # values and also starts the pid_timeout thread
-  deploy_threading.init()
-  
-  # clone my hosts: this entry in the dict will keep track of what elements' 
-  # threads are still running
-  deploy_threading.thread_communications['hosts_left'] = myhosts[:]
-
-  # while we have more nodes to process
-  while myhosts:
-    free_threads = deploy_threading.threading_currentlyrunning()
-    while free_threads < max_threads and myhosts:
-      # if we have less threads running than we can launch and have more 
-      # nodes to process
-      try:
-        thread.start_new_thread(threadable_process_node, ([myhosts.pop(0)],))
-        # need to update free_threads variable since some threads might've 
-        # finished by now, and we did just start another thread, but first
-        # give time for thread to start
-        time.sleep(.2) 
-      except Exception, e:
-        print 'Error starting new thread in connect_and_do_work:'+str(e)
-        continue
-
-      free_threads = deploy_threading.threading_currentlyrunning()
-
-  # no more hosts! (let's block until all threads are done)
-  running_threads = deploy_threading.threading_currentlyrunning()
-  
-  # launch a thread to keep us notified so we know what we're waiting for
-  thread.start_new_thread(helper_print_processing_threads, ())
-
-  # spin until all threads are done..
-  while running_threads:
+  if myhosts:
+    deploy_threading.start_thread(threadable_process_node, myhosts, max_threads)
+    
+    # no more hosts! (let's block until all threads are done)
     running_threads = deploy_threading.threading_currentlyrunning()
     
-  # reset kill flag for the thread monitoring status of the timeouts
-  deploy_threading.thread_communications['kill_flag'] = True
+    # spin until all threads are done..
+    while running_threads:
+      time.sleep(30)
+      helper_print_processing_threads()
+      running_threads = deploy_threading.threading_currentlyrunning()
+
+      
+    # reset kill flag for the thread monitoring status of the timeouts
+    deploy_threading.thread_communications['kill_flag'] = True
+
   return
 
   
   
 def helper_humanize_nodelist(node_list):
+  # just converts (user, hostname) tuple list to user@hostname string
   humanized = ''
   for node in node_list:
     humanized += helper_humanize_node(node)+', '
@@ -834,14 +817,10 @@ def helper_print_processing_threads():
   <Returns>
     None.
   """
-  time.sleep(30)
   print 'There are still some threads spinning.'
-  print 'Currently, there are '+str(deploy_threading.threading_currentlyrunning())+\
+  print 'Currently, there are some'+\
       ' threads running ('+str(len(deploy_threading.thread_communications['hosts_left']))+' hosts left)',
   print helper_humanize_nodelist(deploy_threading.thread_communications['hosts_left'])
-  # if we're still spinning, we're going to launch ourselves again
-  if deploy_threading.threading_currentlyrunning():
-    thread.start_new_thread(helper_print_processing_threads, ())
 
     
 
@@ -871,8 +850,6 @@ def threadable_process_node(node_list):
   """
   
   try:
-    # increment # of threads running
-    deploy_threading.threading_lock_and_add()
 
     # node is a list containing one tuple
     node = node_list[0]
@@ -905,9 +882,6 @@ def threadable_process_node(node_list):
   except Exception, e:
     deploy_logging.logerror("Error in thread assigned to "+node[1]+\
         " threadable_process_node ("+str(e)+")")
-  finally:
-    # subtract the host from running hosts.
-    deploy_threading.subtract_host_left(node_list)
 
     
     

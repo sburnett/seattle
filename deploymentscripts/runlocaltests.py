@@ -495,6 +495,31 @@ def stop_timer():
   return (time.time() - start_time)
 
   
+ 
+def kill_hung_testprocess_module():
+  """
+  <Purpose>
+    This is a workaround for killing hung testprocess.py modules that did not 
+    have a clean exit.
+     
+  <Arguments>
+    None.
+    
+  <Exceptions>
+    None.
+
+  <Side Effects>
+    Kills all running modules that have the string testprocess.py in their name.
+
+  <Returns>
+    None.
+  """
+  # lists all processes, finds ones that have the testprocess.py string, 
+  # eliminates anything with the grep string, the awk command line prints out th PID
+  # and xargs pipes the PID to kill via command line.
+  shellexec("ps -ef | grep testprocess.py | grep -v grep | awk '{ print $2 } ' | xargs kill -9")
+  
+ 
   
 def start_scripts(folder_list):
   """
@@ -515,7 +540,11 @@ def start_scripts(folder_list):
     None.
   """
   global logdir, seattle_linux_ext, custom_script_name, only_custom_script
-
+  
+  # the following kills the testprocess module that may be hung from previous timeouts.
+  kill_hung_testprocess_module()
+  
+  
   # cmd list is our general command list that we will use for each directory
   # by replacing $INSTALL with the path to the installation directory.
   # then in the for loop we execute each command by index number
@@ -523,12 +552,12 @@ def start_scripts(folder_list):
 
   # 0. Untar the three files (two scripts, and one dictionary that'll
   #     be used to verify file hashes.
-  cmd_list.append('tar -xf deploy.tar testprocess.py verifyfiles.mix hashes.dict')
+  cmd_list.append('tar -xf deploy.tar testprocess.py verifyfiles.mix hashes.dict deploy_helper.py')
 
   # 1+2. move the two files to install directory
   cmd_list.append('cp testprocess.py $INSTALL/testprocess.py')
   cmd_list.append('cp verifyfiles.mix $INSTALL/verifyfiles.mix;'+\
-    'cp hashes.dict $INSTALL/hashes.dict')
+    'cp hashes.dict $INSTALL/hashes.dict; cp deploy_helper.py $INSTALL/deploy_helper.py')
 
 
   # 3. Change dir because python will look in cwd when executing repypp.py
@@ -651,6 +680,8 @@ def start_scripts(folder_list):
             os.remove(folder+'/verifyfiles.py')
           if os.path.isfile(folder+'/testprocess.py'):
             os.remove(folder+'/testprocess.py')
+          if os.path.isfile(folder+'/deploy_helper.py'):
+            os.remove(folder+'/deploy_helper.py')
           if custom_script_name and os.path.isfile(folder+'/'+custom_script_name):
             os.remove(folder+'/'+custom_script_name)
         except Exception, e:

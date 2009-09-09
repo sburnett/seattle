@@ -24,7 +24,7 @@
 import subprocess
 import sys
 import os
-
+import deploy_helper
 
 def shellexec_each_line(cmd_list):
   final_out = ''
@@ -146,9 +146,10 @@ def main(installpath):
       if os.path.isfile(installpath+'/v2/'+each_file):
         # yup, dump it so we can see it
         print '\nFile contents of '+each_file
-        # filtering out expired because that's taking up a lot of space.
-        out, err = shellexec('cat '+installpath+'/v2/'+each_file+' | grep -v \'Expired signature\'')
-        format_print(out, err)
+        out, err = shellexec('cat '+installpath+'/v2/'+each_file)
+        # summarize each file
+        final_out = deploy_helper.summarize_all_blocks(out)
+        format_print(final_out, err)
         print 'End contents of '+each_file
         
     # We're also gonna try and print the content of the vesseldict file
@@ -274,45 +275,14 @@ def upgrade_node():
   # stop_seattle()
   # we need to 'cd ~/' since the cwd will be the current install directory 
   # but we want to do everything from ~/ to make it easier.
-  """
-  # the path to the seattle installation directory
-  seattle_path = sys.argv[1]
-  
-  # build up a command list that we'll execute that'll upgrade the node
-  cmd_list = []
-  print '1'
-  cmd_list.append('cd ~/; cd '+seattle_path+'; ./uninstall.sh; cd ~/ ')
-
-  # we're not at one level above the install directory for seattle, so make a temp
-  cmd_list.append('rm -rf deploy.temp; mkdir deploy.temp')
-
-  # TODO replace with method so it'll check if we 404ed or not
-  cmd_list.append('cd deploy.temp; wget https://seattlegeni.cs.washington.edu/geni/download/flibble/seattle_linux.tgz') 
-
-  cmd_list.append('tar -xf seattle_linux.tgz')
-
-  cmd_list.append('cd ~; cp -rf ~/deploy.temp/seattle_repy/ '+seattle_path+'/..')
-  # path is relative to ~/
-  
-  #print 'Starting installation...'
-  #cmd_list.append('cd '+seattle_path+'; chmod +x start_seattle.sh; ./install.sh')
-  #print 'Ending installation...'
-  #cmd_list.append('rm -rf ~/deploy.temp')
-
-  cmd_string = "; ".join(cmd_list)
-  print 'before'
-  out, err = shellexec(cmd_string)
-  print 'after'
-  format_print(out, err)
-  """
   
   #print 'before'
   out, err = shellexec('tar -xf deploy.tar upgrade_nodes.sh; chmod +x upgrade_nodes.sh; cp -fr upgrade_nodes.sh '+sys.argv[1])
-  #if out.find('ERROR 404'):
-  #  upgrade_node()
-  #  return
-  #else:
-  format_print(out, err)
+  if out.find('ERROR 404'):
+    upgrade_node()
+    return
+  else:
+    format_print(out, err)
   
   out, err = shellexec('cd '+sys.argv[1]+'; ./upgrade_nodes.sh; rm upgrade_nodes.sh; cd ~/; rm upgrade_nodes.sh')
   format_print(out, err)
@@ -363,14 +333,7 @@ def is_cron_running():
   print 'crond is running: '+str(crond_running)+'\n'
   return crond_running
   
- 
-
-def key_error():
-  seattle_path = sys.argv[1]
-  out, err = shellexec("cd "+seattle_path+"/v2; cat nodemanager* | grep KeyError | grep publickey")
-  return out.find('publickey') > -1
-    
- 
+  
   
 def start_cron():
   """
@@ -446,15 +409,10 @@ def check_if_update(out):
     format_print(out, err)
     print "Node update complete\n\n"
   else:
-    # if SU is running and the NM is not, then regen the keys
-    #if is_su_running() and not is_nm_running():
-    if key_error():
-      upgrade_node()
-    elif not is_su_running() or not is_nm_running():
+    if not is_su_running() or not is_nm_running():
       print 'Restarting seattle on this node'
       stop_seattle()
       start_seattle()
-      
   return
 
 if __name__ == "__main__":

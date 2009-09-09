@@ -26,6 +26,7 @@ import time
 import deploy_main
 import deploy_logging
 import deploy_threading
+import deploy_helper
 
 
 # the default connection timeout time (will increase by 25% after each 
@@ -147,7 +148,7 @@ def remote_get_log(user, remote_host):
     command_string = '; '.join(command_list)
 
     # execute string
-    out, err, retvalue = deploy_main.shellexec2(command_string)
+    out, err, retvalue = deploy_helper.shellexec2(command_string)
 
     deploy_logging.log('Downloading logs', 'Logs from '+remote_host+' are ready')
 
@@ -268,7 +269,7 @@ def remote_shellexec(command_string, user, remote_host, retry_on_refusal = 3, co
   if retry_on_refusal:
     # check if we got a connection refused. if we did, could be cuz we're 
     # spamming the server, so sleep and then try again
-    didwesleep = sleep_on_conn_refused(out, err, retry_on_refusal)
+    didwesleep = sleep_on_conn_refused(out, err, retry_on_refusal, remote_host)
     # we slept, so call function again and try to execute
     if didwesleep:
       # run again, but this time decrement retry counter
@@ -349,7 +350,7 @@ def remote_download_dir(remote_source_dir, local_dest_dir, user, remote_host, re
   if retry_on_refusal:
     # check if we got a connection refused. if we did, could be cuz we're 
     # spamming the server, so sleep and then try again
-    didwesleep = sleep_on_conn_refused(out, err, retry_on_refusal)
+    didwesleep = sleep_on_conn_refused(out, err, retry_on_refusal, remote_host)
     # we slept, so call function again and try to execute
     if didwesleep:
       # run again, but this time decrement retry counter
@@ -430,7 +431,7 @@ def remote_download_file(remote_fn_path, local_fn_path, user, remote_host, retry
   if retry_on_refusal:
     # check if we got a connection refused. if we did, could be cuz we're spamming
     # the server, so sleep and then try again
-    didwesleep = sleep_on_conn_refused(out, err, retry_on_refusal)
+    didwesleep = sleep_on_conn_refused(out, err, retry_on_refusal, remote_host)
     # we slept, so call function again and try to execute
     if didwesleep:
       # run again, but this time decrement retry counter
@@ -502,7 +503,7 @@ def remote_upload_file(local_fn_path, user, remote_host, retry_on_refusal = 3, c
   if retry_on_refusal:
     # check if we got a connection refused. if we did, could be cuz we're 
     # spamming the server, so sleep and then try again
-    didwesleep = sleep_on_conn_refused(out, err, retry_on_refusal)
+    didwesleep = sleep_on_conn_refused(out, err, retry_on_refusal, remote_host)
     # we slept, so call function again and try to execute
     if didwesleep:
       # run again, but this time decrement retry counter
@@ -516,7 +517,7 @@ def remote_upload_file(local_fn_path, user, remote_host, retry_on_refusal = 3, c
 
   
   
-def sleep_on_conn_refused(out, err, timesleft):
+def sleep_on_conn_refused(out, err, timesleft, remote_host):
   """
   <Purpose>
     passed in stdout/stderr from ssh/scp, it checks if we had a refused 
@@ -548,15 +549,17 @@ def sleep_on_conn_refused(out, err, timesleft):
     Boolean. True if we did a sleep, False if we didn't.
   """
   
+  
   # checks if out/err have 'connection refused' string and waits to 
   # overcome timeout
   out_bool = out.lower().find('connection refused') > -1
   err_bool = err.lower().find('connection refused') > -1
-
-  if out_bool or err_bool:
-    # sleep then try again
-    deploy_logging.log('WARNING', "Connection refused, forced sleeping to overcome "+\
-        "timeout ("+str(timesleft)+" timeouts left)")
-    time.sleep(60/timesleft) # each time you sleep a little longer
-    return True
+  instructional_machine = '128.' in remote_host
+  if instructional_machine:  
+    if out_bool or err_bool:
+      # sleep then try again
+      deploy_logging.log('WARNING', "Connection refused, forced sleeping to overcome "+\
+          "timeout ("+str(timesleft)+" timeouts left)")
+      time.sleep(60/timesleft) # each time you sleep a little longer
+      return True
   return False

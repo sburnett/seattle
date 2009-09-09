@@ -240,8 +240,15 @@ def get_node_state(file_data):
           
           if success_status:
             return (True, (node_state_array, state_counter), deploy_html.colors_map['Success'])
-          
-          return (False, (['Multiple keys found!!'], state_counter), deploy_html.colors_map['Error'])
+          else:
+            for each_vessel in node_state_array:
+              # each_vessel[0]: Boolean, has a key?
+              # each_vessel[1]: String, v1 (the vessel #)
+              # each_vessel[2]: human-readable string
+              if 'Unknown pubkey' in each_vessel[2]:
+                return (False, (['Unknown pubkey found in '+each_vessel[1]], state_counter), deploy_html.colors_map['Error'])
+            
+          return (False, (['No keys found'], state_counter), deploy_html.colors_map['Error'])
       else:
         # set the flag so we can enter the loop again and read the next line
         vesseldict_loop = True

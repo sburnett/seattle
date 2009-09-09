@@ -20,7 +20,8 @@
 """
 
 import deploy_logging
-import deploy_main
+import deploy_helper
+import parallelize_repy
 import thread
 import time
 import os
@@ -34,6 +35,46 @@ thread_communications = {}
 
 # lock for the dictionary
 thread_communications_lock = thread.allocate_lock()
+
+# Set that the module hasn't been initialized yet
+thread_communications['init'] = False
+
+
+   
+def start_thread(callfunc, arguments, max_threads):
+  """
+  <Purpose>
+    Starts the worker threads and calls init() for this module.  This'll allow for 
+    the timeout thread to function properly.
+    
+    intended to be called only from connect_and_do_work.
+    
+  <Arguments>
+    callfunc:
+      the function to call.
+    arguments:
+      the list of tuples where each tuple is (username, host) to connect to
+    max_threads:
+      the max # of threads to start.
+    
+  <Exceptions>
+    None.
+
+  <Side Effects>
+    None.
+
+  <Returns>
+    Boolean.
+    
+    True on success.
+    False on failure.
+  """
+  init()
+  func_handle = parallelize_repy.parallelize_initfunction(arguments, callfunc, max_threads) 
+  thread_communications['func_handle'] = func_handle
+  thread_communications['hosts_left'] = arguments[:]
+  thread_communications['total_hosts'] = len(arguments)
+
 
 
 def has_unreachable_hosts():
@@ -61,6 +102,41 @@ def has_unreachable_hosts():
   # one host that was unreachable.
   return len(thread_communications['unreachable_host']) > 0
 
+
+def destroy():
+  """
+  <Purpose>
+    Resets this module to it's initial state, opposite of init().
+    
+  <Arguments>
+    None.    
+    
+  <Exceptions>
+    On any type of exception it'll return false.
+
+  <Side Effects>
+    None.
+
+  <Returns>
+    Boolean.
+    
+    True on success.
+    False on failure.
+  """
+  try:
+    # initialize, keep track of how many threads are running
+    thread_communications['threads_running'] = 0
+
+    # set the kill flag to false and start the thread monitoring pids
+    thread_communications['kill_flag'] = True
+    
+    # tells the module it has been initialized
+    thread_communications['init'] = False
+  except Exception, e:
+    print e
+    return False
+  else:
+    return True
 
 
 def init():
@@ -91,6 +167,10 @@ def init():
 
   # set the kill flag to false and start the thread monitoring pids
   thread_communications['kill_flag'] = False
+  
+  # tells the module it has been initialized
+  thread_communications['init'] = True
+  
   try:
     thread.start_new_thread(pid_timeout, ())
   except Exception, e:
@@ -125,9 +205,10 @@ def node_was_reachable(node):
     True on node was reachable.
     False on node was unreachable.
   """  
-  # if the node is in not found inside the unreachebl_hosts set, then it was
+  # if the node is in not found inside the unreachable_hosts set, then it was
   # obviously reachable
   return node not in set(thread_communications['unreachable_host'])
+
 
 
 def add_instructional_node(node):
@@ -187,7 +268,7 @@ def subtract_host_left(hosts, sub_counter = True):
   # perform set subtraction and cast back to a list.
   threading_lock()
   thread_communications['hosts_left'] =\
-    list(set(thread_communications['hosts_left']) - set(hosts))
+      list(set(thread_communications['hosts_left']) - set(hosts))
   threading_unlock()
   if sub_counter:
     threading_lock_and_sub()
@@ -220,12 +301,7 @@ def add_unreachable_host(host_tuple):
 def threading_currentlyrunning():
   """
   <Purpose>
-    Helper method for getting the number of currently running threads.  The
-      method automatically locks the dict, gets a number and returns in
-    
-    Note: not 100% accurate as we're not keeping the counter locked after
-      returning it, so number of running threads can change.  That's okay for
-      our purposes as we need just an eyeball.
+    Helper method for figuring out if the function is still running or not.
 
   <Arguments>
     None.
@@ -237,13 +313,19 @@ def threading_currentlyrunning():
     None.
 
   <Returns>
-    Number of running threads (when checked)
+    Boolean. Is the function done or not?
   """
+  
+  # grab the function handle and then the results of that function
+  func_handle = thread_communications['func_handle']
+  
+  threads_running = parallelize_repy.parallelize_isfunctionfinished(func_handle)
+  results_dict = parallelize_repy.parallelize_getresults(func_handle)
+  size = thread_communications['total_hosts']
+  print str(len(results_dict['aborted']))+' aborted, '+str(len(results_dict['exception']))+\
+      ' exceptioned, '+str(len(results_dict['returned']))+' finished of '+str(size)+' total.'
 
-  threading_lock()
-  threads_running = thread_communications['threads_running']
-  threading_unlock()
-  return threads_running
+  return not threads_running
 
 
 
@@ -413,7 +495,6 @@ def pid_timeout():
   while not thread_communications['kill_flag']:
     # sleep and wakeup every couple seconds.
     time.sleep(5)
-    
     # this list will keep track of the pids that we've killed
     killed_pids = []
     
@@ -440,7 +521,7 @@ def pid_timeout():
               os.kill(process_to_kill, 9)
               time.sleep(1)
               if os.path.exists('/proc/'+str(process_to_kill)):
-                deploy_main.shellexec2('kill -9 '+str(process_to_kill))
+                deploy_helper.shellexec2('kill -9 '+str(process_to_kill))
                 time.sleep(1)
             if remote_host:
               deploy_logging.logerror("Forced kill of PID "+str(process_to_kill)+" due to timeout! The host"+\
@@ -453,7 +534,6 @@ def pid_timeout():
             # the process is dead, just remove host from hosts_left just in case, and
             # remove from running pids as well, but dont sub the # of threads
             killed_pids.append(each_process)
-            print 'user:'+user
             subtract_host_left([(user, remote_host)], False)
             
         except OSError, ose:
@@ -465,41 +545,20 @@ def pid_timeout():
         except Exception, e:
           deploy_logging.logerror("Unexpected error in pid_timeout thread "+\
             "while killing a child process: "+str(e))
-        """
-        else:
-          # we killed a process that has already terminated?
-          if remote_host:
-            try:
-              threading_lock()
-              thread_communications['hosts_left'].remove(remote_host)
-              threading_unlock()
-            except ValueError, e:
-              # host is removed already, dont worry about it
-              pass
-            except Exception, e:
-              # some unexpected error
-              print e
-            else:
-              # we removed the process from our list, now sub the counter!
-              threading_lock_and_sub()
-        """
     if killed_pids:
       # remove the killed pids from the list
       threading_lock()
-      print 'before:'+str(thread_communications['running_process_ids'])
       thread_communications['running_process_ids'] =\
-        list(set(thread_communications['running_process_ids']) - set(killed_pids))
-      print 'after:'+str(thread_communications['running_process_ids'])
+          list(set(thread_communications['running_process_ids']) - set(killed_pids))
       threading_unlock()
         
 def monitor_timeout(pid, sleep_time, remote_host, user):
-  # TODO:
   # launches a new thread and allows the parent thread to be not block
   # basically this covers up set_pid_timeout but launches on a different
   # thread
 
-  thread.start_new_thread(set_pid_timeout, (pid, 3 * int(sleep_time), 
-    remote_host, user))
+  thread.start_new_thread(set_pid_timeout, (pid, 2 * int(sleep_time), 
+      remote_host, user))
   return
               
 
@@ -534,7 +593,6 @@ def set_pid_timeout(process_to_kill, sleep_time, remote_host, user):
   # add this pid to the list of running PIDs. Sometimes the program exits and forgets
   # about this thread and so it keep running, we don't want that. By adding it to this
   # list, we ensure that it'll get killed from the thread-monitor thread.
-
   threading_lock()
   tuple_to_add = (process_to_kill, time.time()+sleep_time, remote_host, user)
   thread_communications['running_process_ids'].append(tuple_to_add)

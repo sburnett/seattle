@@ -27,6 +27,9 @@ import sys
 import deploy_html
 import deploy_main
 import deploy_stats
+import deploy_helper
+          
+          
 
 
 def build_summary():
@@ -141,15 +144,12 @@ def build_summary():
             detailed_handle = open('./detailed_logs/'+logfolder+'/'+timestamp, 'a')
             
             node_file_as_string = deploy_html.read_whole_file(logfile_handle)
+            final_file_content = deploy_helper.summarize_all_blocks(node_file_as_string)
             
-            # now read in the logfile and append it to the summary file
-            for logfile_line in node_file_as_string.splitlines():
-              if logfile_line.find('Timestamps match') < 0:
-                if logfile_line.find('node manager is alive') < 0:
-                  summary_file_handle.write(logfile_line+'\n')
-                  # also copy this over to the file corresponding to this node
-                  # this is essentially a "cp" command.
-                  detailed_handle.write(logfile_line+'\n')
+            # write to both the files
+            summary_file_handle.write(final_file_content)
+            detailed_handle.write(final_file_content)
+            
                   
             # create a temp array that we'll use to build up the info, and 
             # then throw in to the html_dict
@@ -247,10 +247,18 @@ def build_summary():
                 temp_array.append((node_state_success[0:-1], deploy_html.colors_map['Success']))
               else:
                 if state_counter == 0:
-                  # no keys on the node, print the human-friendly version
-                  temp_array.append(('No node-state keys found', deploy_html.colors_map['Error']))
-                else: # state_counter > 1:
-                  temp_array.append(('Multiple states on node!', deploy_html.colors_map['Error']))
+                  if node_state_array:
+                    # if the array isn't null we have some msg to print, otherwise it's an error
+                    temp_array.append((node_state_array[0], deploy_html.colors_map['Error']))
+                  else:
+                    temp_array.append(('Did not get vesseldict', deploy_html.colors_map['Error']))
+                  # no keys on the node, print the human-friendly version (also could be an unknown key)
+                  
+
+                  #temp_array.append(('No node-state keys found', deploy_html.colors_map['Error']))
+                  
+                #else: # state_counter > 1:
+                  #temp_array.append(('Multiple states on node!', deploy_html.colors_map['Error']))
               
               # end getting the node state here
 
