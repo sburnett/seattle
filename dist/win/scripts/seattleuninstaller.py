@@ -21,7 +21,74 @@ import time
 import _winreg
 
 
-def remove_seattle_from_win_startup_registry_key():
+
+def remove_value_from_registry(opened_key,remove_value_name):
+  """
+  <Purpose>
+    Removes remove_value_name from opened_key in the Windows Registry.
+
+  <Arguments>
+    opened_key:
+      A key opened using _winreg.OpenKey(...) or _winreg.CreateKey(...).
+
+    remove_value_name:
+      A string of the value name to be removed from opened_key.
+  
+  <Exceptions>
+    WindowsError if the uninstaller is unable to access and manipulate the
+    Windows registry, or if opened_key was not previously opened.
+
+  <Side Effects>
+    seattle is removed from the Windows registry key opened_key.
+
+  <Returns>
+    True if seattle was removed from the registry, False otherwise (indicating
+    that seattle could not be found in the registry).
+  """
+  # The following try: block iterates through all the values contained in the
+  # opened key.
+  try:
+    # The variable "index" will index into the list of values for the opened
+    # key.
+    index = 0
+    # The list that will contain all the names of the values contained in the
+    # key.
+    value_name_list = []
+    # Standard python procedure for _winreg: Continue indexing into the list of
+    # values until a WindowsError is raised which indicates that there are no
+    # more values to enumerate over.
+    while True:
+      value_name, value_data, value_type = _winreg.EnumValue(opened_key,index)
+      value_name_list.append(value_name)
+      index += 1
+  except WindowsError:
+    # Reaching this point means there are no more values left to enumerate over.
+    # If the registry were corrupted, it is probable that a WindowsError will be
+    # raised, in which case this function should simply return False.
+    pass
+
+
+  # The following test to see if the value seattle appears in the registry key
+  # was not done in real-time in the above while-loop because it is potentially
+  # possible that the _winreg.DeleteValue(...) command below could raise a
+  # WindowsError.  In that case, it would not be possible for the parent
+  # function to know whether the WindowsError was raised because the uninstaller
+  # does not have access to the registry or because the value seattle does not
+  # exist in the registry key since a WindowsError is raised to exit the while
+  # loop when there are no more values to enumerate over.
+  if remove_value_name in value_name_list:
+    # ARGUMENTS:
+    # startkey: the key that contains the value that will be deleted.
+    # "seattle": the name of the value that will be deleted form this key.
+    _winreg.DeleteValue(opened_key,remove_value_name)
+    return True
+  else:
+    return False
+
+
+
+
+def remove_seattle_from_win_startup_registry():
   """
   <Purpose>
     Removes seattle from the Windows startup registry key.
@@ -34,9 +101,10 @@ def remove_seattle_from_win_startup_registry_key():
     Windows registry.
 
   <Side Effects>
-    seattle is removed from the following Windows registry key which runs
-    programs at machine startup:
+    seattle is removed from the following Windows registry keys which runs
+    programs at machine startup and user login:
     HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\Run
+    HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run
 
   <Returns>
     True if seattle was removed from the registry, False otherwise (indicating
@@ -55,54 +123,37 @@ def remove_seattle_from_win_startup_registry_key():
   # _winreg.KEY_ALL_ACCESS: an integer that allows the key to be opened with all
   #                         access (e.g., read access, write access,
   #                         manipulaiton, etc.)
-  startkey = _winreg.OpenKey(_winreg.HKEY_LOCAL_MACHINE,
+  startkey_Local_Machine = _winreg.OpenKey(_winreg.HKEY_LOCAL_MACHINE,
                             "Software\\Microsoft\\Windows\\CurrentVersion\\Run",
                              0,_winreg.KEY_ALL_ACCESS)
+  removed_from_LM = remove_value_from_registry(startkey_Local_Machine,"seattle")
 
 
-  # The following try: block iterates through all the values contained in the
-  # opened key.
-  try:
-    # The variable "index" will index into the list of values for the opened
-    # key.
-    index = 0
-    # The list that will contain all the names of the values contained in the
-    # key.
-    value_name_list = []
-    # Standard python procedure for _winreg: Continue indexing into the list of
-    # values until a WindowsError is raised which indicates that there are no
-    # more values to enumerate over.
-    while True:
-      value_name, value_data, value_type = _winreg.EnumValue(startkey,index)
-      value_name_list.append(value_name)
-      index += 1
-  except WindowsError:
-    # Reaching this point means there are no more values left to enumerate over.
-    # If the registry were corrupted, it is probable that a WindowsError will be
-    # raised, in which case this function should simply return False.
-    pass
+
+  # The startup key must first be opened before any operations, including
+  # search, may be performed on it.
+  # ARGUMENTS:
+  # _winreg.HKEY_CURRENT_USER: specifies the key containing the subkey used
+  #                             to run programs at user login.
+  # "Software\\Microsoft\\Windows\\CurrentVersion\\Run": specifies the subkey
+  #                                                      that runs programs on
+  #                                                      user login.
+  # 0: A reserved integer that must be zero.
+  # _winreg.KEY_ALL_ACCESS: an integer that allows the key to be opened with all
+  #                         access (e.g., read access, write access,
+  #                         manipulaiton, etc.)
+  startkey_Current_User = _winreg.OpenKey(_winreg.HKEY_CURRENT_USER,
+                            "Software\\Microsoft\\Windows\\CurrentVersion\\Run",
+                             0,_winreg.KEY_ALL_ACCESS)
+  removed_from_CU = remove_value_from_registry(startkey_Current_User,"seattle")
 
 
-  # The following test to see if the value seattle appears in the registry key
-  # was not done in real-time in the above while-loop because it is potentially
-  # possible that the _winreg.DeleteValue(...) command below could raise a
-  # WindowsError.  In that case, it would not be possible for the parent
-  # function to know whether the WindowsError was raised because the uninstaller
-  # does not have access to the registry or because the value seattle does not
-  # exist in the registry key since a WindowsError is raised to exit the while
-  # loop when there are no more values to enumerate over.
-  if "seattle" in value_name_list:
-    # ARGUMENTS:
-    # startkey: the key that contains the value that will be deleted.
-    # "seattle": the name of the value that will be deleted form this key.
-    _winreg.DeleteValue(startkey,"seattle")
-    _winreg.CloseKey(startkey)
+  if removed_from_LM or removed_from_CU:
     return True
   else:
-    _winreg.CloseKey(startkey)
     return False
 
-
+  
 
 
 def remove_seattle_from_win_startup_folder(startup_folder_script_path):
@@ -170,7 +221,7 @@ def uninstall(startup_folder_script_path):
   # try: block below raises an exception.
   removed_from_registry = False
   try:
-    removed_from_registry = remove_seattle_from_win_startup_registry_key()
+    removed_from_registry = remove_seattle_from_win_startup_registry()
   except WindowsError:
     print "The uninstaller does not have access to the Windows registry " \
         + "startup key. This means that seattle is likely not installed in " \
