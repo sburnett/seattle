@@ -1,3 +1,11 @@
 @echo off
-cd "%PROG_PATH%"
+REM Change into the seattle_repy directory.
+FOR /F "tokens=*" %%A IN ('cd') DO SET OrigDir=%%A
+SET TargetPath=%~f0
+SET TargetDir=%TargetPath:uninstall.bat=%
+cd %TargetDir%
+
 python seattleuninstaller.py "%STARTER_FILE%"
+
+REM Go back up to the seattle directory.
+cd ..
