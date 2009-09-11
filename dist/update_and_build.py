@@ -194,7 +194,7 @@ def build_and_update(trunk_location, pubkey, privkey, version):
   temp_tarball_dir = tempfile.mkdtemp()
 
   # Next, prepare the installation files
-  install_files = make_base_installers.prepare_gen_install_files(trunk_location,
+  install_files = make_base_installers.prepare_gen_files(trunk_location,
                                  temp_install_dir, False, pubkey, privkey, True)
 
   # Remove the files in UPDATER_SITE, then copy the general installer files to
