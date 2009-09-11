@@ -1,5 +1,3 @@
-# Django settings for installer_creator project.
-
 import os
 
 # If DEBUG is True, then error details will be shown on the website and ADMINS
@@ -15,15 +13,37 @@ APPEND_SLASH = False
 # The directory the settings.py file is in is what we consider the root of the website. 
 WEBSITE_ROOT = os.path.dirname(__file__)
 
+# NOTE: File-backed sessions are broken on windows. Don't use if you're on windows!
+#SESSION_ENGINE = 'django.contrib.sessions.backends.file'
+
+# The default session file path is determined by tempfile.gettempdir(),
+# which may be what we want. Modify the setting below to change this behavior. 
+#SESSION_FILE_PATH = '/path/to/session/files'
+
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+
+# The directory where the base installers named seattle_linux.tgz, seattle_mac.tgz,
+# and seattle_win.zip are located.
+BASE_INSTALLERS_DIR = "C:\dist"
+
+# The directory in which customized installers created by seattlegeni will be
+# stored. A directory within this directory will be created for each user.
+USER_INSTALLERS_DIR = os.path.join(BASE_INSTALLERS_DIR, "geni")
+
+# The url that corresponds to USER_INSTALLERS_DIR
+# IMPORTANT: Always end the url with a forward slash! (/) 
+USER_INSTALLERS_URL = "https://blackbox.cs.washington.edu/dist/geni/"
+
+
 ADMINS = (
     # ('Your Name', 'your_email@domain.com'),
 )
 
 MANAGERS = ADMINS
 
-DATABASE_ENGINE = ''           # 'postgresql_psycopg2', 'postgresql', 'mysql', 'sqlite3' or 'oracle'.
-DATABASE_NAME = ''             # Or path to database file if using sqlite3.
-DATABASE_USER = ''             # Not used with sqlite3.
+DATABASE_ENGINE = 'mysql'           # 'postgresql_psycopg2', 'postgresql', 'mysql', 'sqlite3' or 'oracle'.
+DATABASE_NAME = 'installer_creator'             # Or path to database file if using sqlite3.
+DATABASE_USER = 'root'             # Not used with sqlite3.
 DATABASE_PASSWORD = ''         # Not used with sqlite3.
 DATABASE_HOST = ''             # Set to empty string for localhost. Not used with sqlite3.
 DATABASE_PORT = ''             # Set to empty string for default. Not used with sqlite3.

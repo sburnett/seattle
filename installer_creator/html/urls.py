@@ -7,6 +7,8 @@ from django.conf.urls.defaults import *
 urlpatterns = patterns('installer_creator.html.views',
                        
                        (r'^installer_creator$', 'installer_creator',{},'installer_creator'),
-                       (r'^reset_form$', 'reset_form', {}, 'reset_form'),
+                       (r'^add_user$', 'add_user', {}, 'add_user'),
+                       (r'^create_installer$', 'create_installer', {}, 'create_installer'),
+                       (r'^download_installers$', 'download_installers', {}, 'download_installers'),
                        
                       )

@@ -2,7 +2,7 @@
 "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 	<head>
-	  <title>Seattle - Customized Installer Interface</title>
+	  <title>Seattle - Installer Creator Interface</title>
 	  <link rel="stylesheet" type="text/css" href="{{ MEDIA_URL }}css/style.css" />
 		<script src="{{ MEDIA_URL }}scripts/prototype.js" type="text/javascript"></script>
 		<script src="{{ MEDIA_URL }}scripts/scriptaculous.js" type="text/javascript"></script>
@@ -16,7 +16,7 @@
 				<div id="users">
 					<div id="names"></div>
 					<div id="input">
-						<form method="POST" enctype="multipart/form-data" action="{% url reset_form %}" id="form" name="form" target="target">
+						<form method="POST" enctype="multipart/form-data" action="{% url add_user %}" id="form" name="form" target="target">
 							<input type="text" name="username" id="username" value="user_1" size="12" />
 							<input type="hidden" name="action" value="adduser" />
 							<input type="file" name="publickey" id="publickey" size="6" />

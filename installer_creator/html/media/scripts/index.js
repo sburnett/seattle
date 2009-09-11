@@ -313,7 +313,8 @@ function addUser () {
 	var name = $("username").value;
 	if (name == "user_" + counter) {
 		counter++;
-	}	
+	}
+	
 	if (users.indexOf(name) == -1) {
 		users.push(name);
 		var user = document.createElement("span");
@@ -337,13 +338,14 @@ function addUser () {
 		}
 	}
 	
-	new Ajax.Request('/html/reset_form',
+	new Ajax.Request('/html/add_user',
 		{
 			method: "post",
 			parameters: {action: "resetform", username: name},
 			onSuccess: resetForm
 		}
 	);
+
 }
 
 /*  guess the username for given public key  */
@@ -411,18 +413,23 @@ function createInstaller () {
 	}
 	
 	var jsonString =  Object.toJSON(json);
-	new Ajax.Request('process.php',
+	new Ajax.Request('/html/create_installer',
 		{
 			method: "post",
 			parameters: {action: "createinstaller", content: jsonString},
-			onSuccess: finish
+			onSuccess: finish,
+			onFailure: createinstaller_error
 		}
 	);
 }
 
 /*  redirect the page to installer download page  */
 function finish (ajax) {
-	location.href = "installers.php";
+	location.href = "/html/download_installers";
+}
+
+function createinstaller_error (ajax) {
+  document.write(ajax.responseText)
 }
 
 
