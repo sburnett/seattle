@@ -20,24 +20,22 @@ from django.views.generic.simple import direct_to_template
 from django.utils import simplejson
 
 from installer_creator.common import builder
-
+from installer_creator.common import validations 
 
 def installer_creator(request):
   # Flush the session dict, so new & returning users get a clean dict
   request.session.flush()
-  
+
   return direct_to_template(request, 'mainpage.html', {})
   
 
 def add_user(request):
   """
   <Purpose>
-    This function is called via both POST and AJAX whenever the user 
-    clicks "Add" on the page. The POST request contains the username 
-    and uploaded key (if exists). If the user doesn't supply a key, 
-    then one is generated for them. The AJAX request originates from 
-    the javascript resident on the page, and as of right now is a noop, 
-    simply returning a HTTP 200 OK (allowing the script to continue)
+    This function is called via POST whenever the user clicks "Add" 
+    on the page. The POST request contains the username and uploaded 
+    key (if exists). If the user doesn't supply a key, then one is 
+    generated for them.
     
     The keys are eventually stored in the user's SESSION, for later retrieval. 
   """
@@ -45,17 +43,35 @@ def add_user(request):
     return HttpResponseRedirect(reverse("installer_creator"))
   
   if request.POST['action'] == 'adduser':
-    username = _standarize(request.POST['username'])
+    #username = _standarize(request.POST['username'])
+    username = request.POST['username']
+    
+    try:
+      validations.validate_username(username)
+    except validations.ValidationError:
+      return HttpResponse("usernamebad")
+    
+    if username == "":
+      return HttpResponse("usernameempty")
+    
     key_dict = {}
     
     if 'publickey' in request.FILES:
       # User uploaded a pubkey, read out of uploaded file and store into request dict
       pubkey_file = request.FILES['publickey']
       if pubkey_file.size > 2048:
-        return HttpResponse("Public key too large, file size limit is 2048 bytes")
+        # NOTE: The JS parsing this response splits the below response by the
+        # underscore symbol, and treats the latter half as the max file-size value
+        # displayed in the user-side alert. If you change the above max file-size,
+        # be sure you change the response appropriately as well. 
+        return HttpResponse("pubkeytoolarge_2048")
       
-      # TODO: Validate pubkey
       read_pubkey = pubkey_file.read()
+      
+      try:
+        validations.validate_pubkey_string(read_pubkey)
+      except validations.ValidationError:
+        return HttpResponse("pubkeybad")
       
       key_dict = {'pubkey' : read_pubkey, 'privkey' : ''}
       
@@ -66,12 +82,7 @@ def add_user(request):
     request.session[username] = key_dict
   
     print request.session.keys()
-    #print request.session.items()
-    #print request.session.session_key
-    return HttpResponse("Done")
-  
-  elif request.POST['action'] == 'resetform':
-    return HttpResponse("Done?")
+    return HttpResponse("done")
 
 
 
@@ -116,7 +127,12 @@ def create_installer(request):
       key_dict[user] = request.session[user]
     
     # Begins the actual build of the installer
-    installers_url_dict = builder.build_installer(vessel_dict, key_dict, request.session.session_key)
+    try:
+      installers_url_dict = builder.build_installer(vessel_dict, key_dict, request.session.session_key)
+    except Exception, e:
+      print str(e)
+      return HttpResponse("<b>Build failed! We encountered a problem while building the installers.</b><br>" +
+                          "Please contact us! Details:<br><br>" + str(e), status=500)
     
     # store these urls for the download page
     request.session['win_installer_url'] = installers_url_dict['w']

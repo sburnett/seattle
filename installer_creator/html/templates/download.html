@@ -12,6 +12,9 @@
     <div id="content"> 
       <h1 id="header"> Download your installers </h1>
       
+      {% if not win_installer_url or not mac_installer_url or not linux_installer_url %}
+        <font size="4" color="red">A problem has occured during the install build process. Please contact us!</font>
+      {% else %}
       <p class="comment">
         <a href={{ public_keys_url }} target="_blank"> Download all public keys </a>&nbsp;&nbsp;
         <a href={{ private_keys_url }} target="_blank"> Download all private keys </a>
@@ -69,5 +72,6 @@
           </td> 
         </tr>
       </table>
+      {% endif %}
   </body>
 </html>

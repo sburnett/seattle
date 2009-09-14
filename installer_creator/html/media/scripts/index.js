@@ -19,7 +19,8 @@ window.onload = function () {
 	// counter for default usernames
 	counter = 1;
 	// add the user to the user box
-	$("form").onsubmit = addUser;
+	//$("form").onsubmit = addUser;
+	$("form").onsubmit = pre_addUser;
 	// guess the username from the given public key file
 	$("publickey").onchange = updateUsername;
 	// reset the form
@@ -35,7 +36,49 @@ window.onload = function () {
 	Initialize();
 	updateVessels();
 	$("installer").onclick = createInstaller;
+	
+	var POST_frame = document.getElementById('target')
+	if (POST_frame.addEventListener) {
+	  POST_frame.addEventListener("load", add_post_handler, false)
+	} else if (POST_frame.attachEvent) {
+    POST_frame.detachEvent("onload", add_post_handler)
+	  POST_frame.attachEvent("onload", add_post_handler)
+	}
+	add_post_handler();
+
 };
+
+
+// JTC: This function is called whenever a POST request completes 
+// (originating from the 'target' iframe), and performs actions based
+// on the POST response that the server gives. (eg: Alert the user about
+// a bad pubkey, reenable the Add User button, etc...)
+function add_post_handler() {
+  post_response = window.frames['target'].document.body.innerHTML;
+  split_response = post_response.split("_");
+  
+  if(split_response[0] == "done") {
+    addUser();
+  
+  } else if (split_response[0] == "usernameempty") {
+    alert("Please enter a username.");
+    resetForm();
+  
+  } else if (split_response[0] == "usernamebad") {
+    alert("You entered an invalid username.");
+    resetForm();
+  
+  } else if (split_response[0] == "pubkeytoolarge") {
+    alert("The public key you uploaded was too large! The filesize limit is " + split_response[1] + " bytes.");
+    resetForm();
+    
+  } else if (split_response[0] == "pubkeybad") {
+    alert("The public key you uploaded was invalid. Please try again.");
+    resetForm();
+    
+  }
+}
+
 
 function removeelement() {
 			var parent = this.parentNode.parentNode.parentNode;
@@ -304,8 +347,13 @@ function updateVessels() {
 	}
 }
 
+function pre_addUser () {
+  $("add").disabled = true;
+	$("add").value = "Wait...";
+}
 
-/* add vessels to the user box */
+
+/* add users to the user box */
 function addUser () {
 	if ($("username").value == "") {
 		$("username").value = "user_" + counter;
@@ -338,6 +386,9 @@ function addUser () {
 		}
 	}
 	
+	resetForm();
+	
+	/*
 	new Ajax.Request('/html/add_user',
 		{
 			method: "post",
@@ -345,6 +396,7 @@ function addUser () {
 			onSuccess: resetForm
 		}
 	);
+	*/
 
 }
 
@@ -357,14 +409,16 @@ function updateUsername () {
 }
 
 /*  automatically increment the username by one  */
-function resetForm (ajax) {
-	if (ajax.responseText == "custom") {
-		$("username").value = "";
-		$("publickey").value = "";
-	} else {
-		$("username").value = "user_" + counter;
-		$("publickey").value = "";
-	}
+function resetForm () {
+  if ($("publickey").value == "") {
+    $("username").value = "user_" + counter;
+  } else {
+    $("username").value = "";
+  }
+  $("publickey").value = "";
+
+	$("add").disabled = false;
+  $("add").value = "Add User";
 }
 
 

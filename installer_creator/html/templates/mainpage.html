@@ -17,11 +17,14 @@
 					<div id="names"></div>
 					<div id="input">
 						<form method="POST" enctype="multipart/form-data" action="{% url add_user %}" id="form" name="form" target="target">
-							<input type="text" name="username" id="username" value="user_1" size="12" />
+							<span>&nbsp;Username</span>
+							<input type="text" name="username" id="username" value="user_1" maxlength="40" size="23"/>
 							<input type="hidden" name="action" value="adduser" />
-							<input type="file" name="publickey" id="publickey" size="6" />
-							<span>upload a public key (optional)</span>
-							<input type="submit" name="add" id="add" value="Add" />
+							
+							<span>&nbsp;&nbsp;&nbsp;&nbsp;Public Key (optional)</span>
+							<input type="file" name="publickey" id="publickey" size="10" />
+							<span>&nbsp;</span>
+							<input type="submit" name="add" id="add" value="Add User" class="addbtn" />
 							<iframe id="target" name="target" src="" style="left:0px; top:10px; width:0px; height:0px; border:none;"></iframe>
 						</form>
 					</div>

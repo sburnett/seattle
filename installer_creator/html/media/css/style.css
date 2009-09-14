@@ -85,7 +85,7 @@ h1 {
 /*    users div    */
 
 #users {
-	margin: 5px 20px;
+	margin: 5px 3px;
 	border: 1px solid #aaa;
 	background-color: #eee;
 	background-image: url(../images/bg.gif);
@@ -99,12 +99,16 @@ h1 {
 }
 
 input, button {
-	margin: 5px 0 5px 15px;
-	padding: 2px;
+	margin: 5px 0 5px 0px;
+	padding: 3px;
 	size: 5;
-	font-size: 16px;
+	font-size: 13px;
 	font-family: consolas;
 	display: inline;
+}
+
+input.addbtn {
+	font-size: 14px;
 }
 
 #input {

@@ -35,7 +35,7 @@ PATH_TO_CUSTOMIZE_INSTALLER_SCRIPT = os.path.join(os.path.dirname(__file__),
                                                   "customize_installers.py")
 
 
-def build_installer(vessel_dict, key_dict, username='', dist_str='wlm'): 
+def build_installer(vessel_dict, key_dict, username='', dist_str='wlm'):
   """
   <Purpose>
     Creates an installer with the given vessel_dict (vessel definitions)
@@ -73,9 +73,7 @@ def build_installer(vessel_dict, key_dict, username='', dist_str='wlm'):
   
   prefix = os.path.join(settings.USER_INSTALLERS_DIR, "%s_dist"%(username))
   temp_installinfo_dir = os.path.join(prefix, "install_info")
-
-  #user_pubkey = user.donor_pubkey
-
+  
   # remove and recreate the prefix dir
   shutil.rmtree(prefix, True)
 
