@@ -45,6 +45,7 @@ req idhelper.py
 req loggingrepy.py
 req math.repy
 req misc.py
+req namespace.py
 req nanny.py
 req nmAPI.py
 req nmadvertise.py
