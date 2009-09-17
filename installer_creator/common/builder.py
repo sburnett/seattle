@@ -35,7 +35,7 @@ PATH_TO_CUSTOMIZE_INSTALLER_SCRIPT = os.path.join(os.path.dirname(__file__),
                                                   "customize_installers.py")
 
 
-def build_installer(vessel_dict, key_dict, username='', dist_str='wlm'):
+def build_installer(vessel_dict, key_dict, username='', dist_str='wml'):
   """
   <Purpose>
     Creates an installer with the given vessel_dict (vessel definitions)
@@ -68,8 +68,10 @@ def build_installer(vessel_dict, key_dict, username='', dist_str='wlm'):
   if username == '':
     raise ValueError("Need to specify username")
   
-  if dist_str == '' or dist_str not in 'wlm':
+  if dist_str == '':
     raise ValueError("Invalid dist_str specificiation.")
+  
+  # TODO: Check dist_str has valid chars
   
   prefix = os.path.join(settings.USER_INSTALLERS_DIR, "%s_dist"%(username))
   temp_installinfo_dir = os.path.join(prefix, "install_info")
@@ -94,11 +96,11 @@ def build_installer(vessel_dict, key_dict, username='', dist_str='wlm'):
   print("file preparation done. calling customize installer.")
   
   
-#  try:
-#    subprocess.check_call([sys.executable, PATH_TO_CUSTOMIZE_INSTALLER_SCRIPT, dist_str, 
-#                           settings.BASE_INSTALLERS_DIR, temp_installinfo_dir, prefix])
-#  except subprocess.CalledProcessError:
-#    raise 
+  try:
+    subprocess.check_call([sys.executable, PATH_TO_CUSTOMIZE_INSTALLER_SCRIPT, dist_str, 
+                           settings.BASE_INSTALLERS_DIR, temp_installinfo_dir, prefix])
+  except subprocess.CalledProcessError:
+    raise 
   
   installer_urls_dict = {}
   if 'w' in dist_str:

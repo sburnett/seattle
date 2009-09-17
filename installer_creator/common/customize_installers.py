@@ -144,22 +144,36 @@ def main(which_os, base_installers_dir, dir_to_add, output_path):
                 try:
                     if not os.path.exists(base_installers_dir + "/" + base_link):
                         raise Exception("Base %s installer not found."%(os_type))
+                    
+                    #print "inst_path: " + inst_path
                     inst_path = output_path + "/" + OUTPUT_NAME + "_%s.tgz"%(os_type)
+                    
+                    #print "COPYING " + base_installers_dir + "/" + base_link + "  TO  " + inst_path
                     shutil.copyfile(base_installers_dir + "/" + base_link, inst_path)
+                    
+                    #print "GZIP DEFLATING " + inst_path
                     os.system("gzip -d " + inst_path)
+                    
+                    #print "unzipped_inst_path: " + unzipped_inst_path
                     unzipped_inst_path = output_path + "/" + OUTPUT_NAME + "_%s.tar"%(os_type)
                     
+                    #print "TAR APPENDING: " + unzipped_inst_path + " " + dir_to_add
                     os.system("tar -rf " + unzipped_inst_path + " " + dir_to_add)
+                    
+                    #print "GZIPPING: " + unzipped_inst_path
                     os.system("gzip " + unzipped_inst_path)
 
+                    #print "RENAMING: " + output_path + "/" + OUTPUT_NAME + "_%s.tar.gz"%(os_type) + "  TO  " + inst_path
                     os.rename(output_path + "/" + OUTPUT_NAME + "_%s.tar.gz"%(os_type), inst_path)
+                    
                     created_installers.append(inst_path)
                 except Exception, e:
                     output("Failed to customize %s installer:"%(os_type))
                     output(e)
                 output("Done.")
             
-                os.chdir(oldpwd)
+                #TODO: FIX THIS.
+                #os.chdir(oldpwd)
                 if created_temp:
                     # If we were the ones that created the temp file, delete it
                     # when we finish

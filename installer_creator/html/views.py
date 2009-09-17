@@ -12,6 +12,8 @@
 <Purpose>
   Django view functions used in rendering the HTML view of the installer_creator.
 """
+import hashlib
+import time
 
 from django.http import HttpResponse
 from django.http import HttpResponseRedirect
@@ -19,8 +21,12 @@ from django.core.urlresolvers import reverse
 from django.views.generic.simple import direct_to_template
 from django.utils import simplejson
 
+
 from installer_creator.common import builder
 from installer_creator.common import validations 
+
+INSTALLER_ID_LENGTH = 30
+
 
 def installer_creator(request):
   # Flush the session dict, so new & returning users get a clean dict
@@ -56,6 +62,10 @@ def add_user(request):
     
     key_dict = {}
     
+    # check if the given username was previously entered
+    if username in request.session:
+      return HttpResponse("duplicateusername")
+    
     if 'publickey' in request.FILES:
       # User uploaded a pubkey, read out of uploaded file and store into request dict
       pubkey_file = request.FILES['publickey']
@@ -82,8 +92,9 @@ def add_user(request):
     request.session[username] = key_dict
   
     print request.session.keys()
+    print request.session.items()
     return HttpResponse("done")
-
+  
 
 
 def create_installer(request):
@@ -93,6 +104,14 @@ def create_installer(request):
     specifically the key dictionary. The key dictionary is a
     dict whose keys are usernames, and whose values are key
     dicts (pubkey & privkey). See build_installer for more info. 
+    
+    Also generates a unique installer ID (not related to the django
+    session ID). The installer ID is tied to this specific installer,
+    and is used for public distribution (eg: person wants to give his
+    friends a link to d/l his installers). 
+    
+    Then, of course, the installers are actually built and deposited
+    into a folder related to the installer ID.
   
   <Notes>
     The vessel_dict being passed to this function via AJAX is a list
@@ -126,9 +145,16 @@ def create_installer(request):
     for user in users_list:
       key_dict[user] = request.session[user]
     
+    # generate installer ID
+    installer_id = _generate_installer_id()
+    print "INSTALLER_ID: " + installer_id
+    
     # Begins the actual build of the installer
+    installers_url_dict= {'w':'w', 'l':'l', 'm':'m'}
+    
     try:
-      installers_url_dict = builder.build_installer(vessel_dict, key_dict, request.session.session_key)
+      #installers_url_dict = builder.build_installer(vessel_dict, key_dict, installer_id)
+      pass
     except Exception, e:
       print str(e)
       return HttpResponse("<b>Build failed! We encountered a problem while building the installers.</b><br>" +
@@ -142,6 +168,10 @@ def create_installer(request):
     return HttpResponse("Done")
 
 
+def download_keys(request):
+  return HttpResponse("Download keys...")
+  
+
 def download_installers(request):
   """
   <Purpose>
@@ -152,7 +182,7 @@ def download_installers(request):
                             {'win_installer_url' : request.session['win_installer_url'],
                              'linux_installer_url' : request.session['linux_installer_url'],
                              'mac_installer_url' : request.session['mac_installer_url']})
-  
+
 
 def _standarize(username):
   """
@@ -165,3 +195,10 @@ def _standarize(username):
   username = username.replace(" ", "_")
   
   return username
+
+
+def _generate_installer_id():
+  #TODO: Check whether md5ing the time is unique enough
+  m = hashlib.md5()
+  m.update(str(time.time()))
+  return m.hexdigest()

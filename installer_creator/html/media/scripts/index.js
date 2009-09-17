@@ -19,7 +19,6 @@ window.onload = function () {
 	// counter for default usernames
 	counter = 1;
 	// add the user to the user box
-	//$("form").onsubmit = addUser;
 	$("form").onsubmit = pre_addUser;
 	// guess the username from the given public key file
 	$("publickey").onchange = updateUsername;
@@ -33,10 +32,16 @@ window.onload = function () {
 		}
 	};
    	$("installer").disabled = true;
+
+  // reset the POST response form! 
+  // (so it wont trigger the POST handler)
+  window.frames['target'].document.body.innerHTML = "";
+  
 	Initialize();
 	updateVessels();
+	resetForm();
 	$("installer").onclick = createInstaller;
-	
+
 	var POST_frame = document.getElementById('target')
 	if (POST_frame.addEventListener) {
 	  POST_frame.addEventListener("load", add_post_handler, false)
@@ -44,8 +49,8 @@ window.onload = function () {
     POST_frame.detachEvent("onload", add_post_handler)
 	  POST_frame.attachEvent("onload", add_post_handler)
 	}
-	add_post_handler();
 
+	add_post_handler();
 };
 
 
@@ -68,6 +73,10 @@ function add_post_handler() {
     alert("You entered an invalid username.");
     resetForm();
   
+  } else if (split_response[0] == "duplicateusername") {
+    alert("The username you entered already exists!");
+    resetForm();
+    
   } else if (split_response[0] == "pubkeytoolarge") {
     alert("The public key you uploaded was too large! The filesize limit is " + split_response[1] + " bytes.");
     resetForm();
@@ -359,6 +368,7 @@ function addUser () {
 		$("username").value = "user_" + counter;
 	}
 	var name = $("username").value;
+	
 	if (name == "user_" + counter) {
 		counter++;
 	}
@@ -479,7 +489,7 @@ function createInstaller () {
 
 /*  redirect the page to installer download page  */
 function finish (ajax) {
-	location.href = "/html/download_installers";
+	location.href = "/html/download_keys";
 }
 
 function createinstaller_error (ajax) {

@@ -9,6 +9,7 @@ urlpatterns = patterns('installer_creator.html.views',
                        (r'^installer_creator$', 'installer_creator',{},'installer_creator'),
                        (r'^add_user$', 'add_user', {}, 'add_user'),
                        (r'^create_installer$', 'create_installer', {}, 'create_installer'),
+                       (r'^download_keys$', 'download_keys', {}, 'download_keys'),
                        (r'^download_installers$', 'download_installers', {}, 'download_installers'),
                        
                       )
