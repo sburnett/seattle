@@ -37,6 +37,9 @@ window.onload = function () {
   // (so it wont trigger the POST handler)
   window.frames['target'].document.body.innerHTML = "";
   
+  // reset the users array
+  var users = [];
+  
 	Initialize();
 	updateVessels();
 	resetForm();

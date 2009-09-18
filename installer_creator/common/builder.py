@@ -102,15 +102,16 @@ def build_installer(vessel_dict, key_dict, username='', dist_str='wml'):
   except subprocess.CalledProcessError:
     raise 
   
-  installer_urls_dict = {}
-  if 'w' in dist_str:
-    installer_urls_dict['w'] = settings.USER_INSTALLERS_URL + "%s_dist/seattle_win.zip"%(username)
-  if 'l' in dist_str:
-    installer_urls_dict['l'] = settings.USER_INSTALLERS_URL + "%s_dist/seattle_linux.tgz"%(username)
-  if 'm' in dist_str:
-    installer_urls_dict['m'] = settings.USER_INSTALLERS_URL + "%s_dist/seattle_mac.tgz"%(username)
-  
-  return installer_urls_dict
+#  installer_urls_dict = {}
+#  if 'w' in dist_str:
+#    installer_urls_dict['w'] = settings.USER_INSTALLERS_URL + "%s_dist/seattle_win.zip"%(username)
+#  if 'l' in dist_str:
+#    installer_urls_dict['l'] = settings.USER_INSTALLERS_URL + "%s_dist/seattle_linux.tgz"%(username)
+#  if 'm' in dist_str:
+#    installer_urls_dict['m'] = settings.USER_INSTALLERS_URL + "%s_dist/seattle_mac.tgz"%(username)
+#  
+#  return installer_urls_dict
+  return
   
   
 

@@ -10,17 +10,21 @@
 
   <body>
     <div id="content"> 
-      <h1 id="header"> Download your installers </h1>
+      <h1 id="header"> Seattle - Download Installers </h1>
       
       {% if not win_installer_url or not mac_installer_url or not linux_installer_url %}
         <font size="4" color="red">A problem has occured during the install build process. Please contact us!</font>
       {% else %}
-      <p class="comment">
-        <a href={{ public_keys_url }} target="_blank"> Download all public keys </a>&nbsp;&nbsp;
-        <a href={{ private_keys_url }} target="_blank"> Download all private keys </a>
-      </p>
-      <p class="comment"> Below you will find the installer links for the GENI distributed system </p>
+      <p class="comment"> Below you will find the installer links for the GENI distributed system.</p>
       <p class="comment"> (Click on the image to download your installer)</p>
+      <br>
+      {% if just_installed %}      
+      <div id="downloadlink">
+        <p><b>Give this link to others so they can donate on your behalf:</b></p>
+        <a href="blah">{{ domain }}/blah</a>
+      </div>
+      {% endif %}
+      
       <table id="installers">
         <colgroup>
           <col id="win" /><col id="mac" /><col id="linux" />

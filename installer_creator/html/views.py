@@ -13,7 +13,11 @@
   Django view functions used in rendering the HTML view of the installer_creator.
 """
 import hashlib
+import os
+import StringIO
+import tempfile
 import time
+import zipfile
 
 from django.http import HttpResponse
 from django.http import HttpResponseRedirect
@@ -21,7 +25,7 @@ from django.core.urlresolvers import reverse
 from django.views.generic.simple import direct_to_template
 from django.utils import simplejson
 
-
+from installer_creator import settings
 from installer_creator.common import builder
 from installer_creator.common import validations 
 
@@ -148,12 +152,11 @@ def create_installer(request):
     # generate installer ID
     installer_id = _generate_installer_id()
     print "INSTALLER_ID: " + installer_id
+    request.session['installer_id'] = installer_id
     
     # Begins the actual build of the installer
-    installers_url_dict= {'w':'w', 'l':'l', 'm':'m'}
-    
     try:
-      #installers_url_dict = builder.build_installer(vessel_dict, key_dict, installer_id)
+      builder.build_installer(vessel_dict, key_dict, installer_id)
       pass
     except Exception, e:
       print str(e)
@@ -161,27 +164,114 @@ def create_installer(request):
                           "Please contact us! Details:<br><br>" + str(e), status=500)
     
     # store these urls for the download page
-    request.session['win_installer_url'] = installers_url_dict['w']
-    request.session['linux_installer_url'] = installers_url_dict['l']
-    request.session['mac_installer_url'] = installers_url_dict['m']
+#    request.session['win_installer_url'] = installers_url_dict['w']
+#    request.session['linux_installer_url'] = installers_url_dict['l']
+#    request.session['mac_installer_url'] = installers_url_dict['m']
+    
+    # store keydict for download keys page
+    request.session['key_dict'] = key_dict
     
     return HttpResponse("Done")
 
 
-def download_keys(request):
-  return HttpResponse("Download keys...")
-  
 
-def download_installers(request):
+def download_keys(request):
+  """
+  <Purpose>
+    Displays a page allowing users to download their keys.
+  """
+  return direct_to_template(request, "downloadkeys.html", {})
+
+
+
+def dl_keys(request):
+  """
+  <Purpose>
+    Returns the user's keys as a downloadable object (zip file w/ keys)
+  """
+  key_dict = request.session['key_dict']
+  
+  # init StringIO object that will hold zipfile in memory
+  #fhandle_zip = StringIO.StringIO
+  fhandle_zip = tempfile.NamedTemporaryFile(delete=False)
+  fhandle_zip_path = fhandle_zip.name
+  
+  # init zipfile object
+  zipper = zipfile.ZipFile(fhandle_zip, 'w') 
+  
+  for user in key_dict:
+    username = str(user)
+    pubkey = key_dict[user]['pubkey']
+    privkey = key_dict[user]['privkey']
+    
+    #fhandle_pubkey = StringIO.StringIO(pubkey)
+    fh_pubkey = tempfile.NamedTemporaryFile(delete=False)
+    fh_pubkey_path = fh_pubkey.name
+    fh_pubkey.write(pubkey)
+    fh_pubkey.close()
+    
+    zipper.write(fh_pubkey_path, username + '.publickey')
+    # remove temporary pubkey file
+    os.remove(fh_pubkey_path)
+    
+    if privkey != '':
+      fh_privkey = tempfile.NamedTemporaryFile(delete=False)
+      fh_privkey_path = fh_privkey.name
+      fh_privkey.write(privkey)
+      fh_privkey.close()
+      
+      zipper.write(fh_privkey_path, username + '.privatekey')
+      # remove temporary privkey file
+      os.remove(fh_privkey_path)
+      
+  zipper.close()
+  fhandle_zip.close()
+  
+  fp = open(fhandle_zip_path, 'rb')
+  response = HttpResponse(fp.read(), mimetype='application/x-zip-compressed')
+  response['Content-Disposition'] = 'attachment; filename=SeattleInstaller_Keys.zip'
+  fp.close()
+
+  # clean up temporary zip file
+  os.remove(fhandle_zip_path)
+  
+  return response
+
+
+def post_install(request):
+  domain = "https://" + request.get_host()
+  installer_id = request.session['installer_id']
+  
+  return direct_to_template(request, "download.html", 
+                            {'win_installer_url' : settings.USER_INSTALLERS_URL + "%s_dist/seattle_win.zip"%(installer_id),
+                             'linux_installer_url' : settings.USER_INSTALLERS_URL + "%s_dist/seattle_linux.tgz"%(installer_id),
+                             'mac_installer_url' : settings.USER_INSTALLERS_URL + "%s_dist/seattle_mac.tgz"%(installer_id),
+                             'just_installed' : 'true',
+                             'domain' : domain,
+                             'installer_id' : installer_id})
+
+
+def download_installers(request, installer_id):
   """
   <Purpose>
     Displays a page allowing users to download the created installers.
   """
+  # TODO: check base installer last-modified date, rebuild if there are new base installers
+  #       also, verify that all the installers are actually present 
+  
+  just_installed = ''
+  if 'just_installed' in request.GET:
+    just_installed = request.GET['just_installed']
+  
+  domain = "https://" + request.get_host()
   
   return direct_to_template(request, "download.html", 
-                            {'win_installer_url' : request.session['win_installer_url'],
-                             'linux_installer_url' : request.session['linux_installer_url'],
-                             'mac_installer_url' : request.session['mac_installer_url']})
+                            {'win_installer_url' : settings.USER_INSTALLERS_URL + "%s_dist/seattle_win.zip"%(installer_id),
+                             'linux_installer_url' : settings.USER_INSTALLERS_URL + "%s_dist/seattle_linux.tgz"%(installer_id),
+                             'mac_installer_url' : settings.USER_INSTALLERS_URL + "%s_dist/seattle_mac.tgz"%(installer_id),
+                             'just_installed' : just_installed,
+                             'domain' : domain,
+                             'installer_id' : installer_id})
 
 
 def _standarize(username):
