@@ -7,7 +7,8 @@ from installer_creator.html import views
 
 urlpatterns = patterns('installer_creator.html.views',
                        
-                       (r'^installer_creator$', 'installer_creator',{},'installer_creator'),
+                       (r'^installer_creator$', 'installer_creator', {}, 'installer_creator'),
+                       (r'^check_session$', 'check_session', {}, 'check_session'),
                        (r'^add_user$', 'add_user', {}, 'add_user'),
                        (r'^create_installer$', 'create_installer', {}, 'create_installer'),
                        (r'^download_keys$', 'download_keys', {}, 'download_keys'),

@@ -16,6 +16,9 @@ function createArray() {
 }
 
 window.onload = function () {
+  
+  checkIfNewSession();
+
 	// counter for default usernames
 	counter = 1;
 	// add the user to the user box
@@ -89,6 +92,30 @@ function add_post_handler() {
     resetForm();
     
   }
+}
+
+
+function checkIfNewSession() {
+	new Ajax.Request('/html/check_session',
+		{
+			method: "post",
+			parameters: {action: "checksession"},
+			onSuccess: refreshIfNewSession,
+			onFailure: checkIfNewSession_fail
+		}
+	);
+}
+
+
+function refreshIfNewSession(ajax) {
+  if (ajax.responseText == "need_refresh") {
+    location.href = "/html/installer_creator";
+  }
+}
+
+
+function checkIfNewSession_fail(ajax) {
+  document.write("Ajax call checkIfNewSession() failed. Please contact us!");
 }
 
 
@@ -180,7 +207,7 @@ function Initialize() {
 /* Initializes the Vessels, including their remove button */
 	for (var i = 0;i < 8;i++) {
 		var vessel = document.createElement("div");
-		vessel.style.left = ((132 * i) + 7) + "px";//" 6 138 270
+		vessel.style.left = ((132 * i) + 7) + "px";
 		vessel.id = "vessel" + i;
 		vessel.addClassName("vessel");
 		var ownerlist = document.createElement("ul");

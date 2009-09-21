@@ -18,10 +18,10 @@
       <p class="comment"> Below you will find the installer links for the GENI distributed system.</p>
       <p class="comment"> (Click on the image to download your installer)</p>
       <br>
-      {% if just_installed %}      
+      {% if just_installed %}
+      <p class="comment" align="center"><b>Give this link to others so they can donate on your behalf:</b></p>      
       <div id="downloadlink">
-        <p><b>Give this link to others so they can donate on your behalf:</b></p>
-        <a href="blah">{{ domain }}/blah</a>
+        <a href="{% url download_installers installer_id %}">{{ domain }}{% url download_installers installer_id %}</a>
       </div>
       {% endif %}
       

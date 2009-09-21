@@ -18,6 +18,7 @@ import StringIO
 import tempfile
 import time
 import zipfile
+import random
 
 from django.http import HttpResponse
 from django.http import HttpResponseRedirect
@@ -29,15 +30,39 @@ from installer_creator import settings
 from installer_creator.common import builder
 from installer_creator.common import validations 
 
-INSTALLER_ID_LENGTH = 30
+INSTALLER_ID_LENGTH = 32
 
 
 def installer_creator(request):
+  """
+  <Purpose>
+    Displays the main installer creator page.
+    Flushes the session, so users start off with a clean dict.
+  """
+  
   # Flush the session dict, so new & returning users get a clean dict
   request.session.flush()
-
+  
   return direct_to_template(request, 'mainpage.html', {})
   
+
+def check_session(request):
+  """
+  <Purpose>
+    Called via AJAX, and simply returns whether or not the session dict is
+    clean or dirty. If clean (session dict has no entries), the JS on the 
+    main page does nothing. If the session dict is dirty (contains key entries),
+    then the JS on the page will refresh the page, triggering a session flush 
+    from the installer_creator() view function.
+  """
+  if not request.method == 'POST' or request.POST['action'] != 'checksession':
+    return HttpResponseRedirect(reverse("installer_creator"))
+
+  if request.session.items():
+    return HttpResponse("need_refresh")
+  else:
+    return HttpResponse("no_refresh")
+    
 
 def add_user(request):
   """
@@ -157,7 +182,7 @@ def create_installer(request):
     # Begins the actual build of the installer
     try:
       builder.build_installer(vessel_dict, key_dict, installer_id)
-      pass
+      #pass
     except Exception, e:
       print str(e)
       return HttpResponse("<b>Build failed! We encountered a problem while building the installers.</b><br>" +
@@ -180,7 +205,8 @@ def download_keys(request):
   <Purpose>
     Displays a page allowing users to download their keys.
   """
-  return direct_to_template(request, "downloadkeys.html", {})
+  return direct_to_template(request, "downloadkeys.html", 
+                            {'installer_id' : request.session['installer_id']})
 
 
 
@@ -191,45 +217,47 @@ def dl_keys(request):
   """
   key_dict = request.session['key_dict']
   
-  # init StringIO object that will hold zipfile in memory
+  # init file object that will hold zipfile in memory
   #fhandle_zip = StringIO.StringIO
-  fhandle_zip = tempfile.NamedTemporaryFile(delete=False)
-  fhandle_zip_path = fhandle_zip.name
+  gen = _generate_random()
+  print gen
+  fhandle_zip_path = os.path.join(tempfile.gettempdir(), gen)
+  fhandle_zip = open(fhandle_zip_path, 'wb')
   
   # init zipfile object
-  zipper = zipfile.ZipFile(fhandle_zip, 'w') 
+  zipper = zipfile.ZipFile(fhandle_zip, 'w')
   
   for user in key_dict:
     username = str(user)
     pubkey = key_dict[user]['pubkey']
     privkey = key_dict[user]['privkey']
     
-    #fhandle_pubkey = StringIO.StringIO(pubkey)
-    fh_pubkey = tempfile.NamedTemporaryFile(delete=False)
-    fh_pubkey_path = fh_pubkey.name
-    fh_pubkey.write(pubkey)
-    fh_pubkey.close()
-    
-    zipper.write(fh_pubkey_path, username + '.publickey')
+    # write out pubkey
+    pubkey_path = _write_to_temp_file(pubkey)
+    zipper.write(pubkey_path, username + '.publickey')
     # remove temporary pubkey file
-    os.remove(fh_pubkey_path)
+    os.remove(pubkey_path)
     
     if privkey != '':
-      fh_privkey = tempfile.NamedTemporaryFile(delete=False)
-      fh_privkey_path = fh_privkey.name
-      fh_privkey.write(privkey)
-      fh_privkey.close()
-      
-      zipper.write(fh_privkey_path, username + '.privatekey')
+      # write out privkey
+      privkey_path = _write_to_temp_file(privkey)
+      zipper.write(privkey_path, username + '.privatekey')
       # remove temporary privkey file
-      os.remove(fh_privkey_path)
-      
+      os.remove(privkey_path)
+  
+  public_url = "Give this link to others so they can donate on your behalf:\n"
+  public_url += "https://" + request.get_host() + reverse("download_installers", args=[request.session['installer_id']])
+  public_url_path = _write_to_temp_file(public_url) 
+  zipper.write(public_url_path, "public_installer_url.txt")
+  # remove temporary pub url file
+  os.remove(public_url_path)
+  
   zipper.close()
   fhandle_zip.close()
   
   fp = open(fhandle_zip_path, 'rb')
   response = HttpResponse(fp.read(), mimetype='application/x-zip-compressed')
-  response['Content-Disposition'] = 'attachment; filename=SeattleInstaller_Keys.zip'
+  response['Content-Disposition'] = 'attachment; filename=SeattleInstaller_Info.zip'
   fp.close()
 
   # clean up temporary zip file
@@ -288,7 +316,44 @@ def _standarize(username):
 
 
 def _generate_installer_id():
+  """
+  <Purpose>
+    Generates a random installer ID.
+  """
   #TODO: Check whether md5ing the time is unique enough
   m = hashlib.md5()
   m.update(str(time.time()))
   return m.hexdigest()
+
+def _generate_random():
+  """
+  <Purpose>
+    Generates a random string.
+  """
+  population = []
+  population.extend(range(ord('0'), ord('9') + 1))
+  population.extend(range(ord('A'), ord('Z') + 1))
+  
+  key = ""
+  for character in random.sample(population, 30):
+    key += chr(character)
+  
+  return key
+
+def _write_to_temp_file(data):
+  """
+  <Purpose>
+    Writes the given string to a temporary file.
+    NOTE: Doesn't remove the temporary file for you! You must take care of this yourself.
+   
+   <Returns>
+     The path to the created temporary file. 
+  """
+  gen = _generate_random()
+  
+  fhandle_path = os.path.join(tempfile.gettempdir(), gen)
+  fhandle = open(fhandle_path, 'w')
+  fhandle.write(data)
+  fhandle.close()
+  
+  return fhandle_path

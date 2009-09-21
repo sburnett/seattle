@@ -2,28 +2,50 @@
 "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
   <head>
-    <title>Seattle - Installer Creator - Download Keys</title>
+    <title>Seattle - Installer Creator - Download Info</title>
     <link rel="stylesheet" type="text/css" href="{{ MEDIA_URL }}css/style.css" />
     <script src="{{ MEDIA_URL }}scripts/prototype.js" type="text/javascript"></script>
-    <script src="{{ MEDIA_URL }}scripts/downloadkeys.js" type="text/javascript"></script>
+    
+    <script type="text/javascript">
+    //<![CDATA[
+    window.onload = function () {  
+      $("dl_keys").onclick = dl_keys;
+      $("dl_installers").onclick = go_continue;
+      
+      $("dl_installers").disabled = true;
+    };
+    
+    
+    function dl_keys() {
+      location.href = "/html/dl_keys";
+      $("dl_installers").disabled = false;
+    };
+    
+    
+    function go_continue() {
+      location.href = "/html/installers/{{ installer_id }}?just_installed=true";
+    };
+    //]]>
+    </script>
   </head>
 
   <body>
     <div id="content"> 
-      <h1 id="header">Download Your Keys</h1>
+      <h1 id="header">Download Info</h1>
         <div id="middle">
         <p class="message">
 
-          Before we continue, we're going to give you all public and private keys associated with this installer.<br>
-          This information is very important, as you will need the keys later on!<br><br>
+          Before we continue, we're going to give you <i>all public and private keys associated with this installer</i>,<br>
+          as well as a <i>link you can give to others</i> that will allow them to download your installers.<br><br>
+          This information is very important!<br><br>
           
-          Please download your keys now.<br>
-          <button name="dl_keys" id="dl_keys">Download Keys</button><br><br>
-          Once you have downloaded your keys:<br>
+          Please download the information now.<br>
+          <button name="dl_keys" id="dl_keys">Download Info Package</button><br><br>
+          Once you have downloaded your info:<br>
           <button name="dl_installers" id="dl_installers">Download Installers!</button>
           <p class="warning">
-          Once you leave this page, the keys will no longer be accessible!<br>
-          Keep your keys in a safe place!
+          Once you leave this page, the above information will no longer be accessible!<br>
+          Keep it in a safe place!
           </p>
         </p>
         </div>
