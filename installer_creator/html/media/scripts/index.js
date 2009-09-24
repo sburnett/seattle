@@ -69,7 +69,7 @@ function debug() {
 }
 
 
-// JTC: This function is called whenever a POST request completes 
+// This function is called whenever a POST request completes 
 // (originating from the 'target' iframe), and performs actions based
 // on the POST response that the server gives. (eg: Alert the user about
 // a bad pubkey, reenable the Add User button, etc...)
@@ -128,9 +128,9 @@ function checkIfNewSession_fail(ajax) {
 }
 
 
-function removeelement() {
-			var parent = this.parentNode.parentNode.parentNode;
-			var subparent = this.parentNode.parentNode;
+function removeelement(elem) {
+			var parent = elem.parentNode.parentNode.parentNode;
+			var subparent = elem.parentNode.parentNode;
 			if (subparent.id.substring(0, 5) == "owner") {
 				var index = (Number)(parent.id.charAt(9));
 				var defaultNode = document.createElement("li");
@@ -153,16 +153,13 @@ function removeelement() {
 				var username;
 				var length;
 				if (supportsInnerText()) {
-          length = this.parentNode.innerText.length;
-          username = this.parentNode.innerText.substring(0, length-1);
+          length = elem.parentNode.innerText.length;
+          username = elem.parentNode.innerText.substring(0, length-1);
         } else {
-				  length = this.parentNode.textContent.length;
-				  username = this.parentNode.textContent.substring(0, length-1);
+				  length = elem.parentNode.textContent.length;
+				  username = elem.parentNode.textContent.substring(0, length-1);
 				}
-				
 				to_remove_idx = vesselUsers[index].indexOf(username);
-				alert(username);
-				alert(to_remove_idx);
 				vesselUsers[index].splice(to_remove_idx, 1);
 				
 				//alert("userTally: " + userTally + "\n" + "vesselUsers[" + index+ "][userTally[" + index +"]]: " + vesselUsers[index][userTally[index]]);
@@ -193,11 +190,38 @@ function fixheights(adds) {
 function removeVessel() {
 	this.style.display = "none";
 	var index = (Number)(this.id.charAt(6)+"");
+	
+	userlist = document.getElementById("userlist" + index);
+	user_li_list = userlist.getElementsByTagName('li');
+	
+	for (var i=user_li_list.length-1; i>0; i--) {
+    if (supportsInnerText()) {
+      text = user_li_list[i].innerText; 
+    } else {
+	    text = user_li_list[i].textContent;
+	  }
+    
+    if (text.substring(text.length-1, text.length) == 'X') {
+      link = user_li_list[i].childNodes[0].childNodes[1];
+      removeelement(link);
+    }
+  }
+	
+	
+	
+	//for (var i=1; i < userlist.childNodes.length-1; i++) {
+  //  userli = userlist.childNodes[i].childNodes[0].childNodes[1].textContent;
+  //  alert(userli);
+  //}
+	//alert(document.getElementById("userlist4").childNodes[1].childNodes[0].childNodes[0].textContent);
+	//alert(document.getElementById("userlist4").getElementsByTagName('li')[0]);
+	
 	$("plus"+index).style.display = "block";
 	var previousIndex = findNumberOfJumpsBack(index-1);
 	vesselLengths[index-previousIndex] += vesselLengths[index];
 	vesselLengths[index] = 0;
 	updateVessels();
+	validate();
 }
 
 function addVessel() {
@@ -379,7 +403,9 @@ function addOwnerToList(draggable, droppable) {
 	
 	link.addClassName("close");
 	link.textContent = "X";
-	link.onclick = removeelement;
+	//link.onclick = removeelement;	
+	link.onclick = function () { removeelement(link); };
+	
 	try { if(!link.innerText) link.innerText = link.textContent; } catch(e) {}
 	content.appendChild(link);
 	newlyAdded.appendChild(content);
@@ -440,7 +466,9 @@ function addUserToList(draggable, droppable) {
 	
 	link.addClassName("close");
 	link.textContent = "X";
-	link.onclick = removeelement;
+	//link.onclick = removeelement;
+	link.onclick = function () { removeelement(link); };
+	
 	try { if(!link.innerText) link.innerText = link.textContent; } catch(e) {}
 	var content = document.createElement("p");
 	Element.extend(content);
@@ -462,6 +490,7 @@ function addUserToList(draggable, droppable) {
 	content.appendChild(link);
 	newlyAdded.appendChild(content);
 	droppable.appendChild(newlyAdded);
+	
 	newlyAdded.addClassName("removable");
 	var adds = $$(".addusers");
 	if (lastheight < 53) {
@@ -474,6 +503,7 @@ function addUserToList(draggable, droppable) {
 	var vessels = $$(".vessel");
 	var addBox = createAddUserBox(lastheight);
 	droppable.appendChild(addBox);
+	//alert(droppable.childNodes[0]);
 	
 	if (supportsInnerText()) {
 	  vesselUsers[index][userTally[index]] = (draggable.innerText.substring(0, length-1));
@@ -801,7 +831,7 @@ if (!Array.prototype.indexOf)
   };
 }
 
-// JTC: Changes text using the correct browser-specific method
+// Changes text using the correct browser-specific method
 function changeTextById(element, changeVal) {
   var hasInnerText = (document.getElementsByTagName("body")[0].innerText != undefined) ? true : false;
   
