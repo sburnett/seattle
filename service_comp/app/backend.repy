@@ -1,0 +1,41 @@
+include layermain.repy
+include nat_obj.repy
+include TCPReverseConn.repy
+include RSALayer.repy
+include session.repy
+include LoopBackBranch.repy
+
+
+REQUIRED_WAIT_LIST = ['LoopBackBranch','RSA','ReverseConn','NAT']
+#REQUIRED_WAIT_LIST = ['LoopBackBranch','PhysConn']
+MYID = 'APPBACKEND'
+
+
+
+def service_requests(remote_ip,remote_port,sock,thishandle,listenhandle):
+  
+  try:
+    while True:
+      request = session_recvmessage(sock)
+      print 'got request: '+request
+
+      #send response
+      session_sendmessage(sock,'executed request: '+request)
+   
+  except Exception, e:
+    sock.close()
+    print 'Terminted connection to client: '+remote_ip+':'+str(remote_port)
+    print '  due to exception: '+str(e)
+
+
+
+
+
+
+
+
+if callfunc == 'initialize':
+
+  handle = layered_waitforconn(MYID,12345,service_requests)
+
+  

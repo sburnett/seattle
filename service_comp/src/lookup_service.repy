@@ -1,0 +1,93 @@
+"""
+<Program Name>
+  lookup_service.py
+
+<Started>
+  Jun 25, 2009
+
+<Author>
+  Eric Kimbrel
+
+<Purpose>
+
+  Provide a mock lookup service for use in design and protyping of a
+  dynamic network stack framework. NOT INTENDED FOR DISTRIBUTION OR
+  PRODUCTION USE
+
+  Used with methods in lookup_methods.py to but a string value
+  at a string key
+
+  NOTE: This is a very limited service, it can not handle duplicate
+  advertisements (they overwrite) and does not expire advertisements.
+"""
+
+
+include session.repy
+
+LOOKUP_DICT = {} # the lookup backend database :)
+
+STR_SEP = '&'
+
+# handle connections
+def new_conn(rip,rport,sock,th,lh):
+  
+  # read the request
+  msg = session_recvmessage(sock)
+    
+  # parse the request
+  request = msg.split('$')
+
+  # ? request = key
+  # do a lookup
+  if len(request) == 1:
+    lookup(sock,request[0])
+  
+  # ? request = key,value,ENDTRANSMIT
+  # do an advertisement
+  elif len(request) == 2:
+    advertise(sock,request[0],request[1])
+
+
+# lookup a value and return it
+def lookup(sock,key):
+  try:
+    result = LOOKUP_DICT[key]
+  except:
+    print 'ERROR: requested key not found'
+    session_sendmessage(sock,'ERROR')
+  else:
+    #build a comma seperated string
+    ret_str =''
+    for item in result:
+      ret_str +=item+STR_SEP
+    ret_str = ret_str[:-1]
+    session_sendmessage(sock,'OKAY$'+ret_str)
+    print 'INFO returning value: '+str(result)+' for key: '+key
+  sock.close()
+
+
+# advertise a key value pair
+def advertise(sock,key,value):
+  if key in LOOKUP_DICT:
+    LOOKUP_DICT[key].append(value)
+  else:
+    LOOKUP_DICT[key] = [value]
+  print 'INFO: put value: '+value+' at key '+key
+  try:
+    session_sendmessage(sock,'OKAY')
+  except:
+    print 'ERROR, socket failed before advertise could transmit okay'
+  sock.close()
+  
+
+
+if callfunc == 'initialize':
+
+  ip = '127.0.0.8'
+  port = 19999
+
+  
+  waitforconn(ip,port,new_conn)
+
+  print 'Lookup service started on '+ip+':'+str(port)
+

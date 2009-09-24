@@ -1,0 +1,126 @@
+# a TCP encryption layer
+
+include TCP_TLayer.repy
+include session.repy
+include rsa.repy
+
+RSALAYER_KEY_OBJ = rsa_gen_pubpriv_keys(1024)
+
+
+class RSALayer(TCP_TLayer):
+
+  name = 'RSALayer'
+
+  def __init__(self,next_shim=None,optional_args=None):
+    TCP_TLayer.__init__(self,next_shim,optional_args)
+    
+
+    # generate a public and private key    
+    (self.pubkey,self.privkey) = RSALAYER_KEY_OBJ
+
+  def waitforconn(self,key,localport,callback):
+    # securely advertise our public key under our name
+    # todo secure advertisements
+    external_advertise(key+'pubkey',rsa_publickey_to_string(self.pubkey))
+    
+    return TCP_TLayer.waitforconn(self,key,localport,callback)
+
+ 
+  def this_callback(self,remote_ip,remote_port,socket,
+                    thiscommhandle,listencommhandle):
+    # recv the remote sides public key
+    # TODO catch excpections for invalid keys and close socket
+    remotepubkey = rsa_string_to_publickey(session_recvmessage(socket))
+    
+    # wrap the socket and return it to the previous callback
+    new_socket = self.T_Socket(socket,self.privkey,remotepubkey)
+    self.previous_callback(remote_ip,remote_port,new_socket,thiscommhandle,listencommhandle)
+
+    
+   
+  def openconn(self,id,port,localip=None,localport=None,timeout=5):
+    # call the next openconn
+    socket = self.shim_stack.openconn(id,port,localip,localport,timeout)
+    
+    # send our public key
+    session_sendmessage(socket,rsa_publickey_to_string(self.pubkey))
+
+    # TODO catch excpections for invalid keys and close socket
+    # get the servers pubkey from a secure lookup service
+    pubkeylist = external_lookup(str(id)+'pubkey') 
+    if len(pubkeylist) != 1: raise Exception('Error getting servers pubkey')
+    remotepubkey = rsa_string_to_publickey(pubkeylist[0])
+
+    new_socket = self.T_Socket(socket,self.privkey,remotepubkey)
+    return new_socket  
+
+
+  class T_Socket:
+
+    def __init__(self,socket,privatekey,publickey):
+      self.socket = socket
+      self.privkey = privatekey
+      self.pubkey = publickey
+      self.buffer = ''
+      
+      self.closed = False
+      self.sendlock = getlock()
+      self.recvlock = getlock()
+
+    def close(self):
+      self.socket.close()
+      self.closed = True
+
+    def send(self,msg):
+      
+      sent = len(msg)
+      msg = rsa_encrypt(msg,self.pubkey)
+      
+
+      # ensure no interleaving of data
+      self.sendlock.acquire()
+      session_sendmessage(self.socket,msg)
+      try:
+        return sent
+      finally:
+        self.sendlock.release()
+
+    def recv(self,n):
+      ret_str = ''
+      self.recvlock.acquire()     
+
+      # if the buffer is empty read some more
+      if len(self.buffer) < 1:
+        cypher = session_recvmessage(self.socket)
+        
+        #TODO catch exceptions
+        
+        text = rsa_decrypt(cypher,self.privkey)
+        
+        self.buffer += text 
+        
+       
+      if n < len(self.buffer):
+        
+        remove = len(self.buffer) - n
+        ret_str = self.buffer[:-remove]
+        
+        self.buffer = self.buffer[n:]
+        
+
+      elif n >= len(self.buffer):
+        
+        ret_str = self.buffer
+        
+        self.buffer = ''
+
+      
+     
+      try:
+        return ret_str
+      finally:
+        self.recvlock.release()
+      
+         
+
+layermain_reg_layer('RSALayer',{'class':RSALayer,'type':'T'})    

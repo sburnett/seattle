@@ -1,0 +1,19 @@
+DEFAULT_SHIM_STACK_NAMES = '(CoordinationShim)'
+
+include layermain.repy
+include nat_obj.repy
+include TCPReverseConn.repy
+
+
+
+
+if callfunc == 'initialize':
+
+  sock = layered_openconn('DIRECTSERVER',12345)
+
+  i = 0
+  while True:
+    sock.send(str(i))
+    i = i + 1
+    sleep(1)
+    

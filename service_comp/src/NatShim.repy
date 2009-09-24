@@ -1,0 +1,145 @@
+"""
+<Program Name>
+  NatShim.repy
+
+<Started>
+  Jun 25, 2009
+
+<Author>
+  Eric Kimbrel
+
+<Purpose>
+  Provide a NAT (network address translator) forwarding service within the 
+  service compostion framework
+
+  When a server does a nat_waitforconn he connects to a nat_forwarder and
+  registers.  When a client connects the to the nat_forwarder the nat_forwarder
+  uses the control sock to have the server open a new connection.  Traffic
+  is then exchanged  via the nat_forwarder
+
+"""
+
+
+include layermain.repy   
+include TCP_HLayer.repy
+include session.repy
+
+class NatShim(TCP_HLayer):
+  
+  name ='NAT'
+
+  def __init__(self,next_shim=None,optional_args=None):
+    self.run = True  # goes to false when stopcomm is called
+    TCP_HLayer.__init__(self,next_shim,optional_args)
+    
+
+  
+  def waitforconn(self,key,port,callback):
+    """
+    <Purpose>
+      Provide a means to register with a nat_forwarder and wait for connections
+
+    <Arguments>
+      key: They srv key to register with a nat forwarder
+
+      port: The port to be used
+
+      localip,localport: see openconn
+  
+      callback: see waitforconn
+
+    <Exceptions>
+      Sock exceptions may occur in event of connection failure, etc
+    
+    """
+    # find a nat forwarder
+    # TODO treat this as a list
+    (nat_key,nat_port) = forwarder_lookup('natforwarder')[0]
+    self.hop_key = nat_key
+    self.hop_port = nat_port  
+
+    # open a connection to nat
+    # ? should i use layered_openconn instead of allowing
+    # the frame work to specifically set the openconn i use?
+    # currently next_openconn defaults to layered_openconn
+    nat_sock = layered_openconn(nat_key,int(nat_port))  
+  
+    # register the with the forwarder
+    nat_sock.send('S') # this connection is a server
+    session_sendmessage(nat_sock,'INIT')
+    
+    #TODO WARNING can only send 20 characters, this won't be enough for keys
+    session_sendmessage(nat_sock,str(key)) 
+    session_sendmessage(nat_sock,str(port))
+
+  
+    # see if the connection was established
+    response = session_recvmessage(nat_sock)
+    if response != 'OKAY':
+      raise Exception, 'NAT node refused connection'
+  
+    
+    listenhandle = {'sock':nat_sock,'active':True}
+
+    #set a timer because i need execution to keep going
+    settimer(0,self.nat_waitfor_request,[nat_key,nat_port,nat_sock,listenhandle,callback])
+
+    # return a new handle
+    # TODO return something good for a handle?
+    # possibly just use runtime as a unique id
+    self.thiscommhandle = ('NAThandle',nat_sock)
+    return self.thiscommhandle
+
+
+  def stopcomm(self,handle):
+  # close the listener
+    # nat terminates with an opennconn so it has no
+    # lower stopcomms to call    
+    
+    (handlename,nat_sock) = handle
+    
+    self.run = False
+    nat_sock.close()
+    return True
+
+  # wait for requsts for new connections over a control socket
+  # to the nat_forwarder
+  def nat_waitfor_request(self,for_key,for_port,sock,handle,callback):
+    while self.run:
+     try:
+       remote_key = session_recvmessage(sock)
+       remote_port = int(session_recvmessage(sock))
+     
+       new_sock = layered_openconn(for_key,for_port)
+       new_sock.send('S')
+       session_sendmessage(new_sock,'CONN')
+       session_sendmessage(new_sock,remote_key)
+       session_sendmessage(new_sock,str(remote_port))
+     
+      
+       response = session_recvmessage(new_sock)
+          
+       if response != 'OKAY':
+         new_sock.close() # this connection failed
+       else:
+         # TODO DO SOMETHing with comm handles
+         # confirm the connection over the control sock 
+         session_sendmessage(sock,'OKAY')
+         callback(remote_key,remote_port,new_sock,new_sock,
+                self.thiscommhandle)
+      
+  
+     except Exception, e:
+       if self.run:
+         #stopcomm has not been called and the connection failed
+         raise Exception('ERROR OCCURED IN nat_watifor_request '+str(e))
+         
+
+    # we've exited the loop because stopcomm was called
+    # close the control socket
+    sock.close()
+
+
+
+# register with framework
+layermain_reg_layer('NAT',{'class':NatShim})    

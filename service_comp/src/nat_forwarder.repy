@@ -1,0 +1,208 @@
+"""
+<Program Name>
+  nat_forwarder.py
+
+<Started>
+  Jun 25, 2009
+
+<Author>
+  Eric Kimbrel
+
+<Purpose>
+  Provide a working prototype of a nat traversal service for use in designing
+  a dynaic network stack framework.  This IS NOT MEANT FOR PRODUCTION OR
+  DISTRIBUTION 
+
+  This program is a NAT FORWARDER.  A server connects and registers. 
+  Clients then connect and request the server.The srv  opens a new 
+  connection to the forwarder and the client and server exchange traffic 
+  through the forwarder.
+"""
+
+
+
+DEFAULT_SHIM_STACK_NAMES = '(CoordinationShim)(PhysConn)'
+
+
+# for generic openconn / waitforconn
+include layermain.repy 
+include StandardShims.repy
+
+
+# for access to mock lookup service
+include lookup_methods.repy 
+
+include session.repy
+
+
+
+SRV_DICT = {}  # keep track of registered servers
+
+THIS_NODE_KEY = "NAT_F_KEY" #this nodes key
+
+CLT_DICT = {} # HOLDS CLIENT SOCKETS
+
+
+
+# handle new server connections
+def new_srv(rip,rport,sock,th,lh):
+  
+  #Read the servers request
+  action = session_recvmessage(sock)
+  key = session_recvmessage(sock)
+  port = session_recvmessage(sock)
+
+  # setup a new server 
+  if action == 'INIT':
+
+    #register the srv
+    SRV_DICT[key+','+port] = sock
+
+    print 'INFO: registered '+key+','+port
+
+    # close the connection with the srv
+    session_sendmessage(sock,'OKAY')    
+
+  
+  # setup a new connection with an existing server
+  elif action == 'CONN':
+    try:
+      clt_sock = CLT_DICT[key+','+port]
+    except:
+      print 'requested client does not exist'
+      session_sendmessage(sock,'ERROR')
+      sock.close()
+      return
+    else:
+      session_sendmessage(sock,'OKAY')
+  
+     
+    # exchange traffic
+    settimer(0,exchange_streams,[sock,clt_sock,True])
+    settimer(0,exchange_streams,[clt_sock,sock,False])
+  
+
+
+  # unknown action
+  else:
+    sock.close()
+    print 'recived unknown request: '+msg
+
+
+
+
+# handle new client connections
+def new_clt(rip,rport,clt_sock,th,lh):
+  
+  # read the request
+  key = session_recvmessage(clt_sock)
+  port = session_recvmessage(clt_sock)
+
+    
+  # lookup the server in the TOR registration
+  try:
+    control_sock = SRV_DICT[key+','+port]
+  except:
+    print 'ERROR: requested server not found'
+    session_sendmessage(clt_sock,'ERROR')
+    clt_sock.close()
+    return
+  
+  #add the clt to the clt dict
+  CLT_DICT[rip+','+str(rport)] = clt_sock
+
+  # tell the server it has a new connection
+  try:
+    session_sendmessage(control_sock,rip)
+    session_sendmessage(control_sock,str(rport))
+  except Exception,e:
+    print 'ERROR: '+str(e)
+    session_sendmessage(control_sock,'ERROR')
+    clt_sock.close()
+    
+    #remove this server from the dictionary
+    del SRV_DICT[key+','+port]
+    return
+  
+  #wait for the server to verify
+  response = session_recvmessage(control_sock)
+  if 'OKAY'!=  response:
+    #send an error to the client
+    print 'ERROR: requested server did not make new connection'
+    session_sendmessage(clt_sock,'ERROR')
+    clt_sock.close()
+    return
+  
+  # the connection should now be established
+  session_sendmessage(clt_sock,'OKAY')
+
+  print 'INFO: recieved new client connection for '+key
+ 
+
+
+
+
+
+# exchange traffic between two sockets
+# until an exception occurs
+def exchange_streams(from_sock,to_sock,do_print):
+  while True:
+    try:
+      msg = from_sock.recv(1024)
+      to_sock.send(msg)
+    except Exception,e:
+      if do_print: print 'INFO: terminated a connection because, '+str(e)
+      from_sock.close()
+      to_sock.close()
+      return
+            
+
+
+
+def check_behind_nat(rip,rport,sock,th,lh):
+  #niave implementation 
+  # returns true if ip's differ returns true
+  # if the are the same returns false
+  
+  local_ip = session_recvmessage(sock)
+  
+  behind_nat = rip != local_ip
+  
+  if behind_nat:
+    session_sendmessage(sock,'behind_nat')
+  else:
+    session_sendmessage(sock,'not_behind_nat')
+
+  sock.close()
+
+
+def common_entry(rip,rport,sock,th,lh):
+# common entry point for clients and servers
+  try:
+    type = sock.recv(1)
+    if type == 'C':
+      new_clt(rip,rport,sock,th,lh)
+    elif type == 'S':
+      new_srv(rip,rport,sock,th,lh)
+    elif type == '?':
+      check_behind_nat(rip,rport,sock,th,lh)
+    else:
+      print 'INFO: invalid conn type recvied '+type
+      sock.close()
+  except Exception,e:
+    print 'INFO error in common entry: '+str(e)
+
+if callfunc == 'initialize':
+
+  if len(callargs) != 1:
+    print 'usage: wait_port '
+    exitall()
+  
+  wait_port = int(callargs[0])
+   
+  layered_waitforconn(THIS_NODE_KEY,wait_port,common_entry)
+
+  
+  # advertise this node as a nat_forwarder, so it can
+  # be found by servers
+  forwarder_advertise(THIS_NODE_KEY,wait_port,'natforwarder')

@@ -1,0 +1,130 @@
+include TCP_TLayer.repy
+include session.repy
+
+
+# WARING THIS CLASS OVERIDES SOME VARIABLES AND FUNCTIONS, THE SAME OBJECT CAN NOT BE USED FOR BOTH CLIENT AND SERVER ACTIONS
+
+class TCPReverseConn(TCP_TLayer):
+  # a layer to go immidately prior to a hopping layer, to try to
+  # establsh a direction connection via sequintial hole punching
+
+  name = 'ReverseConn'
+
+  def __init__(self,next_shim=None,optional_args=None):
+    TCP_TLayer.__init__(self,next_shim,optional_args)
+    self.phys_sock = None
+    self.direct_conn_lock=getlock()
+    self.localport = None
+    
+
+  def waitforconn(self,id,port,callback):
+    # record the local port and then do a standard TCP_Tlayer waitforconn
+    self.localport=port
+    return TCP_TLayer.waitforconn(self,id,port,callback)
+
+   
+  def this_callback(self,remote_ip,remote_port,sock,thishandle,listenhandle):
+      
+    print ' CONNECTION REACHED DIRECT LAYER CALLBACK'
+ 
+    # TODO handles
+
+    # get external ips
+    remote_ip = session_recvmessage(sock)
+    remote_port = int(session_recvmessage(sock))
+  
+
+    try:
+      # try to connection with a normal waitforconn
+      print 'INFO TRYING TO GET A DIRECT CONN'
+      direct_sock = openconn(remote_ip,remote_port)                    
+    except Exception,e:
+      print 'TROUBLE SHOOT, directon conn got exception: '+str(e)+' when trying to get direct sock'
+      print 'continuing with forwarding'
+      session_sendmessage(sock,'use forwarding')
+      self.previous_callback(remote_ip,remote_port,sock,thishandle,listenhandle)
+    
+    # we got a direct connection  
+    else: 
+      # verify with the other side that we will use the direct connection
+      session_sendmessage(sock,'use direct')
+      direct_sock.send('C')
+      if direct_sock.recv(1) != 'C':
+        raise Exception('ERROR making reverse connection')
+      sock.close()
+      self.previous_callback(remote_ip,remote_port,direct_sock,  
+                             thishandle,listenhandle)
+
+
+
+  def directcallback(self,remoteip,remoteport,sock,thishandle,listenhandle):    
+    # wait to recieve a direction physical connecton
+    self.direct_conn_lock.acquire()
+    
+    if sock.recv(1) != 'C':
+      raise Exception('ERROR recieving reverse connection')
+    sock.send('C')
+
+    # if there has allread been a connection ignore this one
+    if self.phys_sock != None:
+      sock.close()
+      return
+    else:
+      self.phys_sock=sock
+      stopcomm(listenhandle)
+    self.direct_conn_lock.release()
+
+  
+  def openconn(self,id,port,localip=None,localport=None,timeout=5):
+    # call the next openconn
+    socket = self.shim_stack.openconn(id,port,localip,localport,timeout)
+    
+    # try to establish a direct connection
+    new_socket = self.establish_direct(socket,port)
+    
+    return new_socket
+
+
+  def establish_direct(self,sock,port):
+    
+    print 'INFO got a connection via forwarder'
+  
+    myip = getmyip()  
+
+    # do a normal waitforconn
+    print 'info doing a waitforconn to attempt reverse connection'
+    handle = waitforconn(myip,port,self.directcallback)
+    
+
+    session_sendmessage(sock,myip)
+    session_sendmessage(sock,str(port))
+
+    result = session_recvmessage(sock)
+    if result == 'use direct':
+      print 'got the direct connection via reverse conn'
+      self.direct_conn_lock.acquire()
+      self.direct_conn_lock.release()
+      sock.close()
+      if self.phys_sock == None:
+        raise Exception('told to use direct conn with phys_sock = None')
+      return self.phys_sock
+   
+    elif result =='use forwarding':
+      print 'INFO USING FORWARDING'
+      try:
+        direct_sock.close()
+      except:
+        pass
+      return sock
+    else:
+      stopcomm(handle)
+      raise Exception('got bad responose in establish direct: '+str(result))
+
+
+
+
+
+layermain_reg_layer('ReverseConn',{'class':TCPReverseConn})
+  
+
+    

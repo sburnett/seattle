@@ -1,0 +1,39 @@
+# a branching t layer to do a local loopback waitforconn on the side
+
+
+include TCP_TLayer.repy
+
+class LoopBackBranch(TCP_TLayer):
+
+  def __init__(self):
+    TCP_TLayer.__init__(self)
+    self.name = 'LoopBackBranch'
+    self.phys_stack = layermain_make_stack(['PhysConn'])
+    self.phys_stack.ip = '127.0.0.1'
+    
+
+  def waitforconn(self,id,port,callback):
+    # create the advertise string for t_layers
+    self.previous_callback = callback
+    next_comm_handle = self.next_layer.waitforconn(id,port,self.this_callback)
+    phys_handle = self.phys_stack.waitforconn(id,int(port),self.this_callback)
+    return (self.name,phys_handle,next_comm_handle)  
+
+
+  def this_callback(self,remote_ip,remote_port,socket,thiscommhandle,listencommhandle):
+    # just call the previous call back
+    self.previous_callback(remote_ip,remote_port,socket,thiscommhandle,listencommhandle)
+
+  
+  def stopcomm(self,handle):
+    (name,phys_handle,next_comm_handle) = handle
+    if name != self.name:
+      raise Exception('Bad comm handle in LoopBackBranch: '+str(name))
+
+    ret1 = self.next_layer.stopcomm(next_comm_handle)
+    ret2 = stopcomm(phys_handle)
+    return ret1 and ret2
+
+    
+   
+layermain_reg_layer('LoopBackBranch',{'class':LoopBackBranch,'type':'I'})    

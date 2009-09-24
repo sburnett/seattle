@@ -1,0 +1,63 @@
+include StandardShims.repy
+
+class TCP_HLayer(EmptyShim):
+# a default hopping class
+# for ease of hop devlopement
+
+
+  def __init__(self,next_shim=None,optional_args=None):
+    
+    if optional_args != None:
+      if len(optional_args) != 2:
+        print str(optional_args)
+        raise Exception('wrong number of optional args passed to TCP_HLayer: '+str(len(optional_args)))
+      self.hop_key = optional_args[0]
+      self.hop_port = int(optional_args[1])
+    else:
+     self.hop_key = None
+     self.hop_port = None
+    
+    self.thiscommhandle = None
+    EmptyShim.__init__(self)
+
+  
+  
+  def waitforconn(self,id,port,callback):
+    #MUST BE IMPLEMENTED BY LAYER
+    raise Exception('hop waitforncon not overridden')
+    
+
+  def stopcomm(self,handle):
+    #MUST BE IMPLEMENTED BY LAYER
+    raise Exception('hop stopcomm not overridden')
+    pass
+
+  # common method to perform all lower stopcomms
+  def lower_stopcomm(self):
+    return self.shim_stack.stopcomm(self.next_comm_handle)
+
+  # a standard hop openconn that can be inhertied and used
+  # with forwarders that follow this design
+  def openconn(self,id,port,localip=None,localport=None,timeout=5):
+    
+    base_sock = layered_openconn(self.hop_key,self.hop_port,localip,localport)
+
+    # communicate who i want to talk to
+    base_sock.send('C')
+    session_sendmessage(base_sock,str(id)) #WARN limits to 20 chars
+    session_sendmessage(base_sock,str(port))
+  
+    # see if the connection was established
+    response =  session_recvmessage(base_sock)
+    if response != 'OKAY':
+      base_sock.close()
+      raise Exception, 'Desired Host not found at forwarder'
+
+    #if the connection is established we can return the socket
+    return base_sock
+
+  
+
+  def get_names(self):
+    return ['('+self.name+','+str(self.hop_key)+','+str(self.hop_port)+')']
+    

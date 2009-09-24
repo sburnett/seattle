@@ -1,0 +1,147 @@
+# a forward error correction layer
+# no-op for TCP
+
+
+#bug need a number always counting up
+
+
+include layermain.repy
+include random.repy
+
+class FECShim(EmptyShim):
+
+
+  name = 'FECShim'
+  
+  # use a global integer to identify packages
+  # calls to send mess using different stacks
+  # will not re-use package id's
+  global_lock = getlock()
+  send_dict = {'package_id':random_nbit_int(10)}
+
+  def __init__(self,next_shim=None,optional_args=None):
+    
+    self.prev_callback = None
+
+    # dict to store incomming packets until they are put together
+    # {(remote_ip,remote_port,package_id):package_fragment_list
+    self.recv_dict = {}
+
+    EmptyShim.__init__(self,next_shim,optional_args)
+
+  def recvmess(self,host,port,callback):
+    self.prev_callback = callback
+    handle = self.shim_stack.recvmess(host,port,self.fec_callback)
+    return ('FEC',handle)
+
+
+  def fec_callback(self,rip,rport,message,handle):
+    # collect package framents until the original message
+    # can be put back together
+    self.global_lock.acquire()
+    try:
+      
+      try:
+        (id,count,message) = message.split(':',2)
+      except Exception, e:
+        raise Exception('Bad message header in FECShim: '+str(e))
+    
+      if count not in ['0','1','2']: 
+        raise Exception('Bad message header in FESCHim: '+count)    
+
+      package_header = rip+':'+id
+      if package_header not in self.recv_dict:
+        self.recv_dict[package_header] = {'0':None,'1':None,'2':None,'complete':False} 
+  
+      if self.recv_dict[package_header]['complete'] or self.recv_dict[package_header][count] != None:
+        # we've recieved this packet, or have recieved all the packets
+        return
+    
+      self.recv_dict[package_header][count] = message
+      self.recv_dict[package_header]['complete'] = self.recv_dict[package_header]['0'] != None and self.recv_dict[package_header]['1'] != None
+    
+
+      # if this isn't the xor send it to the callback
+      if count != '2':
+        settimer(0,self.prev_callback,(rip,rport,message,handle))
+    
+      if self.recv_dict[package_header]['2'] != None:
+        
+        new_str ='NOT SET'
+        if self.recv_dict[package_header]['1'] != None:
+          new_str = self.str_xor(message,self.recv_dict[package_header]['1'])
+          self.recv_dict[package_header]['complete'] = True 
+          
+          settimer(0,self.prev_callback,(rip,rport,new_str,handle))
+        elif self.recv_dict[package_header]['0'] != None:
+          new_str = self.str_xor(message,self.recv_dict[package_header]['0'])
+          
+          self.recv_dict[package_header]['complete'] = True
+          settimer(0,self.prev_callback,(rip,rport,new_str,handle)) 
+        
+
+    finally:
+      self.global_lock.release()
+
+
+    
+
+  def sendmess(self,host,port,msg,localhost=None,localport=None):
+    # splits a message into redundate packages and sends
+    # the packages to a server to be re-assembeled
+    
+    self.global_lock.acquire()
+    
+
+    target = host+':'+str(port)
+    if target not in self.send_dict:
+      
+      self.send_dict[target] = {'id':self.send_dict['package_id'],'str':None}
+      self.send_dict['package_id'] += 1
+
+    if self.send_dict[target]['str'] == None:
+      
+      self.send_dict[target]['str'] = msg
+      self.global_lock.release()
+      
+      new_msg = str(self.send_dict[target]['id'])+':0:'+msg
+      self.shim_stack.sendmess(host,port,new_msg,localhost,localport)
+ 
+    else:
+      
+      xor = self.str_xor(self.send_dict[target]['str'],msg)
+      new_msg = str(self.send_dict[target]['id'])+':1:'+msg
+      xor = str(self.send_dict[target]['id'])+':2:'+xor
+      del self.send_dict[target]
+      
+      self.global_lock.release()
+      
+      self.shim_stack.sendmess(host,port,new_msg,localhost,localport)
+      self.shim_stack.sendmess(host,port,xor,localhost,localport)
+      
+    return len(msg) 
+    
+    
+  def stopcomm(self,handle):
+    try:
+      (name,handle) = handle
+      if name != 'FEC':  raise Excetpion('Bad name'+str(name))
+    except Exception, e:
+      raise Exception('Bad handle in FECShim: '+str(e))
+    else:
+      # remove all state
+      self.recv_dict = None
+      self.shim_stack.stopcomm(handle)
+
+  def str_xor(self,a,b):
+    if len(a) > len(b):
+      (a,b) = (b,a)
+    outstr = ''
+    for pos in range(len(a)):
+      outstr = outstr + chr( ord(a[pos]) ^ ord(b[pos]))
+    outstr = outstr + b[pos+1:]
+    return outstr
+
+
+
+layermain_reg_layer('FECShim',{'class':FECShim})

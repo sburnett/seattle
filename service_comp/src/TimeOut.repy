@@ -1,0 +1,334 @@
+# a service composition version of the timeoutsocket
+
+
+include layermain.repy
+include TCP_TLayer.repy
+
+class TimeOut(TCP_TLayer):
+
+  def __init__(self):
+    self.name = 'TimeOut'  
+    TCP_TLayer.__init__(self)
+
+  class TimeoutSocket:
+    """
+    <Purpose>
+      Provide an socket object like the Repy usual one.
+
+    <Side Effects>
+      Uses a getlock() to watch for a timeout
+      Uses waitforconn and openconn to simulate socket
+    """
+
+
+    class SocketTimeoutError(Exception):
+      """The socket timed out before receiving a response"""
+      pass
+
+
+    ################
+    # Constructors
+    ################
+
+    def __init__(self,next_wait,next_open):
+      """ Constructor for socket """
+ 
+      self.next_waitforconn=next_wait
+      self.next_openconn=next_open
+      
+#      self.lock = getlock() # general lock BUG: Do we need to lock everything?
+      self.timeout_lock = getlock() # special lock for Timeout condition
+      self.timeout = 5 # seconds to wait
+      self.bytes_sent = None # used to check if send() timed out
+
+      # user vars   
+      self.local_address = None # ip, port
+      self.remote_address = None # ip, port
+      self.callback = None # the user's function to call
+
+      # repy socket vars
+      self.sockobj = None #  the Repy socket
+      self.commhandle = None # the current comm
+      self.listencommhandle = None # the listener comm
+
+      #error tracking vars
+    
+      #if any exceptions are thrown in the separate thread executing _send_and_release, 
+      #they are caught and stored in this variable, then raised in _send_or_close
+      self.TCPSendError = None
+
+    ################
+    # Mutator methods
+    #################
+
+    def settimeout(self, value):
+      """ Setter for timeout"""
+      self.timeout = value
+
+    def setcallback(self, function):
+      """ Setter for callback function"""
+      self.callback = function
+
+    ####################
+    # Public Methods
+    ####################
+
+    def bind(self, local_address = None):
+      """
+      <Purpose>
+        Set local address
+
+      <Args>
+        Tuple of (ip, port) local.
+      """
+      self.local_address = local_address
+
+    def listen(self):
+      """
+      <Purpose>
+        Listen for peer
+    
+      <Side Effects>
+        Calls Repy waitforconn()
+      """
+      return self._waitforconn()
+
+    def connect(self, remote_address):
+      """
+      <Purpose>
+        Connect to peer.
+
+      <Args>
+        Tuple of (ip, port) remote.
+   
+      <Side Effects>
+        Calls Repy openconn.
+      """
+      self.remote_address = remote_address
+      self._openconn()
+
+    def recv(self, maxLen): # timeout as optional arg ???
+      """
+      <Purpose>
+        If it fails to finish within the timeout, I close the socket and raise a
+        TimeoutError exception. I.e. if there's no message, we call it an error
+        and raise it.
+      
+      <Arguments>
+        maxLen - bytes to recv
+
+      <Exception>
+        Raises TimeoutError exception if the recv times out
+        without receiving a message.
+
+      <Side Effects>
+        Closes the connection if times out.
+
+      <Returns>
+        The message.
+      """
+      return self._recv_or_close(maxLen)
+
+    def send(self, data):
+      """
+      <Purpose>
+        Just like normal Repy socket.  Sends messages.
+      
+      <Arguments>
+        data - the string message
+
+      <Exception>
+        Same as Repy socket.
+ 
+      <Returns>
+        The bytes sent.
+      """
+      return self._send_or_close(data)
+
+    def close(self):
+      self.local_address = None # ip, port
+      self.remote_address = None # ip, port
+      self.callback = None # the user's function to call
+
+      if self.sockobj:
+        self.sockobj.close()
+      self.sockobj = None #  the Repy socket
+    
+      # Armon: As part of the semantics, stopcomm will raise an 
+      # exception given an invalid handle, e.g. None. Thus,
+      # we need to check for this.
+      if self.commhandle: 
+        stopcomm(self.commhandle)
+        self.commhandle = None # the current comm
+    
+      # Armon: Same as above.
+      if self.listencommhandle:
+        stopcomm(self.listencommhandle)
+        self.listencommhandle = None # the listener comm
+
+
+    ########################
+    # Private
+    #########################
+
+    def _openconn(self):
+      """Handle current state variables and call Repy openconn."""
+
+      destip, destport = self.remote_address
+      if self.local_address:
+        srcip, srcport = self.local_address
+        self.sockobj = self.next_openconn(destip, destport, srcip, srcport, self.timeout)
+      else:
+        self.sockobj = self.next_openconn(destip, destport)
+
+    def _waitforconn(self):
+      """Setup way between Repy waitforconn event"""
+      localip, localport = self.local_address
+      self.listencommhandle = self.next_waitforconn(localip, localport, self._callback)
+      return self.listencommhandle
+
+    def _callback(self, ip, port, sockobj, ch, lh):
+      """Pass on through to user callback"""
+      self.sockobj = sockobj
+      self.listencommhandle = lh # same as the 1st from wait for comm, right?
+      self.commhandle = ch # should we care?
+    
+      if not self.remote_address:
+        self.remote_address = (ip, port)
+      else: 
+        raise Exception("what! peer does not match?")
+
+      self.callback(ip, port, self, ch, lh)
+
+    def _send(self, data):
+      """Send data"""
+      return self.sockobj.send(data)
+
+    def _recv(self, maxLen):
+      """Recv data of length maxLen"""
+      return self.sockobj.recv(maxLen)
+
+    def _send_and_release(self, data):
+      """Send data then release the timeout lock"""
+    
+      #Bug Fix (Cosmin): exceptions thrown in separate thread _send_and_release could not be caught
+      #now we store the exception if it is thrown and raise it back in send_or_close
+      try:
+        self.bytes_sent = self._send(data)
+      except Exception, e:
+        self.TCPSendError = e
+    
+      self._quietly_release() # release the lock
+ 
+    def _quietly_release(self):
+      """Release the timeout lock and ignore if already released"""
+      try:
+        self.timeout_lock.release()
+      except:
+        pass
+   
+    def _send_or_close(self, data):
+      """Raise the Timeout Error if no receipt.  Keep track by timeout_lock."""
+
+      # acquire the lock, when it's release we'll carry on
+      self.timeout_lock.acquire()
+
+      # fork off a lock that'll release the lock at the timeout
+      timerhandle = settimer(self.timeout, self._quietly_release, ())
+
+      # fork off a send call so we can raise the exception in the main thread
+      # the send call will also release our lock
+      settimer(0, self._send_and_release, (data,))
+
+      # block until either the timeout or _send finishes
+      self.timeout_lock.acquire()
+      self.timeout_lock.release()
+
+      if self.bytes_sent: # send finished
+        canceltimer(timerhandle)
+        retdata = self.bytes_sent
+        self.bytes_sent = None
+        return retdata
+      elif self.TCPSendError != None:
+        #Bug Fix (Cosmin): exceptions thrown in separate thread _send_and_release could not be caught
+      
+        #we got an error within the separate thread that performed the send operation
+        exception_to_throw = self.TCPSendError
+        self.TCPSendError = None
+        raise exception_to_throw
+      else: # it timed out
+        self.close()
+        raise self.SocketTimeoutError("Socket Timeout")
+
+    def _recv_or_close(self, amount):
+      """Raise the Timeout Error if no receipt.  Keep track by timeout_lock."""
+      timerhandle = settimer(self.timeout, self._clobbersocket, ())
+      try:
+        retdata = self._recv(amount)
+      except Exception, e:
+        # if it's not the timeout, reraise...
+        if self.timeout_lock.acquire(False):
+          raise
+        raise self.SocketTimeoutError("Socket Timeout")
+    
+      # I acquired the lock, I should stop the timer because I succeeded...
+      if self.timeout_lock.acquire(False):
+        # even if this isn't in time, the lock prevents a race condition 
+        # this is merely an optimization to prevent the timer from ever firing...
+        canceltimer(timerhandle)
+        self.timeout_lock.release() # Alper's bug 3/10/09
+        return retdata
+      else:
+        raise self.SocketTimeoutError("Socket Timeout")
+
+    def _clobbersocket(self):
+      """If I can acquire the lock without blocking, then close the socket to abort"""
+      if self.timeout_lock.acquire(False):
+        self.close()
+
+  def openconn(self,desthost, destport, localip=None, localport=None, timeout = 5):
+    """
+    <Purpose> 
+      Wrapper for Repy like socket interface
+
+    <Args>
+      Same as Repy openconn
+
+    <Exception>
+      Timeout exception if the dest address doesnt respond.
+
+    <Returns>
+      socket obj on success
+    """
+
+    tsock = self.TimeoutSocket(self.next_waitforconn,self.next_openconn)
+    tsock.settimeout(timeout)
+    if localip and localport:
+      tsock.bind((localip, localport))
+    tsock.connect((desthost, destport))
+    return tsock
+
+  def waitforconn(self,localip, localport, function):
+    """
+    <Purpose> 
+      Wrapper for Repy like socket interface
+
+    <Args>
+      Same as Repy waitforconn
+
+    <Side Effects>
+      Sets up event listener which calls function on messages.
+
+    <Returns>
+      Handle to listener.
+    """
+
+    tsock = self.TimeoutSocket(self.next_waitforconn,self.next_openconn)
+    tsock.bind((localip, localport))
+    tsock.setcallback(function)
+    self.next_comm_handle = tsock.listen()
+    return self.next_comm_handle
+
+    
+reg_layer('TimeOut',{'class':TimeOut,'type':'T'})
+
