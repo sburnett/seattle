@@ -5,7 +5,7 @@ var vesselLengths = [1056, 0, 0, 0, 0, 0, 0, 0];
 var vesselOwners = ["","","","","","","",""];
 var vesselUsers = createArray();
 var userTally = [0, 0, 0, 0, 0, 0, 0, 0];
-var users = [];
+var activeusers = [];
 
 function createArray() {
 	var temp = new Array(8);
@@ -41,12 +41,13 @@ window.onload = function () {
   window.frames['target'].document.body.innerHTML = "";
   
   // reset the users array
-  var users = [];
+  var activeusers = [];
   
 	Initialize();
 	updateVessels();
 	resetForm();
 	$("installer").onclick = createInstaller;
+	$("debugbutton").onclick = debug;
 
 	var POST_frame = document.getElementById('target')
 	if (POST_frame.addEventListener) {
@@ -58,6 +59,14 @@ window.onload = function () {
 
 	add_post_handler();
 };
+
+function debug() {
+  debugtext = "vesselOwners: " + vesselOwners.join(" ");
+  debugtext += "<br>vesselUsers: " + vesselUsers.join(" ");
+  
+  document.getElementById("debug").innerHTML = debugtext;
+  changeTextById("debug", debugtext);
+}
 
 
 // JTC: This function is called whenever a POST request completes 
@@ -123,24 +132,46 @@ function removeelement() {
 			var parent = this.parentNode.parentNode.parentNode;
 			var subparent = this.parentNode.parentNode;
 			if (subparent.id.substring(0, 5) == "owner") {
-				var index = (Number)(parent.id[9]);
+				var index = (Number)(parent.id.charAt(9));
 				var defaultNode = document.createElement("li");
+				Element.extend(defaultNode);
+				
 				vesselOwners[index] = "";
-				defaultNode.textContent = "Drag User Here to Create Owner";
+				changeTextById(defaultNode, "Drag Owner Here");
+				
 				defaultNode.id = "owner" + index;
 				parent.appendChild(defaultNode);
 				subparent.remove();
 			} else {
-				var index = (Number)(parent.id[8]);
+				var index = (Number)(parent.id.charAt(8));
 				var adds = $$(".addusers");
 				//alert((parseInt(adds[index].style.height)));
 				adds[index].style.height = (parseInt(adds[index].style.height) + 53) + "px";
 				adds[index].style.lineHeight = (parseInt(adds[index].style.lineHeight) + 53) + "px";
 				subparent.remove();
-				vesselUsers[index][userTally[index]] = "";
+				
+				var username;
+				var length;
+				if (supportsInnerText()) {
+          length = this.parentNode.innerText.length;
+          username = this.parentNode.innerText.substring(0, length-1);
+        } else {
+				  length = this.parentNode.textContent.length;
+				  username = this.parentNode.textContent.substring(0, length-1);
+				}
+				
+				to_remove_idx = vesselUsers[index].indexOf(username);
+				alert(username);
+				alert(to_remove_idx);
+				vesselUsers[index].splice(to_remove_idx, 1);
+				
+				//alert("userTally: " + userTally + "\n" + "vesselUsers[" + index+ "][userTally[" + index +"]]: " + vesselUsers[index][userTally[index]]);
+				//vesselUsers[index][userTally[index]] = "";
 				userTally[index]--;
+				
 				//fixheights(adds);
 			}
+			validate();
 }		
 		
 function fixheights(adds) {
@@ -161,7 +192,7 @@ function fixheights(adds) {
 
 function removeVessel() {
 	this.style.display = "none";
-	var index = (Number)((this.id)[6]+"");
+	var index = (Number)(this.id.charAt(6)+"");
 	$("plus"+index).style.display = "block";
 	var previousIndex = findNumberOfJumpsBack(index-1);
 	vesselLengths[index-previousIndex] += vesselLengths[index];
@@ -171,7 +202,7 @@ function removeVessel() {
 
 function addVessel() {
 	this.style.display = "none";
-	var index = (Number)((this.id)[4]+"");
+	var index = (Number)(this.id.charAt(4)+"");
 	$("remove"+index).style.display = "block";
 	var multiplier = findNumberOfJumps(index);
 	vesselLengths[index] = (multiplier * 132) ;
@@ -207,24 +238,36 @@ function Initialize() {
 /* Initializes the Vessels, including their remove button */
 	for (var i = 0;i < 8;i++) {
 		var vessel = document.createElement("div");
+		Element.extend(vessel);
+		
 		vessel.style.left = ((132 * i) + 7) + "px";
 		vessel.id = "vessel" + i;
 		vessel.addClassName("vessel");
 		var ownerlist = document.createElement("ul");
+		Element.extend(ownerlist);
+		
 		ownerlist.id = "ownerlist" + i;
 		ownerlist.className = "ownerlist";
 		var ownerheader = document.createElement("li");
+		Element.extend(ownerheader);
+		
 		ownerheader.textContent = "Owner";
 		ownerheader.addClassName("ownerheader");
 		try { if(!ownerheader.innerText) ownerheader.innerText = ownerheader.textContent; } catch(e) {}
 		var owner = document.createElement("li");
+		Element.extend(owner);
+		
 		owner.textContent = "Drag Owner Here";
 		owner.id = "owner" + i;
 		try { if(!owner.innerText) owner.innerText = owner.textContent; } catch(e) {}
 		var userlist = document.createElement("ul");
+		Element.extend(userlist);
+		
 		userlist.id = "userlist" + i;
 		userlist.className = "userlist";
 		var userheader = document.createElement("li");
+		Element.extend(userheader);
+		
 		userheader.textContent = "Users";
 		userheader.addClassName("ownerheader");
 		try { if(!userheader.innerText) userheader.innerText = userheader.textContent; } catch(e) {}
@@ -248,6 +291,8 @@ function Initialize() {
 	/*Initializes the plus signs and remove buttons*/
 	for (var j = 1;j < 8;j++) {
 		var plus = document.createElement("p");
+		Element.extend(plus);
+		
 		plus.style.width = "10px";
 		plus.style.position = "absolute";
 		plus.style.height = "10px";
@@ -262,6 +307,8 @@ function Initialize() {
 		plus.style.left = ((j * 132) + 8 ) + "px";
 		$("pluses").appendChild(plus);
 		var remove = document.createElement("p");
+		Element.extend(remove);
+		
 		remove.textContent = "X";
 		try { if(!remove.innerText) remove.innerText = remove.textContent; } catch(e) {}
 		remove.id = "remove" + j;
@@ -276,6 +323,8 @@ function Initialize() {
 	}
 	/*Initializes the untouchable "2%" vessel block*/
 	var staticvessel = document.createElement("span");
+	Element.extend(staticvessel);
+	
 	staticvessel.id = "staticvessel";
 	staticvessel.style.display = "inline-block";
 	staticvessel.style.width = "192px";
@@ -283,9 +332,9 @@ function Initialize() {
 	staticvessel.style.position = "absolute";
 	staticvessel.style.textAlign = "center";
 	if (BrowserDetect.browser == "Explorer") {
-		staticvessel.style.top = ($("vessellist").offsetTop); 
+		//staticvessel.style.top = ($("vessellist").offsetTop); 
 	} else {
-		staticvessel.style.top = ($("vessellist").offsetTop);
+		//staticvessel.style.top = ($("vessellist").offsetTop);
 	}
 	staticvessel.style.marginTop = "15px";
 	staticvessel.style.marginLeft = "1063px";
@@ -298,17 +347,36 @@ function Initialize() {
 }
 
 function addOwnerToList(draggable, droppable) {
-	var index = (Number)(droppable.id[9]);
+	
+	var index = (Number)(droppable.id.charAt(9));
 	$("owner" + index).remove();
 	var newlyAdded = document.createElement("li");
+	Element.extend(newlyAdded);
+	
 	newlyAdded.id = "owner" + index;
-	var length = draggable.textContent.length;
+	
+	if (supportsInnerText()) { var length = draggable.innerText.length; } else { var length = draggable.textContent.length; }
+	
 	var content = document.createElement("p");
+	Element.extend(content);
+	
 	content.addClassName("container");
-	content.textContent = (draggable.textContent.substring(0, length-1));
-	vesselOwners[index] = (draggable.textContent.substring(0, length-1));
-	try { if(!content.innerText) content.innerText = content.textContent; } catch(e) {}
+	
+	var username = "";
+	if (supportsInnerText()) {
+    username = (draggable.innerText.substring(0, length-1));
+    content.innerText = username;
+  } else {
+		username = (draggable.textContent.substring(0, length-1));
+	  content.textContent = username;
+	}
+  vesselOwners[index] = username;
+  activeusers.push(username);
+	
+	//try { if(!content.innerText) content.innerText = content.textContent; } catch(e) {}
 	var link = document.createElement("a");
+	Element.extend(link);
+	
 	link.addClassName("close");
 	link.textContent = "X";
 	link.onclick = removeelement;
@@ -322,6 +390,8 @@ function addOwnerToList(draggable, droppable) {
 
 function createAddUserBox(lastheight) {
 	var user = document.createElement("li");
+	Element.extend(user);
+	
 	user.textContent = "Drag Users Here";
 	try { if(!user.innerText) user.innerText = user.textContent; } catch(e) {}
 	user.addClassName("addusers");
@@ -336,10 +406,29 @@ function createAddUserBox(lastheight) {
 }
 
 function addUserToList(draggable, droppable) {
-	var index = (Number)(droppable.id[8]);
+
+  var username;
+  var length;
+	if (supportsInnerText()) {
+    length = draggable.innerText.length;
+    username = (draggable.innerText.substring(0, length-1));
+  } else {
+	  length = draggable.textContent.length;
+    username = (draggable.textContent.substring(0, length-1));
+  }
+  
+	var index = (Number)(droppable.id.charAt(8));
+	
+	if (vesselUsers[index].indexOf(username) != -1) {
+    alert("That username already exists in this vessel!");
+    return;
+  }
+	
 	var lastheight = parseInt(droppable.lastChild.style.height);
 	droppable.lastChild.remove();
 	var newlyAdded = document.createElement("li");
+	Element.extend(newlyAdded);
+	
 	if ($("user" + index + "-1")) {
 		var lastchildID = droppable.lastChild.id
 		newlyAdded.id = "user" + index + "-" + ((Number)(lastchildID.substring(6, lastchildID.length)) + 1);
@@ -347,15 +436,29 @@ function addUserToList(draggable, droppable) {
 		newlyAdded.id = "user" + index + "-1";
 	}
 	var link = document.createElement("a");
+	Element.extend(link);
+	
 	link.addClassName("close");
 	link.textContent = "X";
 	link.onclick = removeelement;
 	try { if(!link.innerText) link.innerText = link.textContent; } catch(e) {}
 	var content = document.createElement("p");
+	Element.extend(content);
+	
 	content.addClassName("container");
-	var length = draggable.textContent.length;
-	content.textContent = (draggable.textContent.substring(0, length-1));
-	try { if(!content.innerText) content.innerText = content.textContent; } catch(e) {}
+	
+	//var length = draggable.textContent.length;
+	//content.textContent = (draggable.textContent.substring(0, length-1));
+	if (supportsInnerText()) {
+    //var length = draggable.innerText.length;
+    content.innerText = (draggable.innerText.substring(0, length-1));
+  } else { 
+	  //var length = draggable.textContent.length;
+	  content.textContent = (draggable.textContent.substring(0, length-1));
+	}
+	
+	
+	//try { if(!content.innerText) content.innerText = content.textContent; } catch(e) {}
 	content.appendChild(link);
 	newlyAdded.appendChild(content);
 	droppable.appendChild(newlyAdded);
@@ -370,8 +473,14 @@ function addUserToList(draggable, droppable) {
 	}
 	var vessels = $$(".vessel");
 	var addBox = createAddUserBox(lastheight);
-	droppable.appendChild(addBox);	
-	vesselUsers[index][userTally[index]] = (draggable.textContent.substring(0, length-1));
+	droppable.appendChild(addBox);
+	
+	if (supportsInnerText()) {
+	  vesselUsers[index][userTally[index]] = (draggable.innerText.substring(0, length-1));
+	} else {
+    vesselUsers[index][userTally[index]] = (draggable.textContent.substring(0, length-1));
+  }
+	
 	userTally[index]++;
 }
 
@@ -403,14 +512,23 @@ function addUser () {
 		counter++;
 	}
 	
-	if (users.indexOf(name) == -1) {
-		users.push(name);
+	//if (users.indexOf(name) == -1) {
+  //users.push(name);
 		var user = document.createElement("span");
+		Element.extend(user);
+		
 		var close = document.createElement("a");
+		Element.extend(close);
+		
 		user.addClassName("user");
 		user.id = name;
-		user.textContent = name;
-		close.textContent = "x";
+		
+		//user.textContent = name;
+		changeTextById(user, name);
+		
+		//close.textContent = "x";
+		changeTextById(close, "x");
+		
 		close.addClassName("close");
 		close.href = "#";
 		close.onclick = function () {
@@ -424,7 +542,7 @@ function addUser () {
 			$("plus" + i).style.top = ($("vessellist").offsetTop - 7) + "px";
 			$("remove" + i).style.top = ($("vessellist").offsetTop - 2) + "px";
 		}
-	}
+	//}
 	
 	resetForm();
 	
@@ -681,4 +799,19 @@ if (!Array.prototype.indexOf)
     }
     return -1;
   };
+}
+
+// JTC: Changes text using the correct browser-specific method
+function changeTextById(element, changeVal) {
+  var hasInnerText = (document.getElementsByTagName("body")[0].innerText != undefined) ? true : false;
+  
+  if(!hasInnerText){
+    element.textContent = changeVal;
+  } else {
+    element.innerText = changeVal;
+  }
+}
+
+function supportsInnerText() {
+  return (document.getElementsByTagName("body")[0].innerText != undefined) ? true : false;
 }
