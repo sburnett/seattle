@@ -6,6 +6,7 @@
   February 10, 2009
     Amended June 11, 2009
     Amended July 30, 2009
+    Amended September 9, 2009
 
 <Author>
   Carter Butaud
@@ -14,10 +15,11 @@
 <Purpose>
   Installs seattle on any supported system. This means setting up the computer
   to run seattle at startup, generating node keys, customizing configuration
-  files, and starting seattle itself.
+  files, and starting seattle running (not necessarily in that order, except
+  that seattle must always be started running last).
 """
 
-# Let's make sure the version of python is supported
+# Let's make sure the version of python is supported.
 import checkpythonversion
 checkpythonversion.ensure_python_version_is_supported()
 
@@ -27,12 +29,12 @@ import platform
 import sys
 import getopt
 import tempfile
-import re
-import servicelogger
 import time
+import getpass
 
-# Python should do this by default, but doesn't on Windows CE
+# Python should do this by default, but doesn't on Windows CE.
 sys.path.append(os.getcwd())
+import servicelogger
 import nonportable
 import createnodekeys
 import repy_constants
@@ -40,7 +42,7 @@ import persist # Armon: Need to modify the NM config file
 import benchmark_resources
 # Anthony - traceback is imported so that benchmarking can be logged
 # before the vessel state has been created (servicelogger does not work
-# without the v2 directory
+# without the v2 directory).
 import traceback 
 
 
@@ -51,6 +53,13 @@ OS = nonportable.ostype
 SUPPORTED_OSES = ["Windows", "WindowsCE", "Linux", "Darwin"]
 # Supported Windows Versions: XP, Vista
 RESOURCE_PERCENTAGE = 10
+# Armon: DISABLE_INSTALL: Special flag for testing purposes that can be
+#        accessed from the command-line argument "--onlynetwork". All
+#        pre-install actions are performed, but the actual install is disabled.
+DISABLE_INSTALL = False
+# Specify the directory containing all seattle files.
+SEATTLE_FILES_DIR = os.path.realpath(".")
+
 
 # Import subprocess if not in WindowsCE
 subprocess = None
@@ -68,6 +77,19 @@ if OS == "Windows" or OS == "WindowsCE":
   import _winreg
 
 
+
+
+class CronAccessibilityFilesPermissionDeniedError(Exception):
+  pass
+
+class CronAccessibilityFilesNotFoundError(Exception):
+  pass
+
+class CannotDetermineCronStatusError(Exception):
+  pass
+
+class DetectUserError(Exception):
+  pass
 
 class UnsupportedOSError(Exception):
   pass
@@ -89,26 +111,65 @@ def _output(text):
 
 
 
-def preprocess_file(filename, substitute_dict, comment="#"):
+def find_substring_in_a_file_line(search_absolute_filepath,substring):
+  """
+  <Purpose>
+    Determine if the given substring exists in at least one line in the given
+    file by opening a file object for the file in search_absolute_filepath.
+
+  <Arguments>
+    search_absolute_filepath:
+      The absolute file path to the file that will be searched for the given
+      substring.
+
+    substring:
+      The substring that will be searched for in file named by
+      search_absolute_filepath.
+
+  <Exceptions>
+    IOError if the supplied file path does not exist.
+
+  <Side Effects>
+    None.
+
+  <Return>
+    True if the substring is found in at least one line in the file specified
+    by search_absolute_filepath,
+    False otherwise.
+  """
+
+  file_obj = open(search_absolute_filepath,"r")
+  for line in file_obj:
+    if substring in line:
+      file_obj.close()
+      return True
+
+  file_obj.close
+  return False
+
+
+
+
+def preprocess_file(absolute_filepath, substitute_dict, comment="#"):
   """
   <Purpose>
     Looks through the given file and makes all substitutions indicated in lines
     the do not begin with a comment.
 
   <Arguments>
-    filename:
-      The name of the file that will be preprocessed.
+    absolute_filepath:
+      The absolute path to the file that should be preprocessed.
     substitute_dict:
       Map of words to be substituted to their replacements, e.g.,
-      {"word_in_file_1": "replacement1", "word_in_file_2": "replacement2"}
+      {"word1_in_file": "replacement1", "word2_in_file": "replacement2"}
     comment:
-      A string which demarks commented lines; lines that start with this will
+      A string which indicates commented lines; lines that start with this will
       be ignored, but lines that contain this symbol somewhere else in the line 
       will be preprocessed up to the first instance of the symbol. Defaults to
       "#". To preprocess all lines in a file, set as the empty string.
 
   <Exceptions>
-    IOError on bad filename.
+    IOError on bad file names.
   
   <Side Effects>
     None.
@@ -117,7 +178,7 @@ def preprocess_file(filename, substitute_dict, comment="#"):
     None.
   """
   edited_lines = []
-  base_fileobj = open(filename, "r")
+  base_fileobj = open(absolute_filepath, "r")
 
   for fileline in base_fileobj:
     commentedOutString = ""
@@ -139,7 +200,7 @@ def preprocess_file(filename, substitute_dict, comment="#"):
   base_fileobj.close()
 
   # Now, write those modified lines to the actual starter file location.
-  final_fileobj = open(filename, "w")
+  final_fileobj = open(absolute_filepath, "w")
   final_fileobj.writelines(edited_lines)
   final_fileobj.close()
 
@@ -165,13 +226,14 @@ def get_filepath_of_win_startup_folder_with_link_to_seattle():
     None.
 
   <Returns>
-    A tuple is returned whith the first value being the filepath to the link in
+    A tuple is returned with the first value being the filepath to the link in
     the startup folder that will run seattle at boot.  The second value is a
     boolean value: True indicates the link currently exists in the startup
     folder, and False if it does not.
   """
   if OS == "WindowsCE":
-    startup_path = "\\Windows\\Startup" + os.sep + get_starter_file_name()
+    startup_path = "\\Windows\\Startup" + os.sep \
+        + get_starter_shortucut_file_name()
     return (startup_path, os.path.exists(startup_path))
 
   elif OS != "Windows":
@@ -180,12 +242,21 @@ def get_filepath_of_win_startup_folder_with_link_to_seattle():
 
   version = platform.release()
   if version == "Vista":
-    startup_path = os.environ.get("HOMEDRIVE") + os.environ.get("HOMEPATH") + "\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Startup" + os.sep + get_starter_shortcut_file_name()
+    startup_path = os.environ.get("HOMEDRIVE") + os.environ.get("HOMEPATH") \
+        + "\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs" \
+        + "\\Startup" + os.sep + get_starter_shortcut_file_name()
     return (startup_path, os.path.exists(startup_path))
 
   elif version == "XP":
-    startup_path = os.environ.get("HOMEDRIVE") + os.environ.get("HOMEPATH") + "\\Start Menu\\Programs\\Startup" + os.sep + get_starter_shortcut_file_name()
+    startup_path = os.environ.get("HOMEDRIVE") + os.environ.get("HOMEPATH") \
+        + "\\Start Menu\\Programs\\Startup" + os.sep \
+        + get_starter_shortcut_file_name()
     return (startup_path, os.path.exists(startup_path))
+
+  else:
+    raise UnsupportedOSError("This version of Windows is not supported. " \
+                               + "Contact the seattle development team to " \
+                               + "resolve this issue." )
 
 
 
@@ -215,7 +286,10 @@ def get_starter_file_name():
   elif OS == "Linux" or OS == "Darwin":
     return "start_seattle.sh"
   else:
-    raise UnsupportedOSError
+    raise UnsupportedOSError("This operating system is not supported. " \
+                               + "Currently, only the following operating " \
+                               + "systems are supported: " + SUPPORTED_OSES)
+                            
 
 
 
@@ -251,7 +325,7 @@ def get_starter_shortcut_file_name():
 def get_stopper_file_name():
   """
   <Purpose>
-    Returns the name of the stopper file on the current operating syste
+    Returns the name of the stopper file on the current operating system.
 
   <Arguments>
     None.
@@ -274,7 +348,9 @@ def get_stopper_file_name():
   elif OS == "Linux" or OS == "Darwin":
     return "stop_seattle.sh"
   else:
-    raise UnsupportedOSError
+    raise UnsupportedOSError("This operating system is not supported. " \
+                               + "Currently, only the following operating " \
+                               + "systems are supported: " + SUPPORTED_OSES)
 
 
 
@@ -304,7 +380,9 @@ def get_uninstaller_file_name():
   elif OS == "Linux" or OS == "Darwin":
     return "uninstall.sh"
   else:
-    raise UnsupportedOSError
+    raise UnsupportedOSError("This operating system is not supported. " \
+                               + "Currently, only the following operating " \
+                               + "systems are supported: " + SUPPORTED_OSES)
 
 
 
@@ -317,8 +395,8 @@ def search_value_in_win_registry_key(opened_key,seeking_value_name):
   <Arguments>
     opened_key:
       An already opened key that will be searched for the given value.  For a
-      key to be opened, it must have had the _winreg.OpenKey(...) or
-      _winreg.CreateKey(...) functions performed on it.
+      key to be opened, it must have had either the _winreg.OpenKey(...) or
+      _winreg.CreateKey(...) function performed on it.
 
     seeking_value_name:
       A string containing the name of the value to search for within the
@@ -334,14 +412,13 @@ def search_value_in_win_registry_key(opened_key,seeking_value_name):
   <Returns>
     True if seeking_value_name is found within opened_key.
     False otherwise.
-
   """
   if OS != "Windows" and OS != "WindowsCE":
     raise UnsupportedOSError("This operating system must be Windows or " \
                                + "WindowsCE in order to manipulate registry " \
                                + "keys.")
 
-  # Test to make sure that opened_kay was actually opened by obtaining
+  # Test to make sure that opened_key was actually opened by obtaining
   # information about that key.
   # Raises a WindowsError if opened_key has not been opened.
   # subkeycount: the number of subkeys opened_key contains. (not used).
@@ -383,7 +460,7 @@ def remove_seattle_from_win_startup_folder():
 
   <Returns>
     True if the function removed the link to the startup script, meaning it
-         previously existd.
+         previously existed.
     False otherwise, meaning that a link to the startup script did not
     previously exist.
   """
@@ -404,14 +481,13 @@ def remove_seattle_from_win_startup_folder():
 
 
 
-def add_seattle_to_win_startup_folder(prog_path):
+def add_seattle_to_win_startup_folder():
   """
   <Purpose>
     Add the seattle startup script to the Windows startup folder.
 
   <Arguments>
-    prog_path:
-      The absolute path to the seattle_repy directory.
+    None.
 
   <Exceptions>
     UnsupportedOSError if the os is not supported (i.e., a Windows machine).
@@ -436,21 +512,20 @@ def add_seattle_to_win_startup_folder(prog_path):
     raise AlreadyInstalledError("seattle was already installed in the " \
                                   + "startup folder.")
   else:
-    shutil.copy(prog_path + os.sep + get_starter_shortcut_file_name(),
+    shutil.copy(SEATTLE_FILES_DIR + os.sep + get_starter_shortcut_file_name(),
                 full_startup_file_path)
 
 
 
 
-def add_to_win_registry_Local_Machine_key(prog_path):
+def add_to_win_registry_Local_Machine_key():
   """
   <Purpose>
     Adds seattle to the Windows registry key Local_Machine which runs programs
     at machine startup (regardless of which user logs in).
 
   <Arguments>
-    prog_path:
-      The path to the directory where the seattle program files are located.
+    None.
 
   <Exceptions>
     UnsupportedOSError if the os is not supported (i.e., a Windows machine).
@@ -501,7 +576,7 @@ def add_to_win_registry_Local_Machine_key(prog_path):
       # Close the key before raising AlreadyInstalledError.
       _winreg.CloseKey(startup_key)
       raise AlreadyInstalledError("seattle is already installed in the " \
-                                    + "Windows registry starup key.")
+                                    + "Windows registry startup key.")
 
     try:
       # seattle has not been detected in the registry from a previous
@@ -519,13 +594,13 @@ def add_to_win_registry_Local_Machine_key(prog_path):
       # _winreg.REG_SZ: Specifies the integer constant REG_SZ which indicates
       #                 that the type of the data to be stored in the value is a
       #                 null-terminated string.
-      # prog_path + os.sep + get_starter_file_name(): The data of the new
-      #                                               value being created
+      # SEATTLE_FILES_DIR + os.sep + get_starter_file_name(): The data of the
+      #                                               new value being created
       #                                               containing the full path
       #                                               to seattle's startup
       #                                               script.
       _winreg.SetValueEx(startup_key, "seattle", 0, _winreg.REG_SZ,
-                       prog_path + os.sep + get_starter_file_name())
+                       SEATTLE_FILES_DIR + os.sep + get_starter_file_name())
       servicelogger.log(" seattle was successfully added to the Windows " \
                           + "registry key to run at startup: " \
                           + "HKEY_LOCAL_MACHINE\\Software\\Microsoft\\Windows" \
@@ -533,6 +608,7 @@ def add_to_win_registry_Local_Machine_key(prog_path):
       # Close the key before returning.
       _winreg.CloseKey(startup_key)
       return True
+
       
     except WindowsError:
       # Close the key before falling through the try: block.
@@ -544,14 +620,13 @@ def add_to_win_registry_Local_Machine_key(prog_path):
 
 
 
-def add_to_win_registry_Current_User_key(prog_path):
+def add_to_win_registry_Current_User_key():
   """
   <Purpose>
     Sets up seattle to run at user login on this Windows machine.
 
   <Arguments>
-    prog_path:
-      The path to the directory where the seattle program files are located.
+    None.
 
   <Exceptions>
     UnsupportedOSError if the os is not supported (i.e., a Windows machine).
@@ -600,7 +675,7 @@ def add_to_win_registry_Current_User_key(prog_path):
       # Close the key before raising AlreadyInstalledError.
       _winreg.CloseKey(startup_key)
       raise AlreadyInstalledError("seattle is already installed in the " \
-                                    + "Windows registry starup key.")
+                                    + "Windows registry startup key.")
 
     try:
       # seattle has not been detected in the registry from a previous
@@ -618,13 +693,13 @@ def add_to_win_registry_Current_User_key(prog_path):
       # _winreg.REG_SZ: Specifies the integer constant REG_SZ which indicates
       #                 that the type of the data to be stored in the value is a
       #                 null-terminated string.
-      # prog_path + os.sep + get_starter_file_name(): The data of the new
-      #                                               value being created
+      # SEATTLE_FILES_DIR + os.sep + get_starter_file_name(): The data of the
+      #                                               new value being created
       #                                               containing the full path
       #                                               to seattle's startup
       #                                               script.
       _winreg.SetValueEx(startup_key, "seattle", 0, _winreg.REG_SZ,
-                       prog_path + os.sep + get_starter_file_name())
+                       SEATTLE_FILES_DIR + os.sep + get_starter_file_name())
       servicelogger.log(" seattle was successfully added to the Windows " \
                           + "registry key to run at user login: " \
                           + "HKEY_CURRENT_USER\\Software\\Microsoft\\Windows" \
@@ -642,7 +717,7 @@ def add_to_win_registry_Current_User_key(prog_path):
 
 
 
-def setup_win_startup(prog_path,scripts_path):
+def setup_win_startup():
   """
   <Purpose>
     Sets up seattle to run at startup on this Windows machine. First, this means
@@ -655,11 +730,7 @@ def setup_win_startup(prog_path,scripts_path):
     only run seattle when this user logs in.
 
   <Arguments>
-    prog_path:
-      The path to the directory where the seattle program files are located.
-
-    scripts_path:
-      The path to the direcotory where the seattle scripts are located.
+    None.
 
   <Exceptions>
     UnsupportedOSError if the os is not supported (i.e., a Windows machine).
@@ -673,7 +744,7 @@ def setup_win_startup(prog_path,scripts_path):
     startup folder if adding to the registry key fails.
 
     If an entry is successfully made to the registry key and a pre-existing link
-    to seattle exists in the startup folder, the entry in the startup foler is
+    to seattle exists in the startup folder, the entry in the startup folder is
     removed.
 
   <Returns>
@@ -687,8 +758,8 @@ def setup_win_startup(prog_path,scripts_path):
                                + "or startup folder.")
 
   try:
-    added_to_CU_key = add_to_win_registry_Current_User_key(prog_path)
-    added_to_LM_key = add_to_win_registry_Local_Machine_key(prog_path)
+    added_to_CU_key = add_to_win_registry_Current_User_key()
+    added_to_LM_key = add_to_win_registry_Local_Machine_key()
   except Exception,e:
     # Fall through try: block to setup seattle in the startup folder.
     _output("seattle could not be installed in the Windows registry for the " \
@@ -723,7 +794,7 @@ def setup_win_startup(prog_path,scripts_path):
   # to the startup folder.
   _output("Attempting to add seattle to the startup folder as an " \
             + "alternative method for running seattle at startup.")
-  add_seattle_to_win_startup_folder(prog_path)
+  add_seattle_to_win_startup_folder()
   servicelogger.log(" A link to the seattle starter script was installed in " \
                       + "the Windows startup folder rather than in the " \
                       + "registry.")
@@ -731,22 +802,325 @@ def setup_win_startup(prog_path,scripts_path):
 
 
 
-def setup_linux_or_mac_startup(prog_path,scripts_path):
+def test_cron_is_running():
+  """
+  <Purpose>
+    Try to find out if cron is installed and running on this system. This is not
+    a straight-forward process because many operating systems install cron in
+    different locations.  Further, not all the current known locations of
+    where cron may be installed will allow for the status (whether or not cron
+    is actually running) to be checked. As a result, the most general method of
+    trying to find if cron is running is performed first (grep the list of
+    current processes looking for cron), then if that fails, the following list
+    of possible cron file locations where the cron status can be checked are
+    searched. If all else fails, a CannotDetermineCronStatusError is raised.
+
+    Current list of possible cron locations where the status of cron can be
+    checked:
+
+      DEBIAN AND UBUNTU: /etc/init.d/cron
+      DEBIAN AND UBUNTU: /etc/init.d/crond
+      FREEBSD and others?: /etc/rc.d/cron
+      unknown: /etc/rc.d/init.d/cron
+
+
+  <Arguments>
+    None.
+
+  <Exceptions>
+    UnsupportedOSError if this is not a Linux or Mac box.
+    CannotDetermineCronStatusError if cron is installed but it cannot be
+      determined whether or not it is running.
+
+  <Side Effects>
+    None.
+   
+  <Return>
+    True if cron is running on this machine,
+    False otherwise.
+  """
+
+  if not OS == "Linux" and not OS == "Darwin":
+    raise UnsupportedOSError("This must be a Linux or Macintosh machine to " \
+                               + "test if cron is running.")
+
+  # First, try the most general way of seeing if cron is running.
+
+  # Due to the pipes in the subprocess.Popen command, it makes more sense to
+  # send the command as one string rather than breaking up the cammand into
+  # three separate subprocess.Popen processes and piping the output of one into
+  # the input of the next.
+  grep_cron_stdout,grep_cron_stderr = \
+      subprocess.Popen("ps -ef | grep cron | grep -v grep",shell=True,
+                       stdout=subprocess.PIPE,
+                       stderr=subprocess.PIPE).communicate()
+
+  if "cron" in grep_cron_stdout:
+    return (True,None)
+  else:
+    grep_crond_stdout,grep_crond_stderr = \
+        subprocess.Popen("ps -ef | grep crond | grep -v grep",shell=True,
+                         stdout=subprocess.PIPE,
+                         stderr=subprocess.PIPE).communicate()
+    if "crond" in grep_crond_stdout:
+      return (True,None)
+
+
+
+
+  # Reaching this point means cron was not detected using the most general
+  # method.  Cron may still be running or installed, but may not be easily
+  # accessible.  For example, FreeBSD seems to have some trouble running the
+  # command "ps -ef | grep cron | grep -v grep".
+
+  # Try to get the status of cron if possible.
+
+  # Depending on the system and distribution, the cron file that allows the cron
+  # status to be checked could appear in a variety of places.
+  cron_file_paths_list = ["/etc/init.d/cron","/etc/init.d/crond",
+                          "/etc/rc.d/init.d/cron","/etc/rc.d/cron"]
+
+  cron_status_path = None
+  for possible_cron_path in cron_file_paths_list:
+    # Test if possible_cron_path exists and is executable.
+    if os.access(possible_cron_path,os.X_OK):
+      cron_status_path = possible_cron_path
+      break
+
+  if cron_status_path == None:
+    # Not able to detect cron on this machine. Because the cron_file_paths_list
+    # may be incomplete, this function cannot return false but must instead
+    # raise a CannotDetermineCronStatusError.
+    raise CannotDetermineCronStatusError("Cannot determine if cron is " \
+                                           + "installed, and thus cannot " \
+                                           + "test if cron is running.")
+
+  else:
+    # Try to get the status of cron from the found cron_status_path.
+    try:
+      cron_status_stdout,cron_status_stderr = \
+          subprocess.Popen([cron_status_path,"status"],
+                           stdout=subprocess.PIPE,
+                           stderr=subprocess.PIPE).communicate()
+    except Exception:
+      raise CannotDetermineCronStatusError("User cannot access the cron " \
+                                             + "status.")
+    else:
+      # Because there will be various outputs depending on the OS and whether
+      # or not cron is installed, many conditions are needed to attempt to
+      # capture the cron status.
+      if not cron_status_stdout and not cron_status_stderr:
+        # If there is no output, then the status cannot be determined.
+        raise CannotDetermineCronStatusError("No output produced from the " \
+                                               + "cron status command.")
+      elif "not running" in cron_status_stdout:
+        # If "not running" appears in the stdout output, return False.
+        return (False,cron_status_path)
+      elif cron_status_stdout and not cron_status_stderr:
+        # After those tests, if there is stdout output and no stderr output,
+        # return True to indicate that cron is running.
+        return (True,cron_status_path)
+      else:
+        # For any other unpredicted conditions, raise a
+        # CannotDetermineCronStatusError
+        raise CannotDetermineCronStatusError("The output produced by the " \
+                                               + "cron status command could " \
+                                               + "not be interpreted.")
+
+
+
+
+def test_cron_accessibility():
+  """
+  <Purpose>
+    Find out if the user has access to use cron by examining the allow and deny
+    files for cron.  Depending on the operating system, these files may be
+    located in various locations.  Below is a list of probable locations
+    depending on the system (this list may not be complete).
+
+	DEBIAN:	 /etc/cron.allow
+	SuSE:	 /var/spool/cron/allow
+	MAC:	 /usr/lib/cron/cron.allow
+	UNIX?:	 /etc/cron.d/cron.allow
+	BSD:	 /var/cron/allow
+
+    Because there are so many options, this function searches for any of these
+    files on the system.  If any of them exist, then we have found the location
+    of the accessibility files on this machine.  If this function cannot find
+    any of these files, then we assume the accessibility files do not exist on
+    this machine, meaning that the user may or may not have access to cron
+    depending on the system on its specifications with cron (this cannot be
+    determined by us, so a CronAccessibilityFilesNotFoundError is raised).
+
+  <Arguments>
+    None.
+
+  <Exceptions>
+    UnsupportedOSError if this not a Linux or Mac box.
+    CronAccessibilityFilesNotFoundError if the allow or deny files cannot be
+      found on this system.
+    DectectUserError if cron accessibility files are found but the user name
+      cannot be determined.
+    CronAccessibilityFilesPermissionDeniedError when the cron accessibility
+      files are found but the user does not have permission to read them.
+
+  <Side Effects>
+    None.
+
+  <Return>
+    True if the user has access to use cron,
+    False otherwise.
+  """
+
+  if not OS == "Linux" and not OS == "Darwin":
+    raise UnsupportedOSError("This must be a Linux or Macintosh machine to " \
+                               + "test if cron is running.")
+
+  cron_allow_path = None
+  cron_deny_path = None
+  cron_accessibility_paths = [("/etc/cron.allow","/etc/cron.deny"),
+                              ("/var/spool/cron/allow","/var/spool/cron/deny"),
+                              ("/usr/lib/cron/cron.allow",
+                               "/usr/lib/cron/cron.allow"),
+                              ("/etc/cron.d/cron.allow",
+                               "/etc/cron.d/cron.deny"),
+                              ("/var/cron/allow","/var/cron/deny")]
+
+  # Try to figure out the location of the cron accessibility files.
+  for (possible_allow_path,possible_deny_path) in cron_accessibility_paths:
+    if os.path.exists(possible_allow_path) \
+          or os.path.exists(possible_deny_path):
+      cron_allow_path = possible_allow_path
+      cron_deny_path = possible_deny_path
+      break
+
+  
+  if cron_allow_path == None and cron_deny_path == None:
+    # The cron accessibility files do not exist.
+    raise CronAccessibilityFilesNotFoundError("Unable to detect existing " \
+                                                + "cron.allow and " \
+                                                + "cron.deny files.")
+  else:
+    try:
+      # Get the user name.
+      user_name = getpass.getuser()
+    except Exception,e:
+      # The user name cannot be determined, and thus the cron.allow and/or the
+      # cron.deny files cannot be checked to see if the username appears in
+      # them.
+      raise DetectUserError("At least one of the cron accessibility files " \
+                              + "were found, but they could not be searched " \
+                              + "because the user name could not be " \
+                              + "determined.")
+
+    # If cron.allow exists, then the user MUST be listed therein in order to use
+    # cron.
+    if os.path.exists(cron_allow_path):
+      try:
+        found_in_allow = find_substring_in_a_file_line(cron_allow_path,
+                                                       user_name)
+      except Exception,e:
+        raise CronAccessibilityFilesPermissionDeniedError(cron_allow_path)
+      else:
+        return (found_in_allow,None)
+
+    # If cron.deny exists AND cron.allow does not exist, then the user must NOT
+    # be listed therein in order to use cron.
+    elif os.path.exists(cron_deny_path):
+      try:
+        found_in_deny = find_substring_in_a_file_line(cron_deny_path,user_name)
+      except Exception,e:
+        raise CronAccessibilityFilesPermissionDeniedError(cron_deny_path)
+      else:
+        return (not found_in_deny,cron_deny_path)
+      
+      
+
+
+def add_seattle_to_crontab():
+  """
+  <Purpose>
+    Adds an entry to the crontab to run seattle automatically at boot.
+
+  <Arguments>
+    None.
+
+  <Exceptions>
+    OSError if cron is not installed on this system.
+
+  <Side Effects>
+    Adds an entry to the crontab.
+
+  <Returns>
+    True if an entry for seattle was successfully added to the crontab,
+    False otherwise.
+  """
+  # Check to see if the crontab has already been modified to run seattle.
+  crontab_contents_stdout,crontab_contents_stderr = \
+      subprocess.Popen(["crontab", "-l"], stdout=subprocess.PIPE,
+                       stderr=subprocess.PIPE).communicate()
+  if get_starter_file_name() in crontab_contents_stdout:
+    raise AlreadyInstalledError("An entry for seattle was already detected " \
+                                  + "in the crontab.")
+    
+
+  # Since seattle is not already installed, modify crontab to run seattle at
+  # boot.
+
+  # Get the service vessel where standard error produced from cron will be
+  # written.
+  service_vessel = servicelogger.get_servicevessel()
+
+  cron_line_entry = '@reboot if [ -e "' + SEATTLE_FILES_DIR + os.sep \
+      + get_starter_file_name() + '" ]; then "' + SEATTLE_FILES_DIR + os.sep \
+      + get_starter_file_name() + '" >> "' + SEATTLE_FILES_DIR + os.sep \
+      + service_vessel + '/cronlog.txt" 2>&1; else crontab -l | ' \
+      + 'sed \'/start_seattle.sh/d\' > /tmp/seattle_crontab_removal && ' \
+      + 'crontab /tmp/seattle_crontab_removal && ' \
+      + 'rm /tmp/seattle_crontab_removal; fi' + os.linesep
+
+  # Generate a temp file with the user's crontab plus our task.
+  temp_crontab_file = tempfile.NamedTemporaryFile()
+  temp_crontab_file.write(crontab_contents_stdout)
+  temp_crontab_file.write(cron_line_entry)
+  temp_crontab_file.flush()
+
+  # Now, replace the crontab with that temp file and remove(close) the
+  # tempfile.
+  replace_crontab = subprocess.Popen(["crontab",temp_crontab_file.name],
+                                      stdout=subprocess.PIPE,
+                                      stderr=subprocess.PIPE)
+  replace_crontab.wait()                                    
+  temp_crontab_file.close()
+
+
+
+
+  # Finally, confirm that seattle was successfully added to the crontab.
+  crontab_contents_stdout,crontab_contents_stderr = \
+      subprocess.Popen(["crontab", "-l"], stdout=subprocess.PIPE,
+                       stderr=subprocess.PIPE).communicate()
+  if get_starter_file_name() in crontab_contents_stdout:
+    return True
+  else:
+    return False
+
+
+
+
+def setup_linux_or_mac_startup():
   """
   <Purpose>
     Sets up seattle to run at startup on this Linux or Macintosh machine. This
     means adding an entry to crontab.
 
   <Arguments>
-    prog_path:
-      The path to the directory where the seattle program files are located.
-
-    scripts_path:
-      The path to the directory where the seattle scripts are located.
+    None.
 
   <Exceptions>
     UnsupportedOSError if the os is not supported.
     AlreadyInstalledError if seattle has already been installed on the system.
+    cron nor crond are found on this system.
 
   <Side Effects>
     None.
@@ -758,97 +1132,218 @@ def setup_linux_or_mac_startup(prog_path,scripts_path):
   if OS != "Linux" and OS != "Darwin":
     raise UnsupportedOSError
 
+
+  _output("Attempting to add an entry to the crontab...")
+
+  # The error_output will only be displayed to the user if the ultimate attempt
+  # to add an entry to the crontab fails.
+  error_output = ""
+
+  # First, check to see that cron is running.
+  # If this check raises a general exception, fall through to continue 
+  # attempting to set up the crontab since we want the crontab to be set up
+  # properly in case this user is able to use cron in the future.
+  try:
+    cron_is_running,executable_cron_file = test_cron_is_running()
+
+  except CannotDetermineCronStatusError:
+    # This exception means cron is installed, though whether or not it is
+    # running cannot be determined.
+    error_output = error_output + "It cannot be determined whether or not " \
+        + "cron is installed and running. Please confirm with the root user " \
+        + "that cron is installed and indeed running. If you believe cron is " \
+        + "running on your system and seattle does not get configured to run " \
+        + "automatically at startup, please read the following instructions " \
+        + "or contact the seattle development team if no further " \
+        + "instructions are given.\n"
+
+  except Exception,e:
+    # If there is an unexpected exception raised when accessing cron, fall
+    # through the try: block to continue trying to set up the crontab.
+    pass
   else:
-
-    _output("Adding an entry to the crontab...")
-    # First check to see if crontab has already been modified to run seattle
-    crontab_contents = subprocess.Popen("crontab -l", shell=True, stdout=subprocess.PIPE).stdout
-    found = False
-    for line in crontab_contents:
-      if re.search(os.sep + get_starter_file_name(), line):
-        found = True
-        break
-    crontab_contents.close()
-    if found:
-      raise AlreadyInstalledError
-  
-    # Since seattle is not already installed, crontab should be modified
-
-    # First, get the service vessel to where any output from cron will be
-    # logged.
-    service_vessel = servicelogger.get_servicevessel()
-    
-    # Generate a temp file with the user's crontab plus our task
-    # (tempfile module used as suggested in Jacob Appelbaum's patch)
-    cron_line = '@reboot if [ -e "' + scripts_path + '/' \
-        + get_starter_file_name() + '" ]; then "' + scripts_path + '/' \
-        + get_starter_file_name() + '" >> "' + prog_path + '/' \
-        + service_vessel + '/cronlog.txt" 2>&1; else crontab -l | ' \
-        + 'sed \'/start_seattle.sh/d\' > /tmp/seattle_crontab_removal && ' \
-        + 'crontab /tmp/seattle_crontab_removal && ' \
-        + 'rm /tmp/seattle_crontab_removal; fi' + os.linesep
-    crontab_contents = subprocess.Popen("crontab -l", shell=True, stdout=subprocess.PIPE).stdout
-    filedescriptor, tmp_location = tempfile.mkstemp("temp", "seattle")
-    for line in crontab_contents:
-      os.write(filedescriptor, line)
-    os.write(filedescriptor, cron_line)
-    os.close(filedescriptor)
-
-    # Now, replace the crontab with that temp file
-    os.popen('crontab "' + tmp_location + '"')
-    os.unlink(tmp_location)
-    return
+    if not cron_is_running:
+      _output("cron is not currently running on your system. Only the root " \
+                + "user may start cron by running the following command:")
+      _output(str(executable_cron_file) + " start")
+      _output("An attempt to setup crontab to run seattle at startup will " \
+                + "still be made, although seattle will not automatically " \
+                + "run at startup until cron is started as described above.")
 
 
 
 
-def setup_win_uninstaller_and_starter_shortcut_script(prog_path,scripts_path,starter_file):
+  # Second, check that the user has permission to use cron. If this check raises
+  # a general exception, fall through to continue attempting to set up the
+  # crontab since we want the crontab to be set up properly in case this user
+  # is able to use cron in the future.
+  try:
+    crontab_accessible,cron_deny_permission_filepath = test_cron_accessibility()
+
+  except CronAccessibilityFilesPermissionDeniedError,c:
+    error_output = error_output + "One or both of the files listing users " \
+        + "who have access and who do not have access to use cron have been " \
+        + "found, but this user does not have permission to read them. If " \
+        + "seattle does not get configured to run automatically at machine " \
+        + "boot, it is possible that it is because this user name must be " \
+        + "listed in the cron 'allow' file which can be found in the man " \
+        + "document for crontab (found by running the command 'man crontab' " \
+        + "from the terminal).\n"
+
+  except CronAccessibilityFilesNotFoundError,n:
+    error_output = error_output + "The cron allow and deny files, which " \
+        + "specify which users have permission to use the cron service, " \
+        + "cannot be found.  If seattle is not able to be configured to " \
+        + "run automatically at startup, it may be that your user name " \
+        + "needs to be added to the cron allow file. The location of this " \
+        + "cron allow file can be found in the man document for crontab " \
+        + "(found by running the command 'man crontab' from the terminal).\n"
+
+  except DetectUserError,d:
+    error_output = error_output + "The cron accessibility files were found, " \
+        + "but the current user name could not be determined; therefore, the " \
+        + "ability for this user to use the cron service could not be " \
+        + "determined. If seattle fails to be configured to run " \
+        + "automatically at startup, it is probable that the user name needs " \
+        + "be added to the cron allow file. The location of the cron allow " \
+        + "file can be found in the man document for crontab (found by " \
+        + "running the command 'man crontab' from the terminal).\n"
+
+  except Exception,e:
+    # If there is an unexpected exception raised when accessing the
+    # allow/deny files, fall through the try: block to continue trying to set up
+    # the crontab.
+    pass
+  else:
+    if not crontab_accessible:
+      _output("You do not have permission to use cron which makes seattle " \
+                + "run automatically at startup. To get permission to use " \
+                + "the cron service, the root user must remove your user " \
+                + "name from the " + str(cron_deny_permission_filepath) \
+                + " file.")
+      servicelogger.log("seattle was not added to the crontab because the " \
+                          + "user does not have permission to use cron.")
+      return False
+
+
+
+
+  # Lastly, add seattle to the crontab.
+  try:
+    successfully_added_to_crontab = add_seattle_to_crontab()
+
+  except AlreadyInstalledError,a:
+    raise AlreadyInstalledError()
+
+  except Exception:
+    if not error_output:
+      _output("seattle could not be configured to run automatically at " \
+                + "startup on your machine for an unknown reason. It is " \
+                + "that you do not have permission to access crontab. Please " \
+                + "contact the seattle development team for more assistance.")
+      servicelogger.log("seattle could not be successfully added to the " \
+                          + "crontab for an unknown reason, although it is " \
+                          + "likely due to the user not having permission to " \
+                          + "use crontab since an exception was most likely " \
+                          + "raised when the 'crontab -l' command was run.")
+    else:
+      _output("seattle could not be configured to run automatically at " \
+                + "machine boot. Following are more details:")
+      _output(error_output)
+      servicelogger.log("seattle could not be successfully added to the " \
+                          + "crontab. Following was the error output:")
+      servicelogger.log(error_output)
+
+    return False
+
+  else:
+    if successfully_added_to_crontab:
+      return True
+
+    else:
+      if not error_output:
+        _output("seattle could not be configured to run automatically at " \
+                  + "startup on your machine for an unknown reason. Please " \
+                  + "contact the seattle development team for assistance.")
+        servicelogger.log("seattle could not be successfully added to the " \
+                            + "crontab for an unknown reason.")
+      else:
+        _output("seattle could not be configured to run automatically at " \
+                  + "machine boot.  Following are more details:")
+        _output(error_output)
+        servicelogger.log("seattle could not be successfully added to the " \
+                            + "crontab. Following was the error output:")
+        servicelogger.log(error_output)
+
+      return False
+
+
+
+
+def customize_win_batch_files():
   """
   <Purpose>
-    On Windows, customizes the base uninstaller located in the install directory so
-    that it will remove the starter file from the startup folder when run.
+    Preprocesses the Windows batch files to replace all instances of %PROG_PATH%
+    and %STARTER_FILE% with their appropriate specified values.
+    
+    %PROG_PATH% is used in the scripts to specify the absolute filepath to
+    the location to that batch file, primarily so the user does not have to be
+    in the seattle directory to use the scripts.
+
+    %STARTER_FILE% is used in the scripts to specify the absolute filepath to
+    the location of the starter script in the startup folder (regardless of
+    whether or not the file actually exists in the startup folder). This is so
+    the starter batch file and uninstall batch file can appropriately remove
+    this file in the event that the starter file may still appear in the 
+    startup folder even if install succeeds in installing seattle in the Windows
+    registry. (It will be rare that uninstall.bat will need this, but
+    start_seattle.bat may need this file path in case it must remove itself from
+    the startup folder in the even that the user deletes the seattle directory
+    without uninstalling.)
+
+    Currently, only start_seattle_shortcut.bat and uninstall.bat are
+    preprocessed with this function.
 
   <Arguments>
-    prog_path:
-      The path to the directory containing the seattle files (seattle_repy).
-    scripts_path:
-      The path to the directory containing the seattle scripts.
-    starter_file:
-      The path to the starter file.
+    None.
 
   <Exceptions>
     UnsupportedOSError if OS is not Windows\WindowsCE.
-    IOError if starter_file is an invalid path or if the base uninstaller doesn't already
-    exist.
+    IOError may be called by child-function on being passed a bad file name.
 
   <Side Effects>
-    None.
+    Changes all instances of %PROG_PATH% and %STARTER_FILE% in the below-
+    specified files to the appropriate absolute filepath.
 
   <Returns>
     None.
   """
   if OS != "Windows" and OS != "WindowsCE":
-    raise UnsupportedOSError
-  elif not os.path.exists(scripts_path + os.sep + get_uninstaller_file_name()):
-    raise IOError
+    raise UnsupportedOSError("This must be a Windows system in order to " \
+                               + "modify Windows batch files.")
 
-  for filename in [get_uninstaller_file_name(),
-                   get_starter_shortcut_file_name()]:
-    preprocess_file(prog_path + os.sep + filename,
-                    {"%STARTER_FILE%": starter_file})     
+  _output("Customizing seattle batch files...")
+    
+  # Customize the start_seattle_shortcut.bat and uninstall.bat files.
+  full_startup_file_path,file_path_exists = \
+      get_filepath_of_win_startup_folder_with_link_to_seattle()
+  for batchfile in [get_starter_shortcut_file_name(),
+                    get_uninstaller_file_name()]:
+    preprocess_file(SEATTLE_FILES_DIR + os.sep + batchfile,
+                    {"%PROG_PATH%": SEATTLE_FILES_DIR,
+                     "%STARTER_FILE%": full_startup_file_path})
 
 
 
 
-def setup_sitecustomize(prog_path):
+def setup_sitecustomize():
   """
   <Purpose>
     On Windows CE, edits the sitecustomize.py file to reference the right
     program path, then copies it to the python directory.
 
   <Arguments>
-    prog_path:
-      Path where seattle is being installed.
+    None.
 
   <Exceptions>
     Raises UnsupportedOSError if the version is not Windows CE.
@@ -861,11 +1356,11 @@ def setup_sitecustomize(prog_path):
   <Returns>
     None.
   """
-  original_fname = prog_path + os.sep + "sitecustomize.py"
+  original_fname = SEATTLE_FILES_DIR + os.sep + "sitecustomize.py"
   if not OS == "WindowsCE":
     raise UnsupportedOSError
   elif not os.path.exists(original_fname):
-    raise IOError("Could not find sitecustomize.py under " + prog_path)
+    raise IOError("Could not find sitecustomize.py under " + SEATTLE_FILES_DIR)
   else: 
     python_dir = os.path.dirname(repy_constants.PATH_PYTHON_INSTALL)
     if not os.path.isdir(python_dir):
@@ -873,50 +1368,22 @@ def setup_sitecustomize(prog_path):
     elif os.path.exists(python_dir + os.sep + "sitecustomize.py"):
       raise IOError("sitecustomize.py already existed in python directory")
     else:
-      preprocess_file(original_fname, {"%PROG_PATH%": prog_path})
+      preprocess_file(original_fname,{"%PROG_PATH%": SEATTLE_FILES_DIR})
       shutil.copy(original_fname, python_dir + os.sep + "sitecustomize.py")
 
 
 
 
-def generate_keys(prog_path):
-  """
-  <Purpose>
-    Uses createnodekeys module to generate the keys for the node.
-
-  <Arguments>
-    prog_path:
-      The path to the directory where seattle is being installed.
-
-  <Exceptions>
-    None.
-
-  <Side Effects>
-    None.
-
-  <Returns>
-    None.
-  """
-  orig_dir = os.getcwd()
-  os.chdir(prog_path)
-
-  createnodekeys.initialize_keys(KEYBITSIZE)
-  os.chdir(orig_dir)
-  
-
-
-
-def start_seattle(scripts_path):
+def start_seattle():
   """
   <Purpose>
     Starts seattle by running the starter file on any system.
 
   <Arguments>
-    scripts_path:
-      Path to the directory containing the seattle scripts.
+    None.
 
   <Exceptions>
-    IOError if the starter file can not be found under scripts_path.
+    IOError if the starter file can not be found under SEATTLE_FILES_DIR.
 
   <Side Effects>
     None.
@@ -924,62 +1391,55 @@ def start_seattle(scripts_path):
   <Returns>
     None.
   """
-  starter_file_path = '"' + scripts_path + os.sep + get_starter_file_name() + '"'
-  if OS == "Windows":
-    p = subprocess.Popen('"' + starter_file_path + '"', shell=True)
-    p.wait()
-  elif OS == "WindowsCE":
+  starter_file_path = [SEATTLE_FILES_DIR + os.sep + get_starter_file_name()]
+  if OS == "WindowsCE":
     windows_api.launch_python_script(starter_file_path)
   else:
-    p = subprocess.Popen(starter_file_path, shell=True)
+    p = subprocess.Popen(starter_file_path)
     p.wait()
 
 
 
 
-def install(prog_path):
+# Anthony Honstain's benchmarking function.
+def perform_system_benchmarking():
   """
   <Purpose>
-    Goes through all the steps necessary to install seattle on the current
-    system, printing status messages if not in silent mode.
+    To call benchmark_resources.main (which performs the system 
+    benchmarking (to find the resources available to the user installing), 
+    calculate the amount that is to be donated, and then generate the 
+    vessel resource files, vessel directories, and the vesseldict.) and
+    handle any exceptions that may be raised, logging information and
+    output useful information to the user installing seattle. 
 
   <Arguments>
-    prog_path:
-      Path to the directory containing the seattle program files.
+    None
 
   <Exceptions>
-    None.
-    
+    IOError if unable to create a log file.
+
   <Side Effects>
-    None.
+    May initialize the service logger 'installInfo'.
+    
+    Will create or append a temporary log file 'installer_benchmark.log'
+    that will be used during the benchmark process, if the benchmarking is 
+    successful it will be removed.
+    
+    Creates the vessel resource files, vessel directories, and the
+    vesseldict.
+    
+    The benchmarking will look to several OS specific sources for 
+    information, and perform benchmarking that includes retrieving
+    random numbers and creating a file to measure read/write rate.
+    WARNING: These benchmarks may take a noticeable amount of time 
+    or consume more resources than normal.
     
   <Returns>
-    None.
+    Returns True if the benchmarking and creation of vessel structure
+    is complete, if those failed then False is returned.
+
   """
-
-  if OS not in SUPPORTED_OSES:
-    raise UnsupportedOSError
-
-
-  # Anthony - This will test if os.urandom is implemented on the OS
-  # If we did not check here and os.urandom raised a NotImplementedError
-  # the next step (setup_start) would surely fail when it tried
-  # to generate a keypair.
-  try:
-    os.urandom(1)
-  except NotImplementedError:
-    _output("Failed.")
-    _output("No source of OS-specific randomness")
-    _output("On a UNIX-like system this would be /dev/urandom, and on Windows it is CryptGenRandom.")
-    _output("Please email the Seattle project for additional support")
-    return
-
-
-  prog_path = os.path.realpath(prog_path)
-  scripts_path = os.path.realpath(prog_path + os.sep + "..")
-
-
-# Run the benchmarks to benchmark system resources and generate
+  # Run the benchmarks to benchmark system resources and generate
   # resource files and the vesseldict.
   _output("System benchmark starting...")
   # Anthony - this file will be logged to until the v2 directory has
@@ -988,221 +1448,168 @@ def install(prog_path):
   benchmark_logfileobj = file("installer_benchmark.log", 'a+')
     
   try:
-    benchmark_resources.main(prog_path, RESOURCE_PERCENTAGE, benchmark_logfileobj)
+    benchmark_resources.main(SEATTLE_FILES_DIR, RESOURCE_PERCENTAGE,
+                             benchmark_logfileobj)
   except benchmark_resources.InsufficientResourceError:
     exceptionType, exceptionValue, exceptionTraceback = sys.exc_info()
     traceback.print_exception(exceptionType, exceptionValue, \
                               exceptionTraceback, file=benchmark_logfileobj)
     _output("Failed.")
-    _output("This install cannot succeed because resources are " + \
-            "insufficient. This could be because the percentage of donated " + \
-            "resources is to small or because a custom install had to many " + \
-            "vessels. ")
-    _output("Please email the Seattle project for additional support, if you can send the installer_benchmark.log and vesselinfo files they will help us diagnose the issue.")
+    _output("This install cannot succeed because resources are insufficient. " \
+              + "This could be because the percentage of donated resources " \
+              + "is to small or because a custom install had to many vessels. ")
+    _output("Please email the Seattle project for additional support, if you " \
+              + "can send the installer_benchmark.log and vesselinfo files " \
+              + "they will help us diagnose the issue.")
     benchmark_logfileobj.close()
-    return
+    return False
   except Exception:
     exceptionType, exceptionValue, exceptionTraceback = sys.exc_info()
     traceback.print_exception(exceptionType, exceptionValue, \
                               exceptionTraceback, file=benchmark_logfileobj)
     _output("Failed.")
-    _output("Seattle encountered an error, this install cannot succeed either because required installation info is corrupted or resources are insufficient.")
-    _output("Please email the Seattle project for additional support, if you can send the installer_benchmark.log and vesselinfo files they will help us diagnose the issue.")
+    _output("Seattle encountered an error, this install cannot succeed " \
+              + "either because required installation info is corrupted or " \
+              + "resources are insufficient.")
+    _output("Please email the Seattle project for additional support, if you " \
+              + "can send the installer_benchmark.log and vesselinfo files " \
+              + "they will help us diagnose the issue.")
     benchmark_logfileobj.close()
-    return
+    return False
   
-  # Transfer the contents of the file used to log the benchmark and creation
-  # of vessel states. The service logger cannot be used sooner because
-  # the seattle vessel directory has not yet been created.
-  # Initialize the service logger.
-  servicelogger.init('installInfo')
-  benchmark_logfileobj.seek(0)
-  servicelogger.log(benchmark_logfileobj.read())
-  benchmark_logfileobj.close()
-  os.remove(benchmark_logfileobj.name)
-  
-  _output("Benchmark complete and vessels created!")
-
-  _output("Generating the Node Manager rsa keys.  This may take a few " \
-            + "minutes...")
-  # Generate the Node Manager keys separately from setting up seattle to run at
-  # startup since seattle does not need to be setup to run at boot in order to
-  # be executed manually.
-  # To avoid a race condition with cron on non-Windows systems, the keys must
-  # always be generated before setting up seattle to run at boot.
-  generate_keys(prog_path)
-  _output("Keys generated!")
+  else:
+    # Transfer the contents of the file used to log the benchmark and creation
+    # of vessel states. The service logger cannot be used sooner because
+    # the seattle vessel directory has not yet been created.
+    # Initialize the service logger.
+    servicelogger.init('installInfo')
+    benchmark_logfileobj.seek(0)
+    servicelogger.log(benchmark_logfileobj.read())
+    benchmark_logfileobj.close()
+    os.remove(benchmark_logfileobj.name)
     
-
-
-
-  # If it is a Windows system, customize the batch files.
-  if "Windows" in OS:
-    _output("Customizing seattle batch files...")
-
-    # Customize the start, stop, and uninstall batch files so the client is
-    # not required to be in the seattle directory to run them.
-    for batchfile in [get_starter_file_name(), get_stopper_file_name(),
-                      get_uninstaller_file_name()]:
-      preprocess_file(scripts_path + os.sep + get_starter_file_name(),
-                      {"%PROG_PATH%": prog_path})
-
-    preprocess_file(prog_path + os.sep + get_starter_shortcut_file_name(),
-                    {"%PROG_PATH%": prog_path})
-
-    full_startup_file_path,file_path_exists = \
-        get_filepath_of_win_startup_folder_with_link_to_seattle()
-    setup_win_uninstaller_and_starter_shortcut_script(prog_path,scripts_path,
-                                                      full_startup_file_path)
-    _output("Done!")
-
-
-
-  # Setup the sitecustomize.py file, if running on WindowsCE.
-  if OS == "WindowsCE":
-    _output("Configuring python...")
-    setup_sitecustomize(prog_path)
-    _output("Done!")
-
-
-
-  # Configure seattle to run at startup if this hasn't been disabled by the
-  # command-line option.
-  if not DISABLE_STARTUP_SCRIPT:
-    _output("Preparing Seattle to run automatically at startup...")
-    # This try: block attempts to install seattle to run at startup. If it
-    # fails, continue on with the rest of the install process.
-    try:
-      if OS == "Windows" or OS == "WindowsCE":
-        setup_win_startup(prog_path,scripts_path)
-      elif OS == "Linux" or OS == "Darwin":
-        setup_linux_or_mac_startup(prog_path,scripts_path)
-        _output("Seattle is setup to run at startup!")
-
-    except UnsupportedOSError,u:
-      raise UnsupportedOSError(u)
-    except AlreadyInstalledError,a:
-      raise AlreadyInstalledError(a)
-    # If an unpredicted error is raised while setting up seattle to run at
-    # startup, it is caught here.
-    except Exception,e:
-      _output("seattle could not be installed to run automatically at " \
-                + "startup for the following reason: " + str(e))
-      _output("Continguing with the installation process now.  To manually " \
-                + "run seattle at any time, just run " \
-                + get_starter_file_name())
-      servicelogger.log(time.strftime(" seattle was NOT installed on this " \
-                                        + "system for the following reason: " \
-                                        + str(e) + ". %m-%d-%Y  %H:%M:%S"))
-
-
-
-  # Everything has been installed, so start seattle
-  _output("Starting seattle...")
-  start_seattle(scripts_path)
-
-
-
-  # The install went smoothly.
-  _output("seattle was successfully installed and has been started!")
-  _output("To learn more about useful, optional scripts related to running seattle, see the README file.")
-
-  servicelogger.log(time.strftime(" seattle completed installation on: " \
-                                    + "%m-%d-%Y %H:%M:%S"))
+    _output("Benchmark complete and vessels created!")
+    return True
 
 
 
 
-def usage():
+# Anthony Honstain's test urandom function.
+def test_urandom_implemented():
   """
-  Intended for internal use.
-  Prints command line usage of script.
+  <Purpose>
+    This will test if os.urandom is implemented on the OS
+    If we did not check here and os.urandom raised a NotImplementedError
+    then the install would surely fail when it attempted to generate
+    a RSA key (the key generation requires that os.urandom work).
+    
+    It should be noted that even if installation no longer required
+    key generation, currently all random numbers for vessels
+    come from this source, so when ever os.urandom is called it
+    would result in an internal error.
+
+  <Arguments>
+    None
+
+  <Exceptions>
+    None
+
+  <Side Effects>
+    Make a call to a Operating System specific source of 
+    cryptographically secure pseudo random numbers.
+    
+    Outputs instructions to the user installing seattle if their
+    system fails.
+    
+  <Returns>
+    True if the test succeeded, 
+    False otherwise.
   """
-  print "python seattleinstaller.py [--usage] [--disable-startup-script] [--percent float] [--nm-key-bitsize bitsize] [--nm-ip ip] [--nm-iface iface] [--repy-ip ip] [--repy-iface iface] [--repy-nootherips] [--onlynetwork] [-s] [install_dir]]"
-  print "Info:"
-  print "--disable-startup-script\tDoes not install the Seattle startup script, meaning that Seattle will not automatically start running at machine start up. It is recommended that this option only be used in exceptional circumstances."
-  print "--percent percent\ Specifies the desired percentage of available system resources to donate. Default percentage: " + str(RESOURCE_PERCENTAGE)
-  print "--nm-key-bitsize bitsize\tSpecifies the desired bitsize of the Node Manager keys. Default bitsize: " + str(KEYBITSIZE)
-  print "--nm-ip IP\t\tSpecifies a preferred IP for the NM. Multiple may be specified, they will be used in the specified order."
-  print "--nm-iface iface\tSpecifies a preferred interface for the NM. Multiple may be specified, they will be used in the specified order."
-  print "--repy-ip, --repy-iface. See --nm-ip and --nm-iface. These flags only affect repy and are separate from the Node Manager."
-  print "--repy-nootherips\tSpecifies that repy is only allowed to use explicit IP's and interfaces."
-  print "--onlynetwork\t\tDoes not reinstall Seattle, but updates the network restrictions information."
+  # Anthony - This will test if os.urandom is implemented on the OS
+  # If we did not check here and os.urandom raised a NotImplementedError
+  # the next step (setup_start) would surely fail when it tried
+  # to generate a key pair.
+  try:
+    os.urandom(1)
+  except NotImplementedError:
+    _output("Failed.")
+    _output("No source of OS-specific randomness")
+    _output("On a UNIX-like system this would be /dev/urandom, and on " \
+              + "Windows it is CryptGenRandom.")
+    _output("Please email the Seattle project for additional support.")
+    return False
+  else:
+    # Test succeeded!
+    return True
 
 
 
 
-def in_opts(opts, flag):
+def prepare_installation(options,arguments):
   """
-  Intended for internal use.
-  Checks through the list of tuples containing options that getopt returns
-  to see if flag is in them.
+  <Purpose>
+    Prepare all necessary global variables and files for the actual installation
+    process.  This includes combing through the arguments passed to the installer
+    to set the appropriate variables and setting the Node Manager configuration
+    information (in nodeman.cfg file).
+
+  <Arguments>
+    options:
+      A list of tuples (flag,value) where flag is the argument name passed to
+      the installer (e.g., --nm-key-bitsize) and value is the value for that
+      particular flag (e.g., 1024).  Example element that could appear in the
+      list described by options: ("--nm-key-bitsize","1024")
+
+    arguments:
+      A list of arguments that did not have an argument name associated with it
+      (e.g., Specifying the install directory. See [install_dir] in usage())
+
+  <Exceptions>
+    IOError if the specified install directory does not exist.
+
+  <Side Effects>
+    Changes default local and global variables, and injects relevant information
+    into the Node Manager configuration file (nodeman.cfg).
+
+  <Return>
+    True if this entire prepare_installation() process finished,
+    False otherwise (meaning an argument was passed that calls for install to be
+    halted [e.g., --usage] or a value for one of the named arguments is
+    unreasonable [e.g., setting the resource percentage to be %0].).
   """
-  for tup in opts:
-    if flag in tup:
-      return True
-  return False
-
-
-
-
-def main():
-  """
-  Intended for internal use.
-  If you want to run the installer from another script, use
-  install.install(prog_path).
-  Parses command line arguments and calls install() accordingly.
-  """
-  #Initialize the service logger.
-  servicelogger.init('installInfo')
-
   global SILENT_MODE
   global RESOURCE_PERCENTAGE
-  opts = None
-  args = None
-  try:
-    # Armon: Changed getopt to accept parameters for Repy and NM IP/Iface restrictions, also a special disable flag
-    opts, args = getopt.getopt(sys.argv[1:], "hs",["percent=", "nm-key-bitsize=","nm-ip=","nm-iface=","repy-ip=","repy-iface=","repy-nootherips","onlynetwork","disable-startup-script","usage"])
-  except getopt.GetoptError, err:
-    print str(err)
-    usage()
-    return
-  if in_opts(opts, "-h"):
-    usage()
-    return
-  if in_opts(opts, "-s"):
-    SILENT_MODE = True
-  # The install directory defaults to the current directory.
-  install_dir = "."
-  if len(args) > 0:
-    install_dir = args[0]
+  global KEYBITSIZE
+  global DISABLE_STARTUP_SCRIPT
+  global DISABLE_INSTALL
 
-  # Armon: Special flag for testing purposes, disables the actual install
-  disable_install = False
-
-  # Armon: Generate the Restrictions Information for the NM and Repy
+  # Armon: Specify the variables that will be used to generate the Restrictions
+  # Information for the NM and Repy.
   repy_restricted = False
   repy_nootherips = False
   repy_user_preference = []
   nm_restricted = False
   nm_user_preference = []
-  
-  # Iterate through the flags, checking for IP/Iface restrictions, maintain order 
-  for (flag, value) in opts:
-    if flag == "--onlynetwork":
+
+  # Iterate through and process the arguments, checking for IP/Iface
+  # restrictions.
+  for (flag, value) in options:
+    if flag == "-s":
+      SILENT_MODE = True
+    elif flag == "--onlynetwork":
       disable_install = True
     elif flag == "--percent":
       # Check to see that the desired percentage of system resources is valid
-      # I do not see a reason someone couldnt donate 20.5 percent so it
+      # I do not see a reason someone couldn't donate 20.5 percent so it
       # will be allowed for now.
       try:
         RESOURCE_PERCENTAGE = float(value)
       except ValueError:
         usage()
-        return      
+        return False
       if RESOURCE_PERCENTAGE <= 0.0 or RESOURCE_PERCENTAGE > 100.0:
         usage()
-        return
+        return False
     elif flag == "--nm-ip":
       nm_restricted = True
       nm_user_preference.append((True, value))
@@ -1219,19 +1626,20 @@ def main():
       repy_restricted = True
       repy_nootherips = True
     elif flag == "--nm-key-bitsize":
-      global KEYBITSIZE
       KEYBITSIZE = int(value)
     elif flag == "--disable-startup-script":
-      global DISABLE_STARTUP_SCRIPT
       DISABLE_STARTUP_SCRIPT = True
-      _output("Seattle will not be configured to run automatically at boot.")
     elif flag == "--usage":
       usage()
-      return
+      return False
 
+  # Print this notification after having processed all the arguments in case one
+  # of the arguments specifies silent mode.
+  if DISABLE_STARTUP_SCRIPT:
+    _output("Seattle will not be configured to run automatically at boot.")
+    
 
-  
-  # Build the configuration dictionary
+  # Build the configuration dictionary.
   config = {}
   config['nm_restricted'] = nm_restricted
   config['nm_user_preference'] = nm_user_preference
@@ -1239,16 +1647,198 @@ def main():
   config['repy_user_preference'] = repy_user_preference
   config['repy_nootherips'] = repy_nootherips 
 
-  # Armon: Inject the configuration information
+  # Armon: Inject the configuration information.
   configuration = persist.restore_object("nodeman.cfg")
   configuration['networkrestrictions'] = config
-  persist.commit_object(configuration,"nodeman.cfg") 
+  persist.commit_object(configuration,"nodeman.cfg")
+
+  # Tell the parent function that the preparation for install succeeded.
+  return True
+
+
+
+
+def usage():
+  """
+  Prints command line usage of script.
+  """
+
+  print "python seattleinstaller.py [-s] [--usage] " \
+      + "[--disable-startup-script] [--percent float] " \
+      + "[--nm-key-bitsize bitsize] [--nm-ip ip] [--nm-iface iface] " \
+      + "[--repy-ip ip] [--repy-iface iface] [--repy-nootherips] " \
+      + "[--onlynetwork]"
+  print "Info:"
+  print "--disable-startup-script\tDoes not install the Seattle startup " \
+      + "script, meaning that Seattle will not automatically start running " \
+      + "at machine start up. It is recommended that this option only be " \
+      + "used in exceptional circumstances."
+  print "--percent percent\t\tSpecifies the desired percentage of available " \
+      + "system resources to donate. Default percentage: " \
+      + str(RESOURCE_PERCENTAGE)
+  print "--nm-key-bitsize bitsize\tSpecifies the desired bitsize of the Node " \
+      + "Manager keys. Default bitsize: " + str(KEYBITSIZE)
+  print "--nm-ip IP\t\t\tSpecifies a preferred IP for the NM. Multiple may " \
+      + "be specified, they will be used in the specified order."
+  print "--nm-iface iface\t\tSpecifies a preferred interface for the NM. " \
+      + "Multiple may be specified, they will be used in the specified order."
+  print "--repy-ip, --repy-iface. See --nm-ip and --nm-iface. These flags " \
+      + "only affect repy and are separate from the Node Manager."
+  print "--repy-nootherips\t\tSpecifies that repy is only allowed to use " \
+      + "explicit IP's and interfaces."
+  print "--onlynetwork\t\t\tDoes not install Seattle, but updates the " \
+      + "network restrictions information."
+
+
+
+
+def main():
+  if OS not in SUPPORTED_OSES:
+    raise UnsupportedOSError("This operating system is not supported.")
+
+  # Begin pre-installation process.
+
+  # Pre-install: parse the passed-in arguments.
+  try:
+    # Armon: Changed getopt to accept parameters for Repy and NM IP/Iface
+    # restrictions, also a special disable flag
+    opts, args = getopt.getopt(sys.argv[1:], "s",
+                               ["percent=", "nm-key-bitsize=","nm-ip=",
+                                "nm-iface=","repy-ip=","repy-iface=",
+                                "repy-nootherips","onlynetwork",
+                                "disable-startup-script","usage"])
+  except getopt.GetoptError, err:
+    print str(err)
+    usage()
+    return
+
+  # Pre-install: process the passed-in arguments, and set up the configuration
+  #   dictionary.
+  continue_install = prepare_installation(opts,args)
+  if not continue_install:
+    return
+
+  # Pre-install: run all tests and benchmarking.
+  #   test_urandom_implemented() MUST be performed before
+  #   perform_system_benchmarking() to get relevant results from the
+  #   benchmarking.
+  urandom_test_succeeded = test_urandom_implemented()
+  if not urandom_test_succeeded:
+    return
+  benchmarking_succeeded = perform_system_benchmarking()
+  if not benchmarking_succeeded:
+    return
+
+
+
+
+  # Begin installation.
+  if DISABLE_INSTALL:
+    return
   
-  if not disable_install:
+  # First, customize any scripts since they may be copied to new locations when
+  # configuring seattle to run automatically at boot.
+
+  # If running on a Windows system, customize the batch files.
+  if OS == "Windows" or OS == "WindowsCE":
+    customize_win_batch_files()
+    _output("Done!")
+
+  # If running on WindowsCE, setup the sitecustomize.py file.
+  if OS == "WindowsCE":
+    _output("Configuring python for WindowsCE...")
+    setup_sitecustomize()
+    _output("Done!")
+
+    
+   
+
+  # Configure seattle to run at startup.
+  if not DISABLE_STARTUP_SCRIPT:
+    _output("Preparing Seattle to run automatically at startup...")
+    # This try: block attempts to install seattle to run at startup. If it
+    # fails, continue on with the rest of the install process (unless it
+    # detects that seattle has already been installed) since the seattle
+    # starter script may still be run even if seattle is not configured to run
+    # at boot.
     try:
-      install(install_dir)
-    except AlreadyInstalledError:
-      print "seattle was already installed."
+      # Any errors generated while configuring seattle to run at startup will be
+      # printed in the child functions, unless an unexpected error is raised,
+      # which will be caught in the general except Exception: block below.
+      if OS == "Windows" or OS == "WindowsCE":
+        setup_win_startup()
+        _output("Seattle is setup to run at startup!")
+      elif OS == "Linux" or OS == "Darwin":
+        setup_success = setup_linux_or_mac_startup()
+        if setup_success:
+          _output("Seattle is setup to run at startup!")
+        else:
+          # The reasons for which seattle was unable to be configured at startup
+          # will have been logged by the service logger in the
+          # setup_linux_or_mac_startup() function, and output for the possible
+          # reasons why configuration to run at startup failed will have already
+          # be given to the user from the setup_linux_or_mac_startup() fucntion.
+          _output("Seattle failed to be configured to run automatically at " \
+                    + "startup.")
+      else:
+        raise UnsupportedOSError("This operating system is not supported.")
+
+    except UnsupportedOSError,u:
+      raise UnsupportedOSError(u)
+
+    except AlreadyInstalledError,a:
+      _output("seattle was already installed. " + str(a))
+      # Exit installation since seattle is already currently installed.
+      return
+
+    # If an unpredicted error is raised while setting up seattle to run at
+    # startup, it is caught here.
+    except Exception,e:
+      _output("seattle could not be installed to run automatically at " \
+                + "startup for the following reason: " + str(e))
+      _output("Continuing with the installation process now.  To manually " \
+                + "run seattle at any time, just run " \
+                + get_starter_file_name())
+      _output("Please contact the seattle project for further assistance.")
+      servicelogger.log(time.strftime(" seattle was NOT installed on this " \
+                                        + "system for the following reason: " \
+                                        + str(e) + ". %m-%d-%Y  %H:%M:%S"))
+
+
+
+
+  # Generate the Node Manager keys even if configuring seattle to run
+  # automatically at boot fails because Node Manager keys are needed for the
+  # seattle_starter script which can be run at any time.
+  _output("Generating the Node Manager RSA keys.  This may take a few " \
+            + "minutes...")
+  createnodekeys.initialize_keys(KEYBITSIZE,
+                                 nodemanager_directory=SEATTLE_FILES_DIR)
+  _output("Keys generated!")
+
+
+
+
+  # Everything has been installed, so start seattle and print concluding output
+  # messages.
+  _output("Starting seattle...")
+  try:
+    start_seattle()
+  except Exception,e:
+    _output("seattle could not be started for the following reason: " + str(e))
+    _output("Please contact the seattle project immediately for assistance.")
+    servicelogger.log(time.strftime(" seattle installation failed. seattle " \
+                                      + "could not be started for the " \
+                                      + "following reason: " + str(e) + " " \
+                                      + "%m-%d-%Y %H:%M:%S"))
+  else:
+    _output("seattle has been installed!")
+    _output("To learn more about useful, optional scripts related to running " \
+              + "seattle, see the README file.")
+    servicelogger.log(time.strftime(" seattle completed installation on: " \
+                                      + "%m-%d-%Y %H:%M:%S"))
+
+
 
 
 if __name__ == "__main__":
