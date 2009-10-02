@@ -56,7 +56,7 @@ def build_installer(vessel_dict, key_dict, username='', dist_str='wml'):
   
     username:
       * If calling from HTML view:
-        'username' is the django session id.
+        'username' is the generated session ID.
       * If calling from XMLRPC view:
         'username' is the SeattleGENI logged in user's name.
     
@@ -97,25 +97,119 @@ def build_installer(vessel_dict, key_dict, username='', dist_str='wml'):
 
   print("file preparation done. calling customize installer.")
   
-  
-  try:
-    subprocess.check_call([sys.executable, PATH_TO_CUSTOMIZE_INSTALLER_SCRIPT, dist_str, 
-                           settings.BASE_INSTALLERS_DIR, temp_installinfo_dir, prefix])
-  except subprocess.CalledProcessError:
-    raise 
-  
-  installer_urls_dict = {}
-  if 'w' in dist_str:
-    installer_urls_dict['w'] = settings.USER_INSTALLERS_URL + "%s_dist/seattle_win.zip"%(username)
-  if 'l' in dist_str:
-    installer_urls_dict['l'] = settings.USER_INSTALLERS_URL + "%s_dist/seattle_linux.tgz"%(username)
-  if 'm' in dist_str:
-    installer_urls_dict['m'] = settings.USER_INSTALLERS_URL + "%s_dist/seattle_mac.tgz"%(username)
-  
+  installer_urls_dict = _run_customize_installer(dist_str, username)
   return installer_urls_dict
   
+#  try:
+#    subprocess.check_call([sys.executable, PATH_TO_CUSTOMIZE_INSTALLER_SCRIPT, dist_str, 
+#                           settings.BASE_INSTALLERS_DIR, temp_installinfo_dir, prefix])
+#  except subprocess.CalledProcessError:
+#    raise 
+#  
+#  installer_urls_dict = {}
+#  if 'w' in dist_str:
+#    installer_urls_dict['w'] = settings.USER_INSTALLERS_URL + "%s_dist/seattle_win.zip"%(username)
+#  if 'l' in dist_str:
+#    installer_urls_dict['l'] = settings.USER_INSTALLERS_URL + "%s_dist/seattle_linux.tgz"%(username)
+#  if 'm' in dist_str:
+#    installer_urls_dict['m'] = settings.USER_INSTALLERS_URL + "%s_dist/seattle_mac.tgz"%(username)
+#  
+#  return installer_urls_dict
   
 
+
+def check_and_build_if_new_installers(installer_id):
+  """
+  <Purpose>
+    Checks if the current user installers exist. If they don't, this function
+    will try and rebuild them if it can find the vesselinfo file for the specified
+    install. 
+    
+    Also, checks if the current base installers are newer than the already 
+    built installers. If so, rebuild the installers with the newer, more current base 
+    installers.
+  
+  <Returns>
+    -1 if base installers are missing or unreadable.
+     0 if installers are up to date, and do not require rebuilding.
+     1 if installers were rebuilt using newest base installers.
+  """
+  user_installer_missing = False
+  need_rebuild = False
+  win_base_mtime = 0
+  linux_base_mtime = 0
+  mac_base_mtime = 0
+  
+  try:
+    win_stat_buf = os.stat(os.path.join(settings.BASE_INSTALLERS_DIR, "seattle_win.zip"))
+    linux_stat_buf = os.stat(os.path.join(settings.BASE_INSTALLERS_DIR, "seattle_linux.tgz"))
+    mac_stat_buf = os.stat(os.path.join(settings.BASE_INSTALLERS_DIR, "seattle_mac.tgz"))
+  except Exception:
+    return -1
+  else:
+    win_base_mtime = win_stat_buf.st_mtime
+    linux_base_mtime = linux_stat_buf.st_mtime
+    mac_base_mtime = mac_stat_buf.st_mtime
+  
+  dist_folder = os.path.join(settings.USER_INSTALLERS_DIR, installer_id + "_dist")
+  
+  try:
+    win_user_stat_buf = os.stat(os.path.join(dist_folder, "seattle_win.zip"))
+    linux_user_stat_buf = os.stat(os.path.join(dist_folder, "seattle_linux.tgz"))
+    mac_user_stat_buf = os.stat(os.path.join(dist_folder, "seattle_mac.tgz"))
+  except Exception:
+    user_installer_missing = True
+  else:
+    win_user_mtime = win_user_stat_buf.st_mtime
+    linux_user_mtime = linux_user_stat_buf.st_mtime
+    mac_user_mtime = mac_user_stat_buf.st_mtime
+    
+  # rebuild installers if base installers newer or user installers missing
+  if user_installer_missing:
+    # rebuild
+    need_rebuild = True
+  else:  
+    if (win_base_mtime > win_user_mtime) or (linux_base_mtime > linux_user_mtime) or (mac_base_mtime > mac_user_mtime):
+      need_rebuild = True
+  
+  if not need_rebuild:
+    print "no rebuild needed!"
+    return 0
+  
+  # prepare rebuild, read in existing vesselinfo file
+  #  v_handle = open(os.path.join(os.path.join(dist_folder, "install_info"), "vesselinfo"), 'rb')
+  #  vesselinfo_data = v_handle.read()
+  #  print vesselinfo_data
+  #  v_handle.close()
+  
+  # try to remove existing installers (even though they might not exist, for whatever reason)
+  try:
+    os.remove(os.path.join(dist_folder, "seattle_win.zip"))
+  except Exception:
+    pass
+  
+  print "removed win user installer"
+  
+  try:
+    os.remove(os.path.join(dist_folder, "seattle_linux.tgz"))
+  except Exception:
+    pass
+  
+  print "removed linux user installer"
+  
+  try:
+    os.remove(os.path.join(dist_folder, "seattle_mac.tgz"))
+  except Exception:
+    pass
+  
+  print "removed mac user installer"
+  
+  print "about to call customize"
+  _run_customize_installer(installer_id)
+  return 1
+
+
+  
 def generate_keypair():
   (pubkeydict, privkeydict) = rsa_gen_pubpriv_keys(KEY_GENERATION_BITSIZE)
 
@@ -149,3 +243,22 @@ def _generate_vessel_info(vessel_dict, key_dict):
 
 
 
+def _run_customize_installer(installer_id, dist_str='wml'):
+  prefix = os.path.join(settings.USER_INSTALLERS_DIR, "%s_dist"%(installer_id))
+  temp_installinfo_dir = os.path.join(prefix, "install_info")
+  
+  try:
+    subprocess.check_call([sys.executable, PATH_TO_CUSTOMIZE_INSTALLER_SCRIPT, dist_str, 
+                           settings.BASE_INSTALLERS_DIR, temp_installinfo_dir, prefix])
+  except subprocess.CalledProcessError:
+    raise 
+  
+  installer_urls_dict = {}
+  if 'w' in dist_str:
+    installer_urls_dict['w'] = settings.USER_INSTALLERS_URL + "%s_dist/seattle_win.zip"%(installer_id)
+  if 'l' in dist_str:
+    installer_urls_dict['l'] = settings.USER_INSTALLERS_URL + "%s_dist/seattle_linux.tgz"%(installer_id)
+  if 'm' in dist_str:
+    installer_urls_dict['m'] = settings.USER_INSTALLERS_URL + "%s_dist/seattle_mac.tgz"%(installer_id)
+  
+  return installer_urls_dict

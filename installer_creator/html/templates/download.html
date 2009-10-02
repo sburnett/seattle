@@ -16,15 +16,7 @@
         <font size="4" color="red">A problem has occured during the install build process. Please contact us!</font>
       {% else %}
       <p class="comment"> Below you will find the installer links for the GENI distributed system.</p>
-      <p class="comment"> (Click on the image to download your installer)</p>
       <br>
-      {% if just_installed %}
-      <p class="comment" align="center"><b>Give this link to others so they can donate on your behalf:</b></p>      
-      <div id="downloadlink">
-        <a href="{% url download_installers installer_id %}">{{ domain }}{% url download_installers installer_id %}</a>
-      </div>
-      {% endif %}
-      
       <table id="installers">
         <colgroup>
           <col id="win" /><col id="mac" /><col id="linux" />
@@ -39,8 +31,11 @@
           <td> Mac </td>
           <td> Linux </td>
         </tr>
-        <tr id="instruction"> 
+        <tr id="instruction">
           <td>
+            <div id="downloadlink_nobg">
+              <a href={{ win_installer_url }} target="_blank">Download seattle_win.zip</a>
+            </div>
             <p>Instructions:</p>
             <ol>
               <li>Download the Seattle zip file to your computer</li>
@@ -49,8 +44,12 @@
             </ol>
             <br />
             To check that Seattle is running, look in Task Manager for the process pythonw.exe.
+            <br><br><br><br>
           </td> 
           <td>
+            <div id="downloadlink_nobg">
+              <a href={{ mac_installer_url }} target="_blank">Download seattle_mac.tgz</a>
+            </div>
             <p>Instructions:</p>
             (Note: You must have Python 2.5 installed)
             <br /><br />
@@ -63,6 +62,9 @@
             To check that Seattle is running, try running: ps Aww | grep nmmain.py | grep -v grep
           </td> 
           <td>
+            <div id="downloadlink_nobg">
+              <a href={{ linux_installer_url }} target="_blank">Download seattle_linux.tgz</a>
+            </div>
             <p>Instructions:</p>
             (Note: You must have Python 2.5 installed)
             <br /><br />
@@ -76,6 +78,12 @@
           </td> 
         </tr>
       </table>
+      <br>
+      <p class="comment" align="center"><b>Share the link below with others to download these installers!</b></p>      
+      <div id="downloadlink">
+        <a href="{% url download_installers installer_id %}">{{ domain }}{% url download_installers installer_id %}</a>
+      </div>
+      
       {% endif %}
   </body>
 </html>

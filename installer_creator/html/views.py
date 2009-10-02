@@ -181,8 +181,8 @@ def create_installer(request):
     
     # Begins the actual build of the installer
     try:
-      builder.build_installer(vessel_dict, key_dict, installer_id)
-      #pass
+      #builder.build_installer(vessel_dict, key_dict, installer_id)
+      pass
     except Exception, e:
       print str(e)
       return HttpResponse("<b>Build failed! We encountered a problem while building the installers.</b><br>" +
@@ -266,17 +266,17 @@ def dl_keys(request):
   return response
 
 
-def post_install(request):
-  domain = "https://" + request.get_host()
-  installer_id = request.session['installer_id']
-  
-  return direct_to_template(request, "download.html", 
-                            {'win_installer_url' : settings.USER_INSTALLERS_URL + "%s_dist/seattle_win.zip"%(installer_id),
-                             'linux_installer_url' : settings.USER_INSTALLERS_URL + "%s_dist/seattle_linux.tgz"%(installer_id),
-                             'mac_installer_url' : settings.USER_INSTALLERS_URL + "%s_dist/seattle_mac.tgz"%(installer_id),
-                             'just_installed' : 'true',
-                             'domain' : domain,
-                             'installer_id' : installer_id})
+#def post_install(request):
+#  domain = "https://" + request.get_host()
+#  installer_id = request.session['installer_id']
+#  
+#  return direct_to_template(request, "download.html", 
+#                            {'win_installer_url' : settings.USER_INSTALLERS_URL + "%s_dist/seattle_win.zip"%(installer_id),
+#                             'linux_installer_url' : settings.USER_INSTALLERS_URL + "%s_dist/seattle_linux.tgz"%(installer_id),
+#                             'mac_installer_url' : settings.USER_INSTALLERS_URL + "%s_dist/seattle_mac.tgz"%(installer_id),
+#                             'just_installed' : 'true',
+#                             'domain' : domain,
+#                             'installer_id' : installer_id})
 
 
 def download_installers(request, installer_id):
@@ -284,12 +284,12 @@ def download_installers(request, installer_id):
   <Purpose>
     Displays a page allowing users to download the created installers.
   """
-  # TODO: check base installer last-modified date, rebuild if there are new base installers
-  #       also, verify that all the installers are actually present 
+  # check if installer instance EXISTS 
   
-  just_installed = ''
-  if 'just_installed' in request.GET:
-    just_installed = request.GET['just_installed']
+  result = builder.check_and_build_if_new_installers(installer_id)
+  
+  if result == -1:
+    return HttpResponse("Error! Couldn't find base installers during check_and_build_if_new_installers().", status=500)
   
   domain = "https://" + request.get_host()
   
@@ -297,7 +297,6 @@ def download_installers(request, installer_id):
                             {'win_installer_url' : settings.USER_INSTALLERS_URL + "%s_dist/seattle_win.zip"%(installer_id),
                              'linux_installer_url' : settings.USER_INSTALLERS_URL + "%s_dist/seattle_linux.tgz"%(installer_id),
                              'mac_installer_url' : settings.USER_INSTALLERS_URL + "%s_dist/seattle_mac.tgz"%(installer_id),
-                             'just_installed' : just_installed,
                              'domain' : domain,
                              'installer_id' : installer_id})
 

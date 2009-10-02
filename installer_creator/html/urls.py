@@ -13,6 +13,6 @@ urlpatterns = patterns('installer_creator.html.views',
                        (r'^create_installer$', 'create_installer', {}, 'create_installer'),
                        (r'^download_keys$', 'download_keys', {}, 'download_keys'),
                        (r'^dl_keys$', 'dl_keys', {}, 'dl_keys'),
-                       (r'^post_install$', 'post_install', {}, 'post_install'),
+                       #(r'^post_install$', 'post_install', {}, 'post_install'),
                        (r'^installers/(?P<installer_id>\w{' + str(views.INSTALLER_ID_LENGTH) + '})$', 'download_installers', {}, 'download_installers'),
                       )
