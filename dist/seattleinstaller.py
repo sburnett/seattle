@@ -35,6 +35,7 @@ import getpass
 # Python should do this by default, but doesn't on Windows CE.
 sys.path.append(os.getcwd())
 import servicelogger
+import nonportable
 import createnodekeys
 import repy_constants
 import persist # Armon: Need to modify the NM config file
@@ -48,7 +49,7 @@ import traceback
 SILENT_MODE = False
 KEYBITSIZE = 1024
 DISABLE_STARTUP_SCRIPT = False
-OS = platform.system()
+OS = nonportable.ostype
 SUPPORTED_OSES = ["Windows", "WindowsCE", "Linux", "Darwin"]
 # Supported Windows Versions: XP, Vista
 RESOURCE_PERCENTAGE = 10
