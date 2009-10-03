@@ -35,7 +35,6 @@ import getpass
 # Python should do this by default, but doesn't on Windows CE.
 sys.path.append(os.getcwd())
 import servicelogger
-import nonportable
 import createnodekeys
 import repy_constants
 import persist # Armon: Need to modify the NM config file
@@ -49,7 +48,7 @@ import traceback
 SILENT_MODE = False
 KEYBITSIZE = 1024
 DISABLE_STARTUP_SCRIPT = False
-OS = nonportable.ostype
+OS = platform.system()
 SUPPORTED_OSES = ["Windows", "WindowsCE", "Linux", "Darwin"]
 # Supported Windows Versions: XP, Vista
 RESOURCE_PERCENTAGE = 10
@@ -1112,7 +1111,11 @@ def setup_linux_or_mac_startup():
   """
   <Purpose>
     Sets up seattle to run at startup on this Linux or Macintosh machine. This
-    means adding an entry to crontab.
+    means adding an entry to crontab after running tests to make sure that cron
+    is running and that the user has the ability to modify the crontab.  If any
+    of these tests show problems, the appropriate output is given to the user.
+    Otherwise, if seattle is successfully configured to run automatically at
+    machine boot, then no output is given to the user.
 
   <Arguments>
     None.
