@@ -1461,10 +1461,12 @@ def perform_system_benchmarking():
     _output("Failed.")
     _output("This install cannot succeed because resources are insufficient. " \
               + "This could be because the percentage of donated resources " \
-              + "is to small or because a custom install had to many vessels. ")
-    _output("Please email the Seattle project for additional support, if you " \
-              + "can send the installer_benchmark.log and vesselinfo files " \
-              + "they will help us diagnose the issue.")
+              + "is too small or because a custom install had too many " \
+              + "vessels.")
+    _output("Please email the Seattle project for additional support, and " \
+              + "attach the installer_benchmark.log and vesselinfo files, " \
+              + "found in the seattle_repy directory, in order to help us " \
+              + "diagnose the issue.")
     benchmark_logfileobj.close()
     return False
   except Exception:
@@ -1472,12 +1474,12 @@ def perform_system_benchmarking():
     traceback.print_exception(exceptionType, exceptionValue, \
                               exceptionTraceback, file=benchmark_logfileobj)
     _output("Failed.")
-    _output("Seattle encountered an error, this install cannot succeed " \
-              + "either because required installation info is corrupted or " \
-              + "resources are insufficient.")
-    _output("Please email the Seattle project for additional support, if you " \
-              + "can send the installer_benchmark.log and vesselinfo files " \
-              + "they will help us diagnose the issue.")
+    _output("This install cannot succeed either because required " \
+              + "installation info is corrupted or resources are insufficient.")
+    _output("Please email the Seattle project for additional support, and " \
+              + "attach the installer_benchmark.log and vesselinfo files, " \
+              + "found in the seattle_repy directory, in order to help us " \
+              + "diagnose the issue.")
     benchmark_logfileobj.close()
     return False
   
@@ -1802,7 +1804,8 @@ def main():
                 + "startup for the following reason: " + str(e))
       _output("Continuing with the installation process now.  To manually " \
                 + "run seattle at any time, just run " \
-                + get_starter_file_name())
+                + get_starter_file_name() + " from within the seattle " \
+                + "directory.")
       _output("Please contact the seattle project for further assistance.")
       servicelogger.log(time.strftime(" seattle was NOT installed on this " \
                                         + "system for the following reason: " \
