@@ -125,6 +125,10 @@ req textops.py
 req NATLayer_rpc.repy
 req deserialize.repy
 req Multiplexer.repy
+req safety_exceptions.py
+req harshexit.py
+req portable_popen.py
+req nanny_resource_limits.py
 
 # Files added during install build:
 req metainfo
