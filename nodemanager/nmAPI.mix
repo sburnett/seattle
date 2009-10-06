@@ -46,7 +46,7 @@ import statusstorage
 import nmstatusmonitor
 
 # used to check file size restrictions...
-import misc
+import nonportable
 
 # need this to check uploaded keys for validity
 include rsa.repy
@@ -337,7 +337,7 @@ def addfiletovessel(vesselname,filename, filedata):
     raise BadRequest, "No such vessel"
 
   # get the current amount of data used by the vessel...
-  currentsize = misc.compute_disk_use(vesselname+"/")
+  currentsize = nonportable.compute_disk_use(vesselname+"/")
   # ...and the allowed amount
   resourcedata = nmresourcemath.read_resources_from_file(vesseldict[vesselname]['resourcefilename'])
 
