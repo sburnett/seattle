@@ -107,15 +107,15 @@ class statusthread(threading.Thread):
           try: 
             status,timestamp = statusstorage.read_status(statusfilename)
           except IOError, e:
-            if e[0] == 2:
-              # file not found.   
-              # hmm, I guess this means it's starting up now 
-              if oldstatus != 'Fresh':
-                servicelogger.log("Error, no status file for vessel '"+vesselname+"' with status '"+oldstatus+"'")
-                # BUG: What do I do here?   Does it help to throw an error?
-                pass
+            # if the file exists, raise the exception since we don't know what
+            # it is about.
+            if e[0] != 2:
+              raise
+
+            # file not found.   This means it is fresh...
+            status = 'Fresh'
+            timestamp = time.time()
                
-              continue
           
           # Armon: Check if status is ThreadErr, this is a critical error condition
           # that requires lowering the global thread count, and reseting all vessels

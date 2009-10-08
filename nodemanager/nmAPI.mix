@@ -518,6 +518,11 @@ def resetvessel(vesselname,exitparams=(44, '')):
   if os.path.exists(vesseldict[vesselname]['stopfilename']):
     os.remove(vesseldict[vesselname]['stopfilename'])
 
+  if os.path.exists(vesseldict[vesselname]['stopfilename']):
+    os.remove(vesseldict[vesselname]['stopfilename'])
+
+  # change the status to Fresh
+  statusstorage.write_status('Fresh',vesseldict[vesselname]['statusfilename'])
   return "\nSuccess"
 
 
