@@ -26,6 +26,9 @@ if callfunc == 'initialize':
   # get the vessel to use...
   myvessel = nmclient_listaccessiblevessels(nmhandle,pubkey)[0][0]
 
+  # remove any existing files
+  nmclient_signedsay(nmhandle, "ResetVessel", myvessel)
+
   nmclient_signedsay(nmhandle, "AddFileToVessel", myvessel, "hello","hellodata")
   nmclient_signedsay(nmhandle, "AddFileToVessel", myvessel, "hello2","hellodata")
 
