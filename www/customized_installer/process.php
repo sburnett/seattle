@@ -56,9 +56,9 @@ if (isset($_POST)) {
                 # new way of building installers (these next lines replace the previous invocation):
                 ###
                 foreach ($installers as &$installer) {
-			file_put_contents("h3","python $carter_script $dl_prefix/$installer $dl_prefix/vesselsinfo seattle/seattle_repy > /tmp/carter.out.php 2> /tmp/carter.err.php");
+			file_put_contents("h3","python $carter_script $dl_prefix/$installer $dl_prefix/vesselsinfo seattle_repy > /tmp/carter.out.php 2> /tmp/carter.err.php");
 			exec("cp $base_installer_prefix/$installer $dl_prefix/");
-			exec("python $carter_script $dl_prefix/$installer $dl_prefix/vesselsinfo seattle/seattle_repy > /tmp/carter.out.php 2> /tmp/carter.err.php");
+			exec("python $carter_script $dl_prefix/$installer $dl_prefix/vesselsinfo seattle_repy > /tmp/carter.out.php 2> /tmp/carter.err.php");
 		}
                 ###
 		
