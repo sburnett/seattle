@@ -299,8 +299,12 @@ def _create_index_file(resultslist):
   <head>
   <title>Test log</title>
   <style>
-    body { font-family : sans-serif; }
+    body { font-family : sans-serif; font-size : 100%; }
+    h1 { font-size : 1.2em; }
+    td, tr { font-size : 0.9em; }
+    td { padding : 0 5px 0 5px; }
     table { border : 1px solid #555; }
+    .date { white-space: nowrap; }
     .success { background-color : #afa; }
     .failure { background-color : #faa; }
   </style>
@@ -322,8 +326,8 @@ def _create_index_file(resultslist):
       htmllines.append('<tr class="failure">')
     htmllines.append('<td>' + str(runnumber) + '</td>')
     # Date that is a link to the runnumber directory.
-    htmllines.append('<td><a href="' + str(runnumber) + '/">' + 
-                     resulttext[1] + '<a></td>')
+    htmllines.append('<td class="date"><a href="' + str(runnumber) + '/">' + 
+                     resulttext[1].strip() + '<a></td>')
     # svn revision (e.g. r1234)
     htmllines.append('<td>' + revision + '</td>')
     # SUCCESS or FAILURE

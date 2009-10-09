@@ -26,7 +26,6 @@ python run_tests.py -n >$logfile 2>&1
 
 result=$?
 
-pkill -P $$
 rm -rf $tmpdir
 
 echo "------------ nminit.log --------------" >> $logfile
