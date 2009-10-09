@@ -316,7 +316,6 @@ def _create_index_file(resultslist):
   """)
   
   for (runnumber, revision, resulttext) in resultslist:
-    runnumber += 1
     if resulttext[0].strip() == "SUCCESS":
       htmllines.append('<tr class="success">')
     else:
