@@ -1698,7 +1698,7 @@ update             -- Update information about the vessels
           print "Added group",
           for statusname in statusdict:
             targets['list'+statusname] = statusdict[statusname]
-            print "'"+statusname+"' with "+str(len(targets['list'+statusname]))+" targets",
+            print "'list"+statusname+"' with "+str(len(targets['list'+statusname]))+" targets",
           print
           
         continue
