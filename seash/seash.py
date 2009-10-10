@@ -927,7 +927,7 @@ update             -- Update information about the vessels
               print "Files on '"+longname+"': '"+retdict[longname][1]+"'"
               goodlist.append(longname)
             else:
-              print "failure:",retdict[longname][1]
+              print "failure on '"+longname+"': '"+retdict[longname][1]+"'"
               faillist.append(longname)
   
           # and display it...
@@ -963,7 +963,7 @@ update             -- Update information about the vessels
               print retdict[longname][1]
               goodlist.append(longname)
             else:
-              print "failure:",retdict[longname][1]
+              print "failure on '"+longname+"': ",retdict[longname][1]
               faillist.append(longname)
   
           # and display it...
@@ -995,7 +995,7 @@ update             -- Update information about the vessels
               print retdict[longname][1]
               goodlist.append(longname)
             else:
-              print "failure:",retdict[longname][1]
+              print "Failure '"+longname+"':",retdict[longname][1]
               faillist.append(longname)
   
           # and display it...
@@ -1026,7 +1026,7 @@ update             -- Update information about the vessels
               print "Offcut resource data for '"+nodename+"':"
               print retdict[nodename][1]
             else:
-              print "failure:",retdict[nodename][1]
+              print "Failure '"+nodename+"':",retdict[longname][1]
   
           continue
 
