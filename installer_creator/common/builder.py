@@ -97,7 +97,7 @@ def build_installer(vessel_dict, key_dict, username='', dist_str='wml'):
 
   print("file preparation done. calling customize installer.")
   
-  installer_urls_dict = _run_customize_installer(dist_str, username)
+  installer_urls_dict = _run_customize_installer(username, dist_str)
   return installer_urls_dict
   
 #  try:

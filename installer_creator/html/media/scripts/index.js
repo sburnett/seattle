@@ -142,6 +142,8 @@ function removeelement(elem) {
 				defaultNode.id = "owner" + index;
 				parent.appendChild(defaultNode);
 				subparent.remove();
+
+				
 			} else {
 				var index = (Number)(parent.id.charAt(8));
 				var adds = $$(".addusers");
@@ -191,6 +193,7 @@ function removeVessel() {
 	this.style.display = "none";
 	var index = (Number)(this.id.charAt(6)+"");
 	
+	// remove users
 	userlist = document.getElementById("userlist" + index);
 	user_li_list = userlist.getElementsByTagName('li');
 	
@@ -205,16 +208,14 @@ function removeVessel() {
       link = user_li_list[i].childNodes[0].childNodes[1];
       removeelement(link);
     }
+    
   }
 	
-	
-	
-	//for (var i=1; i < userlist.childNodes.length-1; i++) {
-  //  userli = userlist.childNodes[i].childNodes[0].childNodes[1].textContent;
-  //  alert(userli);
-  //}
-	//alert(document.getElementById("userlist4").childNodes[1].childNodes[0].childNodes[0].textContent);
-	//alert(document.getElementById("userlist4").getElementsByTagName('li')[0]);
+	// remove owners
+	link = document.getElementById("ownerlist" + index).childNodes[1].childNodes[0].childNodes[1];
+	if (link != null) {
+	  removeelement(link);
+	}
 	
 	$("plus"+index).style.display = "block";
 	var previousIndex = findNumberOfJumpsBack(index-1);
@@ -455,7 +456,7 @@ function addUserToList(draggable, droppable) {
 	var newlyAdded = document.createElement("li");
 	Element.extend(newlyAdded);
 	
-	if ($("user" + index + "-1")) {
+	if ($("user" + index + "-1")) { 
 		var lastchildID = droppable.lastChild.id
 		newlyAdded.id = "user" + index + "-" + ((Number)(lastchildID.substring(6, lastchildID.length)) + 1);
 	} else {

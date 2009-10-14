@@ -181,8 +181,8 @@ def create_installer(request):
     
     # Begins the actual build of the installer
     try:
-      #builder.build_installer(vessel_dict, key_dict, installer_id)
-      pass
+      builder.build_installer(vessel_dict, key_dict, installer_id)
+      #pass
     except Exception, e:
       print str(e)
       return HttpResponse("<b>Build failed! We encountered a problem while building the installers.</b><br>" +
@@ -220,7 +220,7 @@ def dl_keys(request):
   # init file object that will hold zipfile in memory
   #fhandle_zip = StringIO.StringIO
   gen = _generate_random()
-  print gen
+  #print gen
   fhandle_zip_path = os.path.join(tempfile.gettempdir(), gen)
   fhandle_zip = open(fhandle_zip_path, 'wb')
   
