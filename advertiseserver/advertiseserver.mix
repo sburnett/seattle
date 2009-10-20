@@ -10,6 +10,7 @@ Advertisements to a central server (similar to openDHT)
 """
 
 include session.repy
+include sockettimeout.repy
 include time.repy
 include uniqueid.repy
 
@@ -198,4 +199,4 @@ if callfunc=='initialize':
   logfiledata["call_trace"] = open("log.calltrace",'a')
   logfiledata["expanded_log"] = open("log.expanded",'a')
   
-  waitforconn(getmyip(),serverport,handlerequest)
+  timeout_waitforconn(getmyip(),serverport,handlerequest)
