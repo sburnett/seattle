@@ -68,12 +68,13 @@ def uninstall(silent = 0):
         os.popen('crontab "' + s_tmp + '"')
         output("Seattle has been uninstalled.", silent)
         output("If you wish, you may now delete this directory.", silent)
+        servicelogger.log(time.strftime(" seattle was UNINSTALLED on: " \
+                                            "%m-%d-%Y %H:%M:%S"))
     else:
         os.close(fd)
-        output("Could not detect seattle as configured to run automatically at boot on this system.", silent)
+        output("seattle is not currently installed.", silent)
     os.unlink(s_tmp)
 
-    servicelogger.log(time.strftime(" seattle was UNINSTALLED on: %m-%d-%Y %H:%M:%S"))
 
 
 

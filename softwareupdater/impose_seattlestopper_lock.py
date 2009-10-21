@@ -43,15 +43,10 @@ def killall():
   """
   for lockname in locklist:
     lockstate = runonce.getprocesslock(lockname)
-    if lockstate == True:
-      # The process wasn't running
-      print "The lock '" + lockname + "' was not being held."
-    elif lockstate == False:
-      # The process is running, but I can't stop it
-      print "The lock '" + lockname + "' is being held by an unknown process."
-    else:
+    # If lockstate is a process pid, then we need to terminate it. Otherwise,
+    # that lock is not being held by a program that needs to be terminated. 
+    if not lockstate == True and not lockstate == False:
       # We got the pid, we can stop the process
-      print "Stopping the process (pid: " + str(lockstate) + ") with lock '" + lockname + "'."
       harshexit.portablekill(lockstate)
 
       # Now acquire the lock for ourselves, looping until we
@@ -66,7 +61,7 @@ def main():
   # Is impose_seattlestopper_lock.py already running?
   lockstate = runonce.getprocesslock("seattlestopper")
   if lockstate == True:
-    killall()     
+    killall()
     # Now sleep forever, checking every 30 secs to make sure we
     # shouldn't quit.
     while runonce.stillhaveprocesslock("seattlestopper") == True:

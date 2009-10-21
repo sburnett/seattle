@@ -1,13 +1,29 @@
 #!/bin/sh
 
-# When the program is installed on a user's
-# comptuer, all instances of %PROG_PATH% will
-# be replaced with the path to the program's
-# directory
-
+# Change to the seattle directory (this "cd" command allows the user to call the
+#   script from any directory.
 cd "`echo $0 | sed 's/start_seattle.sh//'`"
 
 python get_seattlestopper_lock.py
 python nmmain.py &
 python softwareupdater.py &
-echo "seattle has been started: $(date)"
+
+
+# Check to confirm that nmmain.py and softwareupdater.py are running, and print
+#   the status to the user.
+# Further, any standard error output that may be generated from the "ps" command
+#   is suppressed to /dev/null to avoid erroneous output to the user.
+NMMAIN=`ps -ef 2>/dev/null | grep nmmain.py | grep -v grep`
+SOFTWAREUPDATER=`ps -ef 2>/dev/null | grep softwareupdater.py | grep -v grep`
+
+if echo "$NMMAIN" | grep nmmain.py > /dev/null
+then
+    if echo "$SOFTWAREUPDATER" | grep softwareupdater.py > /dev/null
+    then
+	echo "seattle has been started: $(date)"
+    fi
+else
+    echo "seattle was not properly started."
+    echo "If you continue to see this error when starting seattle, please" \
+	"contact the seattle development team."
+fi
