@@ -42,6 +42,8 @@ req emulfile.py
 req emulmisc.py
 req emultimer.py
 req fakelinecache.py
+req httpretrieve.repy
+req http_hierarchy_error.repy
 req idhelper.py
 req loggingrepy.py
 req math.repy
@@ -71,6 +73,7 @@ req rsa.repy
 req safe.py
 req safe_check.py
 req seash.py
+req serialize.repy
 req servicelogger.py
 req servicelookup.repy
 req session.repy
@@ -81,6 +84,7 @@ req softwareupdater.py
 req statusstorage.py
 req time.repy
 req tracebackrepy.py
+req waitforwebserverconn.repy
 req impose_seattlestopper_lock.py
 req createnodekeys.py
 req runonce.py
