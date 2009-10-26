@@ -10,12 +10,12 @@ fi
 
 tmpdir=`mktemp -d`
 
-# softwareupdater/run_local_tests.sh must be run from the same directory that
+# softwareupdater/test/run_local_tests.sh must be run from the same directory that
 # preparetests.py is in.
 
 cd $trunkdir
 
-softwareupdater/run_local_tests.sh $tmpdir >$logfile 2>&1
+softwareupdater/test/run_local_tests.sh $tmpdir >$logfile 2>&1
 
 if [ "$?" != "0" ]; then
   echo "run_local_tests.sh didn't run properly"

@@ -18,7 +18,7 @@
 testsdir="$1"
 
 if [ "$testsdir" == "" ]; then
-  echo "Usage: ./softwareupdater/run_local_tests.sh name_of_directory_to_put_tests_in"
+  echo "Usage: ./softwareupdater/test/run_local_tests.sh name_of_directory_to_put_tests_in"
   exit 1
 fi
 
@@ -29,7 +29,7 @@ fi
 
 if [ ! -d "softwareupdater" ]; then
   echo "This script must be run from the same directory that preparetest.py is in."
-  echo "Usage: ./softwareupdater/run_local_tests.sh name_of_directory_to_put_tests_in"
+  echo "Usage: ./softwareupdater/test/run_local_tests.sh name_of_directory_to_put_tests_in"
   exit 1
 fi
 
