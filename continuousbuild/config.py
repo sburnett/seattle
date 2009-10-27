@@ -50,3 +50,6 @@ TEST_RUNNER_DIR = TRUNK_DIR + "/continuousbuild/tests"
 
 # A list of test runners (just their basenames) that shouldn't be run.
 SKIP_TEST_RUNNERS = []
+
+# Number of seconds between automatic refreshes of the index.html page.
+META_REFRESH_INTERVAL = 300

@@ -269,6 +269,7 @@ def _create_index_file(resultslist):
   <html>
   <head>
   <title>Seattle test log :: """ + config.SYSTEM_DESCRIPTION + """</title>
+  <meta http-equiv="refresh" content='""" + str(config.META_REFRESH_INTERVAL) + """' />
   <style>
     body { font-family : sans-serif; font-size : 100%; }
     h1 { font-size : 1.2em; }
