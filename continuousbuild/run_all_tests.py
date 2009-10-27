@@ -39,6 +39,10 @@
   that if this script itself fails, it will be known by some means other
   than noticing that the index.html page hasn't been updated recently.
 
+  Before running this script, edit the values in the config.py file in the same
+  directory as this script in order to configure various important values,
+  including where files should be written to.
+
   Note: you need to 'svn up' on your own outside of this script.
 """
 
@@ -53,65 +57,23 @@ import sys
 
 import PyRSS2Gen
 
+import config
 
-# A description of the system these tests are running on.
-SYSTEM_DESCRIPTION = "OS_NAME_HERE (python " + sys.version.split()[0] + ")"
-
-# The directory where all results will be stored. This should probably be
-# a web-accessible directory.
-TESTLOG_DIR = "/tmp/testlogs"
-
-# A file kept in Teach tests results directory (e.g. TESTLOG_DIR/1/) which
-# contains a summary of individual tests that run.  The first line of this
-# file will be SUCCESS or FAILURE to indicate whether all tests passed or
-# some did not. 
-RESULTS_FILE_NAME = "results.txt"
-
-# An rss feed with failure info. This should probably be in the TESTLOG_DIR
-# or at least at some other location that is web-accessible.
-RSS_FILE_NAME = TESTLOG_DIR + "/failures.rss"
-
-TESTLOG_URL = "http://localhost/testlog/"
-
-# The number of directories of test results to keep in TESTLOG_DIR.
-MAX_RUNS_KEPT = 100
-
-# Amount of time before giving up on a test.
-MAX_TEST_TIME_SECONDS = 60 * 15
-
-# By default we assume that this file is testing the checked out copy of trunk
-# that it resides in. This is really just for development.  If you want to be
-# able to automatically propagate changes to systems running this from the
-# latest from svn, we'd need to move some of the configuration settings out to
-# a different file, lest they be clobbered with the default settings from the
-# svn copy.
-# This should be an absolute path, not a relative one.
-TRUNK_DIR = os.path.realpath(os.path.dirname(__file__))
-
-# Each file in this directory that starts with "run_" will be considered a test
-# to be run. Each script should execute with a non-zero status if the tests
-# failed. Each script is passed two arguments when executed: the TRUNK_DIR and
-# name of a file that all of it's stdout and stderr output should be written
-# to (this will be an absolute path).
-TEST_RUNNER_DIR = TRUNK_DIR + "/continuousbuild/tests"
-
-# A list of test runners (just their basenames) that shouldn't be run.
-SKIP_TEST_RUNNERS = []
 
 
 
 
 def remove_old_directories(latestrunnumber):
   # Rotate existing test results.
-  for i in range(latestrunnumber - MAX_RUNS_KEPT * 2, latestrunnumber - MAX_RUNS_KEPT + 1):
-    if os.path.exists(TESTLOG_DIR + "/" + str(i)):
-      shutil.rmtree(TESTLOG_DIR + "/" + str(i))
+  for i in range(latestrunnumber - config.MAX_RUNS_KEPT * 2, latestrunnumber - config.MAX_RUNS_KEPT + 1):
+    if os.path.exists(config.TESTLOG_DIR + "/" + str(i)):
+      shutil.rmtree(config.TESTLOG_DIR + "/" + str(i))
   
 
 
 
 def _write_svn_log(filename):
-  logtext = subprocess.Popen(["svn", "log", TRUNK_DIR, "--limit", "1"],
+  logtext = subprocess.Popen(["svn", "log", config.TRUNK_DIR, "--limit", "1"],
                              stdout=subprocess.PIPE,
                              stderr=subprocess.STDOUT).communicate()[0]
   revision = logtext.strip("-").strip().split()[0]
@@ -121,7 +83,7 @@ def _write_svn_log(filename):
 
 
 def _get_and_increment_run_number():
-  runfilename = TESTLOG_DIR + "/lastrun.txt"
+  runfilename = config.TESTLOG_DIR + "/lastrun.txt"
   
   if not os.path.exists(runfilename):
     fd = open(runfilename, "w")
@@ -143,19 +105,19 @@ def _get_and_increment_run_number():
 
 def run_tests():
   
-  if os.path.exists(TESTLOG_DIR + "/running/"):
+  if os.path.exists(config.TESTLOG_DIR + "/running/"):
     print "The 'running' directory already exists. Either another test is"
     print "running or one stopped in the middle. Either way, giving up."
     sys.exit(1)
     
   runnumber = _get_and_increment_run_number()
     
-  os.mkdir(TESTLOG_DIR + "/running/")
+  os.mkdir(config.TESTLOG_DIR + "/running/")
 
-  _write_svn_log(TESTLOG_DIR + "/running/svn.txt")
+  _write_svn_log(config.TESTLOG_DIR + "/running/svn.txt")
   
   # Run the individual tests.
-  testrunnerlist = glob.glob(TEST_RUNNER_DIR + "/run_*")
+  testrunnerlist = glob.glob(config.TEST_RUNNER_DIR + "/run_*")
   
   results = []
   failed_count = 0
@@ -163,17 +125,17 @@ def run_tests():
   for testrunner in testrunnerlist:
     testname = os.path.basename(testrunner)
 
-    if testname in SKIP_TEST_RUNNERS:
+    if testname in config.SKIP_TEST_RUNNERS:
       results.append(["SKIPPED", testname, "", ""])
       continue
 
-    logname = TESTLOG_DIR + "/running/" + testname + ".txt"
-    proc = subprocess.Popen(['setsid', testrunner, TRUNK_DIR, logname],
+    logname = config.TESTLOG_DIR + "/running/" + testname + ".txt"
+    proc = subprocess.Popen(['setsid', testrunner, config.TRUNK_DIR, logname],
                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     
     output = ""
     
-    for runtime in range(MAX_TEST_TIME_SECONDS):
+    for runtime in range(config.MAX_TEST_TIME_SECONDS):
       if proc.poll() != None:
         retval = proc.returncode
         break
@@ -233,11 +195,11 @@ def run_tests():
     summary_lines += " ".join(testresult) + "\n"
   
   # Write the summary file.
-  fd = open(TESTLOG_DIR + "/running/" + RESULTS_FILE_NAME, "w")
+  fd = open(config.TESTLOG_DIR + "/running/" + config.RESULTS_FILE_NAME, "w")
   fd.writelines(summary_lines)
   fd.close()
   
-  os.rename(TESTLOG_DIR + "/running", TESTLOG_DIR + "/" + str(runnumber))
+  os.rename(config.TESTLOG_DIR + "/running", config.TESTLOG_DIR + "/" + str(runnumber))
 
   return runnumber
 
@@ -251,13 +213,13 @@ def _get_all_results(latestrunnumber):
   """
   results = []
   
-  for i in range(latestrunnumber, latestrunnumber - MAX_RUNS_KEPT, -1):
-    if os.path.exists(TESTLOG_DIR + "/" + str(i)):
-      fd = open(TESTLOG_DIR + "/" + str(i) + "/" + RESULTS_FILE_NAME)
+  for i in range(latestrunnumber, latestrunnumber - config.MAX_RUNS_KEPT, -1):
+    if os.path.exists(config.TESTLOG_DIR + "/" + str(i)):
+      fd = open(config.TESTLOG_DIR + "/" + str(i) + "/" + config.RESULTS_FILE_NAME)
       resultlines = fd.readlines()
       fd.close()
       
-      fd = open(TESTLOG_DIR + "/" + str(i) + "/svn.txt")
+      fd = open(config.TESTLOG_DIR + "/" + str(i) + "/svn.txt")
       revision = fd.read().strip()
       fd.close()
       
@@ -281,21 +243,21 @@ def _create_rss_file(resultslist):
       dateobj += datetime.timedelta(hours= -8)
       item = PyRSS2Gen.RSSItem(
          title="Test failure on run number " + str(runnumber) + " using " + revision,
-         link=TESTLOG_URL,
+         link=config.TESTLOG_URL,
          description="\n".join(resulttext),
-         guid=PyRSS2Gen.Guid(TESTLOG_URL + datestr),
+         guid=PyRSS2Gen.Guid(config.TESTLOG_URL + datestr),
          pubDate=dateobj)
       failureitems.append(item)
   
   rss = PyRSS2Gen.RSS2(
-    title="Test Failures on " + SYSTEM_DESCRIPTION,
-    link=TESTLOG_URL,
-    description="Seattle test failures for continuous build on " + SYSTEM_DESCRIPTION,
+    title="Test Failures on " + config.SYSTEM_DESCRIPTION,
+    link=config.TESTLOG_URL,
+    description="Seattle test failures for continuous build on " + config.SYSTEM_DESCRIPTION,
     lastBuildDate=datetime.datetime.now() + datetime.timedelta(hours= -8),
     items=failureitems)
   
-  rss.write_xml(open(RSS_FILE_NAME + ".new", "w"))
-  os.rename(RSS_FILE_NAME + ".new", RSS_FILE_NAME)
+  rss.write_xml(open(config.RSS_FILE_NAME + ".new", "w"))
+  os.rename(config.RSS_FILE_NAME + ".new", config.RSS_FILE_NAME)
 
 
 
@@ -306,7 +268,7 @@ def _create_index_file(resultslist):
   htmllines.append("""
   <html>
   <head>
-  <title>Seattle test log :: """ + SYSTEM_DESCRIPTION + """</title>
+  <title>Seattle test log :: """ + config.SYSTEM_DESCRIPTION + """</title>
   <style>
     body { font-family : sans-serif; font-size : 100%; }
     h1 { font-size : 1.2em; }
@@ -319,7 +281,7 @@ def _create_index_file(resultslist):
   </style>
   </head>
   <body>
-  <h1>""" + SYSTEM_DESCRIPTION + """</h1>
+  <h1>""" + config.SYSTEM_DESCRIPTION + """</h1>
   <table>
   <th>#</th>
   <th>Date</th>
@@ -351,8 +313,8 @@ def _create_index_file(resultslist):
   </html>
   """)
   
-  open(TESTLOG_DIR + "/index.html.new", "w").write("\n".join(htmllines))
-  os.rename(TESTLOG_DIR + "/index.html.new", TESTLOG_DIR + "/index.html")
+  open(config.TESTLOG_DIR + "/index.html.new", "w").write("\n".join(htmllines))
+  os.rename(config.TESTLOG_DIR + "/index.html.new", config.TESTLOG_DIR + "/index.html")
   
 
 
