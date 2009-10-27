@@ -54,6 +54,8 @@ import sys
 import PyRSS2Gen
 
 
+# A description of the system these tests are running on.
+SYSTEM_DESCRIPTION = "OS_NAME_HERE (python " + sys.version.split()[0] + ")"
 
 # The directory where all results will be stored. This should probably be
 # a web-accessible directory.
@@ -93,6 +95,8 @@ TRUNK_DIR = os.path.realpath(os.path.dirname(__file__))
 # to (this will be an absolute path).
 TEST_RUNNER_DIR = TRUNK_DIR + "/continuousbuild/tests"
 
+# A list of test runners (just their basenames) that shouldn't be run.
+SKIP_TEST_RUNNERS = []
 
 
 
@@ -158,6 +162,11 @@ def run_tests():
   
   for testrunner in testrunnerlist:
     testname = os.path.basename(testrunner)
+
+    if testname in SKIP_TEST_RUNNERS:
+      results.append(["SKIPPED", testname, "", ""])
+      continue
+
     logname = TESTLOG_DIR + "/running/" + testname + ".txt"
     proc = subprocess.Popen(['setsid', testrunner, TRUNK_DIR, logname],
                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
@@ -279,9 +288,9 @@ def _create_rss_file(resultslist):
       failureitems.append(item)
   
   rss = PyRSS2Gen.RSS2(
-    title="Seattle Test Failures",
+    title="Test Failures on " + SYSTEM_DESCRIPTION,
     link=TESTLOG_URL,
-    description="Seattle Test Failures",
+    description="Seattle test failures for continuous build on " + SYSTEM_DESCRIPTION,
     lastBuildDate=datetime.datetime.now() + datetime.timedelta(hours= -8),
     items=failureitems)
   
@@ -297,7 +306,7 @@ def _create_index_file(resultslist):
   htmllines.append("""
   <html>
   <head>
-  <title>Test log</title>
+  <title>Seattle test log :: """ + SYSTEM_DESCRIPTION + """</title>
   <style>
     body { font-family : sans-serif; font-size : 100%; }
     h1 { font-size : 1.2em; }
@@ -310,7 +319,7 @@ def _create_index_file(resultslist):
   </style>
   </head>
   <body>
-  <h1>Test log</h1>
+  <h1>""" + SYSTEM_DESCRIPTION + """</h1>
   <table>
   <th>#</th>
   <th>Date</th>
