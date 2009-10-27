@@ -8,7 +8,8 @@ if [ -z "$trunkdir" ] || [ -z "$logfile" ]; then
   exit 1
 fi
 
-tmpdir=`mktemp -d`
+# A mktemp command that works on mac/bsd and linux.
+tmpdir=`mktemp -d -t tmp.XXXXXXXX` || exit 1
 
 # softwareupdater/test/run_local_tests.sh must be run from the same directory that
 # preparetests.py is in.
