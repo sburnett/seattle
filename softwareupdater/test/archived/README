@@ -1,0 +1,7 @@
+The software updater remote tests appear to be nothing more than a code-duplicating, broken
+version of the local tests but with a remote webserver rather than a local webserver.
+Leaving them mixed in with the other tests and documenting them on the wiki just confuses
+people.
+
+If you do want to run them, copy these files up one directory (that is, to the directory
+softwareupdater/test/).

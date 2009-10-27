@@ -22,7 +22,7 @@ To have the tests update from a remote site, do the following:
   Get all necesary files into a single folder contained within an empty folder
   (Do a preparetest.py plus copy the contents of softwareupdater/test)
   Run:
-  python test_updater.py <http://update.baseurl/location/>
+  python test_updater_remote.py <http://update.baseurl/location/>
   cd ..
   scp -r * </place/where/baseurl/is/located>
   cd back into the directory with all the files
