@@ -1594,7 +1594,7 @@ update             -- Update information about the vessels
       elif userinputlist[0] == 'loadkeys':
         if len(userinputlist)==2:
 
-          # they typed 'loadpriv foo'
+          # they typed 'loadkeys foo'
 
           # the user input may have a directory or tilde in it.   The key name 
           # shouldn't have either.
