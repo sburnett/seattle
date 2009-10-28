@@ -1592,9 +1592,10 @@ update             -- Update information about the vessels
 
 # loadkeys filename [as identity]                    -- loads a private key
       elif userinputlist[0] == 'loadkeys':
-        if len(userinputlist)==2:
+        if userinputlist[1].endswith('publickey') or userinputlist[1].endswith('privatekey'):
+          print 'Warning: Trying to load a keypair named "'+userinputlist[1]+'.publickey" and "'+userinputlist[1]+'.privatekey"'
 
-          # they typed 'loadkeys foo'
+        if len(userinputlist)==2:
 
           # the user input may have a directory or tilde in it.   The key name 
           # shouldn't have either.
@@ -1618,11 +1619,22 @@ update             -- Update information about the vessels
         else:
           raise UserError("Usage: loadkeys filename [as identity]")
 
+
+
         # load the keys and update the table...
-        privkey = rsa_file_to_privatekey(privkeyfn)
-        pubkey = rsa_file_to_publickey(pubkeyfn)
+        try:
+          privkey = rsa_file_to_privatekey(privkeyfn)
+        except (OSError, IOError), e:
+          raise UserError("Cannot locate private key '"+privkeyfn+"'.\nDetailed error: '"+str(e)+"'.")
+
+        try:
+          pubkey = rsa_file_to_publickey(pubkeyfn)
+        except (OSError, IOError), e:
+          raise UserError("Cannot locate private key '"+privkeyfn+"'.\nDetailed error: '"+str(e)+"'.")
+
         keys[keyname] = {'privatekey':privkey, 'publickey':pubkey}
         
+
         # Check the keys, on error reverse the change and re-raise
         try:
           check_key_set(keyname)
