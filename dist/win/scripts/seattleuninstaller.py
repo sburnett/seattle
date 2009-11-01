@@ -110,26 +110,42 @@ def remove_seattle_from_win_startup_registry():
     True if seattle was removed from the registry, False otherwise (indicating
     that seattle could not be found in the registry).
   """
-  # The startup key must first be opened before any operations, including
-  # search, may be performed on it.
-  # ARGUMENTS:
-  # _winreg.HKEY_LOCAL_MACHINE: specifies the key containing the subkey used
-  #                             to run programs at machine startup
-  #                             (independent of user login).
-  # "Software\\Microsoft\\Windows\\CurrentVersion\\Run": specifies the subkey
-  #                                                      that runs programs on
-  #                                                      machine startup.
-  # 0: A reserved integer that must be zero.
-  # _winreg.KEY_ALL_ACCESS: an integer that allows the key to be opened with all
-  #                         access (e.g., read access, write access,
-  #                         manipulaiton, etc.)
-  startkey_Local_Machine = _winreg.OpenKey(_winreg.HKEY_LOCAL_MACHINE,
+
+  # The following try: block attempts to remove seattle from the
+  # HKEY_LOCAL_MACHINE startup key.  This must be in a try: block in case the
+  # user does not have permission to access this key (in which case seattle will
+  # not have been installed there anyway).  The uninstall will need to continue
+  # without interruption if this is the case.
+  removed_from_LM = False
+  try:
+    # The startup key must first be opened before any operations, including
+    # search, may be performed on it.
+    # ARGUMENTS:
+    # _winreg.HKEY_LOCAL_MACHINE: specifies the key containing the subkey used
+    #                             to run programs at machine startup
+    #                             (independent of user login).
+    # "Software\\Microsoft\\Windows\\CurrentVersion\\Run": specifies the subkey
+    #                                                      that runs programs on
+    #                                                      machine startup.
+    # 0: A reserved integer that must be zero.
+    # _winreg.KEY_ALL_ACCESS: an integer that allows the key to be opened with
+    #                         all access (e.g., read access, write access,
+    #                         manipulaiton, etc.)
+    startkey_Local_Machine = _winreg.OpenKey(_winreg.HKEY_LOCAL_MACHINE,
                             "Software\\Microsoft\\Windows\\CurrentVersion\\Run",
                              0,_winreg.KEY_ALL_ACCESS)
-  removed_from_LM = remove_value_from_registry(startkey_Local_Machine,"seattle")
+    removed_from_LM = remove_value_from_registry(startkey_Local_Machine,
+                                                 "seattle")
+  except Exception, e:
+    # Reaching this point means the user must not have access to
+    # HKEY_LOCAL_MACHINE.  The user should only be notified about this if the
+    # HKEY_CURRENT_USER key fails to be accessed.  The user will be notified in
+    # the parent function if this is the case because the below attempt to
+    # access HKEY_CURRENT_USER will throw a WindowsError exception.
+    pass
 
 
-
+  removed_from_CU = False
   # The startup key must first be opened before any operations, including
   # search, may be performed on it.
   # ARGUMENTS:
@@ -224,11 +240,12 @@ def uninstall(startup_folder_script_path):
     removed_from_registry = remove_seattle_from_win_startup_registry()
   except WindowsError:
     print "The uninstaller does not have access to the Windows registry " \
-        + "startup key. This means that seattle is likely not installed in " \
+        + "startup keys. This means that seattle is likely not installed in " \
         + "your Windows registry startup key, though you may want to " \
-        + "manually check the following registry key and remove seattle from " \
-        + "that key should it exist there: "
+        + "manually check the following registry keys and remove seattle " \
+        + "from those keys should it exist there: "
     print "HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\Run"
+    print "HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run"
     # Distinguish the above-printed text from what will be printed later by
     # by printing a blank line.
     print
