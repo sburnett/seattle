@@ -362,6 +362,9 @@ def new_client(conn_id, value):
 # Handle a remote procedure call
 def new_rpc(conn_id, sock):
 
+  if 'rpc_calls' in CONNECTIONS[conn_id]:
+    CONNECTIONS[conn_id]['rpc_calls'] +=1
+
   # If anything fails, close the socket
   try:
     # Get the RPC object
@@ -446,7 +449,7 @@ def new_rpc(conn_id, sock):
       new_rpc(conn_id, sock)
     else:
       # Wait for the client to receive the response
-      sleep(WAIT_INTERVAL)
+      #sleep(WAIT_INTERVAL)
       
       # Close the socket
       _safe_close(sock)
@@ -478,7 +481,8 @@ def _connection_entry(id,sock,mux,remoteip,remoteport,type):
     info["num_clients"] = 0
     info["ports"] = {} # Maps each host name to a set of listening ports
     info["mac"] = set() # Set of possible MAC addresses
-    
+    info['rpc_calls'] = 0    
+
   CONNECTIONS[id] = info
   
   # Release the lock
@@ -550,6 +554,7 @@ def new_server(remoteip, remoteport, sock, thiscommhandle, listencommhandle):
   # Get the connection ID
   id = _get_conn_id()
   
+
   # Initialize the multiplexing socket with this socket
   mux = Multiplexer(sock, {"localip":FORWARDER_STATE["ip"], 
                              "localport":mycontext['SERVER_PORT'],
@@ -647,8 +652,14 @@ def main():
   if DEBUG1: print getruntime(),"Forwarder Started on",ip
 
 
-
-
+  # advertise ourselves as being up forever
+  # this allows a test to see if nodes that are up are being advertised  
+  while True:
+    sleep(30)
+    try:
+      advertise_announce('NATFORWARDERRUNNING',ip,60)
+    except:
+      pass
 
 # Dictionary maps valid RPC calls to internal functions
 RPC_FUNCTIONS = {RPC_EXTERNAL_ADDR:connection_info, 
