@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Author: Justin Samuel
 # Date started: 9 July 2009

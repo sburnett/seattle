@@ -128,8 +128,7 @@ def runRsyncTest(testtype, updatefolder, otherargs=[]):
   rsync = subprocess.Popen(['python', 'test_rsync.py', testtype]+otherargs+[updateurl], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
   # Get the output
-  theout = rsync.stdout.read()
-  rsync.stdout.close()
+  theout = rsync.communicate()[0]
 
   # Print the output
   print theout
@@ -300,14 +299,15 @@ def main():
     if nonportable.ostype == 'Darwin':
       pscommand = 'ps -aww'
     else:
-      pscommand = 'ps -ef'
+      # We use 'aux' instead of '-ef' because 'aux' works the same on bsd and linux.
+      pscommand = 'ps aux'
 
  
     updateprocess = subprocess.Popen(['python', 'softwareupdater.py'])
     if not no_ps:
       # Only do the ps check if ps is available
       ps = subprocess.Popen(pscommand + ' | grep "softwareupdater.py" | grep -v grep', shell=True, stdout=subprocess.PIPE)
-      psout = ps.stdout.read()
+      psout = ps.communicate()[0]
       print 'Initial ps out:'
       print psout
       if psout == '':
@@ -337,8 +337,7 @@ def main():
       if not no_ps:
         # Only do the ps check if ps is available
         ps = subprocess.Popen(pscommand + ' | grep "softwareupdater.py" | grep -v grep', shell=True, stdout=subprocess.PIPE)
-        psout = ps.stdout.read()
-        psout.strip()
+        psout = ps.communicate()[0]
         print 'After ps out:'
         print psout
         if psout == '':
