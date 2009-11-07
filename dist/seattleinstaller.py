@@ -1669,7 +1669,8 @@ def prepare_installation(options,arguments):
   configuration['networkrestrictions'] = config
   persist.commit_object(configuration,"nodeman.cfg")
 
-  # Tell the parent function that the preparation for install succeeded.
+  # Tell the parent function that the passed-in arguments allow it to continue
+  # with the installation.
   return True
 
 
@@ -1680,12 +1681,20 @@ def usage():
   Prints command line usage of script.
   """
 
-  print "python seattleinstaller.py [-s] [--usage] " \
+  if OS == "Windows" or OS == "WindowsCE":
+    print "install.bat",
+  elif OS == "Linux" or OS == "Darwin":
+    print "install.sh",
+  else:
+    print "python seattleinstaller.py",
+
+  print "[-s] [--usage] " \
       + "[--disable-startup-script] [--percent float] " \
       + "[--nm-key-bitsize bitsize] [--nm-ip ip] [--nm-iface iface] " \
       + "[--repy-ip ip] [--repy-iface iface] [--repy-nootherips] " \
       + "[--onlynetwork]"
   print "Info:"
+  print "-s\t\t\t\tSilent mode: does not print output."
   print "--disable-startup-script\tDoes not install the Seattle startup " \
       + "script, meaning that Seattle will not automatically start running " \
       + "at machine start up. It is recommended that this option only be " \
