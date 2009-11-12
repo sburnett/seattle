@@ -4,8 +4,8 @@ from django.conf.urls.defaults import *
 # from django.contrib import admin
 # admin.autodiscover()
 
-urlpatterns = patterns('installer_creator.xmlrpc.views',
+urlpatterns = patterns('installer_creator.xmlrpc.dispatcher',
                        
-                       (r'^hello$', 'hello',{},'hello'),
+                       (r'', 'rpc_handler', {}, 'rpc_handler'),
                        
                       )

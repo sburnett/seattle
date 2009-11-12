@@ -34,6 +34,9 @@ USER_INSTALLERS_DIR = os.path.join(BASE_INSTALLERS_DIR, "geni")
 # IMPORTANT: Always end the url with a forward slash! (/) 
 USER_INSTALLERS_URL = "https://blackbox.cs.washington.edu/dist/geni/"
 
+# The directory where we keep the public keys of the node state keys.
+STATE_KEYS_DIR = os.path.join(WEBSITE_ROOT, '..', 'seattlegeni', 'node_state_transitions', 'statekeys')
+
 
 ADMINS = (
     # ('Your Name', 'your_email@domain.com'),
