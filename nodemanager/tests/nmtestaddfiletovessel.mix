@@ -11,6 +11,11 @@ include rsa.repy
 
 if callfunc == 'initialize':
 
+  try:
+    removefile("hello")
+  except:
+    pass
+
   time_updatetime(34612)
   nmhandle = nmclient_createhandle(getmyip(), 1224)
   
