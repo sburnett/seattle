@@ -33,8 +33,13 @@ if [ ! -d "softwareupdater" ]; then
   exit 1
 fi
 
-# ps -ef is probably linux-specific. Somewhere there was a note about ps -aww for Darwin.
-if [ "`ps -ef | grep softwareupdater.py | grep -v grep`" != "" ]; then
+# We use bsd syntax for the ps command because it works on bsd, darwin, and linux.
+# (bsd syntax means basically no dash before the options and maybe some different
+# letters used for the options.)
+# The 'ww' is to make sure that bsd doesn't limit the column length of output.
+# The 'ax' shows all processes.
+# The 'u' shows the username rather than user id running the process.
+if [ "`ps auxww | grep softwareupdater.py | grep -v grep`" != "" ]; then
   echo "Can't start tests: there is an instance of softwarepdater.py already running."
   exit 1
 fi

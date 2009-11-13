@@ -294,14 +294,13 @@ def main():
       # If we are running on windows, disable the ps calls.
       no_ps = True
    
-    # ps works different on a mac, where we need to use 'ps -aww' instead of
-    # 'ps -ef'.
-    if nonportable.ostype == 'Darwin':
-      pscommand = 'ps -aww'
-    else:
-      # We use 'aux' instead of '-ef' because 'aux' works the same on bsd and linux.
-      pscommand = 'ps aux'
-
+    # We use bsd syntax for the ps command because it works on bsd, darwin, and linux.
+    # (bsd syntax means basically no dash before the options and maybe some different
+    # letters used for the options.)
+    # The 'ww' is to make sure that bsd doesn't limit the column length of output.
+    # The 'ax' shows all processes.
+    # The 'u' shows the username rather than user id running the process.
+    pscommand = 'ps auxww'
  
     updateprocess = subprocess.Popen(['python', 'softwareupdater.py'])
     if not no_ps:
