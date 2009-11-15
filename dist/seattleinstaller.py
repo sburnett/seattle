@@ -1078,14 +1078,14 @@ def add_seattle_to_crontab():
         + get_starter_file_name() + '" ]; then "' + SEATTLE_FILES_DIR + os.sep \
         + get_starter_file_name() + '" >> "' + SEATTLE_FILES_DIR + os.sep \
         + service_vessel + '/cronlog.txt" 2>&1; else ' \
-        + 'tempconrtab=`mktemp -t tempcrontab` && crontab -l | sed ' \
+        + 'tempcrontab=`mktemp -t tempcrontab` && crontab -l | sed ' \
         + '\'/start_seattle.sh/d\' > ${tempcrontab} && ' \
         + 'crontab ${tempcrontab} && rm ${tempcrontab}; fi' + os.linesep
   else:
     cron_line_entry = '@reboot if [ -e "' + SEATTLE_FILES_DIR + os.sep \
         + get_starter_file_name() + '" ]; then "' + SEATTLE_FILES_DIR + os.sep \
         + get_starter_file_name() + '" >> "' + SEATTLE_FILES_DIR + os.sep \
-        + service_vessel + '/cronlog.txt" 2>&1; else tempconrtab=`mktemp` && ' \
+        + service_vessel + '/cronlog.txt" 2>&1; else tempcrontab=`mktemp` && ' \
         + 'crontab -l | sed \'/start_seattle.sh/d\' > ${tempcrontab} && ' \
         + 'crontab ${tempcrontab} && rm ${tempcrontab}; fi' + os.linesep
 
