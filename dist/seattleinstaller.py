@@ -1071,13 +1071,23 @@ def add_seattle_to_crontab():
   # written.
   service_vessel = servicelogger.get_servicevessel()
 
-  cron_line_entry = '@reboot if [ -e "' + SEATTLE_FILES_DIR + os.sep \
-      + get_starter_file_name() + '" ]; then "' + SEATTLE_FILES_DIR + os.sep \
-      + get_starter_file_name() + '" >> "' + SEATTLE_FILES_DIR + os.sep \
-      + service_vessel + '/cronlog.txt" 2>&1; else crontab -l | ' \
-      + 'sed \'/start_seattle.sh/d\' > /tmp/seattle_crontab_removal && ' \
-      + 'crontab /tmp/seattle_crontab_removal && ' \
-      + 'rm /tmp/seattle_crontab_removal; fi' + os.linesep
+  # The crontab entry is different if running on FreeBSD because the mktemp
+  # command works differently on this system.
+  if platform.system() == "FreeBSD":
+    cron_line_entry = '@reboot if [ -e "' + SEATTLE_FILES_DIR + os.sep \
+        + get_starter_file_name() + '" ]; then "' + SEATTLE_FILES_DIR + os.sep \
+        + get_starter_file_name() + '" >> "' + SEATTLE_FILES_DIR + os.sep \
+        + service_vessel + '/cronlog.txt" 2>&1; else ' \
+        + 'tempconrtab=`mktemp -t tempcrontab` && crontab -l | sed ' \
+        + '\'/start_seattle.sh/d\' > ${tempcrontab} && ' \
+        + 'crontab ${tempcrontab} && rm ${tempcrontab}; fi' + os.linesep
+  else:
+    cron_line_entry = '@reboot if [ -e "' + SEATTLE_FILES_DIR + os.sep \
+        + get_starter_file_name() + '" ]; then "' + SEATTLE_FILES_DIR + os.sep \
+        + get_starter_file_name() + '" >> "' + SEATTLE_FILES_DIR + os.sep \
+        + service_vessel + '/cronlog.txt" 2>&1; else tempconrtab=`mktemp` && ' \
+        + 'crontab -l | sed \'/start_seattle.sh/d\' > ${tempcrontab} && ' \
+        + 'crontab ${tempcrontab} && rm ${tempcrontab}; fi' + os.linesep
 
   # Generate a temp file with the user's crontab plus our task.
   temp_crontab_file = tempfile.NamedTemporaryFile()
@@ -1141,7 +1151,8 @@ def setup_linux_or_mac_startup():
     None.
 
   <Returns>
-    None.
+    True if the crontab was able to be modified,
+    False otherwise.
   """
 
   if OS != "Linux" and OS != "Darwin":
@@ -1184,6 +1195,7 @@ def setup_linux_or_mac_startup():
       _output("An attempt to setup crontab to run seattle at startup will " \
                 + "still be made, although seattle will not automatically " \
                 + "run at startup until cron is started as described above.")
+      servicelogger.log("cron is not running on this system at install time.")
 
 
 
@@ -1272,16 +1284,34 @@ def setup_linux_or_mac_startup():
     return False
 
   else:
-    if successfully_added_to_crontab:
+    if successfully_added_to_crontab and cron_is_running:
       return True
 
+    elif successfully_added_to_crontab and not cron_is_running:
+      return False
+
     else:
-      if not error_output:
+      if cron_is_running and not error_output:
+        # Since cron is running, that could not have been the problem, so output
+        # to the user that it is unknown what seattle could not be configured to
+        # start at boot.
         _output("seattle could not be configured to run automatically at " \
                   + "startup on your machine for an unknown reason. Please " \
                   + "contact the seattle development team for assistance.")
         servicelogger.log("seattle could not be successfully added to the " \
                             + "crontab for an unknown reason.")
+      elif not cron_is_running and not error_output:
+        # Despite cron not running, crontab could also not be modified for an
+        # unknown reason.  We must output a message separate from above to not
+        # confuse the user since we already reported that cron is not running.
+        _output("seattle could not be configured to run automatically at " \
+                  + "startup on your machine for an unknown reason, despite " \
+                  + "cron not running. Please contact the seattle " \
+                  + "development team for assistance.")
+        servicelogger.log("seattle could not be successfully added to the " \
+                            + "crontab for an unknown reason, other than the " \
+                            + "face that cron is not running.")
+        return False
       else:
         _output("seattle could not be configured to run automatically at " \
                   + "machine boot.  Following are more details:")
