@@ -150,6 +150,7 @@ acceptor_state = {'lock':getlock(),'started':False}
 # whether or not to use the natlayer, this option is passed in via command line
 # -nat
 AUTO_USE_NAT = False
+FOREGROUND = False
 
 
 # Initializes emulcomm with all of the network restriction information
@@ -346,8 +347,9 @@ def main():
 
   global configuration
 
-  # Background ourselves.
-  daemon.daemonize()
+  if not FOREGROUND:
+    # Background ourselves.
+    daemon.daemonize()
 
   # ensure that only one instance is running at a time...
   gotlock = runonce.getprocesslock("seattlenodemanager")
@@ -454,9 +456,14 @@ def main():
 
 if __name__ == '__main__':
   
-  # take a command line argument to force use of natlayer
-  if len(sys.argv) ==2 and sys.argv[1] == '-nat':
-    AUTO_USE_NAT = True
+  for arg in sys.argv[1:]:
+    # take a command line argument to force use of natlayer
+    if arg == '-nat':
+      AUTO_USE_NAT = True
+
+    # take a command line argument to force foreground
+    if arg == '-f':
+      FOREGROUND = True
 
   # Initialize the service logger.   We need to do this before calling main
   # because we want to print exceptions in main to the service log

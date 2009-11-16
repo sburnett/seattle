@@ -18,7 +18,7 @@ python preparetest.py -t $tmpdir
 cd $tmpdir
 
 python nminit.py >$logfile.nminit 2>&1 &
-python nmmain.py >$logfile.nmmain 2>&1 &
+python nmmain.py -f >$logfile.nmmain 2>&1 &
 
 # Give them time to start.
 sleep 60
