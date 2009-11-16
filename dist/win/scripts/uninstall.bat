@@ -5,7 +5,7 @@ SET TargetPath=%~f0
 SET TargetDir=%TargetPath:uninstall.bat=%
 cd %TargetDir%
 
-python seattleuninstaller.py "%STARTER_FILE%"
+python seattleuninstaller.py %*
 
 REM Go back up to the seattle directory.
 cd ..
