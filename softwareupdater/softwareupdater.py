@@ -65,6 +65,9 @@ softwareurl = "http://seattle.cs.washington.edu/couvb/updatesite/0.1/"
 # files signed by this key.
 softwareupdatepublickey = {'e':82832270266597330072676409661763231354244983360850404742185516224735762244569727906889368190381098316859532462559839005559035695542121011189767114678746829532642015227757061325811995458461556243183965254348908097559976740460038862499279411461302045605434778587281242796895759723616079286531587479712074947611, 'n':319621204384190529645831372818389656614287850643207619926347176392517761801427609535545760457027184668587674034177692977122041230031985031724339016854308623931563908276376263003735701277100364224187045110833742749159504168429702766032353498688487937836208653017735915837622736764430341063733201947629404712911592942893299407289815035924224344585640141382996031910529762480483482480840200108190644743566141062967857181966489101744929170144756204101501136046697030104623523067263295405505628760205318871212056879946829241448986763757070565574197490565540710448548232847380638562809965308287901471553677400477022039092783245720343246522144179191881098268618863594564939975401607436281396130900640289859459360314214324155479461961863933551434423773320970748327521097336640702078449006530782991443968680573263568609595969967079764427272827202433035192418494908184888678872217792993640959292902948045622147093326912328933981365394795535990933982037636876825043938697362285277475661382202880481400699819441979130858152032120174957606455858082332914545153781708896942610940094268714863253465554125515897189179557899347310399568254877069082016414203023408461051519104976942275899720740657969311479534442473551582563833145735116565451064388421}
 
+# Whether the nodemanager should be told not to daemonize when it is restarted.
+# This is only to assist our automated tests.
+run_nodemanager_in_foreground = False
 
 
 # This code is in its own function called later rather than directly in the
@@ -687,7 +690,12 @@ def restart_client(filenamelist):
 
   # run the node manager.   I rely on it to do the smart thing (handle multiple
   # instances, etc.)
-  junkprocessobject = portable_popen.Popen(["python","nmmain.py"])
+  nm_restart_command_args_list = ["python", "nmmain.py"]
+  
+  if run_nodemanager_in_foreground:
+    nm_restart_command_args_list.append('--foreground')
+  
+  junkprocessobject = portable_popen.Popen(nm_restart_command_args_list)
   
   # I don't do anything with the processobject.  The process will run for some 
   # time, perhaps outliving me (if I'm updated first)
@@ -778,7 +786,32 @@ def main():
     # oh! I've changed too.   I should restart...   search for MUTEX for info
     if restartme:
       restart_software_updater()
-    
+
+
+
+
+
+def read_test_options():
+  """
+  This doesn't read command line options. It reads environment variable
+  options. The reason is because the software updater currently expects that
+  any first command line arg is the name of a mutex used by an already running
+  software updater. I don't see any good reason to risk changing more than is
+  needed until more major changes are being made to the software updater.
+  This also makes it so that we don't have to bother passing the option through
+  to restarts of the softwareupdater.
+  """
+  try:
+    global run_nodemanager_in_foreground
+    if 'SEATTLE_RUN_NODEMANAGER_IN_FOREGROUND' in os.environ:
+      run_nodemanager_in_foreground = True
+  except:
+    # We're only using this for test options, so if something went wrong in
+    # the code above, however unlikely, let's ignore it.
+    pass
+
+
+
 
 if __name__ == '__main__':
   # Initialize the service logger.
@@ -786,6 +819,7 @@ if __name__ == '__main__':
   
   # problems here are fatal.   If they occur, the old updater won't stop...
   try:
+    read_test_options()
     init()
   except Exception, e:
     safe_log_last_exception()

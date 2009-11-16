@@ -53,6 +53,11 @@ cp -R assignments/webserver/* $testsdir
 # Change to the tests directory.
 cd $testsdir
 
+# Set an environment variable that tells the softare updater to start the
+# nodemanager in the foreground (that is, to not daemonize it). We do this
+# to keep the process from being part of a different process group so that
+# the continuous build can kill all started processes easily.
+export SEATTLE_RUN_NODEMANAGER_IN_FOREGROUND=1
+
 # Run the tests.
 python test_updater_local.py
-
