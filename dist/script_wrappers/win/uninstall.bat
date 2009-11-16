@@ -5,6 +5,6 @@ SET TargetPath=%~f0
 SET seattle_repyDir=%TargetPath:uninstall.bat=seattle_repy%
 cd %seattle_repyDir%
 
-uninstall.bat
+uninstall.bat %*
 
 cd %OrigDir%

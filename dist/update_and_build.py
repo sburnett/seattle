@@ -203,11 +203,10 @@ def build_and_update(trunk_location, pubkey, privkey, version):
   for fname in os.listdir(UPDATER_SITE):
     os.remove(fname)
   # Zack: Copy files to UPDATER_SITE, excluding the files that did not belong in
-  # the metafile
+  # the metainfo file
   os.chdir(temp_install_dir)
   for fname in install_files:
-    if "nodeman.cfg" != fname and "resources.offcut" != fname \
-        and "seattleinstaller.py" != fname: 
+    if "nodeman.cfg" != fname and "resources.offcut" != fname:
       shutil.copy2(fname, UPDATER_SITE)
 
 

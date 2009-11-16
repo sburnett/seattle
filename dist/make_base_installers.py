@@ -219,6 +219,9 @@ def prepare_gen_files(trunk_location,temp_install_dir,include_tests,pubkey,
   shutil.copy2(trunk_location + "/resource/Win_WinCE_resources.py",
                temp_install_dir)
 
+  # Copy the universal installer and uninstaller to the program directory.
+  shutil.copy2(trunk_location + "/dist/seattleinstaller.py", temp_install_dir)
+  shutil.copy2(trunk_location + "/dist/seattleuninstaller.py", temp_install_dir)
 
   # Clean the folder of unnecessary files before generating metafile.
   clean_folder.clean_folder(trunk_location + "/dist/initial_files.fi",
@@ -242,8 +245,6 @@ def prepare_gen_files(trunk_location,temp_install_dir,include_tests,pubkey,
     # Copy the static files to the program directory.
     shutil.copy2(trunk_location + "/dist/nodeman.cfg", temp_install_dir)
     shutil.copy2(trunk_location + "/dist/resources.offcut", temp_install_dir)
-    # Copy the universal installer to the program directory.
-    shutil.copy2(trunk_location + "/dist/seattleinstaller.py", temp_install_dir)
     # Run clean_folder a final time to ensure the final directory contains all
     # the necessary files now that the last files have been added.
     clean_folder.clean_folder(trunk_location + "/dist/final_files.fi",
