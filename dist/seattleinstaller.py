@@ -1440,7 +1440,12 @@ def start_seattle():
   if OS == "WindowsCE":
     windows_api.launch_python_script(starter_file_path)
   else:
-    p = subprocess.Popen(starter_file_path)
+    if SILENT_MODE:
+      p = subprocess.Popen(starter_file_path,stdout=subprocess.PIPE,
+                           stderr=subprocess.PIPE)
+    else:
+      p = subprocess.Popen(starter_file_path)
+
     p.wait()
 
 
