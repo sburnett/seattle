@@ -34,6 +34,7 @@ they do not terminate prematurely (restarting them as necessary).
 import checkpythonversion
 checkpythonversion.ensure_python_version_is_supported()
 
+import daemon
 import os
 import sys
 
@@ -345,6 +346,8 @@ def main():
 
   global configuration
 
+  # Background ourselves.
+  daemon.daemonize()
 
   # ensure that only one instance is running at a time...
   gotlock = runonce.getprocesslock("seattlenodemanager")
