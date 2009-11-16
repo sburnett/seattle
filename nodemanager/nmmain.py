@@ -462,7 +462,7 @@ if __name__ == '__main__':
       AUTO_USE_NAT = True
 
     # take a command line argument to force foreground
-    if arg == '-f':
+    if arg == '--foreground':
       FOREGROUND = True
 
   # Initialize the service logger.   We need to do this before calling main
