@@ -37,6 +37,7 @@ req time_interface.repy
 req advertise.repy
 req centralizedadvertise.repy
 req checkpythonversion.py
+req daemon.py
 req emulcomm.py
 req emulfile.py
 req emulmisc.py
