@@ -815,7 +815,7 @@ def read_environmental_options():
     if os.environ.get('SEATTLE_RUN_SOFTWAREUPDATER_IN_FOREGROUND', True) == "False":
       run_softwareupdater_in_foreground = False
   except:
-    # We're only using this for test options, so if something went wrong in
+    # The defaults here are safe, so if something went wrong in
     # the code above, however unlikely, let's ignore it.
     pass
 
