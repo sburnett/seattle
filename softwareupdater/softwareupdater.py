@@ -797,7 +797,7 @@ def main():
 
 
 
-def read_test_options():
+def read_environmental_options():
   """
   This doesn't read command line options. It reads environment variable
   options. The reason is because the software updater currently expects that
@@ -823,7 +823,7 @@ def read_test_options():
 
 
 if __name__ == '__main__':
-  read_test_options()
+  read_environmental_options()
   if not run_softwareupdater_in_foreground:
     daemon.daemonize()
 
