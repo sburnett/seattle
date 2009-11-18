@@ -20,6 +20,8 @@ Updated 1/23/2009 use servicelogger to log errors - Xuanhua (Sean)s Ren
 import sys
 import os
 
+import daemon
+
 import repyhelper
 
 # I need to make a cachedir for repyhelper...
@@ -68,6 +70,10 @@ softwareupdatepublickey = {'e':8283227026659733007267640966176323135424498336085
 # Whether the nodemanager should be told not to daemonize when it is restarted.
 # This is only to assist our automated tests.
 run_nodemanager_in_foreground = False
+
+# Whether the softwareupdater should run in the foreground or not. Default
+# to yes.
+run_softwareupdater_in_foreground = True
 
 
 # This code is in its own function called later rather than directly in the
@@ -803,8 +809,11 @@ def read_test_options():
   """
   try:
     global run_nodemanager_in_foreground
+    global run_softwareupdater_in_foreground
     if 'SEATTLE_RUN_NODEMANAGER_IN_FOREGROUND' in os.environ:
       run_nodemanager_in_foreground = True
+    if os.environ.get('SEATTLE_RUN_SOFTWAREUPDATER_IN_FOREGROUND', True) == "False":
+      run_softwareupdater_in_foreground = False
   except:
     # We're only using this for test options, so if something went wrong in
     # the code above, however unlikely, let's ignore it.
@@ -814,12 +823,15 @@ def read_test_options():
 
 
 if __name__ == '__main__':
+  read_test_options()
+  if not run_softwareupdater_in_foreground:
+    daemon.daemonize()
+
   # Initialize the service logger.
   safe_servicelogger_init()
   
   # problems here are fatal.   If they occur, the old updater won't stop...
   try:
-    read_test_options()
     init()
   except Exception, e:
     safe_log_last_exception()
