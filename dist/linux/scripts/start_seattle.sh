@@ -12,26 +12,22 @@ python softwareupdater.py &
 
 # Check to confirm that nmmain.py and softwareupdater.py are running, and print
 #   the status to the user.
-# For some rare systems, such as FreeBSD, the "-ef" options of "ps" cause an
-#   error.  Thus, to see if the Node Manager and Software Updater are running on
-#   such systems, there is a _SPECIAL call which does not use the "-ef" options
-#   for the "ps" command.
-# Further, any standard error output that may be generated from the "ps" command
-#   is suppressed to /dev/null to avoid erroneous output to the user.
-NMMAIN=`ps -ef 2>/dev/null | grep nmmain.py | grep -v grep`
-NMMAIN_SPECIAL=`ps 2>/dev/null | grep nmmain.py | grep -v grep`
-SOFTWAREUPDATER=`ps -ef 2>/dev/null | grep softwareupdater.py | grep -v grep`
-SOFTWAREUPDATER_SPECIAL=`ps 2>/dev/null | grep softwareupdater.py | grep -v grep`
+# Some systems respond different to some options passed to 'ps', so we use
+#   'ps auxww' to create a universal command that will tell us if nmmain.py
+#   is currently running.
+#
+#   'ps axww':
+#     'ax': shows all processes
+#     'ww': makes sure that the output is not limited by column length.
+#     
+
+NMMAIN=`ps axww 2>/dev/null | grep nmmain.py | grep -v grep`
+SOFTWAREUPDATER=`ps axww 2>/dev/null | grep softwareupdater.py | grep -v grep`
+
 
 if echo "$NMMAIN" | grep nmmain.py > /dev/null
 then
     if echo "$SOFTWAREUPDATER" | grep softwareupdater.py > /dev/null
-    then
-	echo "seattle has been started: $(date)"
-    fi
-elif echo "$NMMAIN_SPECIAL" | grep nmmain.py > /dev/null
-then
-    if echo "$SOFTWAREUPDATER_SPECIAL" | grep softwareupdater.py > /dev/null
     then
 	echo "seattle has been started: $(date)"
     fi
