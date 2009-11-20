@@ -312,12 +312,16 @@ def main():
       if psout == '':
         print 'Failure to start initially'
 
-    # Wait for 2 minutes for the update to happen and the
-    # process to die.
-    for junk in range(60):
+    # Wait for 6 minutes for the update to happen and the
+    # process to die. This was increased from 2 minutes because the test was failing
+    # on testbed-mac. Possibly with only 2 minutes allowed it wasn't accounting
+    # for the time it would take to do the actual update, only the time it would
+    # take for the update to start. These tests are poorly organized, so I don't
+    # say that with full confidence.
+    for junk in range(360):
       if updateprocess.poll() != None:
         break
-      time.sleep(2)
+      time.sleep(1)
 
     ret = updateprocess.returncode
     if ret != 10:
