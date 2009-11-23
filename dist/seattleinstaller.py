@@ -1071,23 +1071,29 @@ def add_seattle_to_crontab():
   # written.
   service_vessel = servicelogger.get_servicevessel()
 
-  # The crontab entry is different if running on FreeBSD because the mktemp
-  # command works differently on this system.
-  if platform.system() == "FreeBSD":
-    cron_line_entry = '@reboot if [ -e "' + SEATTLE_FILES_DIR + os.sep \
-        + get_starter_file_name() + '" ]; then "' + SEATTLE_FILES_DIR + os.sep \
-        + get_starter_file_name() + '" >> "' + SEATTLE_FILES_DIR + os.sep \
-        + service_vessel + '/cronlog.txt" 2>&1; else ' \
-        + 'tempcrontab=`mktemp -t tempcrontab` && crontab -l | sed ' \
-        + '\'/start_seattle.sh/d\' > ${tempcrontab} && ' \
-        + 'crontab ${tempcrontab} && rm ${tempcrontab}; fi' + os.linesep
-  else:
-    cron_line_entry = '@reboot if [ -e "' + SEATTLE_FILES_DIR + os.sep \
-        + get_starter_file_name() + '" ]; then "' + SEATTLE_FILES_DIR + os.sep \
-        + get_starter_file_name() + '" >> "' + SEATTLE_FILES_DIR + os.sep \
-        + service_vessel + '/cronlog.txt" 2>&1; else tempcrontab=`mktemp` && ' \
-        + 'crontab -l | sed \'/start_seattle.sh/d\' > ${tempcrontab} && ' \
-        + 'crontab ${tempcrontab} && rm ${tempcrontab}; fi' + os.linesep
+
+  # The crontab entry automatically removes itself in the event that the seattle
+  # directory no longer exists (the user removed it without uninstalling). In
+  # this case, the crontab entry must use mktemp to create a file with
+  # secure permissions in which to store the modified crontab contents while the
+  # seattle entry is being removed from crontab. This prevents a malicious
+  # program on another user account from changing the modified crontab contents
+  # before it is read back into crontab.
+  #   The mktemp command is different accross platforms, so we create a temp
+  #   file using the '-t' option so mkfile is consistent for our purposes across
+  #   platforms.  On regular linux systems, the "XXXXX" in "tempcrontab.XXXXX"
+  #   will be replaced by randomly chosen characters/numbers.  On Mac and BSD,
+  #   the "XXXXX" remain part of the file name, and a randomly chosen string of
+  #   characters/numbers are appended to the file name. In both cases, a
+  #   randomly generated file with secure permissions is created on the stop.
+  cron_line_entry = '@reboot if [ -e "' + SEATTLE_FILES_DIR + os.sep \
+      + get_starter_file_name() + '" ]; then "' + SEATTLE_FILES_DIR + os.sep \
+      + get_starter_file_name() + '" >> "' + SEATTLE_FILES_DIR + os.sep \
+      + service_vessel + '/cronlog.txt" 2>&1; else ' \
+      + 'modifiedCrontab=`mktemp -t tempcrontab.XXXXX` && crontab -l | ' \
+      + 'sed \'/start_seattle.sh/d\' > ${modifiedCrontab} && ' \
+      + 'crontab ${modifiedCrontab} && rm -rf ${modifiedCrontab}; fi' \
+      + os.linesep
 
   # Generate a temp file with the user's crontab plus our task.
   temp_crontab_file = tempfile.NamedTemporaryFile()
