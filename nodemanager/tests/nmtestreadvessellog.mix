@@ -33,7 +33,9 @@ if callfunc == 'initialize':
   nmclient_signedsay(nmhandle, "AddFileToVessel", myvessel, "infloop.py",programtext)
 
   nmclient_signedsay(nmhandle, "StartVessel", myvessel, "infloop.py")
+  sleep(1.0)
   nmclient_signedsay(nmhandle, "StopVessel", myvessel)
+  sleep(1.0)
 
   thelog = nmclient_signedsay(nmhandle, "ReadVesselLog", myvessel)
   if newstring != thelog.split('\n')[-1]:
