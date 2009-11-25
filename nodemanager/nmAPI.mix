@@ -523,6 +523,11 @@ def resetvessel(vesselname,exitparams=(44, '')):
 
   # change the status to Fresh
   statusstorage.write_status('Fresh',vesseldict[vesselname]['statusfilename'])
+
+  # We need to update the status in the table because the status thread might
+  # not notice this before the next request.
+  nmstatusmonitor.update_status(vesseldict, vesselname, 'Fresh', time.time())
+
   return "\nSuccess"
 
 
