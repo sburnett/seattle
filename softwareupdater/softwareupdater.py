@@ -432,6 +432,12 @@ def init():
   <Returns>
     None
   """
+  # Note: be careful about making this init() method take too long. If it takes
+  # longer to complete than the amount of time that restart_software_updater()
+  # waits, then the new software updater will never be left running. Keep in
+  # mind very slow systems and adjust the wait time in restart_software_updater()
+  # if needed.
+  
   gotlock = runonce.getprocesslock("softwareupdater.new")
   if gotlock == True:
     # I got the lock.   All is well...
