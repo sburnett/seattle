@@ -75,6 +75,13 @@ run_nodemanager_in_foreground = False
 # to yes.
 run_softwareupdater_in_foreground = True
 
+# If this is True, the software updater needs to restart itself. Once True, it
+# will never be False again. This is global rather than in main() because the
+# way that main() is currently written, an exception may escape from main and
+# a loop in the global scope will catch it and call main() again.
+restartme = False
+
+
 
 # This code is in its own function called later rather than directly in the
 # global scope right here because otherwise we need to ensure that the
@@ -711,15 +718,12 @@ def main():
     are restarting, or we loop infinitely.
   """
 
+  global restartme
+
   # This is similar to init only:
   #   1) we loop / sleep
   #   2) we restart ourselves if we are updated
   #   3) we restart our client if they are updated
-
-
-  # If this is true, I need to be restarted...   Once True it will never be 
-  # False again
-  restartme = False
 
   while True:
     # sleep for 5-55 minutes 
