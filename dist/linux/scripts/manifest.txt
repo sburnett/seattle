@@ -6,13 +6,15 @@ directory and summarizes the purpose of each subdirectory.
 Included in the Linux installer, it runs the install script (seattleinstaller.py,
 found in trunk/dist) when called.
 
-==LICENSE==
-Contains the legal information for Seattle.
+==LICENSE.txt==
+Contains the legal information for Seattle. This copy is formatted specifically
+for Linux systems (i.e., without the carriage return) and will over-wright the
+general LICENSE.txt file which does include the carriage return.
 
 ==manifest.txt==
 This file (see description at top).
 
-==README==
+==README.txt==
 Includes an introduction to Seattle, installation and uninstall instructions,
 along with contact information.
 

@@ -147,7 +147,7 @@ def main():
   copy_to_target("softwareupdater/*", target_dir)
   copy_to_target("autograder/nm_remote_api.mix", target_dir)
   copy_to_target("keydaemon/*", target_dir)
-  # include the license.   It's not essential, but we should include it
+  # The license must be included in anything we distribute.
   copy_to_target("LICENSE.TXT", target_dir)
   
   if repytest:
