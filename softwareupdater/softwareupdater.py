@@ -449,30 +449,6 @@ def init():
   # don't hang if the socket is slow (in some ways, this doesn't always work)
   # BUG: http://mail.python.org/pipermail/python-list/2008-January/471845.html
   socket.setdefaulttimeout(10)
-  
-  # remove any old / broken test dirs...
-  if os.path.exists("download.test"):
-    shutil.rmtree("download.test")
-  
-  # create the test dir...
-  os.mkdir("download.test")
-  # copy my metainfo file into there
-  shutil.copy("metainfo","download.test")
-
-  # do an update to that directory.   If I don't see an unexpected error, we 
-  # should be in good shape
-  tempdir = tempfile.mkdtemp()+"/"
-  try:
-    do_rsync(softwareurl, "download.test/",tempdir)
-  except Exception:
-    # We continue if this happens later, 
-    # so we should do so now as well
-    pass
-  finally:
-    shutil.rmtree(tempdir)
-      
-  # remove the test directory
-  shutil.rmtree("download.test")
 
   # time to handle startup (with respect to other copies of the updater
   if len(sys.argv) == 1:
