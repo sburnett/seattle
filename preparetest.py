@@ -1,8 +1,12 @@
 """
 <Author>
   Cosmin Barsan
+  
   Edited to add an optional argument to also copy the repy tests by 
   Brent Couvrette on November 13, 2008.
+
+  Conrad Meyer, Thu Nov 26 2009: Move dynamic ports code from run_tests.py
+  to preparetest.py.
 <Start Date>
   October 3, 2008
 
@@ -33,8 +37,13 @@
 import sys
 import glob
 import os
+import random
 import shutil
 import subprocess
+
+sys.path.insert(0, os.path.join(os.getcwd(), "repy", "tests"))
+import testportfiller
+sys.path = sys.path[1:]
 
 
 #define a function to use for copying the files matching the file expression to the target folder
@@ -100,24 +109,29 @@ def help_exit(errMsg):
   print helpstring
   sys.exit(1)
 
-# checks to make sure the argument list has at least 2 entries
-def checkArgLen():
-  if len(sys.argv) < 2:
-    help_exit('Invalid number of arguments')
-
 def main():
-  checkArgLen()
-	
   repytest = False
+  RANDOMPORTS = False
 	
-  # -t means we will copy repy tests
-  if sys.argv[1] == '-t':
-    repytest = True
-    sys.argv = sys.argv[1:]
-    checkArgLen()
+  target_dir = None
+  for arg in sys.argv[1:]:
+    # -t means we will copy repy tests
+    if arg == '-t':
+      repytest = True
 
-  #store root directory and get target directory
-  target_dir = sys.argv[1]
+    # The user wants us to fill in the port numbers randomly.
+    elif arg == '-randomports':
+      RANDOMPORTS = True
+
+    # Not a flag? Assume it's the target directory
+    else:
+      target_dir = arg
+
+  # We need a target dir. If one isn't found in argv, quit.
+  if target_dir is None:
+    help_exit("Please pass the target directory as a parameter.")
+
+  #store root directory
   current_dir = os.getcwd()
 
   # Make sure they gave us a valid directory
@@ -168,6 +182,19 @@ def main():
 
   #call the process_mix function to process all mix files in the target directory
   process_mix("repypp.py")
+
+  # set up dynamic port information
+  if RANDOMPORTS:
+    portstouseasints = random.sample(range(52000, 53000), 3)
+    portstouseasstr = []
+    for portint in portstouseasints:
+      portstouseasstr.append(str(portint))
+    
+    print "Randomly chosen ports: ",portstouseasstr
+    testportfiller.replace_ports(portstouseasstr, portstouseasstr)
+  else:
+    # if this isn't specified, just use the default ports...
+    testportfiller.replace_ports(['12345','12346','12347'], ['12345','12346','12347'])
 
   #go back to root project directory
   os.chdir(current_dir) 
