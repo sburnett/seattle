@@ -17,7 +17,7 @@
 """
 
 import os
-import loggingrepy
+import loggingrepy_core
 import time
 import persist
 # we need to get and process exception information
@@ -130,7 +130,7 @@ def init(logname,cfgdir = '.', maxbuffersize=1024*1024):
   
   servicevessel = get_servicevessel(cfgdir)
   
-  logfile = loggingrepy.circular_logger(servicevessel + '/' + logname, mbs = maxbuffersize, use_nanny=False)
+  logfile = loggingrepy_core.circular_logger_core(servicevessel + '/' + logname, mbs = maxbuffersize)
   
   
 def multi_process_log(message, logname, cfgdir):
@@ -189,7 +189,7 @@ def multi_process_log(message, logname, cfgdir):
     return False
   else:
     # set up the circular logger, log the message, and return
-    logfile = loggingrepy.circular_logger(cfgdir + '/' + servicevessel + '/' + logname)
+    logfile = loggingrepy_core.circular_logger_core(cfgdir + '/' + servicevessel + '/' + logname)
     log(message)
 
     return True
