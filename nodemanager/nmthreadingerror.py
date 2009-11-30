@@ -12,9 +12,6 @@ import nmrestrictionsprocessor
     
 import servicelogger
 
-# This lets us control the vessels
-import nmAPI
-
 # This allows us to get the system thread count
 import nonportable
 
@@ -87,11 +84,15 @@ def get_allocated_threads():
   
   return _allocatedThreads
 
-def handle_threading_error():
+def handle_threading_error(nmAPI):
   """
   <Purpose>
     Handles a repy node failing with ThreadErr. Reduces global thread count by 50%.
     Restarts all existing vesselts
+
+  <Arguments>
+    nmAPI: the nmAPI module -- passed to the function to avoid import loops;
+           see ticket #590 for more information about this.
   """
   # Make a log of this
   servicelogger.log("[ERROR]:A Repy vessel has exited with ThreadErr status. Patching restrictions and reseting all vessels.")

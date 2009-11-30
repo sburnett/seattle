@@ -64,6 +64,8 @@ import threading
 import nmadvertise
 
 import nmstatusmonitor
+# Needed for use of the status monitor thread:
+import nmAPI
 
 import nmconnectionmanager
 
@@ -335,7 +337,7 @@ def start_status_thread(vesseldict,sleeptime):
   if should_start_waitable_thread('status','Status Monitoring Thread'):
     # start the StatusThread and set it to a daemon.   I think the daemon 
     # setting is unnecessary since I'll clobber on restart...
-    statusthread = nmstatusmonitor.statusthread(vesseldict,sleeptime)
+    statusthread = nmstatusmonitor.statusthread(vesseldict, sleeptime, nmAPI)
     statusthread.setDaemon(True)
     statusthread.start()
     started_waitable_thread('status')
