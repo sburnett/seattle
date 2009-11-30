@@ -135,3 +135,4 @@ req portable_popen.py
 req nanny_resource_limits.py
 req seattleinstaller.py
 req seattleuninstaller.py
+req virtual_namespace.py
