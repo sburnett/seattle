@@ -42,7 +42,7 @@ import time
 # used in startvessel and stopvessel
 import statusstorage
 
-# used in startvessel and stopvessel
+# used in startvessel and resetvessel
 import nmstatusmonitor
 
 # used to check file size restrictions...
