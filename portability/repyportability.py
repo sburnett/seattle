@@ -105,7 +105,7 @@ def enable_restrictions():
   restrictions.assertisallowed = oldrestrictioncalls['restrictions.assertisallowed'] 
   emulfile.assert_is_allowed_filename = oldrestrictioncalls['emulfile.assert_is_allowed_filename']
   
-
+from virtual_namespace import VirtualNamespace
 from emulmisc import *
 from emulcomm import *
 from emulfile import *
