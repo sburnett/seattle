@@ -67,9 +67,11 @@ class advertthread(threading.Thread):
   addict = None
 
 
-  def __init__(self,advertisementdictionary):
+  def __init__(self, advertisementdictionary, nodekey):
     self.addict = advertisementdictionary
+    self.nodekey = nodekey
     threading.Thread.__init__(self, name = "Advertisement Thread")
+
 
   def run(self):
     # Put everything in a try except block so that if badness happens, we can
@@ -102,6 +104,9 @@ class advertthread(threading.Thread):
             for userkey in thisentry['userkeys']:
               if rsa_publickey_to_string(userkey) not in lastadvertisedict and userkey not in advertisekeylist:
                 advertisekeylist.append(userkey)
+
+            # also advertise under the node key
+            advertisekeylist.append(self.nodekey)
 
         # now that I know who to announce to, send messages to annouce my IP and 
         # port to all keys I support

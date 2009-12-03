@@ -311,12 +311,12 @@ def is_advert_thread_started():
     return False
 
 
-def start_advert_thread(vesseldict, myname):
+def start_advert_thread(vesseldict, myname, nodekey):
 
   if should_start_waitable_thread('advert','Advertisement Thread'):
     # start the AdvertThread and set it to a daemon.   I think the daemon 
     # setting is unnecessary since I'll clobber on restart...
-    advertthread = nmadvertise.advertthread(vesseldict)
+    advertthread = nmadvertise.advertthread(vesseldict, nodekey)
     nmadvertise.myname = myname
     advertthread.setDaemon(True)
     advertthread.start()
@@ -408,7 +408,7 @@ def main():
   start_worker_thread(configuration['pollfrequency'])
 
   # Start advert thread...
-  start_advert_thread(vesseldict, myname)
+  start_advert_thread(vesseldict, myname, configuration['publickey'])
 
   # Start status thread...
   start_status_thread(vesseldict,configuration['pollfrequency'])
@@ -436,7 +436,7 @@ def main():
 
     if should_start_waitable_thread('advert','Advertisement Thread'):
       servicelogger.log("[WARN]:At " + str(time.time()) + " restarting advert...")
-      start_advert_thread(vesseldict,myname)
+      start_advert_thread(vesseldict, myname, configuration['publickey'])
 
     if should_start_waitable_thread('status','Status Monitoring Thread'):
       servicelogger.log("[WARN]:At " + str(time.time()) + " restarting status...")
