@@ -1,9 +1,15 @@
 import xmlrpclib
 
 def main():
-  proxy = xmlrpclib.Server("http://blackbox.cs.washington.edu:9050/xmlrpc/")
+  proxy = xmlrpclib.Server("http://blackbox.cs.washington.edu:9050/xmlrpc")
+  #proxy = xmlrpclib.Server("http://127.0.0.1:8000/xmlrpc")
   
-  print proxy.create_installer("jaymzlee", "1337")
+  #[ {owner, percentage, [users]}, {owner, percentage, [users]} ... ]
+  
+  vessel_list = [{'owner':'jchen', 'percentage':40, 'users':[]}, {'owner':'james', 'percentage':40, 'users':[]}]
+  pubkey_dict = {'jchen': {'pubkey':'jchen_pubkey123'}, 'james':{'pubkey':'james_pubkey123'}}
+  
+  print proxy.create_installer(vessel_list, pubkey_dict, "windows")
   
 
 if __name__=="__main__":

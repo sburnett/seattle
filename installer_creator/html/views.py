@@ -152,8 +152,8 @@ def create_installer(request):
   
   if (request.POST['action'] == 'createinstaller'):
     vessel_dict = simplejson.loads(request.POST['content'])
-    print "VESSEL_DICT: "
-    print vessel_dict
+    #print "VESSEL_DICT: "
+    #print vessel_dict
     
     # sanity check, and construct list of users included in the vessel_dict
     users_list = []
@@ -181,7 +181,8 @@ def create_installer(request):
     
     # Begins the actual build of the installer
     try:
-      builder.build_installer(vessel_dict, key_dict, installer_id)
+      #builder.build_installer(vessel_dict, key_dict, installer_id)
+      builder.build_installer(vessel_dict, key_dict, "win")
       #pass
     except Exception, e:
       print str(e)

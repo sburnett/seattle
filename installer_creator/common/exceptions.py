@@ -16,7 +16,7 @@
 class InstallerCreatorError(Exception):
   """
   <Purpose>
-    All other custom exceptions of seattlegeni inherit from this.
+    All other custom exceptions of Installer Creator inherit from this.
   """
 
 class InvalidRequestError(InstallerCreatorError):

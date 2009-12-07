@@ -100,6 +100,39 @@ def assert_str(value):
 
 
 
+def assert_positive_int(value):
+  """
+  <Purpose>
+    Ensure that value is an integer (can be int or long) and is greater than
+    zero.
+  """
+  if not isinstance(value, int) and not isinstance(value, long):
+    raise AssertionError("Expected int or long value, received " + str(type(value)))
+  if value < 1:
+    raise AssertionError("Expected a positive non-zero value, received: " + str(value))
+
+
+
+def assert_list(value):
+  """
+  <Purpose>
+    Ensure that value is a list.
+  """
+  if not isinstance(value, list):
+    raise AssertionError("Expected list value, received " + str(type(value)))
+  
+
+
+def assert_dict(value):
+  """
+  <Purpose>
+    Ensure that value is a list.
+  """
+  if not isinstance(value, dict):
+    raise AssertionError("Expected dict value, received " + str(type(value)))
+
+
+
 class ValidationError(Exception):
   """
   Indicates that some data checked for validity is invalid. This is not the

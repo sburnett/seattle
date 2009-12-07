@@ -30,15 +30,16 @@
 
 
 import django.core.mail # To send the admins emails when there's an unhandled exception.
+from installer_creator.common.validations import ValidationError
 
 import os
 import traceback
 import xmlrpclib        # Used for raising xmlrpc faults
 
-from seattle import repyhelper
-from seattle import repyportability
+#from seattle import repyhelper
+#from seattle import repyportability
 
-repyhelper.translate_and_import('rsa.repy')
+#repyhelper.translate_and_import('rsa.repy')
 
 
 from installer_creator import settings
@@ -70,7 +71,7 @@ class PublicXMLRPCFunctions(object):
     uses) so that we can log exceptions due to our programming errors within
     seattlegeni as well to detect incorrect usage by clients.
     """
-      
+    
     try:
       # Get the requested function (making sure it exists).
       try:
@@ -95,7 +96,8 @@ class PublicXMLRPCFunctions(object):
       # We use the log message as the basis for the email message, as well.
       logmessage = "Internal error while handling an xmlrpc request: " + traceback.format_exc()
       #log.critical(logmessage)
-
+      print logmessage
+      
       # Normally django will send an email to the ADMINS defined in settings.py
       # when an exception occurs. However, our xmlrpc dispatcher will turn this
       # into a Fault that is returned to the client. So, django won't see it as
@@ -133,57 +135,89 @@ class PublicXMLRPCFunctions(object):
       
 
   @staticmethod
-  def create_installer(geni_username, user_pubkey):
+  def create_installer(vessel_list, pubkey_dict, os):
     """
-    Called via XMLRPC by SeattleGENI to create installers.
+    <Purpose>
+      An XMLRPC method to create installers.
+    
+    <Arguments>
+      vessel_list:
+        A list of vessel dictionaries, each dict representing a defintion
+        of a vessel. Follows the format:
+        [ {owner, percentage, [users]}, {owner, percentage, [users]} ... ]
+        
+        NOTE: Percentages MUST add up to 80 (20 reserved for Seattle),
+              or the creation will fail.
+      
+      pubkey_dict:
+        A dictionary whose keys are usernames, and whose 
+        values are pubkeys. Follows the format:
+        { 'user1' : 'pubkey', 'user2' ... }
+    
+      os:
+        A string indicating which OS to build the installer for.
+        Valid strings are: 'windows', 'linux', 'mac'
+    
+    <Returns>
+      A URL at which the created installer is accessible from.
     """
-    # We know exactly the vesselinfo format needed for SeattleGENI installer,
-    # so just construct it here directly, and pass it to the builder
-    vesselinfo = "Percent 80\n"
-    vesselinfo += "Owner " + user_pubkey + "\n"
-    vesselinfo += "User " + builder.ACCEPTDONATIONS_STATE_PUBKEY + "\n"
-    vesselinfo += "Percent 20\n"
-    vesselinfo += "Owner " + builder.SEATTLE_OWNER_PUBKEY + "\n"
     
-    # first check if this user has ever built an installer by trying to read the vesselinfo    
-    dist_folder = os.path.join(settings.USER_INSTALLERS_DIR, geni_username + "_dist")
+    # Validate the input
+    validate_xmlrpc_input(vessel_list, pubkey_dict, os);
     
-    #v_handle = open(os.path.join(os.path.join(dist_folder, "install_info"), "vesselinfo"), 'rb')
-    v_handle = None
+    # We've told users to make sure percentages add up to 100 since it 
+    # makes more sense. But, the prepare method expects percentages to 
+    # add up to 10. So, divide.
+    for vessel in vessel_list:
+      vessel['percentage'] /= 10;
     
-    installer_urls_dict = {}
-    installer_urls_dict['w'] = settings.USER_INSTALLERS_URL + "%s_dist/seattle_win.zip"%(geni_username)
-    installer_urls_dict['l'] = settings.USER_INSTALLERS_URL + "%s_dist/seattle_linux.tgz"%(geni_username)
-    installer_urls_dict['m'] = settings.USER_INSTALLERS_URL + "%s_dist/seattle_mac.tgz"%(geni_username)
+    # Generate build ID
+    build_id = builder.generate_build_id(vessel_list, pubkey_dict)
+    print "[xmlrpc CREATE_INSTALLER]: build_id: " + build_id
     
-    print "searching for vesselinfo at: " + os.path.join(dist_folder, "install_info", "vesselinfo")
-    try:
-      v_handle = open(os.path.join(dist_folder, "install_info", "vesselinfo"), 'rb');
-    except IOError:
-      # No dist folder for this user, so we're going to setup & create a new installer.
-      print "Couldn't find dist folder/vesselinfo for this user: creating new installer."
-      builder.build_installer(vessel_dict = '', key_dict = '', 
-                              username = geni_username, dist_str = 'wlm', 
-                              vesselinfo = vesselinfo)
-    else:
-      # Found the vesselinfo, check if installer is out-of-date 
-      print "Found dist folder, checking if installer is out-of-date"
-      #vesselinfo_data = v_handle.read()
-      v_handle.close()
-      check_ret = builder.check_and_build_if_new_installers(geni_username)
-      print "check_and_build returned: " + str(check_ret)
-      if (check_ret == 0):      
-        # either no rebuild was needed, or installers were out-of-date and rebuilt. either way, serve up urls
-        print "[xmlrpc CREATE_INSTALLER]: serving up cached installers." 
-        return installer_urls_dict
-      elif (check_ret == 1):
-        print "[xmlrpc CREATE_INSTALLER]: serving up rebuilt, up-to-date installers." 
-        return installer_urls_dict
-      else:
-        # something went wrong during the check, eg: base installers not found
-        # TODO: What do we return if something goes wrong?
-        print "[xmlrpc CREATE_INSTALLER]: check_and_build returned fatal -1"
-        return 0
+    builder.build_installer(vessel_list, pubkey_dict, build_id)
     
-    print "[xmlrpc CREATE_INSTALLER]: serving up fresh installers."
-    return installer_urls_dict
+#    dist_folder = os.path.join(settings.USER_INSTALLERS_DIR, build_id + "_dist")
+#    installer_urls_dict = {}
+#    installer_urls_dict['w'] = settings.USER_INSTALLERS_URL + "%s_dist/seattle_win.zip"%(build_id)
+#    installer_urls_dict['l'] = settings.USER_INSTALLERS_URL + "%s_dist/seattle_linux.tgz"%(build_id)
+#    installer_urls_dict['m'] = settings.USER_INSTALLERS_URL + "%s_dist/seattle_mac.tgz"%(build_id)
+    
+    if (os == 'windows'):
+      installer_url = settings.USER_INSTALLERS_URL + "%s_dist/seattle_win.zip"%(build_id)
+    elif (os == 'linux'):
+      installer_url = settings.USER_INSTALLERS_URL + "%s_dist/seattle_linux.tgz"%(build_id)
+    elif (os == 'mac'):
+      installer_url = settings.USER_INSTALLERS_URL + "%s_dist/seattle_mac.tgz"%(build_id)
+    
+    return installer_url
+
+
+
+def validate_xmlrpc_input(vessel_list, pubkey_dict, os):
+  # TODO: catch validation exceptions
+    
+    validations.assert_list(vessel_list)
+    validations.assert_dict(pubkey_dict)
+    validations.assert_str(os)
+    
+    total_percentage = 0;
+    
+    for vessel in vessel_list:
+      validations.assert_str(vessel['owner'])
+      validations.assert_positive_int(vessel['percentage'])
+      total_percentage += vessel['percentage']
+      try:
+        validations.assert_list(vessel['users'])
+      except KeyError:
+        raise ValidationError("Missing users list in a vessel dict")
+    
+    # check that vessel percentages add up to 80
+    if (total_percentage != 80):
+      raise ValidationError("Vessel percentages must add up to 80! (20% is reserved for Seattle)")
+    
+    for user in pubkey_dict:
+      validations.assert_str(pubkey_dict[user]['pubkey'])
+    
+    if ((os != 'windows') and (os != 'linux') and (os != 'mac')):
+      raise ValidationError("Invalid OS selection.")
