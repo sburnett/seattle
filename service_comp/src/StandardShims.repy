@@ -28,7 +28,6 @@ include layermain.repy
 include lookup_methods.repy
 
 
-
 class EmptyShim:
 
   # default class for all shims
@@ -50,7 +49,7 @@ class EmptyShim:
     return self.shim_stack.recvmess(host,port,callback)
 
   def openconn(self,host,port,localhost=None,localport=None,timeout=5):
-    return self.shim_stack.openconn(host,port,localhost,localport)
+    return self.shim_stack.openconn(host,port,localhost,localport,timeout)
 
   def sendmess(self,host,port,msg,localhost=None,localport=None):
     return self.shim_stack.sendmess(host,port,msg,localhost,localport)
@@ -62,12 +61,14 @@ class EmptyShim:
   def get_names(self):
     
     # Each shim implements this method
-    # by adding its name, and optional arguments to the from of
-    # each item in the list provided by the shim below
+    # by adding its name, and optional arguments to 
+    # each item in the list provided by the shim below.
     # Branches result in more items in the list.
 
-    # this strings in the list created are of the form required
-    # to be used with the Shim Stack constructor
+    # the strings in the list created are of the form required
+    # to be used with the Shim Stack constructor so calling
+    # new_stack = ShimStack(old_stack.get_names[index]) would create
+    # a compatiable stack
 
     name_list = self.shim_stack.get_names()
     new_name_list = []
@@ -79,59 +80,30 @@ class EmptyShim:
 
 
 
+class NullShim():
 
+  name = 'NullShim'
 
-
-class PhysConn(EmptyShim):
-  # a layer linked to the standard openconn and waitforconn
- 
-  # WARNING this layer expects to recieve the ip to use
-  # as optional arguments when it is created, the ip passed into
-  # openconn / waitforconn is ignored
-
-  # this is because we expect a key and not an ip to be passed in
-  
-  name = 'PhysConn'
-
-  
   def __init__(self,next_shim=None,optional_args=None):
-    #optional_args are none or ['ip','port']
-
-    if optional_args != None:
-      if len(optional_args) != 2:
-        
-        raise Exception('wrong number of optional args passed to PhysConn: '+str(len(optional_args)))
-
-      self.ip = optional_args[0]
-      self.port = int(optional_args[1])
-    else:
-      self.ip = getmyip()
-      self.port = None
-    EmptyShim.__init__(self)
-
+    # Place holder arguemnts are to conform with standards only
+    # this arguments should never be used
+    if next_shim is not None or optional_args is not None:
+      raise Exception('Arguments passed into NullShim by error')
 
   def waitforconn(self,host,port,callback):
-    self.port = port
-    return waitforconn(self.ip,port,callback)
+    return waitforconn(host,port,callback)
 
   def openconn(self,host,port,localhost=None,localport=None,timeout=5):
-    # NOTE, connects to the host and port given as optional arguemnts
-    # when this object was created, does not use host and port in call arguments
-    return openconn(self.ip,self.port,localhost,localport,timeout)
-
-  def sendmess(self,host,port,msg,localhost=None,localport=None):
-    return sendmess(self.ip,self.port,msg,localhost,localport)
+    return openconn(host,port,localhost,localport,timeout)
 
   def recvmess(self,host,port,callback):
-    self.port = port
-    return recvmess(self.ip,port,callback)
-    
-  def stopcomm(self,handle):    
-    return stopcomm(handle)
-  
-  def get_names(self):
-    return ['('+self.name+','+self.ip+','+str(self.port)+')']
-    
+    return recvmess(host,port,callback)
+
+  def sendmess(self,host,port,msg,localhost=None,localport=None):
+    sendmess(host,port,msg,localhost,localport)
+
+  def stopcomm(self,handle):
+    stopcomm(handle)
 
 
 
@@ -148,14 +120,17 @@ class CoordinationShim(EmptyShim):
 
 
   name = 'CoordinationShim'
+  advertise_wait_interval = 60
+
+  def __init__(self,next_shim=None,optional_args=None):
+    self.listener_active = False
+    EmptyShim.__init__(self,next_shim,optional_args)
 
   def waitforconn(self,host,port,callback):
     handle = self.shim_stack.waitforconn(host,port,callback)
-    
     advertise_key = str(host)+','+str(port)+',TCP'
-    advertise_value_list = self.shim_stack.get_names()
-    for advertise_value in advertise_value_list:
-      external_advertise(advertise_key,advertise_value)
+    self.listener_active = True
+    settimer(0,self.advertise_thread,[advertise_key])
     return handle
 
   def recvmess(self,host,port,callback):
@@ -166,11 +141,26 @@ class CoordinationShim(EmptyShim):
       external_advertise(advertise_key,advertise_value)
     return handle
 
+  def advertise_thread(self,advertise_key):
+    while self.listener_active:
+      advertise_value_list = self.shim_stack.get_names()
+      for advertise_value in advertise_value_list:
+        try:
+          external_advertise(advertise_key,advertise_value)
+          # TODO remove this print
+          print 'advertising '+str(advertise_value)+'at key '+str(advertise_key)
+        except Exception,e:
+          #TODO, change this to quietly ignore advertise errors
+          print 'ADVERTISE EXCEPTION: '+str(e)
+      sleep(self.advertise_wait_interval)
+    
+
   def openconn(self,host,port,localhost=None,localport=None,timeout=5):
     # use a lookup service to coordinate the shim stack
 
     lookup_results = external_lookup(str(host)+','+str(port)+',TCP')
-    
+    if len(lookup_results) < 1:
+      raise Exception("host could not be found by coordiantion layer")
     # TODO something smarter with branches,
     # for now iterate through until we get a connection
     exception_list = ''
@@ -184,7 +174,7 @@ class CoordinationShim(EmptyShim):
       else:
         break
 
-    if sock == None:
+    if sock is None:
       # TODO raise correct type of exception
       raise Exception(exception_list)
     else:
@@ -213,6 +203,7 @@ class CoordinationShim(EmptyShim):
 
 
   def stopcomm(self,handle):
+    self.listener_active = False
     return self.shim_stack.stopcomm(handle)
 
  
@@ -259,7 +250,7 @@ class ClientServerShim:
     return self.server_stack.recvmess(host,port,callback)
 
   def openconn(self,host,port,localhost=None,localport=None,timeout=5):
-    return self.client_stack.openconn(host,port,localhost,localport)
+    return self.client_stack.openconn(host,port,localhost,localport,timeout)
 
   def sendmess(self,host,port,msg,localhost=None,localport=None):
     return self.client_stack.sendmess(host,port,msg,localhost,localport)
@@ -276,10 +267,10 @@ class ClientServerShim:
 
 
 # Register layers with framework
-layermain_reg_layer('ClientServerShim',{'class':ClientServerShim})
-layermain_reg_layer('PhysConn',{'class':PhysConn})
-layermain_reg_layer('CoordinationShim',{'class':CoordinationShim})
-
+shimstack_reg_layer('ClientServerShim',{'class':ClientServerShim})
+shimstack_reg_layer('CoordinationShim',{'class':CoordinationShim})
+shimstack_reg_layer('EmptyShim',{'class':EmptyShim})
+shimstack_reg_layer('NullShim',{'class':NullShim})
 
 
 

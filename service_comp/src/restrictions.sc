@@ -1,7 +1,7 @@
 resource cpu .10
 resource memory 25000000   # 15 Million bytes
 resource diskused 100000000 # 100 MB
-resource events 10
+resource events 50
 resource filewrite 10000
 resource fileread 10000
 resource filesopened 5
@@ -14,6 +14,7 @@ resource looprecv 1000000
 resource lograte 30000
 resource random 100
 resource messport 12345
+resource messport 12347
 resource connport 12345
 resource connport 19999
 resource connport 12346
@@ -34,12 +35,19 @@ call socket.recv allow 			# let's not restrict
 # open and file.__init__ both have built in restrictions...
 call open arg 0 is junk_test.out allow 	# can write to junk_test.out
 call open arg 1 is r allow 		# allow an explicit read
+call open arg 1 is w allow
 call open arg 1 is rb allow 		# allow an explicit read
 call open noargs is 1 allow 		# allow an implicit read 
 call file.__init__ arg 0 is junk_test.out allow # can write to junk_test.out
 call file.__init__ arg 1 is r allow 	# allow an explicit read
 call file.__init__ arg 1 is rb allow 	# allow an explicit read
+call file.__init__ arg 1 is r+b allow 	
+call file.__init__ arg 1 is w allow 	
+call file.__init__ arg 1 is wb allow 	
+
 call file.__init__ noargs is 1 allow 	# allow an implicit read 
+
+
 call file.close allow 			# shouldn't restrict
 call file.flush allow 			# they are free to use
 call file.next allow 			# free to use as well...

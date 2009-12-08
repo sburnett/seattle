@@ -1,0 +1,16 @@
+include ShimStack.repy
+include StandardShims.repy
+include NullShim.repy
+include FECShim.repy
+
+
+if callfunc == 'initialize':
+
+  ip = '127.0.0.1'
+  port = 12345
+
+  network = ShimStack('(NullShim)')
+
+  for i in range(10):
+    network.sendmess(ip,port,str(i))
+

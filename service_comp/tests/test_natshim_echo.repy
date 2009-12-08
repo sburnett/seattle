@@ -1,0 +1,56 @@
+"""
+A basic echo test of the SimpleNat Shim
+
+Makes a connection, bounces a few numbers back and forth, and then closes.
+hard codes an ip:port as the SimpleNat layer does not do lookups
+
+This makes calls to
+
+  send
+  recv
+  close
+  stopcomm
+  waitforconn
+  openconn
+
+"""
+include StandardShims.repy
+include SimpleNat.repy
+
+
+
+def response(remote_ip,remote_port,sock,th,listenhandle):
+  # echos numbers until the socket closes
+  try:
+    while True:
+      msg = sock.recv(1024)
+      sock.send(msg)
+  except:
+     sock.close()
+
+
+
+if callfunc == 'initialize':
+  
+  serverkey = 'NAT$BLAHBLAHBLAH'
+  
+  ip = '127.0.0.1'
+  port = 12345
+  hop_port = 12347
+
+  # use seperate shims for the client and server
+  server_shim = SimpleNat(next_shim='(NullShim)',optional_args=[ip,hop_port])
+  client_shim = SimpleNat(next_shim='(NullShim)',optional_args=[ip,hop_port])
+
+  handle = server_shim.waitforconn(serverkey,port,response)
+
+  sock = client_shim.openconn(serverkey,port)
+
+  for i in range(10):
+    sock.send(str(i))
+    msg = sock.recv(10)
+    if msg != str(i):
+      print 'ERROR, expected '+str(i)+ ' got '+msg
+  sock.close()
+
+  server_shim.stopcomm(handle)

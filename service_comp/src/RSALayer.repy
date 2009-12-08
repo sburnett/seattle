@@ -1,13 +1,13 @@
 # a TCP encryption layer
 
-include TCP_TLayer.repy
+include StandardShims.repy
 include session.repy
 include rsa.repy
 
 RSALAYER_KEY_OBJ = rsa_gen_pubpriv_keys(1024)
 
 
-class RSALayer(TCP_TLayer):
+class RSALayer(EmptyShim):
 
   name = 'RSALayer'
 

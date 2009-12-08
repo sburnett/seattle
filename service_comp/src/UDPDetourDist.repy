@@ -1,0 +1,72 @@
+"""
+<Program Name>
+  UDPDetourDist.repy
+
+<Author>
+  Eric Kimbrel, kimbrl@cs.washington.edu
+
+<Purpose>
+  Interpose on UDP traffic to perform detour routing to overcome non-transitive
+  connectivity
+
+  This shim is built to work as a pair with UDPDetourDeciderDist.  See
+  UDPDetourDeciderDist for the use policy of this layer
+
+"""
+
+include StandardShims.repy
+include ShimStack.repy
+
+class UDPDetourDist(EmptyShim):
+
+
+  name = 'UDPDetourDist'
+  
+  
+  myip = getmyip()
+  file_obj = open('ip_list.txt')
+  ips = file_obj.read()
+  file_obj.close()
+  ips = ips.strip()
+  ip_list = ips.split('\n')
+
+  # remove ourselves from the list
+  ip_list.remove(myip)
+
+  index = 0
+
+  def __init__(self,next_shim=None,optional_args=None):
+    self.prev_callback = None
+    
+    EmptyShim.__init__(self,next_shim,optional_args)
+   
+
+  def recvmess(self,host,port,callback):
+    self.prev_callback = callback
+    return self.shim_stack.recvmess(host,port,self.forward) 
+
+
+  def sendmess(self,host,port,msg,localhost=None,localport=None):
+    index = self.index
+    
+    if self.index < len(self.ip_list)-1:
+      self.index += 1
+    else:
+      self.index = 0
+
+    ip = self.ip_list[index]
+    message = 'DETOUR:'+host+':'+str(port)+':'+msg
+    self.shim_stack.sendmess(ip,port,message,localhost,localport)
+
+
+  def forward(self,rip,rport,msg,handle):
+    (mode,ip,port,msg) = msg.split(':',3)
+    if mode =='NORM':
+      self.prev_callback(rip,rport,msg,handle)  
+    elif mode == 'DETOUR':
+      self.shim_stack.sendmess(ip,int(port),'NORM:::'+msg)
+    else:
+      raise Exception('bad mode in detour decider: '+mode)
+
+
+shimstack_reg_layer('UDPDetourDist',{'class':UDPDetourDist})

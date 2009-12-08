@@ -1,0 +1,121 @@
+# takes a file ip_list.txt (comman seperated ips)
+# sends 1024 messages to each node in the list
+# and expects to recieve messages from each node as well
+
+include ShimStack.repy
+include NullShim.repy
+include FECShim.repy
+include CountShim.repy
+
+DICT = {}
+
+
+def count(remote_ip,remote_port,msg,handle):
+  (ip,msg) = msg.split('+')
+  
+  mycontext['lock'].acquire()
+  DICT[ip]['fec'] += 1
+  mycontext['count']['total'] +=1
+  try:
+    mycontext['count'][remote_ip] +=1
+  except:
+    mycontext['count'][remote_ip] = 0
+
+  mycontext['lock'].release()
+  
+
+
+
+
+
+def main():
+  if len(callargs) != 2:
+    print '<port> <output file>'
+    exitall()
+
+  
+  # use get my ip and wait to start until we start recieveing
+  myip = getmyip()
+  mycontext['myip'] = myip
+  port = int(callargs[0])
+  
+  writer = open(callargs[1],'w')
+  writer.write('pingcounts output')
+
+  
+
+  recv_stack = ShimStack('(FECShim)(CountShim)(NullShim)')
+  handle = recv_stack.recvmess(myip,port,count)
+  
+ 
+  mycontext['timer'] = None
+  mycontext['lock'] = getlock()
+  mycontext['done_sending'] = False
+
+  file_obj = open('ip_list.txt')
+  ips= file_obj.read()
+  file_obj.close()
+  ips = ips.strip()
+  ip_list = ips.split('\n')
+  
+  # remove ourselves from the list
+  ip_list.remove(myip)
+
+  for ip in ip_list:
+    DICT[ip] = {'fec':0}
+
+  
+  fec_stack = ShimStack('(FECShim)(CountShim)(NullShim)')
+  
+
+  # wait to start until we start receving messages
+  sleep(300)
+
+  print 'sending'
+    
+  msg = '0123456789'
+
+  # send 100 messages to each client
+  
+  j = 0
+  for i in range(100):
+    for ip in ip_list: 
+      fec_stack.sendmess(ip,port,myip+'+'+msg)
+      j+=1
+      if j % 33 == 0:
+        sleep(.5)
+
+
+  print 'done sending'
+
+  # loop here and wait to exit
+  # stop when count hasnt changed for a full minute
+  num = mycontext['count']['total']
+  while True:
+    sleep(300)
+    if num == mycontext['count']['total']:
+      writer.write('HIGH LEVEL RECV\n')
+      for item in mycontext['count']:
+        writer.write('\t'+item+'\t'+str(mycontext['count'][item])+'\n')
+      dict = recv_stack.top_shim.shim_stack.top_shim.recv_dict
+      for key in dict:
+        if key is not 'lock':
+          writer.write('RECV FROM: '+key+'\n')
+          list = dict[key]
+          for item in list:
+            writer.write('\t'+str(item)+'\n')
+      writer.close()
+      return
+    else:
+      num = mycontext['count']['total']
+
+  
+
+
+if callfunc == 'initialize':
+   mycontext['sent'] = 0
+   mycontext['count'] = {'total':0}
+   
+   main()
+   
+   exitall()

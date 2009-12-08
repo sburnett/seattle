@@ -1,0 +1,181 @@
+Using Shims
+
+
+The basic idea of a shim is to create an object that interposes on each of 
+network api calls.
+
+
+
+
+Shim Stack Objects
+
+  The main abstraction for use is the ShimStack.  A shim stack has a small api
+  and a pointer to a shim.
+     
+  push(shim name)  adds a shim to the top of the shim stack
+  pop()  removes a shim from the top of the stack
+  wrappers to all methods provided by a shim (sendmess,recvmess,etc)
+  
+  ##Constructor##  
+  ShimStack(shim_stack_str) 
+    A shim_stack_str consists of a set of parentheses for each shim, contating
+    a comma seperated list where the first item is the shims name, and each 
+    additional item is an optional argument to that shim
+
+    for example "(NAT,forwarderip,forwarderport)" would create a NAT Shim
+    and pass in the optional argument list [forwarderip,forwarderport) to the
+    NAT Shim constructor
+
+    each shim registers its name with the shim stack construct via a call
+    to shimestack_reg_layer(layer_name,layer_info_dict), which allwos the
+    shim stack api to create the correct shims.
+
+
+    A shim stack can be manipulated by an application to create and modify
+    the network stack as the programmer desiers.  Or the shim stack can be used 
+    by shims themsevles to dynmically modify the stack below them
+
+    A shim can not affect the stack above itself.
+
+
+
+
+Shims
+  
+  Each shim provides an api call for each network call (sendmess,recvmess,
+  openconn,waitforconn,stopcomm, and getnames) a constructor and a reference
+  to a shim stack object
+
+  StandardShims.repy contains an object "EmptyShim" that should be inherited 
+  by all shims to get the default behavior.  Then each shim overides the 
+  nessicary methods to implement its own functionality
+
+  Constructor
+
+     Shim(self,next_shim=None,optional_args=None)
+
+     The shim stack objects expects all shims to have a constructor of this
+     form.  IF a shim will never make use of optional arguemnts then the
+     constructor should check that none are provided and raise an exception
+     if they are
+
+  
+  Many commonly used shims are contatined within StandardShims.repy
+  Another common shim is NullShim.repy which can be placed at the bottom
+  of a shim stack to simply call down to the repy api
+
+  basic_stack = ShimStack("NullShim") would give you a shim stack that was just
+  an empty wrapper around the repy API.
+
+
+
+Standard Shims
+
+
+   There are a handful of Shims I've built as general tools to be used by other
+   Shims in the frame work, the are contatined within StandardShims.repy 
+   Read that File to get a better understanding of them.  In breif
+
+   NullShim - meant to be at the buttom of any shim stack to call out to the
+     actual network API
+
+   EmptyShim - a base class to inhereit for any shim, each call just makes
+     them same call on its own shim stack
+
+   Coordination Shim  - A shim to sit on top of a shim stack and coordinate 
+     advertisements and lookups for a connection.  The server side will 
+     a sting that can be used by a client to build a compatiable shim
+     stack and establsih a connection.  
+
+   Client Server Shim - You may want to use one shim stack and have different
+     behavior for sending messages vice recving them, this shim simply builds
+     two shim stacks beneath it and sends api calls to the correct one.
+
+
+
+
+Some included examples
+
+NAT
+
+  TCP ONLY DOES NOTHING FOR UDP
+
+  the SimpleNat Shim works with the nat_forwarder as a remote service
+  to forward traffic. 
+
+  Simple Nat does not do advertisements or lookups but rather relies on
+  something else to pass in the correct forwrad ip and port as optional
+  arguments to its constructor.
+
+  a call to waitforconn will open a socket with the forwrader, and will then 
+  open additional sockets to the forwarder for communication with clients
+
+  a call to openconn will open a socket to the forwarder, which will then conn
+  -ect it to the server by forwrding traffic
+
+  this should be made to work with the coordination shim
+
+
+FEC
+
+  UDP ONLY
+
+  sends a redundant packet for every two packets sent.
+
+  on recvmess packets can be reconstructed if lost
+
+
+DETOUR - detour / Detour Decider
+
+  Performs Detour routing to lower loss rate in event of non transitive 
+  connectivity
+
+
+UNIMPLEMENTED THINGS TO DISCUSS
+
+  Branches
+
+  a shim stack branching to have more than one stack beneath it.  We had some 
+  toy examples of this but nothing to serious.  IT should be trival to implement
+  a branch simply by having a shim create a new shim stack.
+
+
+  Deciders
+
+  Shims will often need to operate in acoordance with some sort of policy.
+  Such policy should be encoded into a decider shim.  The decider will then use
+  ShimStack methods push and pop to alter the stack below them as needed.
+
+  One example of this is the DetourDeciderShim, but the logic there isn't as
+  clean as it could be.  Those to shims are meant to work as a pair, versus one
+  shim actng strictly as the decisder and the other strictly as the worker.
+
+
+
+  Advertsing troubles.
+
+  Its desireable to have all of your advertisng logit in one place, but
+  I am not sure if this is really possible.  To do so we would put a 
+  Coordination shim High in the shim stack, and it could do advertisements
+  for shims below it.  The problem is the shims below may want to have their
+  own logic of when to disconnect and reconnect to various intermidiaries, and
+  this information may need to be advertised.  Since A shim can't really 
+  communicate up the stack its not clear how this would work.
+
+  What if a nat forwarder goes down and i want to connect to a new one.  I need 
+  my Coordination layer to see the change, but the reconnect logic will be
+  inside of the nat shim...
+
+  tricky tricky
+
+
+
+  Aggrigaters
+
+  some shims may send data by multiple paths and then put it back together
+  in one stream or packet on the other side.
+
+  i have no exmaples of this
+
+
+  

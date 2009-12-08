@@ -1,0 +1,54 @@
+#  This shim provides a count of udp packets sent and recvied from
+#  different ip addresses.  Its used to gather data in expiraments
+#  such as pingcounts.repy
+
+class CountShim(EmptyShim):
+
+  name = 'CountShim'
+ 
+  def __init__(self,next_shim=None,optional_args=None):
+    # Place holder arguemnts are to conform with standards only
+    # this arguments should never be used
+    if next_shim is not None or optional_args is not None:
+      raise Exception('Arguments passed into NullShim by error')
+    EmptyShim.__init__(self,next_shim,optional_args)
+    self.prev_callback = None
+    self.recv_dict = {'lock':getlock()}
+    self.send_dict = {'lock':getlock()}
+  
+
+  def recvmess(self,host,port,callback):
+    self.prev_callback = callback
+    return self.shim_stack.recvmess(host,port,self.count_back)
+
+  def count_back(self,host,remote_port,packet,handle):
+    time = getruntime()
+    count,packet = packet.split('=',1)
+    self.recv_dict['lock'].acquire()
+    if host not in self.recv_dict:
+      self.recv_dict[host] = []
+    self.recv_dict[host].append((count,time))
+    self.recv_dict['lock'].release()
+    self.prev_callback(host,remote_port,packet,handle)
+
+
+
+  def sendmess(self,host,port,msg,localhost=None,localport=None):
+    self.send_dict['lock'].acquire()
+    if host in self.send_dict:
+      next_packet = self.send_dict[host]
+      self.send_dict[host] += 1
+    else:
+      self.send_dict[host] = 1
+      next_packet = 0
+    
+    self.send_dict['lock'].release()
+    self.shim_stack.sendmess(host,port,str(next_packet)+'='+msg,localhost,localport)
+
+  
+
+# try to register with the layer framework
+try:
+  shimstack_reg_layer('CountShim',{'class':CountShim})
+except:
+  pass

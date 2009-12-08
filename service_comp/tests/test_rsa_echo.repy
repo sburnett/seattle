@@ -1,4 +1,4 @@
-#a basic hello test with no layers
+
 
 
 DEFAULT_SHIM_STACK_NAMES = '(ClientServerShim,[CoordinationShim],[CoordinationShim][RSALayer][PhysConn])'

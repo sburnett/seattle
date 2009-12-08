@@ -1,0 +1,79 @@
+"""
+< program name>
+  UDPDetourDeciderDist
+
+<author>
+  Eric Kimbrel, kimbrl@cs.washington.edu
+
+<Purpose> 
+  Provide policy for using the UDPDetourDist Layer.
+
+  If 15 messages have been sent to a host without recieving any back
+  the detour layer will be put into place.  
+
+  Otherwise messages are just sent normally
+
+  example innvocation
+
+  shim_stack = ShimStack("(UDPDetourDeciderDist)(UDPDetourDist)(NullShim)")
+
+
+  ?'s  if a stopcomm is done should we delete the state delete the state
+  related to this?
+
+
+"""
+
+
+include StandardShims.repy
+include UDPDetourDist.repy
+include ShimStack.repy
+
+class UDPDetourDeciderDist(EmptyShim):
+
+  name = 'UDPDetourDeciderDist'
+  send_counts = {}
+  
+  max = 15  # number of sends to a unique ip before starting detour
+
+  def __init__(self,next_shim=None,optional_args=None):
+    EmptyShim.__init__(self,next_shim,optional_args)
+    self.prevcallback = None
+    self.activated = False
+
+  def recvmess(self,localhost,localip,callback):
+    self.prevcallback = callback
+    return self.shim_stack.recvmess(localhost,localip,self.ddcallback)
+
+
+  def ddcallback(self,host,remote_port,message,handle):
+    if host in self.send_counts:
+      if self.send_counts[host] < self.max:
+        self.send_counts[host] = 0
+  
+    self.prevcallback(host,remote_port,message,handle)  
+
+    
+
+  def sendmess(self,host,port,message,localhost,localip):
+    use_fec = self.activated
+    ret_value = len(message)    
+    if not use_fec:
+      if host in self.send_counts:
+        if self.send_counts[host] >= self.max: 
+          use_fec = True
+      else:
+        self.send_counts[host] = 1   
+
+    if use_fec:
+      self.activated = True
+      self.shim_stack.sendmess(host,port,message,localhost,localip)
+    else:
+      message = 'NORM:::'+message
+      # skip over detour sendmess
+      self.shim_stack.top_shim.shim_stack.sendmess(host,port,message,localhost,localip)
+    self.send_counts[host] += 1
+    
+
+
+shimstack_reg_layer('UDPDetourDeciderDist',{'class':UDPDetourDeciderDist})

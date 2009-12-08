@@ -17,21 +17,30 @@
   uses the control sock to have the server open a new connection.  Traffic
   is then exchanged  via the nat_forwarder
 
+  This Shim relies on the above shim stack to coordinate the ip and port
+  of the hop being used
+
 """
 
 
-include layermain.repy   
-include TCP_HLayer.repy
-include session.repy
 
-class NatShim(TCP_HLayer):
+include session.repy
+include ShimStack.repy
+
+
+class SimpleNat():
   
-  name ='NAT'
+  name ='SimpleNat'
 
   def __init__(self,next_shim=None,optional_args=None):
     self.run = True  # goes to false when stopcomm is called
-    TCP_HLayer.__init__(self,next_shim,optional_args)
-    
+    self.shim_stack = ShimStack(next_shim)
+    if len(optional_args) !=2:
+      self.hop_key = None
+      self.hop_port = None
+    else:
+      self.hop_key =  optional_args[0]
+      self.hop_port = optional_args[1]
 
   
   def waitforconn(self,key,port,callback):
@@ -52,17 +61,9 @@ class NatShim(TCP_HLayer):
       Sock exceptions may occur in event of connection failure, etc
     
     """
-    # find a nat forwarder
-    # TODO treat this as a list
-    (nat_key,nat_port) = forwarder_lookup('natforwarder')[0]
-    self.hop_key = nat_key
-    self.hop_port = nat_port  
-
-    # open a connection to nat
-    # ? should i use layered_openconn instead of allowing
-    # the frame work to specifically set the openconn i use?
-    # currently next_openconn defaults to layered_openconn
-    nat_sock = layered_openconn(nat_key,int(nat_port))  
+    
+    
+    nat_sock = self.shim_stack.openconn(self.hop_key,int(self.hop_port))  
   
     # register the with the forwarder
     nat_sock.send('S') # this connection is a server
@@ -82,7 +83,7 @@ class NatShim(TCP_HLayer):
     listenhandle = {'sock':nat_sock,'active':True}
 
     #set a timer because i need execution to keep going
-    settimer(0,self.nat_waitfor_request,[nat_key,nat_port,nat_sock,listenhandle,callback])
+    settimer(0,self.nat_waitfor_request,[self.hop_key,self.hop_port,nat_sock,listenhandle,callback])
 
     # return a new handle
     # TODO return something good for a handle?
@@ -102,15 +103,28 @@ class NatShim(TCP_HLayer):
     nat_sock.close()
     return True
 
+
   # wait for requsts for new connections over a control socket
   # to the nat_forwarder
   def nat_waitfor_request(self,for_key,for_port,sock,handle,callback):
     while self.run:
      try:
-       remote_key = session_recvmessage(sock)
+       
+       request ='ALIVE?'
+       
+       # send alive messages when requested
+       while request == 'ALIVE?':
+         request = session_recvmessage(sock)
+         if request != 'ALIVE?': break
+         session_sendmessage(sock,'YES')
+       
+       remote_key = request
        remote_port = int(session_recvmessage(sock))
-     
-       new_sock = layered_openconn(for_key,for_port)
+      
+
+
+       # WARNING, needs to be dynamic
+       new_sock = self.shim_stack.openconn(for_key,for_port)
        new_sock.send('S')
        session_sendmessage(new_sock,'CONN')
        session_sendmessage(new_sock,remote_key)
@@ -125,8 +139,7 @@ class NatShim(TCP_HLayer):
          # TODO DO SOMETHing with comm handles
          # confirm the connection over the control sock 
          session_sendmessage(sock,'OKAY')
-         callback(remote_key,remote_port,new_sock,new_sock,
-                self.thiscommhandle)
+     
       
   
      except Exception, e:
@@ -134,6 +147,7 @@ class NatShim(TCP_HLayer):
          #stopcomm has not been called and the connection failed
          raise Exception('ERROR OCCURED IN nat_watifor_request '+str(e))
          
+     callback(remote_key,remote_port,new_sock,new_sock,self.thiscommhandle)    
 
     # we've exited the loop because stopcomm was called
     # close the control socket
@@ -141,5 +155,24 @@ class NatShim(TCP_HLayer):
 
 
 
-# register with framework
-layermain_reg_layer('NAT',{'class':NatShim})    
+  def openconn(self,id,port,localip=None,localport=None,timeout=5):
+    
+    base_sock = self.shim_stack.openconn(self.hop_key,self.hop_port,localip,localport)
+
+    # communicate who i want to talk to
+    base_sock.send('C')
+    session_sendmessage(base_sock,str(id)) 
+    session_sendmessage(base_sock,str(port))
+  
+    # see if the connection was established
+    response =  session_recvmessage(base_sock)
+    if response != 'OKAY':
+      base_sock.close()
+      raise Exception, 'Desired Host not found at forwarder'
+
+    #if the connection is established we can return the socket
+    return base_sock
+
+
+
+

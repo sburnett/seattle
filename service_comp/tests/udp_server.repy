@@ -1,0 +1,18 @@
+include ShimStack.repy
+include StandardShims.repy
+include  NullShim.repy
+include FECShim.repy
+
+
+def display(rip,rport,message,handle):
+  print message
+
+if callfunc == 'initialize':
+
+  ip = '127.0.0.1'
+  port = 12345
+
+  network = ShimStack('(NullShim)')
+
+  network.recvmess(ip,port,display)
+

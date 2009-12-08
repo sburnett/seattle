@@ -17,16 +17,31 @@
   Clients then connect and request the server.The srv  opens a new 
   connection to the forwarder and the client and server exchange traffic 
   through the forwarder.
+
+threads used:
+ 
+  check_servers_thread: 1
+  advertising          ~2
+  per client = 2
+  
+
+  MAX THREADS is 50, use 
+  allow 20 clients to connect.
+  allow 5 servers. 
+
+
 """
 
 
+"""
+Production TODO's
 
-DEFAULT_SHIM_STACK_NAMES = '(CoordinationShim)(PhysConn)'
+  change to use advertising thread
+  limit connections
+  provide good logging / troubleshooting information
 
 
-# for generic openconn / waitforconn
-include layermain.repy 
-include StandardShims.repy
+"""
 
 
 # for access to mock lookup service
@@ -34,13 +49,40 @@ include lookup_methods.repy
 
 include session.repy
 
-
+MAX_SERVERS = 5
+MAX_CLIENTS = 20
 
 SRV_DICT = {}  # keep track of registered servers
 
 THIS_NODE_KEY = "NAT_F_KEY" #this nodes key
 
 CLT_DICT = {} # HOLDS CLIENT SOCKETS
+
+
+
+def check_servers_thread():
+  # continously check that servers are still arive and connected
+  # delete closed sockets from the SRV_DICT
+  # sleep a lot to prevent using too much network bandwidth
+  while True:
+    # cycle every one minute
+    sleep(60)
+    for server in SRV_DICT:
+      sleep(10)
+      try:
+        sock = SRV_DICT[server]
+        session_sendmessage(sock,"ALIVE?")
+        response = session_recvmessage(sock)
+        if response != 'YES':
+          raise Exception('Server is Dead')
+      except:
+        # the server is not alive
+        try:
+          del SRV_DICT[sock]
+        except:
+          pass
+        else:
+          print 'INFO: Removed dead server: '+server
 
 
 
@@ -79,9 +121,10 @@ def new_srv(rip,rport,sock,th,lh):
      
     # exchange traffic
     settimer(0,exchange_streams,[sock,clt_sock,True])
-    settimer(0,exchange_streams,[clt_sock,sock,False])
-  
-
+    exchange_streams(clt_sock,sock,False)
+    
+    #del the clt dict entry when the connection is finished
+    del CLT_DICT[key+','+port]
 
   # unknown action
   else:
@@ -121,7 +164,12 @@ def new_clt(rip,rport,clt_sock,th,lh):
     clt_sock.close()
     
     #remove this server from the dictionary
-    del SRV_DICT[key+','+port]
+    try:
+      del SRV_DICT[key+','+str(port)]
+    except:
+      pass
+    else:
+      print 'INFO: removed server: '+key+':'+str(port)+' due to error opening new client connection'
     return
   
   #wait for the server to verify
@@ -132,6 +180,8 @@ def new_clt(rip,rport,clt_sock,th,lh):
     session_sendmessage(clt_sock,'ERROR')
     clt_sock.close()
     return
+  
+  
   
   # the connection should now be established
   session_sendmessage(clt_sock,'OKAY')
@@ -180,6 +230,10 @@ def common_entry(rip,rport,sock,th,lh):
 # common entry point for clients and servers
   try:
     type = sock.recv(1)
+
+  except Exception,e:
+    print 'INFO error in common entry: '+str(e)
+  else: 
     if type == 'C':
       new_clt(rip,rport,sock,th,lh)
     elif type == 'S':
@@ -189,20 +243,32 @@ def common_entry(rip,rport,sock,th,lh):
     else:
       print 'INFO: invalid conn type recvied '+type
       sock.close()
-  except Exception,e:
-    print 'INFO error in common entry: '+str(e)
+  
 
 if callfunc == 'initialize':
 
-  if len(callargs) != 1:
-    print 'usage: wait_port '
+  if len(callargs) != 2:
+    print 'usage: ip wait_port '
     exitall()
-  
-  wait_port = int(callargs[0])
-   
-  layered_waitforconn(THIS_NODE_KEY,wait_port,common_entry)
 
+
+  mycontext['full'] = False
   
+  ip = callargs[0]
+
+  wait_port = int(callargs[1])
+   
+  waitforconn(ip,wait_port,common_entry)
+  
+  # start a thread to remove old servers
+  check_servers_thread()
+
   # advertise this node as a nat_forwarder, so it can
   # be found by servers
-  forwarder_advertise(THIS_NODE_KEY,wait_port,'natforwarder')
+  while True:
+    if not mycontext['full']:
+      try:
+        forwarder_advertise(ip,wait_port,'natforwarder')
+      except Exception,e:
+        print 'Advertise Error: '+str(e)
+    sleep(20)
