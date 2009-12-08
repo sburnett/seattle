@@ -30,8 +30,6 @@ from installer_creator import settings
 from installer_creator.common import builder
 from installer_creator.common import validations 
 
-INSTALLER_ID_LENGTH = 32
-
 
 def installer_creator(request):
   """
@@ -63,6 +61,7 @@ def check_session(request):
   else:
     return HttpResponse("no_refresh")
     
+
 
 def add_user(request):
   """
@@ -129,10 +128,10 @@ def add_user(request):
 def create_installer(request):
   """
   <Purpose>
-    Sets up necessary variables needed for build_installer,
+    Sets up necessary variables needed for prepare_installer,
     specifically the key dictionary. The key dictionary is a
     dict whose keys are usernames, and whose values are key
-    dicts (pubkey & privkey). See build_installer for more info. 
+    dicts (pubkey & privkey). See prepare_installer for more info. 
     
     Also generates a unique installer ID (not related to the django
     session ID). The installer ID is tied to this specific installer,
@@ -143,7 +142,7 @@ def create_installer(request):
     into a folder related to the installer ID.
   
   <Notes>
-    The vessel_dict being passed to this function via AJAX is a list
+    The vessel_list being passed to this function via AJAX is a list
     of vessel dictionaries. Here is an example of the format:
     [ {owner, percentage, [users]}, {owner, percentage, [users]} ... ]
   """
@@ -151,20 +150,17 @@ def create_installer(request):
     return HttpResponseRedirect(reverse("installer_creator"))
   
   if (request.POST['action'] == 'createinstaller'):
-    vessel_dict = simplejson.loads(request.POST['content'])
-    #print "VESSEL_DICT: "
-    #print vessel_dict
+    vessel_list = simplejson.loads(request.POST['content'])
     
-    # sanity check, and construct list of users included in the vessel_dict
+    # sanity check, and construct list of users included in the vessel_list
     users_list = []
-    for vessel in vessel_dict:
+    for vessel in vessel_list:
       if vessel['owner'] not in users_list:
         users_list.append(vessel['owner'])
       
       for user in vessel['users']:
         # check for duplicate users within ONE vessel
         if user != '' and vessel['users'].count(user) > 1:
-          #print "DUPLICATE FOUND"
           return HttpResponse("ERROR: Duplicate users in same vessel!", status=500)
         if user not in users_list:
           users_list.append(user)
@@ -175,30 +171,23 @@ def create_installer(request):
       key_dict[user] = request.session[user]
     
     # generate installer ID
-    installer_id = _generate_installer_id()
-    print "INSTALLER_ID: " + installer_id
+    #installer_id = _generate_installer_id()
+    installer_id = builder.generate_build_id(vessel_list, key_dict)
     request.session['installer_id'] = installer_id
     
-    # Begins the actual build of the installer
+    # Prepare the installer build area (vesselinfo file & dir. structure) 
     try:
-      #builder.build_installer(vessel_dict, key_dict, installer_id)
-      builder.build_installer(vessel_dict, key_dict, "win")
-      #pass
+      builder.prepare_installer(vessel_list, key_dict, installer_id)
     except Exception, e:
-      print str(e)
-      return HttpResponse("<b>Build failed! We encountered a problem while building the installers.</b><br>" +
+      raise
+      return HttpResponse("<b>Fatal Error: Couldn't prepare vesselinfo file.</b><br>" +
                           "Please contact us! Details:<br><br>" + str(e), status=500)
-    
-    # store these urls for the download page
-#    request.session['win_installer_url'] = installers_url_dict['w']
-#    request.session['linux_installer_url'] = installers_url_dict['l']
-#    request.session['mac_installer_url'] = installers_url_dict['m']
     
     # store keydict for download keys page
     request.session['key_dict'] = key_dict
     
     return HttpResponse("Done")
-
+  
 
 
 def download_keys(request):
@@ -246,7 +235,7 @@ def dl_keys(request):
       # remove temporary privkey file
       os.remove(privkey_path)
   
-  public_url = "Give this link to others so they can donate on your behalf:\n"
+  public_url = "Give this link to others so they can donate on your behalf: \n"
   public_url += "https://" + request.get_host() + reverse("download_installers", args=[request.session['installer_id']])
   public_url_path = _write_to_temp_file(public_url) 
   zipper.write(public_url_path, "public_installer_url.txt")
@@ -267,39 +256,22 @@ def dl_keys(request):
   return response
 
 
-#def post_install(request):
-#  domain = "https://" + request.get_host()
-#  installer_id = request.session['installer_id']
-#  
-#  return direct_to_template(request, "download.html", 
-#                            {'win_installer_url' : settings.USER_INSTALLERS_URL + "%s_dist/seattle_win.zip"%(installer_id),
-#                             'linux_installer_url' : settings.USER_INSTALLERS_URL + "%s_dist/seattle_linux.tgz"%(installer_id),
-#                             'mac_installer_url' : settings.USER_INSTALLERS_URL + "%s_dist/seattle_mac.tgz"%(installer_id),
-#                             'just_installed' : 'true',
-#                             'domain' : domain,
-#                             'installer_id' : installer_id})
-
 
 def download_installers(request, installer_id):
   """
   <Purpose>
-    Displays a page allowing users to download the created installers.
-  """
-  # check if installer instance EXISTS 
-  
-  result = builder.check_and_build_if_new_installers(installer_id)
-  
-  if result == -1:
-    return HttpResponse("Error! Couldn't find base installers during check_and_build_if_new_installers().", status=500)
+    Displays a page allowing users to download the installers.
+  """ 
   
   domain = "https://" + request.get_host()
   
   return direct_to_template(request, "download.html", 
-                            {'win_installer_url' : settings.USER_INSTALLERS_URL + "%s_dist/seattle_win.zip"%(installer_id),
-                             'linux_installer_url' : settings.USER_INSTALLERS_URL + "%s_dist/seattle_linux.tgz"%(installer_id),
-                             'mac_installer_url' : settings.USER_INSTALLERS_URL + "%s_dist/seattle_mac.tgz"%(installer_id),
+                            {'win_installer_url' : settings.USER_INSTALLERS_URL + installer_id + "/seattle_win.zip",
+                             'linux_installer_url' : settings.USER_INSTALLERS_URL + installer_id + "/seattle_linux.tgz",
+                             'mac_installer_url' : settings.USER_INSTALLERS_URL + installer_id + "/seattle_mac.tgz",
                              'domain' : domain,
                              'installer_id' : installer_id})
+
 
 
 def _standarize(username):
@@ -315,6 +287,7 @@ def _standarize(username):
   return username
 
 
+
 def _generate_installer_id():
   """
   <Purpose>
@@ -324,6 +297,8 @@ def _generate_installer_id():
   m = hashlib.md5()
   m.update(str(time.time()))
   return m.hexdigest()
+
+
 
 def _generate_random():
   """
@@ -339,6 +314,8 @@ def _generate_random():
     key += chr(character)
   
   return key
+
+
 
 def _write_to_temp_file(data):
   """

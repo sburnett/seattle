@@ -28,7 +28,6 @@
   @log_function_call -- this is our own decorator for logging purposes.
 """
 
-
 import django.core.mail # To send the admins emails when there's an unhandled exception.
 from installer_creator.common.validations import ValidationError
 
@@ -40,7 +39,6 @@ import xmlrpclib        # Used for raising xmlrpc faults
 #from seattle import repyportability
 
 #repyhelper.translate_and_import('rsa.repy')
-
 
 from installer_creator import settings
 from installer_creator.common import builder
@@ -88,6 +86,11 @@ class PublicXMLRPCFunctions(object):
     
     except xmlrpclib.Fault:
       # A xmlrpc Fault was intentionally raised by the code in this module.
+      raise
+    
+    except validations.ValidationError:
+      # Validation error!
+      print "Caught a validation error!"
       raise
     
     except Exception, e:
@@ -175,7 +178,7 @@ class PublicXMLRPCFunctions(object):
     build_id = builder.generate_build_id(vessel_list, pubkey_dict)
     print "[xmlrpc CREATE_INSTALLER]: build_id: " + build_id
     
-    builder.build_installer(vessel_list, pubkey_dict, build_id)
+    builder.prepare_installer(vessel_list, pubkey_dict, build_id)
     
 #    dist_folder = os.path.join(settings.USER_INSTALLERS_DIR, build_id + "_dist")
 #    installer_urls_dict = {}
@@ -184,11 +187,11 @@ class PublicXMLRPCFunctions(object):
 #    installer_urls_dict['m'] = settings.USER_INSTALLERS_URL + "%s_dist/seattle_mac.tgz"%(build_id)
     
     if (os == 'windows'):
-      installer_url = settings.USER_INSTALLERS_URL + "%s_dist/seattle_win.zip"%(build_id)
+      installer_url = settings.USER_INSTALLERS_URL + build_id + "/seattle_win.zip"
     elif (os == 'linux'):
-      installer_url = settings.USER_INSTALLERS_URL + "%s_dist/seattle_linux.tgz"%(build_id)
+      installer_url = settings.USER_INSTALLERS_URL + build_id + "/seattle_linux.tgz"
     elif (os == 'mac'):
-      installer_url = settings.USER_INSTALLERS_URL + "%s_dist/seattle_mac.tgz"%(build_id)
+      installer_url = settings.USER_INSTALLERS_URL + build_id + "/seattle_mac.tgz"
     
     return installer_url
 

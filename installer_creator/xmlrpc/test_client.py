@@ -7,7 +7,7 @@ def main():
   #[ {owner, percentage, [users]}, {owner, percentage, [users]} ... ]
   
   vessel_list = [{'owner':'jchen', 'percentage':40, 'users':[]}, {'owner':'james', 'percentage':40, 'users':[]}]
-  pubkey_dict = {'jchen': {'pubkey':'jchen_pubkey123'}, 'james':{'pubkey':'james_pubkey123'}}
+  pubkey_dict = {'jchen': {'pubkey':'jchen_pubkey1234'}, 'james':{'pubkey':'james_pubkey1234'}}
   
   print proxy.create_installer(vessel_list, pubkey_dict, "windows")
   

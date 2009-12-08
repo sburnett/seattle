@@ -14,6 +14,9 @@ urlpatterns = patterns('',
      'installer_creator.common.builder.dl_installer', {}, 
      'dl_installer'),
     
+    (r'^' + settings.MEDIA_URL[1:] + '(?P<path>.*)$', 'django.views.static.serve',
+    {'document_root' : settings.MEDIA_ROOT}),
+    
     # Uncomment the admin/doc line below and add 'django.contrib.admindocs' 
     # to INSTALLED_APPS to enable admin documentation:
     # (r'^admin/doc/', include('django.contrib.admindocs.urls')),
@@ -21,13 +24,3 @@ urlpatterns = patterns('',
     # Uncomment the next line to enable the admin:
     (r'^admin/(.*)', admin.site.root),
 )
-
-# If DEBUG is True, then this is for development rather than production. So,
-# have django serve static files so apache isn't needed for development.
-#if settings.DEBUG:
-#  urlpatterns += patterns('',
-#      (r'^' + settings.MEDIA_URL[1:] + '(?P<path>.*)$', 'django.views.static.serve',
-#        {'document_root' : settings.MEDIA_ROOT}),
-#      (r'^installers/(?P<path>.*)$', 'django.views.static.serve', 
-#        {'document_root' : settings.USER_INSTALLERS_DIR})
-#  )
