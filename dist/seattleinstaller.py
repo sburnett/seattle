@@ -1037,10 +1037,58 @@ def test_cron_accessibility():
       
 
 
+def find_mount_point_of_seattle_dir():
+  """
+  <Purpose>
+    Find the mount point of the directory in which seattle is currently being
+    installed.
+
+  <Arguments>
+    None.
+
+  <Excpetions>
+    None.
+
+  <Side Effects>
+    None.
+
+  <Return>
+    The mount point for the directory in which seattle is currently being
+    installed.
+  """
+
+  potential_mount_point = SEATTLE_FILES_DIR
+
+  # To prevent a potential, yet unlikely, infinite loop from occuring, exit the
+  # while loop if the current potential mount point is the same as
+  # os.path.dirname(potential_mount_point).
+  while not os.path.ismount(potential_mount_point) \
+        and potential_mount_point != os.path.dirname(potential_mount_point):
+    potential_mount_point = os.path.dirname(potential_mount_point)
+
+  return potential_mount_point
+      
+
+
+
 def add_seattle_to_crontab():
   """
   <Purpose>
     Adds an entry to the crontab to run seattle automatically at boot.
+
+    HIGH-LEVEL DESCRIPTION OF CRONTAB ENTRY FUNCTIONALITY:
+      Check if the seattle start script exists: if so, start seattle.
+      Else if the mount point for the seattle directory isn't mounted, sit in
+      a 60 second sleep loop until the mount point has been mounted, then start
+      start seattle.
+      Otherwise, the seattle start script has been removed, so remove the
+      seattle crontab entry.
+
+      *NOTE: Further functionality to check if the seattle start script has been
+             deleted once the mount point is detected was NOT added to the
+             crontab entry because it is already highly unlikely that cron will
+             be started before the directory is mounted.  NFS appears to make
+             all directories appear mounted to the OS at all times.
 
   <Arguments>
     None.
@@ -1067,9 +1115,15 @@ def add_seattle_to_crontab():
   # Since seattle is not already installed, modify crontab to run seattle at
   # boot.
 
-  # Get the service vessel where standard error produced from cron will be
-  # written.
+  # First, get the service vessel where standard error produced from cron will
+  # be written.
   service_vessel = servicelogger.get_servicevessel()
+
+  # Next, find the mount point which will be included in the seattle crontab
+  # entry in case the user installs on a network filesystem.  This way the
+  # seattle entry will not automatically erroneously remove itself if the user's
+  # filesystem has not yet been mounted.
+  mount_point = find_mount_point_of_seattle_dir()
 
 
   # The crontab entry automatically removes itself in the event that the seattle
@@ -1088,6 +1142,11 @@ def add_seattle_to_crontab():
   #   randomly generated file with secure permissions is created on the stop.
   cron_line_entry = '@reboot if [ -e "' + SEATTLE_FILES_DIR + os.sep \
       + get_starter_file_name() + '" ]; then "' + SEATTLE_FILES_DIR + os.sep \
+      + get_starter_file_name() + '" >> "' + SEATTLE_FILES_DIR + os.sep \
+      + service_vessel + '/cronlog.txt" 2>&1; elif [ "`mount | ' \
+      + 'grep -e \'[ ]' + mount_point + '[/]*[ ]\'`" = "" ]; then ' \
+      + 'while [ "`mount | grep -e \'[ ]' + mount_point + '[/]*[ ]\'`" = ""]; '\
+      + 'do sleep 60s; done && "' + SEATTLE_FILES_DIR + os.sep \
       + get_starter_file_name() + '" >> "' + SEATTLE_FILES_DIR + os.sep \
       + service_vessel + '/cronlog.txt" 2>&1; else ' \
       + 'modifiedCrontab=`mktemp -t tempcrontab.XXXXX` && crontab -l | ' \

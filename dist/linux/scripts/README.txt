@@ -12,7 +12,9 @@ https://seattle.cs.washington.edu
 
 
 
-Installation Instructions:
+INSTALLATION
+
+Instructions:
 install.sh [key-bitsize]
 
 Simply run the install.sh script to install Seattle on your system. The
@@ -25,9 +27,24 @@ key-bitsize: This optional argument allows you to specify the bitsize of the
 	     encryption keys that the Node Manager will use. Default: 1024 bits.
 
 
+Side-effects of install:
+A crontab entry for seattle is generated in order to start seattle automatically
+at boot. Following is a high-level description of how the crontab entry works:
+    Check that the seattle start_seattle.sh script exists: if so, start seattle.
+    Else if the mount point for the seattle directory has not yet been mounted:
+    sit in a 60 second sleep loop until the mount point has been mounted,
+    then start seattle.
+    Otherwise: the seattle start_seattle.sh script has been removed without the
+    user runing the seattle uninstall.sh script, so the crontab entry
+    automatically removes itself.
 
 
-Uninstall Instructions:
+
+
+
+UNINSTALL
+
+Instructions:
 uninstall.sh
 
 To uninstall, which will cause Seattle to stop running on your system and
@@ -38,7 +55,8 @@ the Seattle directory from your system.
 
 
 
-Useful Commands:
+USEFUL COMMANDS
+
 stop_seattle.sh
 
 To temporarily stop Seattle from running on your machine, execute the
