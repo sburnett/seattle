@@ -398,7 +398,7 @@ def main():
       except Exception,e:
         servicelogger.log("[ERROR]: The following error occured when " \
                             "modifying the crontab for the new 2009 seattle " \
-                            "crontab entry: " + e)
+                            "crontab entry: " + str(e))
 
 
 
