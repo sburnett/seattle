@@ -376,6 +376,32 @@ def main():
   initialize_ip_interface_restrictions(configuration)
   
   
+
+  # ZACK BOKA: For Linux and Darwin systems, check to make sure that the new
+  #            seattle crontab entry has been installed in the crontab.
+  #            Do this here because the "nodeman.cfg" needs to have been read
+  #            into configuration via the persist module.
+  if nonportable.ostype == 'Linux' or nonportable.ostype == 'Darwin':
+    if 'crontab_updated_for_2009_installer' not in configuration or \
+          configuration['crontab_updated_for_2009_installer'] == False:
+      try:
+        import update_crontab_entry
+        modified_crontab_entry = \
+            update_crontab_entry.modify_seattle_crontab_entry()
+        # If updating the seattle crontab entry succeeded, then update the
+        # 'crontab_updated_for_2009_installer' so the nodemanager no longer
+        # tries to update the crontab entry when it starts up.
+        if modified_crontab_entry:
+          configuration['crontab_updated_for_2009_installer'] = True
+          persist.commit_object(configuration,"nodeman.cfg")
+
+      except Exception,e:
+        servicelogger.log("[ERROR]: The following error occured when " \
+                            "modifying the crontab for the new 2009 seattle " \
+                            "crontab entry: " + e)
+
+
+
   # get the external IP address...
   # BUG: What if my external IP changes?   (A problem throughout)
   myip = None

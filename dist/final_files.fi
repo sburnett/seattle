@@ -136,6 +136,7 @@ req portable_popen.py
 req nanny_resource_limits.py
 req seattleinstaller.py
 req seattleuninstaller.py
+req update_crontab_entry.py
 req virtual_namespace.py
 
 # Files added during install build:

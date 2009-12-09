@@ -32,6 +32,7 @@ import time
 
 
 # Import seattle modules
+import persist
 import nonportable
 import impose_seattlestopper_lock
 import servicelogger
@@ -387,16 +388,24 @@ def uninstall_Linux_and_Mac():
 
 
 
-  # Confirm that seattle was successfully removed from the crontab.
+  # Confirm that seattle was successfully removed from the crontab, and set
+  # the 'crontab_updated_for_2009_installer' value in nodeman.cfg to False.
   modified_crontab_contents_stdout,modified_crontab_contents_stderr = \
       subprocess.Popen(["crontab","-l"],
                        stdout=subprocess.PIPE,
                        stderr=subprocess.PIPE).communicate()
-  if seattleinstaller.get_starter_file_name() in modified_crontab_contents_stdout:
+
+  if seattleinstaller.get_starter_file_name() \
+        in modified_crontab_contents_stdout:
     return False
   else:
     # Stop all instances of seattle from running before returning.
     impose_seattlestopper_lock.killall()
+
+    configuration = persist.restore_object("nodeman.cfg")
+    configuration['crontab_updated_for_2009_installer'] = False
+    persist.commit_object(configuration,"nodeman.cfg")
+
     return True
 
 

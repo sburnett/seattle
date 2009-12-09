@@ -223,6 +223,15 @@ def prepare_gen_files(trunk_location,temp_install_dir,include_tests,pubkey,
   shutil.copy2(trunk_location + "/dist/seattleinstaller.py", temp_install_dir)
   shutil.copy2(trunk_location + "/dist/seattleuninstaller.py", temp_install_dir)
 
+  # Copy the script that will update old crontab entries on Linux and Darwin
+  # systems to the new 2009 seattle crontab entry.  This must remain in the
+  # installer indefinitely (or at least for a while) in the event that a user
+  # installed seattle with the previous, old crontab entry, then lost permission
+  # to modify his crontab.  In the event that he regains permission to modify
+  # his crontab, the previously installed crontab entry must be updated.
+  shutil.copy2(trunk_location \
+                 + "/dist/update_crontab_entry.py", temp_install_dir)
+
   # Clean the folder of unnecessary files before generating metafile.
   clean_folder.clean_folder(trunk_location + "/dist/initial_files.fi",
                             temp_install_dir)

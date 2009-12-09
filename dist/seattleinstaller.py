@@ -1171,24 +1171,13 @@ def add_seattle_to_crontab():
 
 
 
-  # Finally, confirm that seattle was successfully added to the crontab and note
-  # the result in the configuration file ('nodeman.cfg').
-  config = persist.restore_object('nodeman.cfg')
-
+  # Finally, confirm that seattle was successfully added to the crontab.
   crontab_contents_stdout,crontab_contents_stderr = \
       subprocess.Popen(["crontab", "-l"], stdout=subprocess.PIPE,
                        stderr=subprocess.PIPE).communicate()
   if get_starter_file_name() in crontab_contents_stdout:
-    config['crontab_updated_for_2009_installer'] = True
-    persist.commit_object(config,'nodeman.cfg')
     return True
   else:
-    # Although the default setting for
-    # config['crontab_updated_for_2009_installer'] = False, it should still be
-    # set in the event that there was a previous installer which set this value
-    # to True, but now for whatever reason, installation in the crontab failed.
-    config['crontab_updated_for_2009_installer'] = False
-    persist.commit_object(config,'nodeman.cfg')
     return False
 
 
@@ -1349,11 +1338,19 @@ def setup_linux_or_mac_startup():
     return False
 
   else:
-    if successfully_added_to_crontab and cron_is_running:
-      return True
+    # Zack Boka: modify nodeman.cfg if the crontab was successfully installed so
+    #            nmmain.py knows that the correct seattle crontab entry is
+    #            installed.
+    if successfully_added_to_crontab:
+      configuration = persist.restore_object("nodeman.cfg")
+      configuration['crontab_updated_for_2009_installer'] = True
+      persist.commit_object(configuration,"nodeman.cfg")
 
-    elif successfully_added_to_crontab and not cron_is_running:
-      return False
+      if cron_is_running:
+        return True
+
+      elif not cron_is_running:
+        return False
 
     else:
       if cron_is_running and not error_output:
@@ -1385,6 +1382,16 @@ def setup_linux_or_mac_startup():
                             + "crontab. Following was the error output:")
         servicelogger.log(error_output)
 
+
+      # Although the default setting for
+      # config['crontab_updated_for_2009_installer'] = False, it should still be
+      # set in the event that there was a previous installer which set this
+      # value to True, but now for whatever reason, installation in the crontab
+      # failed.
+      configuration = persist.restore_object("nodeman.cfg")
+      config['crontab_updated_for_2009_installer'] = False
+      persist.commit_object(config,'nodeman.cfg')
+        
       return False
 
 
