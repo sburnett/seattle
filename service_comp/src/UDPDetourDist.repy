@@ -17,6 +17,7 @@
 include StandardShims.repy
 include ShimStack.repy
 
+
 class UDPDetourDist(EmptyShim):
 
 
@@ -47,16 +48,33 @@ class UDPDetourDist(EmptyShim):
 
 
   def sendmess(self,host,port,msg,localhost=None,localport=None):
-    index = self.index
     
-    if self.index < len(self.ip_list)-1:
-      self.index += 1
-    else:
-      self.index = 0
-
-    ip = self.ip_list[index]
+    ip = self.choose_hop(host)
     message = 'DETOUR:'+host+':'+str(port)+':'+msg
     self.shim_stack.sendmess(ip,port,message,localhost,localport)
+
+
+  def choose_hop(self,host):
+    # decide what ip to forward to, 
+    # iterate through the provided list, but never forard to yourself
+    index = self.index
+    
+    found = False
+    iterations = 0
+    while not found:
+      iterations += 1
+      if iterations > len(self.ip_list):
+        raise Exception("loop in UDPDetour Dist choose_hop did not find suitable hop")
+      if index < len(self.ip_list)-1:
+        index += 1
+      else:
+        index = 0
+     
+      ip = self.ip_list[index]
+      if ip != host: found = True
+
+    self.index = index
+    return ip
 
 
   def forward(self,rip,rport,msg,handle):

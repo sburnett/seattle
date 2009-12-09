@@ -23,12 +23,6 @@
 
 
 """
-
-
-include StandardShims.repy
-include UDPDetourDist.repy
-include ShimStack.repy
-
 class UDPDetourDeciderDist(EmptyShim):
 
   name = 'UDPDetourDeciderDist'

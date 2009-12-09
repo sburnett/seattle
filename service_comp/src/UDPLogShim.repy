@@ -1,0 +1,58 @@
+"""
+<Program Name>
+  UDPLogShim.repy
+
+<Author>
+  Eric Kimbrel kimbrl@cs.washington.edu
+
+<Purpose>
+  log are udp traffic sent and recvieved
+  
+  all traffic messages are saved in a string, and then printed
+  with a call to writelog()
+
+  a filename must be given as an optional arguemnt to the shim constrcutor
+
+"""
+
+
+include ShimStack.repy
+include StandardShims.repy
+
+class UDPLogShim(EmptyShim):
+
+  name = 'UDPLogShim'
+  logstr = ''
+
+  def __init__(self,next_shim=None,optional_args=None):
+    self.prevcallback = None
+    EmptyShim.__init__(self,next_shim,optional_args)
+    
+    if optional_args is None or len(optional_args) != 1:
+      raise Exception('LogSHim must be given file name as optional arg')
+    self.filename = optional_args[0]
+
+  def writelog(self):
+    fobj = open(self.filename,'w')
+    fobj.write(self.logstr)
+    fobj.close()
+
+  def recvmess(self,host,port,callback):
+    self.prevcallback = callback
+    return self.shim_stack.recvmess(host,port,self.udplogcallback)
+
+  def udplogcallback(self,remote_ip,remote_port,msg,handle):
+    self.logstr += 'recv: host:'+remote_ip+' port: '+str(remote_port)+' msg: '+msg+'\n'
+    self.prevcallback(remote_ip,remote_port,msg,handle)
+
+
+  def sendmess(self,host,port,msg,localhost=None,localport=None):
+    self.logstr += 'sent: host: '+host+' port: '+str(port)+' msg: '+msg+'\n'
+    return self.shim_stack.sendmess(host,port,msg,localhost,localport)
+
+  def stopcomm(self,handle):
+    return self.shim_stack.stopcomm(handle)
+
+shimstack_reg_layer('UDPLogShim',{'class':UDPLogShim})
+  
+
