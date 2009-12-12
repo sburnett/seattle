@@ -1220,7 +1220,12 @@ def setup_linux_or_mac_startup():
   error_output = ""
 
   # First, check to see that cron is running.
-  # If this check raises a general exception, fall through to continue 
+  # This variable is declared here because it is referenced later outside the
+  # try:block statement. In the unlikely event that an unpredicted exception is
+  # raised while checking if cron is running, it will be determined later by 
+  # noting that the value of this variable is None rather than a boolean value.
+  cron_is_running = None
+  # If the following check raises a general exception, fall through to continue 
   # attempting to set up the crontab since we want the crontab to be set up
   # properly in case this user is able to use cron in the future.
   try:
@@ -1346,11 +1351,19 @@ def setup_linux_or_mac_startup():
       configuration['crontab_updated_for_2009_installer'] = True
       persist.commit_object(configuration,"nodeman.cfg")
 
-      if cron_is_running:
-        return True
+      if cron_is_running == None:
+        _output("seattle was configured to start automatically at machine " \
+                  + "startup; however, an error occured when trying to " \
+                  + "detect if cron, the program that starts seattle at " \
+                  + "machine startup, is actually running.  If cron is not " \
+                  + "running, then seattle will NOT automatically start up " \
+                  + "at machine boot.  Please check with the root user to " \
+                  + "confirm that cron is installed and indeed running. Also " \
+                  + "confirm that you have access to use cron.")
+        return None
+      else:
+        return cron_is_running
 
-      elif not cron_is_running:
-        return False
 
     else:
       if cron_is_running and not error_output:
@@ -1903,7 +1916,11 @@ def main():
         _output("Seattle is setup to run at startup!")
       elif OS == "Linux" or OS == "Darwin":
         setup_success = setup_linux_or_mac_startup()
-        if setup_success:
+        if setup_success == None:
+          # Do not print a final message to the user about setting up seattle to
+          # run automatically at startup.
+          pass
+        elif setup_success:
           _output("Seattle is setup to run at startup!")
         else:
           # The reasons for which seattle was unable to be configured at startup

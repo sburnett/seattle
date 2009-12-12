@@ -376,7 +376,7 @@ def main():
   initialize_ip_interface_restrictions(configuration)
   
   
-
+  
   # ZACK BOKA: For Linux and Darwin systems, check to make sure that the new
   #            seattle crontab entry has been installed in the crontab.
   #            Do this here because the "nodeman.cfg" needs to have been read
@@ -396,10 +396,12 @@ def main():
           persist.commit_object(configuration,"nodeman.cfg")
 
       except Exception,e:
+        exception_traceback_string = traceback.format_exc()
         servicelogger.log("[ERROR]: The following error occured when " \
-                            "modifying the crontab for the new 2009 seattle " \
-                            "crontab entry: " + str(e))
-
+                            + "modifying the crontab for the new 2009 " \
+                            + "seattle crontab entry: " \
+                            + exception_traceback_string)
+  
 
 
   # get the external IP address...
