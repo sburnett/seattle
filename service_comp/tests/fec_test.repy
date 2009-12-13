@@ -1,0 +1,50 @@
+"""
+
+A Simple test to check that the new FEC layer is working properly
+
+"""
+
+
+include ShimStack.repy
+include StandardShims.repy
+include FECShim.repy
+
+
+def foo(rip,rport,packet,handle):
+  if packet != 'hello' and packet != 'world':
+    raise Exception('recvied packet '+packet)
+  else:
+    mycontext['count'] += 1 
+
+
+if callfunc == 'initialize':
+ 
+  ip = '127.0.0.1'
+  port = 12345
+  mycontext['count'] = 0
+
+  stack_str = "(FECShim)(NullShim)"
+
+  recv_stack = ShimStack(stack_str)
+  send_stack = ShimStack(stack_str)
+
+  handle = recv_stack.recvmess(ip,port,foo)
+
+  for i in range(1000):
+    if i %100 == 0: sleep(1)
+    send_stack.sendmess(ip,port,'hello')
+    send_stack.sendmess(ip,port,'world')
+
+  last_count = 0
+  while True:
+    sleep(3)
+    if mycontext['count'] == last_count:
+      break
+    else:
+      last_count = mycontext['count']
+
+
+  recv_stack.stopcomm(handle)
+  if mycontext['count'] != 2000:
+    print 'ERROR: count = '+str(mycontext['count'])
+  
