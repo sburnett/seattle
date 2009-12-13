@@ -80,9 +80,13 @@ class UDPDetourDist(EmptyShim):
   def forward(self,rip,rport,msg,handle):
     (mode,ip,port,msg) = msg.split(':',3)
     if mode =='NORM':
+      if ip is not '':
+        rip = ip
+      if port is not '':
+        rport = int(port)
       self.prev_callback(rip,rport,msg,handle)  
     elif mode == 'DETOUR':
-      self.shim_stack.sendmess(ip,int(port),'NORM:::'+msg)
+      self.shim_stack.sendmess(ip,int(port),'NORM:'+rip+':'+str(rport)+':'+msg)
     else:
       raise Exception('bad mode in detour decider: '+mode)
 
