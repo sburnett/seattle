@@ -21,7 +21,7 @@ echo "Copying files to $DEPLOY_TO_DIR. Expect a few messages about omitting dire
 cp $TRUNK_DIR/advertiseserver/* $DEPLOY_TO_DIR/
 cp $TRUNK_DIR/repy/* $DEPLOY_TO_DIR/
 cp $TRUNK_DIR/seattlelib/* $DEPLOY_TO_DIR/
-cp $TRUNK_DIR/nodemanager/servicelogger.mix $DEPLOY_TO_DIR/
+cp $TRUNK_DIR/nodemanager/* $DEPLOY_TO_DIR/
 
 echo "repypp'ing mix files"
 cd $DEPLOY_TO_DIR
