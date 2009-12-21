@@ -138,6 +138,11 @@ req seattleinstaller.py
 req seattleuninstaller.py
 req update_crontab_entry.py
 req virtual_namespace.py
+req DORadvertise.repy
+req dylink.repy
+req loggingrepy_core.py
+req safe_eval.repy
+req strace.py
 
 # Files added during install build:
 req metainfo
