@@ -85,7 +85,7 @@ req softwareupdater.py
 req statusstorage.py
 req time.repy
 req tracebackrepy.py
-req waitforwebserverconn.repy
+req registerhttpcallback.repy
 req impose_seattlestopper_lock.py
 req createnodekeys.py
 req runonce.py
