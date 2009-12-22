@@ -45,6 +45,7 @@ import create_installer_state
 import nmresourcemath
 import sys
 import traceback
+import platform # for detecting Nokia tablets
 
 
 # These are the default maximum values that we assume a computer to have
@@ -84,7 +85,11 @@ DEFAULT_OFFCUT_DICT =  {'cpu':.002,
                         'lograte':100, # the monitor might log something
                         'random':0 }
 
-
+if platform.machine().startswith('armv'):
+  # there is not enough filewrite/fileread resources on the Nokia so their requirements 
+  # should be decreased
+  DEFAULT_OFFCUT_DICT['filewrite'] = 800
+  DEFAULT_OFFCUT_DICT['fileread'] = 800
 
 # Current this is only raised when nmresourcemath raises a ResourceParseError.
 # I suppose we could let the nmresourcemath exception propagate instead
