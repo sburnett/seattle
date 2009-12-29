@@ -20,12 +20,12 @@ Includes an introduction to Seattle, installation and uninstall instructions,
 along with contact information and a legal statement.
 
 ==start_seattle.sh==
-Included in the Mac installer, it starts the scripts that comprise
-seattle in the background when called.
+Included in the Mac installer, it starts the seattle programs which run in the
+background.
 
 ==stop_seattle.sh==
-Included in the Mac installer, it starts impose_seattlestopper_lock.py in the
-background when called.
+Included in the Mac installer, it kills all seattle processes by running
+stop_all_seattle_processes.py
 
 ==seattleuninstaller.py==
 Included in the Mac installer, it kills all seattle processes and

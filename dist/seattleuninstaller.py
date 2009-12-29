@@ -34,7 +34,7 @@ import time
 # Import seattle modules
 import persist
 import nonportable
-import impose_seattlestopper_lock
+import stop_all_seattle_processes
 import servicelogger
 # import the installer to easily use some of it's functionality (e.g., get the
 #   name of the starter scripts, the file path to the windows startup folder,
@@ -267,7 +267,7 @@ def uninstall_Windows():
   <Purpose>
     Removes seattle from the Winodws registry startup key and/or the
     startup folder should either exist, then stops all seattle processes using
-    impose_seattlestopper_lock.py.
+    stop_all_seattle_process.py
 
   <Arguments>
     None.
@@ -325,7 +325,7 @@ def uninstall_Windows():
                                      + "uninstall.")
   elif removed_from_registry or removed_from_startup_folder:
     # Stop all instances of seattle from running before returning.
-    impose_seattlestopper_lock.killall()
+    stop_all_seattle_processes.main()
     return True
 
 
@@ -335,7 +335,7 @@ def uninstall_Linux_and_Mac():
   """
   <Purpose>
     Remove the seattle entry from the crontab, and kill all seattle processes
-    by using impose_seattlestopper_lock.
+    by using stop_all_seattle_processes.py
 
   <Arguments>
     None.
@@ -400,7 +400,7 @@ def uninstall_Linux_and_Mac():
     return False
   else:
     # Stop all instances of seattle from running before returning.
-    impose_seattlestopper_lock.killall()
+    stop_all_seattle_processes.main()
 
     configuration = persist.restore_object("nodeman.cfg")
     configuration['crontab_updated_for_2009_installer'] = False

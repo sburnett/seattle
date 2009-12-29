@@ -5,7 +5,7 @@ SET TargetPath=%~f0
 SET TargetDir=%TargetPath:stop_seattle.bat=%
 cd %TargetDir%
 
-start /min pythonw impose_seattlestopper_lock.py
+start pythonw stop_all_seattle_processes.py
 echo.seattle has been stopped.
 
 REM Go back up to the seattle directory.

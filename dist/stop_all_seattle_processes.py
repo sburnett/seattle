@@ -3,31 +3,28 @@
   impose_seattlestopper_lock.py
 
 <Started>
-  October 2008
-    Revised June 4, 2009
+  December 25, 2009
 
 <Author>
-  Justin Cappos
-  Carter Butaud
-    Revised by Zachary Boka
+  Zachary Boka
 
 <Purpose>
   Forces the seattle node manager and software updater to quit if they are
-  running, then holds onto the locks and sleeps forever so they can't start
-  again, or until the start_seattle script is run and kills this program.
+  running.
 """
 
 import runonce
 import harshexit
-import time
+
 
 locklist = ["seattlenodemanager", "softwareupdater.old", "softwareupdater.new"]
 
-def killall():
+
+
+def main():
   """
   <Purpose>
-    Kills all the seattle programs that might be running and acquires
-    the locks so that they can't start again while this program is running.
+    Kills all the seattle programs that are running.
 
   <Arguments>
     None.
@@ -36,7 +33,7 @@ def killall():
     None.
 
   <Side Effects>
-    None.
+    Kills all the seattle programs that are running.
 
   <Returns>
     None.
@@ -56,18 +53,8 @@ def killall():
         harshexit.portablekill(retrievedlock)
         retrievedlock = runonce.getprocesslock(lockname)
 
-def main():
-  
-  # Is impose_seattlestopper_lock.py already running?
-  lockstate = runonce.getprocesslock("seattlestopper")
-  if lockstate == True:
-    killall()
-    # Now sleep forever, checking every 30 secs to make sure we
-    # shouldn't quit.
-    while runonce.stillhaveprocesslock("seattlestopper") == True:
-      time.sleep(30)
-  else:
-    print "impose_seattlestopper_lock.py is already running."
+
+
 
 if __name__ == '__main__':
   main()

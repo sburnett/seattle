@@ -86,12 +86,10 @@ req statusstorage.py
 req time.repy
 req tracebackrepy.py
 req registerhttpcallback.repy
-req impose_seattlestopper_lock.py
 req createnodekeys.py
 req runonce.py
 req writemetainfo.py
 req parallelize.repy
-req get_seattlestopper_lock.py
 req windows_api.py
 req win_cpu_nanny.py
 req uniqueid.repy
@@ -143,6 +141,7 @@ req dylink.repy
 req loggingrepy_core.py
 req safe_eval.repy
 req strace.py
+req stop_all_seattle_processes.py
 
 # Files added during install build:
 req metainfo

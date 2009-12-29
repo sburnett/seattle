@@ -223,6 +223,10 @@ def prepare_gen_files(trunk_location,temp_install_dir,include_tests,pubkey,
   shutil.copy2(trunk_location + "/dist/seattleinstaller.py", temp_install_dir)
   shutil.copy2(trunk_location + "/dist/seattleuninstaller.py", temp_install_dir)
 
+  # Copy the script that stops all running seattle processes.
+  shutil.copy2(trunk_location + "/dist/stop_all_seattle_processes.py",
+               temp_install_dir)
+
   # Copy the script that will update old crontab entries on Linux and Darwin
   # systems to the new 2009 seattle crontab entry.  This must remain in the
   # installer indefinitely (or at least for a while) in the event that a user

@@ -10,19 +10,19 @@
 
 <Purpose>
   Prints out the processes holding the keys: "seattlenodemanager",
-  "softwareupdater.old", "softwareupdater.new", and "seattlestopper". Created to
-  be inserted into the start_seattle and stop_seattle scripts, both before and
-  after the original programs in those scripts, to confirm what programs are
-  holding the the locks before and after the scripts are run.
-"""
+  "softwareupdater.old", "softwareupdater.new".
+
+  Designed to be run before and after the start_seattle and stop_seattle scripts
+  in order to confirm that the node manager and software updater were indeed
+  started or stopped by the corresponding start_seattle and stop_seattle script.
+ """
 
 import runonce
 import os
 import time
 
 
-locklist = ["seattlenodemanager", "softwareupdater.old", "softwareupdater.new",\
-            "seattlestopper"]
+locklist = ["seattlenodemanager", "softwareupdater.old", "softwareupdater.new"]
 
 
 def main():

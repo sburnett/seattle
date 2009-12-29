@@ -5,7 +5,6 @@
 cd "`echo $0 | sed 's/start_seattle.sh//'`"
 
 
-python get_seattlestopper_lock.py
 python nmmain.py &
 python softwareupdater.py &
 

@@ -2,5 +2,5 @@
 
 cd "`echo $0 | sed 's/stop_seattle.sh//'`"
 
-python impose_seattlestopper_lock.py&
+python stop_all_seattle_processes.py
 echo "seattle has been stopped."

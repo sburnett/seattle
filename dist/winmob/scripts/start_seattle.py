@@ -35,7 +35,6 @@ def start_seattle(prog_dir):
   <Returns>
     None.
   """
-  windows_api.launch_python_script(prog_dir + "/get_seattlestopper_lock.py")
   windows_api.launch_python_script(prog_dir + "/nmmain.py")
   windows_api.launch_python_script(prog_dir + "/softwareupdater.py")
 

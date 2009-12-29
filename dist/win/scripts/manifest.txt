@@ -18,12 +18,12 @@ Includes an introduction to Seattle, installation and uninstall instructions,
 along with contact information.
 
 ==start_seattle.bat==
-Included in the Windows installer, this will start the python scripts
-that comprise seattle when called.
+Included in the Windows installer, it starts the seattle programs which run in
+the background.
 
 ==stop_seattle.bat==
-Included in the Windows installer, this runs impose_seattlestopper_lock.py in the
-background when called.
+Included in the Windows installer, this runs stop_all_seattle_processes.py which
+kills all seattle processes.
 
 ==uninstall.bat==
 Included in the Windows installer, this runs the uninstall script
