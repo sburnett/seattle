@@ -238,14 +238,15 @@ def _create_rss_file(resultslist):
       datestr = resulttext[1].strip()
       dateobj = datetime.datetime.strptime(datestr, "%Y-%m-%d %H:%M:%S")
       # The PyRSS2Gen module expects this to be in GMT, and python is a pain
-      # for timezone conversion. I'll just hard code this to PST and ignore
-      # daylight savings time.
-      dateobj += datetime.timedelta(hours= -8)
+      # for timezone conversion. I'll just hard code assuming the system's in
+      # PST and ignore daylight savings time.
+      dateobj += datetime.timedelta(hours=8)
       item = PyRSS2Gen.RSSItem(
          title="Test failure on run number " + str(runnumber) + " using " + revision,
          link=config.TESTLOG_URL,
          description="\n".join(resulttext),
-         guid=PyRSS2Gen.Guid(config.TESTLOG_URL + datestr),
+         # Spaces aren't valid in a guid.
+         guid=PyRSS2Gen.Guid(config.TESTLOG_URL + datestr.replace(' ', '_')),
          pubDate=dateobj)
       failureitems.append(item)
   
@@ -253,7 +254,7 @@ def _create_rss_file(resultslist):
     title="Test Failures on " + config.SYSTEM_DESCRIPTION,
     link=config.TESTLOG_URL,
     description="Seattle test failures for continuous build on " + config.SYSTEM_DESCRIPTION,
-    lastBuildDate=datetime.datetime.now() + datetime.timedelta(hours= -8),
+    lastBuildDate=datetime.datetime.now() + datetime.timedelta(hours=8),
     items=failureitems)
   
   rss.write_xml(open(config.RSS_FILE_NAME + ".new", "w"))
