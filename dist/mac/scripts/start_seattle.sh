@@ -5,8 +5,14 @@
 cd "`echo $0 | sed 's/start_seattle.sh//'`"
 
 
-python nmmain.py &
-python softwareupdater.py &
+if grep "'seattle_installed': True" nodeman.cfg > /dev/null
+then
+    python nmmain.py &
+    python softwareupdater.py &
+else
+    echo "seattle must first be installed before the start_seattle.sh script" \
+	"can be run.  To install, run the install.sh script."
+fi
 
 
 # Check to confirm that nmmain.py and softwareupdater.py are running, and print

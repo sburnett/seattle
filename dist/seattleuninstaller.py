@@ -521,6 +521,11 @@ def main():
 
   # Print final output, and do final logging.
   if successful_uninstall:
+    # Modify nodeman.cfg to note that seattle is no longer installed.
+    configuration = persist.restore_object("nodeman.cfg")
+    configuration['seattle_installed'] = False
+    persist.commit_object(configuration,"nodeman.cfg")
+
     _output("Seattle has been successfully uninstalled.  It is now safe to " \
               + "remove all Seattle files and directories from your system.")
     servicelogger.log(time.strftime(" seattle completed uninstall on: " \

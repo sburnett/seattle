@@ -4,15 +4,20 @@
 #   script from any directory.
 cd "`echo $0 | sed 's/start_seattle.sh//'`"
 
+if grep "'seattle_installed': True" nodeman.cfg > /dev/null
+then
+    python nmmain.py &
+    python softwareupdater.py &
+else
+    echo "seattle must first be installed before the start_seattle.sh script" \
+	"can be run.  To install, run the install.sh script."
+fi
 
-python nmmain.py &
-python softwareupdater.py &
 
-
-# Check to confirm that nmmain.py and softwareupdater.py are running, and print
+# Check to confirm that nmmain.py and softwareupdater.py are running, and echo
 #   the status to the user.
-# Some systems respond different to some options passed to 'ps', so we use
-#   'ps auxww' to create a universal command that will tell us if nmmain.py
+# Some systems respond differently to some options passed to 'ps', so we use
+#   'ps axww' to create a universal command that will tell us if nmmain.py
 #   is currently running.
 #
 #   'ps axww':
@@ -32,6 +37,6 @@ then
     fi
 else
     echo "seattle was not properly started."
-    echo "If you continue to see this error, please contact the seattle" \
-	"development team."
+    echo "If you continue to see this error for unknown reasons, please" \
+	"contact the seattle development team."
 fi

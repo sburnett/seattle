@@ -1969,6 +1969,15 @@ def main():
 
 
 
+  # Modify nodeman.cfg so the start_seattle script knows that seattle has been
+  # installed.  This is a new feature that will require seattle to have been
+  # installed before it can be started.
+  configuration = persist.restore_object("nodeman.cfg")
+  configuration['seattle_installed'] = True
+  persist.commit_object(configuration,"nodeman.cfg")
+
+  
+
 
   # Everything has been installed, so start seattle and print concluding output
   # messages.
