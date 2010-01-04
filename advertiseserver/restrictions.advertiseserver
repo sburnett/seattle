@@ -1,7 +1,7 @@
 resource cpu .50
 resource memory 30000000   # 30 Million bytes
 resource diskused 400000000 # 400 MB
-resource events 10
+resource events 50
 resource filewrite 10000
 resource fileread 10000
 resource filesopened 5
