@@ -219,6 +219,9 @@ def _generate_python_file_from_repy(repyfilename, generatedfilename, shared_myco
   #Start the generation! Print out the header and portability stuff, then include
   #the original data and translations
   try:
+    # Create path if it doesn't exist.
+    if not os.path.isdir(os.path.dirname(generatedfilename)):
+      os.makedirs(os.path.dirname(generatedfilename))
     fh = open(generatedfilename, "w")
   except IOError, e:
     # this is likely a directory permissions error
