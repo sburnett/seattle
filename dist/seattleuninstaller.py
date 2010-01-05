@@ -18,7 +18,7 @@
 
 
   NOTE: Unlike seattleinstaller.py, this uninstaller was not created to
-        potentially handle WindowsCE.  This uninstaller has no funcitonality for
+        potentially handle WindowsCE.  This uninstaller has no functionality for
         WindowsCE!
 """
 
@@ -29,7 +29,7 @@ import tempfile
 import sys
 import getopt
 import time
-
+import platform # for detecting Nokia tablets
 
 # Import seattle modules
 import persist
@@ -353,6 +353,16 @@ def uninstall_Linux_and_Mac():
     True if succeeded in uninstalling,
     False otherwise.
   """
+
+  # Find out if it is running on a Nokia tablet, which does not have crontab
+  # installed.
+  if platform.node().startswith('Nokia-N'):
+      _output("It appears you're using a Nokia tablet. To completely " \
+            + "uninstall Seattle, please run nokia_seattle_startup.sh " \
+            + "with the -r flag as root.")
+      # Stop all instances of seattle from running before returning.
+      stop_all_seattle_processes.main()
+      return True
 
   # Find out if Seattle is installed (currently in the crontab), and remove if
   # so.

@@ -1927,8 +1927,15 @@ def main():
           # will have been logged by the service logger in the
           # setup_linux_or_mac_startup() function, and output for the possible
           # reasons why configuration to run at startup failed will have already
-          # be given to the user from the setup_linux_or_mac_startup() fucntion.
-          _output("Seattle failed to be configured to run automatically at " \
+          # be given to the user from the setup_linux_or_mac_startup() function.
+          if platform.node().startswith('Nokia-N'):
+            # if this is a Nokia, we will have a separate script that will 
+            # setup the startup.
+            _output("It appears you're using a Nokia internet tablet. To " \
+                      + "make Seattle run on startup, please run " \
+                      + "nokia_seattle_startup.sh as root.")
+          else:
+            _output("Seattle failed to be configured to run automatically at " \
                     + "startup.")
       else:
         raise UnsupportedOSError("This operating system is not supported.")
