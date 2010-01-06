@@ -738,7 +738,7 @@ show owner      -- Display a vessel's owner
 show targets    -- Display a list of targets
 show identities -- Display the known identities
 show keys       -- Display the known keys
-show log        -- Display the log from the vessel (*)
+show log [to file] -- Display the log from the vessel (*)
 show files      -- Display a list of files in the vessel (*)
 show resources  -- Display the resources / restrictions for the vessel (*)
 show offcut     -- Display the offcut resource for the node (*)
@@ -945,8 +945,18 @@ update             -- Update information about the vessels
 
 
 
-# show log        -- Display the log from the node (*)
+# show log [to file] -- Display the log from the vessel (*)
         elif userinputlist[1] == 'log' or userinputlist[1] == 'logs':
+          if len(userinputlist) == 2:
+            writeoutputtofile = False
+          elif len(userinputlist) == 4 and (userinputlist[2] == 'to' or userinputlist[2] == 'TO' or userinputlist[2] == '>'):
+            writeoutputtofile = True
+            # handle '~'
+            fileandpath = os.path.expanduser(userinputlist[3])
+            outputfileprefix = fileandpath
+          else:
+            raise UserError("Error, format is 'show log' or 'show log to filenameprefix'")
+            
 
           if not currenttarget:
             raise UserError("Error, command requires a target")
@@ -959,9 +969,22 @@ update             -- Update information about the vessels
           for longname in retdict:
             # True means it worked
             if retdict[longname][0]:
-              print "Log from '"+longname+"':"
-              print retdict[longname][1]
+              if writeoutputtofile:
+                # write to a file if requested.
+                outputfilename = outputfileprefix +'.'+ longname
+                outputfo = file(outputfilename,'w')
+                outputfo.write(retdict[longname][1])
+                outputfo.close()
+                print "Wrote log as '"+outputfilename+"'."
+
+              else:
+                # else print it to the terminal
+                print "Log from '"+longname+"':"
+                print retdict[longname][1]
+
+              # regardless, this is a good node
               goodlist.append(longname)
+
             else:
               print "failure on '"+longname+"': ",retdict[longname][1]
               faillist.append(longname)
