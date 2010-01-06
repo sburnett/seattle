@@ -34,11 +34,13 @@ log_lock = getlock()
 
 #safely write to the given log file
 def write_to_log(log_file, message):
+  # This has been commented out to prevent logging.  
   #log the request information
-  log_lock.acquire()
-  log_file.write(message)
-  log_file.flush()
-  log_lock.release()
+#  log_lock.acquire()
+#  log_file.write(message)
+#  log_file.flush()
+#  log_lock.release()
+  pass
 
 
 def expire_hashtable_items():
@@ -198,5 +200,6 @@ if callfunc=='initialize':
   #initialize the log files
   logfiledata["call_trace"] = open("log.calltrace",'a')
   logfiledata["expanded_log"] = open("log.expanded",'a')
+  print "Detailed logging has been disabled, see write_to_log to enable it"
   
   timeout_waitforconn(getmyip(),serverport,handlerequest)
