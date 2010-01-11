@@ -1,0 +1,419 @@
+"""
+Author: Armon Dadgar
+Description:
+  This module implements functionality to maintain a log of all the
+  times that Repy has been stopped. This functionality is necessary
+  since getresources() will return only the last 100 stop times.
+
+Usage:
+  This module can either be imported and used directly, or it can be
+  loaded as a module at start time. If it is loaded as a module,
+  the call get_stoptimes_on_interval will be made available. 
+
+"""
+### Constants
+
+# This is the prefix we use for the stop file.
+# we will add a random float to prevent collisions with
+# other repy processes.
+STOP_TIME_LOG_FILE = "repy_stoptimes_"
+
+# This is number of entries we will hold in memory
+# The lower this is, the more often we need to flush,
+# but we use less memory and spend less time flushing.
+# 250 entries is about 10K on disk, so we don't want to
+# block flushing and miss stoptimes.
+MAX_BUFFER_ENTRIES = 250
+
+# This is the time between samples for new stop times
+# Repy checks our CPU use every .1 seconds, so there is a maximum of
+# 10 "stops" per second. Since the last 100 are stored, a minimum of 10
+# seconds of history exists. This constant must be adjusted with repy.
+TIME_BETWEEN_SAMPLES = 3
+
+# This is the length of a single entry on disk, computed as the maximum possible.
+# Since 1/9 is a infinite decimal, it represents the maximum precision.
+# We have 2 doubles, a space and a new-line per entry
+# We add 7 digits for the double's before the decimal, this is enough for a year of uptime
+# We add 3 digits for the sleep before the decimal, enough for 15 minutes of timeout
+# We add an extra 5 digits just in case we need it. This is ~45
+ENTRY_DISK_LEN = len(str(1.0/9))*2 + 2 + 7 + 3 + 5
+
+### Data
+
+# This is the in-memory buffer
+LAST_ENTRY_TIME = 0
+BUFFERED_ENTRIES = []
+
+# This is the file handle for the log file
+LOG_FILE_NAME = None
+LOG_FILE_HANDLE = None
+LOG_FILE_LOCK = getlock()
+FLUSHED_ENTRIES = 0
+
+# This flag controls if we should stop sampling
+SHOULD_LOG = False
+THREAD_RUNNING = False
+
+### Functions
+
+def initialize():
+  """
+  <Purpose>
+    Initializes the module, and prepares to start
+    sampling for stop-times. This must be called first.
+
+  <Resources>
+    - Uses a file handle
+  """
+  # Get the pre-existing files
+  preexisting_files = set(listdir())
+
+  # Generate the filename, we need to loop in the case
+  # that we generated an already used file name
+  while True:
+    random_str = str(int(randomfloat() * 1000000000))
+    file_name = STOP_TIME_LOG_FILE + random_str + ".log"
+
+    # Continue if this is unique
+    if file_name not in preexisting_files:
+      _context["LOG_FILE_HANDLE"] = open(file_name, "w")
+      _context["LOG_FILE_NAME"] = file_name
+      break
+
+
+def destroy(delete=True):
+  """
+  <Purpose>
+    Clean's up the module. This flushs the remaining entries
+    in memory, and closes the file handle. After calling this method,
+    the module will need to be re-initialized to start sampling again.
+
+  <Arguments>
+    delete:
+      If True, the log file on disk will be deleted
+
+  <Exceptions>
+    An exception is raised if this is called before initializing the module.
+
+  <Resources>
+   + Releases a file handle
+  """
+  # Check if we are even initialized
+  if LOG_FILE_HANDLE is None:
+    raise Exception, "Module is not yet initialized!"
+
+  # Check if the thread is still running and stop the thread
+  if THREAD_RUNNING:
+    try:
+      stop()
+    except:
+      pass
+
+  # Flush the entries if we are not deleting the file
+  if not delete:
+    flush_entries()
+
+  # Close the file handle
+  LOG_FILE_HANDLE.close()
+  _context["LOG_FILE_HANDLE"] = None
+
+  # Remove the file if we need to
+  if delete:
+    removefile(LOG_FILE_NAME)
+
+
+# Internal method to flush the entries to disk
+def flush_entries():
+  # Acquire the lock
+  LOG_FILE_LOCK.acquire()
+
+  # Seek to the end
+  LOG_FILE_HANDLE.seek(FLUSHED_ENTRIES*ENTRY_DISK_LEN)
+
+  # Process each entry
+  for entry in BUFFERED_ENTRIES:
+    time, amount = entry
+    entry_str = str(time)+" "+str(amount)+"\n"
+    # Pad the entry with ">" in front
+    entry_str = (ENTRY_DISK_LEN - len(entry_str))*">"+entry_str
+    LOG_FILE_HANDLE.write(entry_str)
+  
+  # Clear the buffer
+  _context["FLUSHED_ENTRIES"] += len(BUFFERED_ENTRIES)
+  _context["BUFFERED_ENTRIES"] = []
+
+  # Flush the file
+  LOG_FILE_HANDLE.flush()
+
+  # Release the lock
+  LOG_FILE_LOCK.release()
+
+
+# Internal method to perform a binary search to find
+# the next index after a certain time
+# Compares the entries to the given comptime
+def binary_search_entry(stoptimes, comptime):
+  left_index = 0
+  right_index = len(stoptimes)-1
+
+  while left_index < right_index:
+    current_index = ((right_index - left_index) / 2) + left_index
+    current_time = stoptimes[current_index][0]
+
+    # Compare to the current time
+    if comptime == current_time:
+      return current_index+1
+
+    elif comptime < current_time:
+      right_index = current_index - 1
+
+    elif comptime > current_time:
+      left_index = current_index + 1
+
+  # Check if the index is outside the array
+  if stoptimes[right_index][0] <= comptime or right_index < 0:
+    return right_index + 1
+  else:
+    return right_index
+
+
+# Internal thread to do the sampling for stop times
+def sampler_thread():
+  # Check our bool flag if we need to stop
+  _context["THREAD_RUNNING"] = True
+  while SHOULD_LOG:
+    # Get the resources
+    check_time = getruntime()
+    lim, usage, stoptimes = getresources()
+
+    # Find the next entry
+    next_index = binary_search_entry(stoptimes, LAST_ENTRY_TIME)
+
+    # Check if that entry is in the bounds
+    if next_index < len(stoptimes):
+      _context["BUFFERED_ENTRIES"] += stoptimes[next_index:]
+      _context["LAST_ENTRY_TIME"] = stoptimes[-1][0]
+
+      # Check if we need to flush the entries
+      if len(BUFFERED_ENTRIES) > MAX_BUFFER_ENTRIES:
+        flush_entries()
+
+    # Sleep until our next sample
+    sleep(TIME_BETWEEN_SAMPLES - (getruntime() - check_time))
+
+  # If we have exited the loop, set the bool flag
+  _context["THREAD_RUNNING"] = False
+
+
+def start():
+  """
+  <Purpose>
+    Starts sampling for stop times. This launches a new thread.
+
+  <Exceptions>
+    An exception is raised if the module has not been initialized,
+    or if the thread is already started.
+
+  <Resources>
+    - An event is used.
+  """
+  # Check if we are even initialized
+  if LOG_FILE_HANDLE is None:
+    raise Exception, "Module is not yet initialized!"
+
+  # Check if logging is already enabled
+  if SHOULD_LOG:
+    raise Exception, "Sampling is already enabled!"
+
+  # Launch the thread
+  _context["SHOULD_LOG"] = True
+  settimer(0,sampler_thread,())
+
+
+def stop():
+  """
+  <Purpose>
+    Stops sampling for stop times. This releases an event.
+    Blocks until the sampler thread stops.
+
+  <Exceptions>
+    An exception is raised if the module has not been initialized,
+    or if sampling is not enabled.
+
+  <Resources>
+    + An event is released.
+  """
+  # Check the state is valid
+  if LOG_FILE_HANDLE is None:
+    raise Exception, "Module is not yet initialized!"
+  if not SHOULD_LOG:
+    raise Exception, "Sampling is already disabled!"
+
+  # Set the flag to stop the thread
+  _context["SHOULD_LOG"] = False
+
+  # Wait for the thread to stop
+  while THREAD_RUNNING:
+    sleep(0.25)
+
+
+# Gets the time of an entry in the log file
+def get_file_entry_time(fileh, index):
+  fileh.seek(ENTRY_DISK_LEN * index)
+  entry = fileh.read(ENTRY_DISK_LEN)
+  entry = entry.replace(">","") # Remove padding
+  entry = entry.replace("\n","") # Remove the new-line
+  entry = entry.split(" ") # Get the two components
+  current_time = float(entry[0]) # Convert to a double
+  return current_time
+
+# Internal method to perform a binary search to find
+# the next index after a certain time in a file
+# Compares the entries to the given comptime
+# max_entries should be FLUSHED_ENTRIES equivilent
+def binary_search_entry_file(fileh, max_entries, comptime):
+  left_index = 0
+  right_index = max_entries
+
+  while left_index < right_index:
+    current_index = ((right_index - left_index) / 2) + left_index
+    current_time = get_file_entry_time(fileh, current_index)
+
+    # Compare to the current time
+    if comptime == current_time:
+      return current_index+1
+
+    elif comptime < current_time:
+      right_index = current_index - 1
+
+    elif comptime > current_time:
+      left_index = current_index + 1
+
+  # Check if the index is outside the array
+  if left_index < max_entries and get_file_entry_time(fileh, left_index) <= comptime:
+    return left_index + 1
+  else:
+    return left_index
+
+
+# Reads the entries on disk on the given interval.
+# Returns a stop-times array
+def get_file_entries_on_range(fileh, start, end):
+  # Seek to the start index
+  fileh.seek(ENTRY_DISK_LEN * start)
+  bytes = (end - start)*ENTRY_DISK_LEN
+  if bytes == 0:
+    return []
+  
+  data = fileh.read(bytes)
+
+  data = data[:len(data)-1] # Remove the last new line
+  data = data.replace(">","") # Remove padding
+  data = data.split("\n") # Split on new-line
+
+  # Process each row
+  for i in xrange(len(data)):
+    data[i] = data[i].split(" ") # Split on space
+    data[i] = (float(data[i][0]), float(data[i][1]))
+
+  # Return the data
+  return data
+
+
+def get_stoptimes_on_interval(begin, end):
+  """
+  <Purpose>
+    Returns all the stop-times on a given interval.
+
+  <Arguments>
+    begin:
+      The start of the interval, exclusive. This is given in terms of
+      the process runtime.
+
+    end:
+      The end of the interval, inclusive. This is given interms of
+      the process runtime.
+
+  <Exceptions>
+    An exception is raised if the module has not been initialized.
+
+  <Resources>
+    - Consumes a file handle for the duration of the call.
+
+  <Returns>
+    An array of tuples, where is entry is a stop time entry on the given
+    interval.
+  """
+  if LOG_FILE_HANDLE is None:
+    raise Exception, "Module is not yet initialized!"
+
+ # Copy the buffer
+  buffer_copy = BUFFERED_ENTRIES[:]
+
+  # Determine if this interval is buffered or not
+  if len(buffer_copy) > 0 and begin > buffer_copy[0][0]:
+    # Find the start and end indexes
+    start_index = binary_search_entry(buffer_copy, begin)
+    end_index = binary_search_entry(buffer_copy, end)
+    return buffer_copy[start_index:end_index]
+
+  # We need to read in data from the file
+  else:
+    # Copy the number of flushed entries
+    flushed = FLUSHED_ENTRIES
+
+    # Acquire the lock
+    LOG_FILE_LOCK.acquire()
+
+    # Find the start index
+    start_index = binary_search_entry_file(LOG_FILE_HANDLE, flushed, begin)
+    end_index = binary_search_entry_file(LOG_FILE_HANDLE, flushed, end)
+
+    # Read the entries on disk
+    entries = get_file_entries_on_range(LOG_FILE_HANDLE, start_index, end_index) 
+
+    # Release the lock
+    LOG_FILE_LOCK.release()
+
+    # Check where the end index is, check in the memory buffer
+    if len(buffer_copy) > 0 and end > buffer_copy[0][0]:
+      end_index = binary_search_entry(buffer_copy, end)
+      entries += buffer_copy[:end_index]
+
+    # Return the entries
+    return entries
+
+
+# Check if we are being loaded as a module
+if callfunc == "initialize":
+  # Initialize ourself
+  initialize()
+  start()
+
+  # Make the function available
+  CHILD_CONTEXT["get_stoptimes_on_interval"] = get_stoptimes_on_interval
+
+  # Enable dispatch
+  ENABLE_DISPATCH = True
+
+
+# Dispatch if we are loaded as a module
+if "ENABLE_DISPATCH" in _context:
+  # Check the number of idle threads
+  idle_threads = getresources()[1]["events"]
+
+  # Dispatch
+  dy_dispatch_module()
+
+
+# Stop if we are the only thread
+if callfunc == "initialize":
+  while True:
+    running_threads = getresources()[1]["events"]
+    if running_threads == idle_threads:
+      stop()
+      break
+    sleep(2)
+
+

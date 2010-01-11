@@ -1,0 +1,60 @@
+"""
+Test that time consumption metrics are correct.
+- 1 thread will be blocking on CPU
+- 1 thread will be blocking on file write
+- 1 thread will be blocking on file read
+- 1 thread will be sleeping
+
+So, we should roughly see:
+  - 25% Write
+  - 25% Read
+  - 25% Sleep
+  - 2.5% CPU
+  - 23% Stopped
+
+The expected runtime is given by MAX_TIME, so 15 seconds about.
+"""
+START_TIME = getruntime()
+MAX_TIME = 15
+
+CYCLES = 2000
+
+def cpu_thread():
+  while getruntime() - START_TIME < MAX_TIME:
+    for x in xrange(CYCLES):
+      val1 = x + START_TIME + CYCLES
+      val2 = val1 * START_TIME * x
+      val3 = val2 / CYCLES
+      val4 = x ** MAX_TIME
+
+
+def file_w_thread():
+  # Generate data
+  data = ">>  testing\n" * 5000 # About 64KB
+
+  # Get a file
+  fileh = open("write_out_2", "w")
+
+  # Keep writing
+  while getruntime() - START_TIME < MAX_TIME:
+    fileh.write(data)
+
+def file_r_thread():
+  # Read data
+  fileh = open("write_out")
+
+  while getruntime() - START_TIME < MAX_TIME:
+    fileh.seek(0)
+    data = None
+    while data is None or len(data) != 0:
+      data = fileh.read(64000)
+
+
+if callfunc == "initialize":
+  settimer(0, file_w_thread, ())
+  settimer(0, file_r_thread, ())
+  settimer(0, cpu_thread, ())
+
+  while getruntime() - START_TIME < MAX_TIME:
+    sleep(2)
+

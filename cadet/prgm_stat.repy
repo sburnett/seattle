@@ -1,0 +1,68 @@
+"""
+Author: Armon Dadgar
+Description:
+  This is a very simple repy module that forces the module after it
+  to run within an Island. Statistics are then printed about the Island
+  after it terminates.
+"""
+
+# Ensures that stoptime information is available
+# If the stoptime_logger is not loaded as a module already,
+# then we import it and set it up.
+def init_stoptimes():
+  # Check if we need the stoptime_logger
+  if "get_stoptimes_on_interval" in _context:
+    return
+
+  # Import the module
+  stoptime_logger = dy_import_module("stoptime_logger")
+
+  # Initialize and start collecting stop-times
+  stoptime_logger.initialize()
+  stoptime_logger.start()
+
+  # Import the functionality into our context and our childs
+  _context["get_stoptimes_on_interval"] = stoptime_logger.get_stoptimes_on_interval 
+  CHILD_CONTEXT["get_stoptimes_on_interval"] = get_stoptimes_on_interval
+
+
+# Intercepts the child exiting and dumps the statistics first.
+def dump_exitall():
+  island_stats.dump_island_stats(child,False,False,False)
+  island_stats.dump_island_timeline(child)
+  island_stats.dump_island_time_usage(child,True)
+  exitall()
+
+
+if callfunc == "initialize":
+  # Import virt_island
+  island = dy_import_module("virt_island")
+
+  # Setup stop times
+  init_stoptimes()
+
+  # Import island_stats, give it stoptimes
+  island_stats = dy_import_module("island_stats", additional_globals=["get_stoptimes_on_interval"])
+
+  # Read in our child's code
+  code = open(callargs[0]).read()
+
+  # Setup our child as a IslandNamespace
+  child = island.IslandNamespace(code, callargs[0])
+
+  # Offset the callargs
+  CHILD_CONTEXT["callargs"] = callargs[1:]
+
+  # Intercept exitall
+  CHILD_CONTEXT["exitall"] = dump_exitall
+
+
+# Evaluate our child
+child.evaluate(CHILD_CONTEXT)
+
+# Join the island, wait for the threads to terminate
+island_stats.join_island(child)
+
+# Dump the stats and exit
+dump_exitall()
+

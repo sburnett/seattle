@@ -1,0 +1,33 @@
+"""
+Author: Armon Dadgar
+Description:
+    This is a small program to test that the stoptime_logger works,
+    and checks the exposed stoptimes from getresources.
+"""
+
+RUN_TIME = 15
+OPS = 1000
+
+if callfunc == "initialize":
+
+  intv = 0
+  start = getruntime()
+  while getruntime() - start < RUN_TIME:
+    intv += 1
+    lim, usage, stoptimes = getresources()
+    print "\nInterval: ",intv
+    print "Time: ",getruntime()
+    print "CPU: ",usage["cpu"]
+    print "Thread CPU: ",usage["threadcpu"]
+    print "Stoptime Count: ",len(stoptimes)
+    if len(stoptimes) > 0:
+      print "Stop time (first/last)",stoptimes[0],stoptimes[-1]
+
+    for x in xrange(OPS):
+      val1 = 2**x
+      val2 = 3**x
+      val3 = val2 % val1
+
+  entries = get_stoptimes_on_interval(4, 12)
+  print "\n\n",entries
+

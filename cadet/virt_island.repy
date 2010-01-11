@@ -1,0 +1,634 @@
+"""
+Author: Armon Dadgar
+Description:
+  This module defines a type of virtual namespace called an "Island" which attempts
+  to profile the resources used by the namespace while executing.
+"""
+
+# This dictionary is used to map a thread name to it's current namespace
+THREAD_NAMESPACE = {}
+
+# We track different resources in various manners.
+# These are the resources which we maintain a running total of usage for.
+TOTALED_RESOURCES = set(["cpu","events","filewrite","fileread",
+                         "filesopened","insockets","outsockets",
+                         "tcpsend","tcprecv","udpsend","udprecv","random"])
+
+# These are the statistics that we will maintain for each file, identified by name
+FILE_USAGE_STATISTICS = set(["count", "write","read"])
+
+# These are the statistics that we will maintain for each socket / mess, identified by a tuple
+# (inout,remoteip,remoteport)
+SOCK_USAGE_STATISTICS = set(["count", "send","recv"])
+
+# Constants for inout
+INCOMING_TCP_SOCKET = "Incoming"
+OUTGOING_TCP_SOCKET = "Outgoing"
+INCOMING_UDP_SOCKET = "Incoming Message"
+OUTGOING_UDP_SOCKET = "Outgoing Message"
+
+# This is the key used for the thread timeline for thread events that
+# are not directly related to the API
+THREAD_CREATED = "island_create_thread"
+THREAD_DESTROY = "island_destroy_thread"
+
+# Callback names
+CALLBACK_UDP = "UDP Message"
+CALLBACK_TCP = "TCP Connection"
+
+# Constant names
+API_RECVMESS = "recvmess"
+API_SENDMESS = "sendmess"
+API_OPENCONN = "openconn"
+API_WAITFORCONN = "waitforconn"
+API_OPEN = "open"
+API_SETTIMER = "settimer"
+API_CNCLTIMER = "canceltimer"
+API_RANDOM = "randomfloat"
+API_SLEEP = "sleep"
+API_EXITALL = "exitall"
+
+# Special logging constant, pre-API call
+API_START = "start call"
+
+# This is the wrapped API
+WRAPPED_API = set([API_RECVMESS,API_SENDMESS,API_OPENCONN,API_WAITFORCONN,
+                  API_SETTIMER,API_CNCLTIMER,API_OPEN,API_RANDOM, API_SLEEP, API_EXITALL])
+
+# Object methods
+API_SOCK_RECV = "socket.recv"
+API_SOCK_SEND = "socket.send"
+API_FILE_READ = "file.read"
+API_FILE_WRITE = "file.write"
+
+class IslandNamespace(object):
+  """
+  This class is used to represent an Island. It behaves much like a normal
+  VirtualNamespace, except that the context of evaluation is modified to
+  interpose on API calls prior to being evaluated.
+  """
+
+  # Constructs an Island
+  def __init__(self,code,name="<string>"):
+    """
+    See VirtualNamespace()
+    """
+    # Construct the actual virtual namespace
+    self._virt = VirtualNamespace(code,name)
+
+    # This dictionaries contains the threads associated with
+    # this namespace. This are both alive and dead threads.
+    #
+    # The dict maps a thread name to a "thread dictionary"
+    # This stores several important keys:
+    #   'totals' : Stores the usage values for the resources in TOTALED_RESOURCES
+    #              as a dictionary of resource -> total
+    #   'timeline' : Stores a timeline of API calls as a list of tuples.
+    #                 Entries are of the form (API Name, Time of Call, #bytes/amount)
+    #
+    # These are stored at a thread level to avoid the need for locking.
+    #    
+    self.threads = {}
+
+    # This set stores the names of all the threads which are still alive.
+    self.live_threads = set([])
+
+    # This dictionary maps the name of a file to a dictionary structure which
+    # stores statistics about that file. See FILE_USAGE_STATISTICS.
+    self.open_files = {}
+
+    # This dictionary is the same as open_files, except that entries
+    # are not removed from this dictionary after being closed.
+    self.all_files = {}
+
+    # This dictionary maps an identifing tuple to a dictionary structure
+    # which stores statistics about that socket. See SOCK_USAGE_STATISTICS
+    self.open_sockets = {}
+
+    # This dictionary is the same as open_sockets, except that entries
+    # are not removed from this dictionary after being closed.
+    self.all_sockets = {}
+
+    # This is the last context we evaluated
+    self.eval_context = None
+
+    # This is the limits dictionary at the time of of the last
+    # thread creation. It is updated for new threads.
+    self.resource_limits = None
+
+
+  def evaluate(self, context):
+    """
+    <Purpose, Arguments, Return>
+    See VirtualNamespae.evaluate()
+
+    <Side Effects>
+      The context will be modified prior to evaluation
+      to support resource accounting.
+    """
+    # Setup the context
+    if self.eval_context is not context:
+      setup_context(self,context)
+      self.eval_context = context
+
+    # Setup this thread for this island
+    setup_island_thread(self)
+
+    # Evaluate
+    try:
+      return self._virt.evaluate(context)
+   
+    # Remove this thread for this island
+    finally:
+      destroy_island_thread(self)
+
+
+#### Thread releated Island Functionality ####
+
+# This call updates the CPU used for a thread
+def update_thread_cpu(island, threadname):
+  # Get the resource usage
+  lim, usage, stoptimes = getresources()
+
+  # Store the threadcpu as CPU for this thread
+  island.threads[threadname]['totals']['cpu'] = usage['threadcpu']
+
+
+# Called before a a thread starts executing in an island
+# Returns the thread name
+def setup_island_thread(island):
+  # Get the thread name
+  name = get_thread_name()
+
+  # Get resources
+  limits, usage, stoptimes = getresources()
+
+  # Store the limits
+  island.resource_limits = limits
+
+  # Check if this thread already exist(ed)
+  if name not in island.threads:
+    # Construct the dictionary for this thread
+    # The 'totals' dict has the keys from TOTALED_RESOURCES, with all values zero'd out.
+    # The 'timeline' array has a THREAD_CREATED event, which is Island specific.
+    # The 'initialcpu' key has the CPU used by this thread before it became an Island
+    thread_dict = {'totals':dict.fromkeys(TOTALED_RESOURCES,0),
+                    'timeline':[(THREAD_CREATED, getruntime(), None)],
+                    'initialcpu':usage['threadcpu']}
+
+    # Add this dictionary
+    island.threads[name] = thread_dict
+
+  # If it already existed, we need to modify initialcpu
+  else:
+    # Determine elapsed time outside of the Island
+    cpu_time = usage['threadcpu']
+    diff = cpu_time - island.threads[name]['totals']['cpu']
+  
+    # Incerment initialcpu by this amount
+    island.threads[name]['initialcpu'] += diff
+
+    # Add THREAD_CREATED to the timeline
+    island.threads[name]['timeline'].append((THREAD_CREATED, getruntime(), None))
+
+
+  # Add the thread name to the list of threads for this island
+  island.live_threads.add(name)
+
+  # Map the thread name to the island
+  THREAD_NAMESPACE[name] = island
+
+  return name
+
+
+# Called before a thread terminates, or finishes executing in an island
+def destroy_island_thread(island):
+  # Get the thread name
+  name = get_thread_name()
+
+  # Add a destroyed event
+  island.threads[name]["timeline"].append((THREAD_DESTROY,getruntime(), None))
+
+  # Remove us from the live threads
+  try:
+    island.live_threads.remove(name)
+    del THREAD_NAMESPACE[name]
+  except:
+    pass
+
+  # Update the CPU usage for the last time
+  update_thread_cpu(island, name)
+
+
+#### Accounting functions ####
+
+
+# Journalizes that an atempt is being made to call an API function
+# This should be done if the API function may fail, or if it may take a while to complete.
+def journalize_start(island, name, API):
+  # Get the thread dict
+  thread_dict = island.threads[name]
+
+  # Add to the timeline, use API_START as the API, and store the API as the amount
+  thread_dict['timeline'].append((API_START, getruntime(), API))
+
+
+# Journalizes access to an API and usage of a resource
+# Island is the island, name is the thread name
+# API is the what is used for the timeline
+# resource is what is used for the thread's total
+def journalize_general(island, name, API, resource=None, amount=None):
+  # Get the thread dict
+  thread_dict = island.threads[name]
+
+  # Add to the timeline
+  thread_dict['timeline'].append((API,getruntime(), amount))
+
+  # Add to the thread's total
+  if resource is not None:
+    thread_dict['totals'][resource] += amount
+
+  # Update the CPU use
+  update_thread_cpu(island, name)
+
+
+
+# Journalizes access to a Socket and usage of it's resources
+# Island and name are like journalize_general
+# resource is the field in the socket stat's dict that is updated
+# id is defined as a tuple (socket_type, remoteip, remoteport)
+def journalize_socket(island, name, id, resource, amount):
+  # Check if this socket exists
+  if id in island.all_sockets:
+    # Update the stats
+    island.all_sockets[id][resource] += amount
+
+  # Create an entry
+  else:
+    entry = dict.fromkeys(SOCK_USAGE_STATISTICS,0)
+    entry[resource] = amount
+    island.all_sockets[id] = entry
+
+  # For TCP, also add to open_sockets
+  if id[0] in [INCOMING_TCP_SOCKET, OUTGOING_TCP_SOCKET]:
+    island.open_sockets[id] = island.all_sockets[id]
+
+
+
+# Journalizes acces to a File and usage of it's resources
+# Island and name are like journalize_general
+# resource is the field in the file stat's dict that is updated
+# file name is the name of the file
+def journalize_file(island, name, filename, resource, amount):
+  # Check if this file exists
+  if filename in island.all_files:
+    # If this not in open_files, put it there
+    if filename not in island.open_files:
+      island.open_files[filename] = island.all_files[filename]
+
+    # Update the stats
+    island.all_files[filename][resource] += amount
+
+  # Create and entry
+  else:
+    entry = dict.fromkeys(FILE_USAGE_STATISTICS,0)
+    entry[resource] = amount
+    island.all_files[filename] = entry
+    island.open_files[filename] = entry
+  
+
+#### Wrapper Objects ####
+
+# Wraps a normal socket
+class IslandSocket():
+  # Store the socket object
+  def __init__(self,sock,socktype,remoteip,remoteport):
+    self.sock = sock
+    self.id = (socktype, remoteip, remoteport)
+
+    # Increment the count by one
+    name = get_thread_name()
+    journalize_socket(THREAD_NAMESPACE[name], name, self.id, 'count', 1)
+
+  def recv(self,bytes):
+    # Pre-journal
+    name = get_thread_name()
+    island = THREAD_NAMESPACE[name]
+    journalize_start(island, name, API_SOCK_RECV)
+
+    # Call
+    data = self.sock.recv(bytes)
+    size = len(data)
+
+    # Journalize and return the data
+    journalize_general(island, name, API_SOCK_RECV, 'tcprecv', size)
+    journalize_socket(island, name, self.id, 'recv', size)
+    return data
+
+  def send(self,mess):
+    # Pre-journal
+    name = get_thread_name()
+    island = THREAD_NAMESPACE[name]
+    journalize_start(island, name, API_SOCK_SEND) 
+
+    # Call
+    sent = self.sock.send(mess)
+
+    # Journalize and return the result
+    journalize_general(island, name, API_SOCK_SEND,'tcpsend',sent)
+    journalize_socket(island, name, self.id, 'send', sent)
+    return sent
+  
+  def close(self,*args,**kwargs):
+    # Try to close the socket
+    closed = self.sock.close(*args, **kwargs)
+
+    if closed:
+      # Remove from the open sockets list if the count is 0 after decrementing
+      name = get_thread_name()
+      island = THREAD_NAMESPACE[name]
+      journalize_socket(island, name, self.id, 'count', -1)
+    
+      if island.all_sockets[self.id]["count"] == 0:
+        del island.open_sockets[self.id]
+ 
+  def willblock(self):
+    # Pass straight down
+    return self.sock.willblock()
+
+
+# Wraps a normal file
+class IslandFile():
+  # Store the file object
+  def __init__(self, fileo, filename):
+    self.fileo = fileo
+    self.filename = filename
+
+    # Increment the count by one
+    name = get_thread_name()
+    journalize_file(THREAD_NAMESPACE[name], name, filename, 'count', 1)
+
+  # Pre-journal a read or write
+  # Returns (name, island) tuple
+  def _jrn_start(self,read):
+    name = get_thread_name()
+    island = THREAD_NAMESPACE[name]
+    if read:
+      API = API_FILE_READ
+    else:
+      API = API_FILE_WRITE
+
+    journalize_start(island, name, API)
+    return (name, island)
+
+  # Journalize a read
+  def _jrn_read(self,name, island, size):
+    journalize_general(island, name, API_FILE_READ, 'fileread', size)
+    journalize_file(island, name, self.filename, 'read', size)
+
+  # Journalize a write
+  def _jrn_write(self,name, island, size):
+    journalize_general(island, name, API_FILE_WRITE, 'filewrite', size)
+    journalize_file(island, name, self.filename, 'write', size)
+
+  def close(self, *args,**kwargs):
+    # Close the file
+    self.fileo.close(*args, **kwargs)
+
+    # Remove from the open files list if the count is 0 after decrementing
+    name = get_thread_name()
+    island = THREAD_NAMESPACE[name]
+    journalize_file(island, name, self.filename, 'count', -1)
+    if island.all_files[self.filename]["count"] == 0:
+      del island.open_files[self.filename]
+
+  # Journalize flush like a 0 byte write, so that time spent blocking
+  # is counted against filewrite
+  def flush(self, *args, **kwargs):
+    name, island = self._jrn_start(False)
+    val = self.fileo.flush(*args,**kwargs)
+    self._jrn_write(name, island, 0)
+    return val
+
+  def next(self, *args, **kwargs):
+    name, island = self._jrn_start(True)
+    data = self.fileo.next(*args, **kwargs)
+    self._jrn_read(name, island, len(data))
+    return data
+
+  def read(self, *args, **kwargs):
+    name, island = self._jrn_start(True)
+    data = self.fileo.read(*args, **kwargs)
+    self._jrn_read(name, island, len(data))
+    return data
+
+  def readline(self, *args, **kwargs):
+    name, island = self._jrn_start(True)
+    data = self.fileo.readline(*args, **kwargs)
+    self._jrn_read(name, island, len(data))
+    return data
+
+  def readlines(self, *args, **kwargs):
+    name, island = self._jrn_start(True)
+    lst = self.fileo.readlines(*args, **kwargs)
+    size = 0
+    for string in lst:
+      size += len(string)
+    
+    self._jrn_read(name, island, size)
+    return lst
+
+  def seek(self, *args, **kwargs):
+    return self.fileo.seek(*args, **kwargs)
+
+  def write(self, data):
+    name, island = self._jrn_start(False)
+    self.fileo.write(data)
+    self._jrn_write(name, island, len(data))
+
+  def writelines(self, lines):
+    name, island = self._jrn_start(False)
+    self.fileo.writelines(lines)
+    size = 0
+    for line in lines:
+      size += len(line)
+
+    self._jrn_write(name, island, size)
+
+
+
+
+
+#### Wrapper functions ####
+
+# Wraps recvmess, takes an island, the underlying call to recvmess
+# and the arguments to the underlying function
+def wrapped_recvmess(island, underlying, localip, localport, func):
+
+  # We will setup our own callback function
+  def _wrapped_callback(remoteip, remoteport, mess, commh):
+    name = setup_island_thread(island) # Setup this thread
+
+    size = len(mess) # Journalize this message
+    journalize_general(island, name, CALLBACK_UDP, 'udprecv', size)
+    journalize_socket(island, name, (INCOMING_UDP_SOCKET, remoteip, remoteport),'recv',size)
+
+    try:
+      func(remoteip,remoteport,mess,commh)
+    finally:
+      destroy_island_thread(island)
+
+  # Call the underlying function
+  handle = underlying(localip, localport, _wrapped_callback)
+
+  # Journalize this call
+  journalize_general(island, get_thread_name(), API_RECVMESS)
+
+  # Return the handle
+  return handle
+
+
+def wrapped_sendmess(island, underlying, destip, destport, mess, localip=None, localport=None):
+  # Pre-journal
+  name = get_thread_name()
+  journalize_start(island, name, API_SENDMESS)
+
+  # Call the underlying function
+  retval = underlying(destip, destport, mess, localip, localport)
+
+  # Get the message size
+  size = len(mess)
+
+  # Journalize the usage
+  journalize_general(island, name, API_SENDMESS, 'udpsend', size)
+  journalize_socket(island, name, (OUTGOING_UDP_SOCKET, destip, destport),'send',size)
+
+  # Pass whatever was returned
+  return retval
+
+
+def wrapped_openconn(island, underlying, destip, destport, localip=None, localport=None, timeout=5):
+  # Pre-journal
+  name = get_thread_name()
+  journalize_start(island, name, API_OPENCONN)
+
+  # Get the socket and wrap it
+  sock = underlying(destip, destport, localip, localport, timeout)
+  wrapped_socket = IslandSocket(sock,OUTGOING_TCP_SOCKET,destip,destport)
+
+  # Journalize this call
+  journalize_general(island, name, API_OPENCONN, 'outsockets', 1)
+
+  # Return the wrapped socket
+  return wrapped_socket
+
+
+def wrapped_waitforconn(island, underlying, localip, localport, func):
+
+  # We will setup our own callback function
+  def _wrapped_callback(remoteip, remoteport, sock, ch1, ch2):
+    name = setup_island_thread(island) # Setup this thread
+    journalize_general(island, name, CALLBACK_TCP, 'insockets', 1) # Journal the callback
+    wrapped_sock = IslandSocket(sock,INCOMING_TCP_SOCKET,remoteip,remoteport)
+
+    try:
+      func(remoteip,remoteport,wrapped_sock,ch1,ch2)
+    finally:
+      destroy_island_thread(island)
+
+  # Call the underlying function
+  handle = underlying(localip, localport, _wrapped_callback)
+
+  # Journalize this call
+  journalize_general(island, get_thread_name(), API_WAITFORCONN)
+
+  # Return the handle
+  return handle
+
+
+def wrapped_open(island, underlying, filename, mode='r'):
+  # Get the file and wrap it
+  fileo = underlying(filename, mode)
+  wrapped_fileo = IslandFile(fileo, filename)
+
+  # Journalize this call
+  journalize_general(island, get_thread_name(), API_OPEN, 'filesopened', 1)
+
+  # Return the wrapped file object
+  return wrapped_fileo
+
+
+def wrapped_settimer(island, underlying, waitt, func, args):
+
+  # We will setup our own callback function
+  def _wrapped_callback(*args, **kwargs):
+    name = setup_island_thread(island) # Setup this thread
+    try:
+      func(*args,**kwargs)
+    finally:
+      destroy_island_thread(island)
+
+  # Pre-journal
+  name = get_thread_name()
+  journalize_start(island, name, API_SETTIMER)
+
+  # Call the underlying function
+  handle = underlying(waitt, _wrapped_callback, args)
+
+  # Journalize this call
+  journalize_general(island, name, API_SETTIMER, 'events', 1)
+
+  # Return the handle
+  return handle
+
+
+def wrapped_canceltimer(island, underlying, handle):
+  # Try to stop the event
+  stopped = underlying(handle)
+
+  # Degrement the event count if this worked
+  if stopped:
+    journalize_general(island, get_thread_name(), API_CNCLTIMER, 'events', -1)
+
+  return stopped
+
+
+def wrapped_randomfloat(island, underlying):
+  name = get_thread_name()
+  journalize_start(island, name, API_RANDOM)
+  val = underlying()
+  journalize_general(island, name, API_RANDOM, 'random', 1)
+  return val
+
+
+def wrapped_sleep(island, underlying, amount):
+  name = get_thread_name()
+  journalize_start(island, name, API_SLEEP)
+  underlying(amount)
+  journalize_general(island, name, API_SLEEP, None, amount)
+
+
+def wrapped_exitall(island, underlying):
+  name = get_thread_name()
+  journalize_general(island, name, API_EXITALL)
+  destroy_island_thread(island)
+  underlying()
+
+
+#### Island setup Functionality ####
+
+# Creates a nested wrapper function
+def create_wrapper(island, underlying_func, wrapper_func):
+    def _wrapped_api(*args,**kwargs):
+      return wrapper_func(island,underlying_func,*args,**kwargs)
+    return _wrapped_api
+
+
+# Called to setup a context to execute in an Island
+def setup_context(island, context):
+  # Replace all the normal API calls with their wrapped version
+  for API in WRAPPED_API:
+    # Use the new wrapped version
+    context[API] = create_wrapper(island, context[API],  _context["wrapped_"+API])
+
+
