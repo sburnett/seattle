@@ -1,0 +1,27 @@
+"""
+NatForwardingShim.repy and Nat_Forwarder.repy must communicate over the network
+through a series of requests and responses.
+
+These requests and response are encoded in constants contained
+within this file
+
+
+"""
+
+# connection types
+NAT_SERVER = 'S'
+NAT_CLIENT = 'C'
+
+
+# requests
+NAT_CONNECTION_ALIVE = 'ALIVE?'
+NAT_NEW_CONN = 'CONN'
+NAT_INIT = 'INIT'
+
+
+# responses
+NAT_YES = 'YES'   # use for an postive confirmation
+NAT_NO = 'NO'     # use for negitive confirmation
+
+
+

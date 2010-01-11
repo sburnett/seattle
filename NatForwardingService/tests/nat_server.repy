@@ -1,0 +1,37 @@
+"""
+
+a bare bones server to show how waitforconns should be performed
+
+"""
+
+include ShimStack.repy
+include NullShim.repy
+include NatForwardingShim.repy
+
+
+def response(remote_ip,remote_port,sock,th,listenhandle):
+  try:
+    while True:
+      msg = sock.recv(1024)
+      print msg
+      sock.send('got it')
+  except:
+     sock.close()
+
+
+
+if callfunc == 'initialize':
+  
+  mykey = 'NAT$BLAHBLAHBLAH'
+
+  if len(callargs) != 2:
+    print 'usage: ip port'
+    exitall()
+
+  shim = ShimStack('(NatForwardingShim,'+callargs[0]+','+callargs[1]+')(NullShim)')
+
+  shim.waitforconn(mykey,12347,response)
+
+  
+
+

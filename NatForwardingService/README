@@ -1,0 +1,34 @@
+CURRENT STATE OF PROJECT:
+
+  This project is not yet complete / ready for production
+
+  See tickets on track for the major todos
+
+
+
+TO BUILD FOR TESTING
+
+  First you must create a prepared test directory
+  From trunk run "mkdir basictest"
+  Then (from trunk) run "python preparetest basictest"
+  WARNING: if basictest is out of sync with svn then your test environment is no good
+
+  "cd trunk/NatService_shimbased"
+
+  "./build.sh"  
+
+  
+TO RUN TESTS
+
+  Local tests (with no advertising)
+
+  Open a new window and launch a forwarder
+  "cd trunk/NatService_shimbased/build"
+  "python repy.py restrictions.normal Nat_Forwarder.repy 127.0.0.1 12345 -na"
+  
+  Open another window to run tests in
+  In that window "cd trunk/NatService_shimbased"
+  "python run_tests.py"
+
+  
+  

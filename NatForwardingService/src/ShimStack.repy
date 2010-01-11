@@ -1,0 +1,158 @@
+"""
+
+<Program Name>
+  ShimStack.repy
+
+<Author>
+  Eric Kimbrel, kimbrl@cs.washington.edu
+
+<Date Started>
+  Jun 2009
+
+<Purpose>
+  Provide a wrapper for network shims with conveient methods for composing
+  shims together into a stack
+ 
+
+"""
+
+
+
+# a dictionary to store refrences to each layers class
+_SHIMSTACK_LAYER_DICT = {}
+
+
+### REGISTRATION USED FOR LAYERS TO REGISTER WITH THE FRAMEWORK  ###
+
+
+def shimstack_reg_layer(layer_name,layer_info_dict):
+  """
+  <Purpose>
+    Allows layers to register their information inside of the service
+    comp framework
+
+  <Arguments>
+    layer_name:
+      the name of the layer being registered
+
+    layer_info_dict:
+      a dictionary of the form {'class':LayerClass,'type':'LayerType'}
+
+  <Exceptions>
+    Exception if a previously registered name is registered
+
+  <Side Effects>
+     None
+
+  <Returns>
+    None
+  """
+
+  # provides a way for T_layers to register themselves with the framework
+  if layer_name in _SHIMSTACK_LAYER_DICT:
+    raise Exception('Attempt to register previously existing h-layer' +str(layer_name_))
+  _SHIMSTACK_LAYER_DICT[layer_name] = layer_info_dict
+
+
+
+
+class ShimStack:
+# Each Shim stack implements the networking API
+# Each shim has a reference to the ShimStack beneath it
+
+# a Shim stack string (for the constructor) is of the form
+# (LayerName,arg1,arg2,arg3,...)(..)....
+# The first item in a () is the name of the Shim to be instantiated,
+# each following item is convered to a list of strings and passed to
+# the Shim constructor as optional_args
+
+
+  def __init__(self,shim_stack_string=None):
+    # create a new shim stack
+    if shim_stack_string != None: 
+      self.top_shim = self.make_stack(shim_stack_string)
+    else:
+      self.top_shim = None
+  
+  def push(self,shim):
+    # give the new shim a shim stack that is the same as this one
+    shim.shim_stack = ShimStack()
+    shim.shim_stack.top_shim = self.top_shim
+    
+    # change this shim stack to include the new shim
+    self.top_shim = shim
+      
+
+  def pop(self):
+    # remove and return the top shim
+    shim = self.top_shim
+    self.top_shim = self.top.shim_stack.top
+    shim.shim_stack = None 
+    return shim
+
+  def get_names(self):
+    # return a list of names that can be used to create compatible 
+    # shim stacks
+    return self.top_shim.get_names()
+
+
+  def waitforconn(self,host,port,callback):
+    return self.top_shim.waitforconn(host,port,callback)
+
+  def recvmess(self,host,port,callback):
+    return self.top_shim.recvmess(host,port,callback)
+
+  def openconn(self,host,port,localhost=None,localport=None,timeout=5):
+    return self.top_shim.openconn(host,port,localhost,localport,timeout)
+
+  def sendmess(self,host,port,msg,localhost=None,localport=None):
+    return self.top_shim.sendmess(host,port,msg,localhost,localport)
+
+  def stopcomm(self,handle):
+    return self.top_shim.stopcomm(handle)
+  
+
+  def make_stack(self,shim_stack_str):
+    # private method used only by the ShimStack constructor
+
+    # takes a string of the form '(a)(b,c,d)'
+    # the first item in each (..) is the name of the shim
+    # following items are optional args that will be understood
+    # by the shims constructor  
+
+
+    temp_str = shim_stack_str.replace('(','')
+    stack_list = temp_str.split(')')
+    del stack_list[len(stack_list)-1]
+
+  
+    # make objects for each layer in the list
+    top = None # the top of this stack
+    previous = None
+    for comma_seperated_str in stack_list:
+     
+      shim_list = comma_seperated_str.split(',')
+    
+      shim_name = shim_list[0]
+    
+
+      shim_args = shim_list[1:]
+      if len(shim_args) == 0:
+        shim_args = None
+
+    
+    
+      # first arguemnt is always for the next shim, second argument is optional args
+      new_shim = _SHIMSTACK_LAYER_DICT[shim_name]['class'](None,shim_args)
+    
+      if top == None: top = new_shim
+    
+      if previous !=None:
+        # link in the shim stack to the above shim
+        previous.shim_stack.top_shim = new_shim
+    
+      previous = new_shim
+
+    return top 
+
+  

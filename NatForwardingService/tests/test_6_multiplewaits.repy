@@ -1,0 +1,56 @@
+"""
+one server makes duplicate calls to waitforconn on different ports
+
+calling waitforconn on a seperate port opens a new connection to the forwarder
+
+clients connect to each port
+
+"""
+
+
+include ShimStack.repy
+include NullShim.repy
+include NatForwardingShim.repy
+
+
+def response(remote_ip,remote_port,sock,th,listenhandle):
+  try:
+    while True:
+      msg = sock.recv(1024)
+      sock.send('got it')
+  except:
+     sock.close()
+
+
+
+if callfunc == 'initialize':
+  
+  serverkey = 'NAT$BLAHBLAHBLAH'
+
+  ip = '127.0.0.1'
+  port = 12345
+
+  server_shim = ShimStack('(NatForwardingShim,'+ip+','+str(port)+')(NullShim)')
+
+  handle1 = server_shim.waitforconn(serverkey,12347,response)
+  handle2 = server_shim.waitforconn(serverkey,12348,response)
+
+  # CLIENT LOGIC
+
+  client_shim = ShimStack('(NatForwardingShim,'+ip+','+str(port)+')(NullShim)')
+  sock1 = client_shim.openconn(serverkey,12347)
+  sock2 = client_shim.openconn(serverkey,12348)
+  
+  for i in range(10):
+    sock1.send(str(i))
+    sock2.send(str(i))
+    msg1 = sock1.recv(10)
+    msg2 = sock2.recv(10)
+    if msg1 != 'got it' or msg2 != 'got it':
+      raise Exception("expected: got it recv: "+msg1+" "+msg2)
+
+  sock1.close()
+  sock2.close()
+  exitall()
+
+

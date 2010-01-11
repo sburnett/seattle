@@ -1,0 +1,27 @@
+"""
+
+A bare bones client to illustrate how openconns should be performed
+
+"""
+
+include ShimStack.repy
+include NullShim.repy
+include NatForwardingShim.repy
+
+
+if callfunc == 'initialize':
+  
+  serverkey = 'NAT$BLAHBLAHBLAH'
+  
+  if len(callargs) != 2:
+    print 'usage: ip port'
+    exitall()
+
+  shim = ShimStack('(NatForwardingShim,'+callargs[0]+','+callargs[1]+')(NullShim)')
+  sock = shim.openconn(serverkey,12347)
+  
+  for i in range(10):
+    sock.send(str(i))
+    print sock.recv(10)
+
+  sock.close()

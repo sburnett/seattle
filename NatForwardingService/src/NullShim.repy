@@ -1,0 +1,45 @@
+"""
+
+<Program Name>
+  NullShim.repy
+
+<Author>
+  Eric Kimbrel, kimbrl@cs.washignton.edu
+
+<Purpose>
+  A network shim that connects to the standard repy network api
+  This is typically used at the bottom of a shim stack
+
+"""
+
+
+
+class NullShim():
+
+  name = 'NullShim'
+
+  def __init__(self,next_shim=None,optional_args=None):
+    # Place holder arguemnts are to conform with standards only
+    # these arguments should never be used
+    if next_shim is not None or optional_args is not None:
+      raise Exception('Arguments passed into NullShim by error')
+
+  def waitforconn(self,host,port,callback):
+    return waitforconn(host,port,callback)
+
+  def openconn(self,host,port,localhost=None,localport=None,timeout=5):
+    return openconn(host,port,localhost,localport,timeout)
+
+  def recvmess(self,host,port,callback):
+    return recvmess(host,port,callback)
+
+  def sendmess(self,host,port,msg,localhost=None,localport=None):
+    sendmess(host,port,msg,localhost,localport)
+
+  def stopcomm(self,handle):
+    stopcomm(handle)
+
+
+# register with the shim stack framework
+shimstack_reg_layer('NullShim',{'class':NullShim})
+
