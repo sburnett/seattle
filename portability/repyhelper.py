@@ -220,7 +220,8 @@ def _generate_python_file_from_repy(repyfilename, generatedfilename, shared_myco
   #the original data and translations
   try:
     # Create path if it doesn't exist.
-    if not os.path.isdir(os.path.dirname(generatedfilename)):
+    # JAC: due to #814, we check for the empty directory too...
+    if os.path.dirname(generatedfilename) != '' and not os.path.isdir(os.path.dirname(generatedfilename)):
       os.makedirs(os.path.dirname(generatedfilename))
     fh = open(generatedfilename, "w")
   except IOError, e:
