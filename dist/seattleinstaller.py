@@ -1325,6 +1325,9 @@ def setup_linux_or_mac_startup():
     of these tests show problems, the appropriate output is given to the user.
     Otherwise, if seattle is successfully configured to run automatically at
     machine boot, then no output is given to the user.
+    For Nokia N800/900 Tablets, crontab will not be used. Instead, two files 
+    are created in the special directories (/etc/init.d and /etc/rc2.d by
+    default) that will cause Seattle to run on startup.
 
   <Arguments>
     None.

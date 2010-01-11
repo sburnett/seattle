@@ -335,7 +335,7 @@ def uninstall_Windows():
 
 
 # Derek Cheng: Added a separate uninstaller for Nokia N800/900 Tablets. This 
-# function is to be called from uninstall_Linux_or_Mac().
+# function is to be called from uninstall_Linux_and_Mac().
 def uninstall_nokia():
   """
     <Purpose>
