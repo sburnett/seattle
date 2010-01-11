@@ -29,7 +29,10 @@ import tempfile
 import sys
 import getopt
 import time
-import platform # for detecting Nokia tablets
+# Derek Cheng: This is for detecting Nokia N800/900 tablets.
+import platform
+# Derek Cheng: This is for detecting if the user is root (for Nokia tablets)
+import pwd
 
 # Import seattle modules
 import persist
@@ -331,6 +334,79 @@ def uninstall_Windows():
 
 
 
+# Derek Cheng: Added a separate uninstaller for Nokia N800/900 Tablets. This 
+# function is to be called from uninstall_Linux_or_Mac().
+def uninstall_nokia():
+  """
+    <Purpose>
+    Remove the startup script and symlink to it in the /etc/init.d and 
+    /etc/rc2.d directories, and kill all seattle processes by using 
+    impose_seattlestopper_lock. This requires the user to be currently on root
+    access.
+
+  <Arguments>
+    None.
+
+  <Exceptions>
+    None.
+
+  <Side Effects>
+    Removes the startup script and the symlink to it, and stops seattle from 
+    running.
+
+  <Returns>
+    True if succeeded in uninstalling,
+    False otherwise.
+  """
+  
+  # Check to see if the current user is root.
+  if pwd.getpwuid(os.getuid())[0] != 'root':
+    _output('Please run the uninstaller as root. This can be done by ' \
+              + 'installing/using the rootsh or openssh package.')
+    return False
+  
+  # Stop all instances of seattle from running.
+  impose_seattlestopper_lock.killall()
+
+  # The name of the startup script.
+  startup_script_name = "nokia_seattle_startup.sh"
+  # The directory where the startup script resides.
+  startup_script_dir = "/etc/init.d/"
+  # The full path to the startup script.
+  startup_script_path = startup_script_dir + startup_script_name
+
+  # The name of the symlink that links to the startup script.
+  symlink_name = "S99startseattle"
+  # The directory where the symlink to the startup script resides.
+  symlink_dir = "/etc/rc2.d/"
+  # The full path to the symlink.
+  symlink_path = symlink_dir + symlink_name
+
+  # Check if the startup script and the symlink exists.
+  if not os.path.exists(startup_script_path) and \
+        not os.path.lexists(symlink_path):
+    _output("Neither the startup script nor the symlink exists.")
+    return True
+
+  # Remove the startup script.
+  try:
+    os.remove(startup_script_path)
+  except:
+    # The script does not exist for some reason (but the symlink exists)
+    pass
+  
+  # Remove the symlink.
+  try:
+    os.remove(symlink_path)
+  except:
+    # The symlink does not exist for some reason (but the script existed)
+    pass
+
+  return True
+
+
+
+
 def uninstall_Linux_and_Mac():
   """
   <Purpose>
@@ -354,15 +430,12 @@ def uninstall_Linux_and_Mac():
     False otherwise.
   """
 
-  # Find out if it is running on a Nokia tablet, which does not have crontab
-  # installed.
+
+  # Derek Cheng: Find out if this is a Nokia N800/900 Tablet, and if so runs a 
+  # separate uninstaller because there is no crontab on the tablets.
   if platform.node().startswith('Nokia-N'):
-      _output("It appears you're using a Nokia tablet. To completely " \
-            + "uninstall Seattle, please run nokia_seattle_startup.sh " \
-            + "with the -r flag as root.")
-      # Stop all instances of seattle from running before returning.
-      stop_all_seattle_processes.main()
-      return True
+    return uninstall_nokia()
+
 
   # Find out if Seattle is installed (currently in the crontab), and remove if
   # so.

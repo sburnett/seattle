@@ -32,6 +32,13 @@ import tempfile
 import time
 import getpass
 
+# Derek Cheng: This is for detecting if the user is root on the Nokia N800/900
+# tablet.
+import pwd
+# Derek Cheng: This is for changing the permission bits on the startup scripts
+# on the Nokia tablet. (i.e., stat.S_IXUSR gives owner permission to execute)
+import stat
+
 # Python should do this by default, but doesn't on Windows CE.
 sys.path.append(os.getcwd())
 import servicelogger
@@ -1183,6 +1190,132 @@ def add_seattle_to_crontab():
 
 
 
+# Derek Cheng: added function for setting up the startup of Seattle on the 
+# Nokia tablet. This is to be called from setup_linux_or_mac() since the Nokia
+# runs on a Linux-based OS.
+def setup_nokia_startup():
+  """
+  <Purpose>
+    Sets up seattle to run at startup on a Nokia tablet. It requires the user
+    to be currently on root access (checked in main()). It creates a short
+    shell script in /etc/init.d that will in turn run start_seattle.sh, and a
+    symlink in /etc/rc2.d that will link to the short script in /etc/init.d.
+    These two files will cause Seattle to run on startup.
+
+  <Arguments>
+    None.
+    
+  <Exceptions>
+    AlreadyInstalledError if seattle has already been installed on the system.
+
+  <Side Effects>
+    None.
+
+  <Returns>
+    True if the files are created successfully,
+    False otherwise.
+  """
+  
+  # The name of the startup script.
+  startup_script_name = "nokia_seattle_startup.sh"
+  # The directory where the startup script will reside.
+  startup_script_dir = "/etc/init.d/"
+  # The full path to the startup script.
+  startup_script_path = startup_script_dir + startup_script_name
+
+  # The name of the symlink that links to the startup script.
+  symlink_name = "S99startseattle"
+  # The directory where the symlink to the startup script will reside.
+  symlink_dir = "/etc/rc2.d/"
+  # The full path to the symlink.
+  symlink_path = symlink_dir + symlink_name
+
+  # The username of the user. This is assumed to be 'user', since this is the
+  # default name and it is highly unlikely that the name can be changed. 
+  username = "user"
+  
+  # If the startup script or the symlink already exists prior to this 
+  # installation, an AlreadyInstalledError is raised.
+  if os.path.exists(startup_script_path) or \
+        os.path.lexists(symlink_dir + symlink_name):
+    _output("The files that are required for running Seattle on startup " \
+              + "already exists. If you would like a clean installation, " \
+              + "please run the uninstaller first to remove those files.")
+    servicelogger.log("The startup files were not added to the /etc/ " \
+                        + "directories because they already existed prior to " \
+                        + "the installation.")
+    raise AlreadyInstalledError()  
+  
+  # The contents of the startup script in its entirety.
+  # This line indicates that it is a shell script.
+  startup_script_content = "#! /bin/sh" + "\n"
+  # This line runs start_seattle.sh as "user".
+  startup_script_content += "su - " + username + " -c " \
+      + os.path.realpath(get_starter_file_name()) + "\n" 
+  
+  # Creates the startup script file.
+  try:
+    startup_script_handle = file(startup_script_path, 'w')
+  except:
+    _output("Cannot create startup script file. Make sure you have the " \
+              + "permission to do so.")
+    servicelogger.log("Seattle was not configured to run on startup because " \
+                        + startup_script_path + " cannot be created.")
+    return False
+
+  # Writes the startup script content to the startup script file.
+  try:
+    startup_script_handle.write(startup_script_content)
+  except:
+    _output("Cannot write to the startup script file. Make sure you have the " \
+              + "permission to do so.")
+    servicelogger.log("Seattle was not configured to run on startup because " \
+                        + startup_script_path + " cannot be written to.")
+    return False
+  finally:
+    startup_script_handle.close()
+
+  # Changes the permission bits of the startup script to executable by owner.
+  try:
+    os.chmod(startup_script_path, stat.S_IXUSR)
+  except:
+    _output("Cannot change the startup script permission to executable. Make " \
+              + "sure you have the permission to do so.")
+    servicelogger.log("Seattle was not configured to run on startup because " \
+                        + "permissions of " +  startup_script_path + \
+                        " cannot be changed.")
+    # This is an attempt to clean up by removing the script file if chmod fails.
+    try:
+      os.remove(startup_script_path)
+    except:
+      pass
+    return False
+
+  # Creates the symlink to the startup script at symlink_dir.
+  try:
+    os.symlink(startup_script_path, symlink_path)
+  except:
+    _output("Cannot create symlink to the startup script. Make sure you have " \
+              + "the permission to do so.")
+    servicelogger.log("Seattle was not configured to run on startup because " \
+                        + " the symlink " + symlink_path + " cannot be " \
+                        + "created.")
+    # Attempt to clean up by removing the startup script.
+    try:
+      os.remove(startup_script_path)
+    except:
+      pass
+    return False
+
+  _output("Seattle has been configured to run on startup.")
+  servicelogger.log("Seattle has been configured to run on startup. Two " \
+                      + "files were created: " + startup_script_path + " and " \
+                      + symlink_path +".")
+  return True
+
+
+
+
 def setup_linux_or_mac_startup():
   """
   <Purpose>
@@ -1212,6 +1345,9 @@ def setup_linux_or_mac_startup():
   if OS != "Linux" and OS != "Darwin":
     raise UnsupportedOSError
 
+  # Derek Cheng: check to see if Seattle is being installed on a Nokia tablet.
+  if platform.node().startswith('Nokia-N'):
+    return setup_nokia_startup()
 
   _output("Attempting to add an entry to the crontab...")
 
@@ -1876,6 +2012,16 @@ def main():
     return
 
 
+  # Derek Cheng: if the user is running a Nokia N800 tablet, we require them
+  # to be on root first in order to have files created in the /etc/init.d and
+  # /etc/rc2.d directories. 
+  if platform.node().startswith('Nokia-N'):
+    _output('Seattle is being installed on a Nokia N800/900 Internet Tablet.')
+    # if the current user name is not 'root'
+    if pwd.getpwuid(os.getuid())[0] != 'root':
+      _output('Please run the installer as root. This can be done in by ' \
+                + 'installing/using the rootsh or openssh package.')
+      return
 
 
   # Begin installation.
@@ -1928,14 +2074,7 @@ def main():
           # setup_linux_or_mac_startup() function, and output for the possible
           # reasons why configuration to run at startup failed will have already
           # be given to the user from the setup_linux_or_mac_startup() function.
-          if platform.node().startswith('Nokia-N'):
-            # if this is a Nokia, we will have a separate script that will 
-            # setup the startup.
-            _output("It appears you're using a Nokia internet tablet. To " \
-                      + "make Seattle run on startup, please run " \
-                      + "nokia_seattle_startup.sh as root.")
-          else:
-            _output("Seattle failed to be configured to run automatically at " \
+          _output("Seattle failed to be configured to run automatically at " \
                     + "startup.")
       else:
         raise UnsupportedOSError("This operating system is not supported.")
