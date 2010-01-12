@@ -33,6 +33,9 @@ import time
 import platform
 # Derek Cheng: This is for detecting if the user is root (for Nokia tablets)
 import pwd
+# Derek Cheng: This is for detecting error codes when removing the script or
+# the link is unsuccessful.
+import errno
 
 # Import seattle modules
 import persist
@@ -341,8 +344,8 @@ def uninstall_nokia():
     <Purpose>
     Remove the startup script and symlink to it in the /etc/init.d and 
     /etc/rc2.d directories, and kill all seattle processes by using 
-    impose_seattlestopper_lock. This requires the user to be currently on root
-    access.
+    stop_all_seattle_processes. This requires the user to be currently on root
+    access. 
 
   <Arguments>
     None.
@@ -359,16 +362,11 @@ def uninstall_nokia():
     False otherwise.
   """
   
-  # Check to see if the current user is root.
-  if pwd.getpwuid(os.getuid())[0] != 'root':
-    _output('Please run the uninstaller as root. This can be done by ' \
-              + 'installing/using the rootsh or openssh package.')
-    return False
-  
-  # Stop all instances of seattle from running.
-  impose_seattlestopper_lock.killall()
 
-  # The name of the startup script.
+  # Note to developers: If you need to change the path of the startup script or
+  # the path of the symlink, make sure you keep it consistent with those in
+  # seattleinstaller.py.
+
   startup_script_name = "nokia_seattle_startup.sh"
   # The directory where the startup script resides.
   startup_script_dir = "/etc/init.d/"
@@ -391,16 +389,38 @@ def uninstall_nokia():
   # Remove the startup script.
   try:
     os.remove(startup_script_path)
-  except:
-    # The script does not exist for some reason (but the symlink exists)
-    pass
-  
+  # Cannot remove the startup script due to some reason.
+  except OSError as (error_number, error_desc):
+    # The startup script does not exist - that is fine, we will continue 
+    # and try to remove the symlink.
+    if error_number == errno.ENOENT:
+      pass
+    else:
+      # The startup script cannot be removed.
+      _output("The startup script cannot be removed. Make sure you have the " \
+                + "permission to do so.")
+      servicelogger.log("Seattle cannot be uninstalled because " \
+                          + startup_script_path + " cannot be removed.")
+      return False
+
   # Remove the symlink.
   try:
     os.remove(symlink_path)
-  except:
-    # The symlink does not exist for some reason (but the script existed)
-    pass
+  # Cannot remove the symlink due to some reason.
+  except OSError as (error_number, error_desc):
+    # The symlink does not exist - that is fine.
+    if error_number == errno.ENOENT:
+      pass
+    else:
+      # The symlink cannot be removed.
+      _output("The symlink cannot be removed. Make sure you have the " \
+                + "permission to do so.")
+      servicelogger.log("Seattle cannot be uninstalled because " \
+                          + symlink_path + " cannot be removed.")
+      return False
+
+  # Stop all instances of seattle from running.
+  stop_all_seattle_processes.main()
 
   return True
 
@@ -584,8 +604,15 @@ def main():
   if not continue_uninstall:
     return
 
-
-
+  # Derek Cheng: If the user is running the uninstaller on the Nokia N800, we 
+  # require them to be on root to remove some files in /etc/init.d and 
+  # /etc/rc2.d directories.
+  if platform.node().startswith('Nokia-N'):
+    # Check to see if the current user is root.
+    if pwd.getpwuid(os.getuid())[0] != 'root':
+      _output('Please run the uninstaller as root. This can be done by ' \
+                + 'installing/using the rootsh or openssh package.')
+      return
 
   # Begin uninstall process.
 

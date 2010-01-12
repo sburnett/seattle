@@ -1216,6 +1216,11 @@ def setup_nokia_startup():
     False otherwise.
   """
   
+
+  # Note to developers: If you need to change the path of the startup script or
+  # the path of the symlink, make sure you keep it consistent with those in
+  # seattleuninstaller.py.
+
   # The name of the startup script.
   startup_script_name = "nokia_seattle_startup.sh"
   # The directory where the startup script will reside.
@@ -1230,8 +1235,9 @@ def setup_nokia_startup():
   # The full path to the symlink.
   symlink_path = symlink_dir + symlink_name
 
-  # The username of the user. This is assumed to be 'user', since this is the
-  # default name and it is highly unlikely that the name can be changed. 
+  # The username of the user. This is assumed to be 'user'.
+  # However, if you do change your user name on the Nokia,
+  # you will need to modify the following line to match your user name.
   username = "user"
   
   # If the startup script or the symlink already exists prior to this 
@@ -1307,7 +1313,6 @@ def setup_nokia_startup():
       pass
     return False
 
-  _output("Seattle has been configured to run on startup.")
   servicelogger.log("Seattle has been configured to run on startup. Two " \
                       + "files were created: " + startup_script_path + " and " \
                       + symlink_path +".")
@@ -2022,7 +2027,7 @@ def main():
     _output('Seattle is being installed on a Nokia N800/900 Internet Tablet.')
     # if the current user name is not 'root'
     if pwd.getpwuid(os.getuid())[0] != 'root':
-      _output('Please run the installer as root. This can be done in by ' \
+      _output('Please run the installer as root. This can be done by ' \
                 + 'installing/using the rootsh or openssh package.')
       return
 
