@@ -390,10 +390,10 @@ def uninstall_nokia():
   try:
     os.remove(startup_script_path)
   # Cannot remove the startup script due to some reason.
-  except OSError as (error_number, error_desc):
+  except OSError, e:
     # The startup script does not exist - that is fine, we will continue 
     # and try to remove the symlink.
-    if error_number == errno.ENOENT:
+    if e.errno == errno.ENOENT:
       pass
     else:
       # The startup script cannot be removed.
@@ -407,9 +407,9 @@ def uninstall_nokia():
   try:
     os.remove(symlink_path)
   # Cannot remove the symlink due to some reason.
-  except OSError as (error_number, error_desc):
+  except OSError, e:
     # The symlink does not exist - that is fine.
-    if error_number == errno.ENOENT:
+    if e.errno == errno.ENOENT:
       pass
     else:
       # The symlink cannot be removed.
@@ -586,6 +586,17 @@ def usage():
 
 def main():
 
+  # Derek Cheng: If the user is running the uninstaller on the Nokia N800, we 
+  # require them to be on root to remove some files in /etc/init.d and 
+  # /etc/rc2.d directories. This needs to preceed servicelogger.init, since
+  # only root has permission to installInfo. 
+  if platform.node().startswith('Nokia-N'):
+    # Check to see if the current user is root.
+    if pwd.getpwuid(os.getuid())[0] != 'root':
+      _output('Please run the uninstaller as root. This can be done by ' \
+                + 'installing/using the rootsh or openssh package.')
+      return
+
   # Begin pre-uninstall process.
 
   # Initialize the service logger.
@@ -604,15 +615,6 @@ def main():
   if not continue_uninstall:
     return
 
-  # Derek Cheng: If the user is running the uninstaller on the Nokia N800, we 
-  # require them to be on root to remove some files in /etc/init.d and 
-  # /etc/rc2.d directories.
-  if platform.node().startswith('Nokia-N'):
-    # Check to see if the current user is root.
-    if pwd.getpwuid(os.getuid())[0] != 'root':
-      _output('Please run the uninstaller as root. This can be done by ' \
-                + 'installing/using the rootsh or openssh package.')
-      return
 
   # Begin uninstall process.
 
