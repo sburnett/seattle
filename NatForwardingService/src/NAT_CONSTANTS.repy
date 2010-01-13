@@ -23,5 +23,12 @@ NAT_INIT = 'INIT'
 NAT_YES = 'YES'   # use for an postive confirmation
 NAT_NO = 'NO'     # use for negitive confirmation
 
+NAT_SERVER_NOT_FOUND = 'SERVERNOTFOUND'
+NAT_FORWARDER_BUSY = 'BUSY'
+NAT_SERVER_ERROR = 'SERVERERROR'
 
+
+#common advertise keys
+
+NAT_FORWARDER = 'seattle_NAT_FORWARDING_SERVICE_NODE'
 

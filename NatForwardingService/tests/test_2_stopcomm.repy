@@ -45,7 +45,7 @@ if callfunc == 'initialize':
   sleep(.2)
   try:
    sock = client_shim.openconn(serverkey,12347)
-  except:
+  except NatConnError:
     pass
   else: 
     sock.close()

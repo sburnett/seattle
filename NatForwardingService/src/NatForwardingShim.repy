@@ -34,34 +34,59 @@
 include session.repy
 include ShimStack.repy
 include NAT_CONSTANTS.repy
+include advertise.repy
+include NullShim.repy
 
+
+
+
+
+class NatConnError(Exception):
+  # base class for problem with nat connections
+  pass
+
+class NatLookupError(NatConnError):
+  # unable to lookup a needed value
+  pass
 
 
 
 # custom obj used as a comm handle and to keep state 
 # for diffent calls to waitforconn
 class NatStateObj:
-  def __init__(self,sock,running,callback,port):
+  def __init__(self,sock,running,host,callback,port,forwarder_ip,forwarder_port):
     self.sock = sock
     self.running = running
     self.callback = callback
+    self.host = host
     self.port = port
-
+    self.adkey = host+':'+str(port)
+    self.adval = forwarder_ip +':'+str(forwarder_port)
 
 
 
 class NatForwardingShim():
   
+  advertise_wait_time = 60
   name ='NatForwardingShim'
 
+  # create a cache to store forwarder lookups
+  forwarder_cache = {'tuple_list':None,'lock':getlock()}
+
+  # cache clt lookups
+  clt_cache = {}
+  clt_cache_lock = getlock()
+
+  ######    CONSTRUCTOR
 
   def __init__(self,next_shim=None,optional_args=None,control_sock=None):
-    #CONSTRUCTOR
+    
 
     self.shim_stack = ShimStack(next_shim)
     
     self.state_objs = {}
     
+
     # hop_key and hop_port can be used to avoid doing a lookup with
     # openconn, primarily used for testing
     self.hop_key = None
@@ -78,7 +103,9 @@ class NatForwardingShim():
     
     
 
-  
+  #######  SERVER METHODS  
+
+
 
   def waitforconn(self,key,port,callback):
     """
@@ -86,7 +113,9 @@ class NatForwardingShim():
       Provide a means to register with a nat_forwarder and wait for connections
 
     <Arguments>
-      key: They srv key to register with a nat forwarder
+      key: They srv key to register with a nat forwarder, its up to the user
+      of this library to come up with a unique value to use as key, and to 
+      communicate this key to potential clients.
 
       port: The port to be used
 
@@ -97,8 +126,14 @@ class NatForwardingShim():
     <Exceptions>
       Sock exceptions may occur in event of connection failure, etc
     
+    <Side Effects>
+      1 thread is consumed to wait for connections over the control socket
+      1 thread is consumed to advertise this connection
+
+      every call to waitforconn will use 2 threads, until stopcomm is called
+
     """
-    
+
     if port in self.state_objs:
       # if this port alreayd has an active listener just replace the callback
       state_obj = self.state_objs[port]
@@ -107,11 +142,15 @@ class NatForwardingShim():
 
 
     # establish a control socket with a forwarder
-    control_sock = self.establish_control_sock(key,port)
+    (for_ip,for_port,control_sock) = self.establish_control_sock(key,port)
     
     # create a new state object for this listener
-    state_obj = NatStateObj(control_sock,True,callback,port)
+    state_obj = NatStateObj(control_sock,True,key,callback,port,for_ip,for_port)
+
     self.state_objs[port] = state_obj
+
+    # advertise this connection so the host can be ound by clients
+    settimer(0,self.advertise_host,[state_obj])
 
     # start a thread to listen for new requests
     settimer(0,self.nat_waitfor_request,[state_obj])
@@ -120,16 +159,52 @@ class NatForwardingShim():
     return state_obj
 
 
-    
 
   def establish_control_sock(self,key,port):
     # connect to a forwarder and establish a control socket
     # this control socket is used to listen for connection requests
 
     if self.hop_key is not None and self.hop_port is not None:
+      # use the manually configured forwarder if it exists
       control_sock = self.shim_stack.openconn(self.hop_key,int(self.hop_port))  
+      for_ip = self.hop_key
+      for_port = int(self.hop_port)
+    
     else:
-      raise Exception("lookup not implemented in establish control sock")
+      # use the lookup mechanism to find a forwarder
+      
+      self.forwarder_cache['lock'].acquire()      
+      connected = False
+      is_cache_fresh = False # if we have fresh cache
+      
+      #check that we actually have a cache
+      if self.forwarder_cache['tuple_list'] is None:
+        self.forwarder_cache['tuple_list'] = self.forwarder_lookup()
+        is_cache_fresh = True
+
+      while not connected:
+        ex_str =''
+        for (for_ip,for_port) in self.forwarder_cache['tuple_list']:
+          try:
+            control_sock = self.shim_stack.openconn(for_ip,for_port)
+          except Exception,e:
+            ex_str = ex_str+' '+str(e)
+          else:
+            connected = True
+            break
+    
+
+        if not connected:
+          if is_cache_fresh: 
+            self.forwarder_cache['lock'].release() 
+            raise NatConnError("Unable to establish control socket: "+ex_str)
+          else:
+            self.forwarder_cache['tuple_list'] = self.forwarder_lookup()
+            is_cache_fresh = True
+
+   
+      self.forwarder_cache['lock'].release()
+
 
     #register the with the forwarder
     control_sock.send(NAT_SERVER) 
@@ -143,7 +218,7 @@ class NatForwardingShim():
     if response != NAT_YES:
       raise Exception, 'NAT node refused connection'
 
-    return control_sock
+    return (for_ip,for_port,control_sock)
 
 
 
@@ -214,11 +289,22 @@ class NatForwardingShim():
         request = NAT_CONNECTION_ALIVE
        
         # respond to forwarder checks to see if this connection is still
-        # active
+        # active, if we've lost the control sock we will detect it here
+        # and can reconnection
         while request == NAT_CONNECTION_ALIVE:
-          request = session_recvmessage(state_obj.sock)
-          if request != NAT_CONNECTION_ALIVE: break
-          session_sendmessage(state_obj.sock,NAT_YES)  
+          try:
+            request = session_recvmessage(state_obj.sock)
+            if request != NAT_CONNECTION_ALIVE: break
+            session_sendmessage(state_obj.sock,NAT_YES)  
+          except:
+            # error over the control socket, establish a new one
+            if state_obj.running:
+              state_obj.sock.close()
+              (for_ip,for_port,state_obj.sock) = self.establish_control_sock(
+                                                state_obj.host,state_obj.port)
+              state_obj.adval=for_ip+':'+str(for_port)
+            else:
+              raise # if stop has been called don't re-establish
 
         # take a request to make a new connection 
         if request != NAT_NEW_CONN:
@@ -244,6 +330,10 @@ class NatForwardingShim():
        
 
 
+
+  ############ CLIENT METHODS
+
+
   def openconn(self,id,port,localip=None,localport=None,timeout=5):
     """
     <Purpose>
@@ -258,29 +348,192 @@ class NatForwardingShim():
       see openconn
       Exception if Forwarder rejects connection   
 
+    <Warning> TODO: Does not correctly adhere to timeout semantics
+
     """  
-
-    # if a hop key and port have been specified, use em.
+    
     if self.hop_key is not None and self.hop_port is not None:
-      base_sock = self.shim_stack.openconn(self.hop_key,self.hop_port,localip,localport)
-    else:
-      raise Exception("openconn lookups not yet implemented")
-      # TODO implement lookups
+      # if a hop key and port have been specified, use em.
+      base_sock = self.shim_stack.openconn(self.hop_key,self.hop_port,localip,localport,timeout)
+      self.establish_client_server_conn(base_sock,id,port)
+      return base_sock
 
+    else:
+      # lookup the host's forwarder, note that this is a list
+      # because old advertisements might still be in the DHT
+      
+      host_key = id+':'+str(port)
+
+      self.clt_cache_lock.acquire()
+
+      if host_key in self.clt_cache:
+        fresh_cache = False
+      else:
+        try:
+          self.clt_cache[host_key]= self.lookup_host(id,port)
+          fresh_cache = True
+        except Exception,e:
+          self.clt_cache_lock.release()
+          raise NatLookupError(str(e))
+
+      
+      while True:
+        # this loop breaks when we get a connection of decide
+        # to fail, loops is executed at most twice 
+ 
+        exception_str = ''
+        for (forip,forport) in self.clt_cache[host_key]:
+          try:
+            base_sock = self.shim_stack.openconn(forip,forport,localip,
+                                               localport,timeout)
+            self.establish_client_server_conn(base_sock,id,port)
+          except Exception,e:
+            exception_str = exception_str+',  '+str(e)
+          else:
+            # established a connection, return the socket
+            self.clt_cache_lock.release()
+            return base_sock
+
+        # we tried all the forwarders and could not establish a connection
+        if not fresh_cache:
+          # freshen the cache and try again
+           try:
+             del self.clt_cache[host_key]
+             self.clt_cache[host_key]= self.lookup_host(id,port)
+             fresh_cache = True
+           except Exception,e:
+             self.clt_cache_lock.release()
+             raise NatLookupError(str(e))
+        else:
+          # if we already had fresh cache then fail  
+          del self.clt_cache[host_key]
+          self.clt_cache_lock.release()
+          raise NatConnError("Failed to get connection: "+exception_str)
+      
+
+
+
+  def establish_client_server_conn(self,base_sock,id,port):
+    #used by opennconn to establish connection
 
     # specify this is a client connection, and what server we want
-    base_sock.send(NAT_CLIENT)
-    session_sendmessage(base_sock,str(id)) 
-    session_sendmessage(base_sock,str(port))
-  
+    try:
+      base_sock.send(NAT_CLIENT)
+      session_sendmessage(base_sock,str(id)) 
+      session_sendmessage(base_sock,str(port))
+    except Exception,e:
+      raise NatConnError("Error initializing socket connection: "+str(e))    
+
     # see if the connection was established
     response =  session_recvmessage(base_sock)
     if response != NAT_YES:
       base_sock.close()
-      raise Exception, 'Failed to Connect to host'
+      if response == NAT_SERVER_NOT_FOUND:
+        raise NatConnError('The Host requested was not found at the forwarder')
+      elif response == NAT_FORWARDER_BUSY:
+        raise NatConnError('The Host requested has reach its client capacity')
+      elif response == NAT_SERVER_ERROR:
+        raise NatConnError('The Host requested suffered an unexpected error during connection')
+      else:
+        raise NatConnError("Unknown nat failure: "+response)
 
     #if the connection is established we can return the socket
     return base_sock
+
+
+
+  ####   ADVERTISE / LOOKUP METHODS
+
+
+  def forwarder_lookup(self):
+    # retrns a list of forwarders in the form [(ip,port),...]
+    # ordered by the server load on the forwareders
+    # 
+    # raises exception if no valid forwarder entries are found
+
+    try:
+      #TODO remove lookup type when DOR is fixed
+      raw_data = advertise_lookup(NAT_FORWARDER,
+                            lookuptype=['central','opendht'])
+    except:
+      raise NatLookupError("No Nat Forwarders were found")
+
+
+    # hash the forwarders based on the load they have    
+    tuple_list_dict = {}
+    for item in raw_data:
+      try:
+        (ip,port,load) = item.split(':')
+        port = int(port)
+      except:
+        pass  # throw out invalid entries, todo log this?
+      else:
+        if load not in tuple_list_dict:
+          tuple_list_dict[load] = []
+        tuple_list_dict[load].append((ip,port))
+
+    if len(tuple_list_dict) < 1:
+      raise NatLookupError("No Valid entries were found for nat forwarders")
+
+
+    # drop all of the tuples into a list ordered by increasing 
+    # forwarder load
+    ranked_tuple_list = []
+    key_list =  tuple_list_dict.keys()
+    key_list.sort()
+    for key in key_list:
+      for tuple in tuple_list_dict[key]:
+        ranked_tuple_list.append(tuple)
+    
+    return ranked_tuple_list
+
+
+
+
+
+
+  def advertise_host(self,state_obj):
+    while state_obj.running:
+      
+      try:
+        advertise_announce(state_obj.adkey,state_obj.adval,
+                                self.advertise_wait_time*2)
+      except:
+        pass  #TODO can i provid some kind of indication that this happens?
+
+
+      # sleep in increments so that we stop this thread
+      # as soon as possible after stopcomm
+      slept = 0      
+      while slept < self.advertise_wait_time:
+        if not state_obj.running: return
+        slept += 5
+        sleep(5)
+      
+      
+
+
+  def lookup_host(self,host,port):
+    # returns a list of tuples (forwarderip,forwarderport)
+    # TODO remove lookuptype when DOR advertise is fixed
+    raw_list = advertise_lookup(host+':'+str(port),
+                                 lookuptype=['central','opendht'])
+    if raw_list is None or len(raw_list) == 0:
+      raise NatLookupError('No lookup results for: '+host+':'+str(port))
+
+    tuple_list = []
+    for item in raw_list:
+      try:
+        (ip,port) = item.split(':')
+      except:
+        pass
+      else: tuple_list.append((ip,int(port)))
+
+    if len(tuple_list) == 0:
+      raise NatLookupError('No valid lookup results for: '+host+':'+str(port))
+    else:
+      return tuple_list
+
 
 
 

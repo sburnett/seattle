@@ -11,24 +11,24 @@ include NatForwardingShim.repy
 
 def response(remote_ip,remote_port,sock,th,listenhandle):
   try:
+    count = 1
     while True:
-      msg = sock.recv(1024)
-      print msg
-      sock.send('got it')
+      sock.recv(1)
+      sock.send('A')
+      print 'sent response '+str(count)
+      count +=1
   except:
+     print 'closed a connection'
      sock.close()
 
 
 
 if callfunc == 'initialize':
   
-  mykey = 'NAT$BLAHBLAHBLAH'
+  mykey = 'BASICNATTESTSERVER'
 
-  if len(callargs) != 2:
-    print 'usage: ip port'
-    exitall()
 
-  shim = ShimStack('(NatForwardingShim,'+callargs[0]+','+callargs[1]+')(NullShim)')
+  shim = ShimStack('(NatForwardingShim)(NullShim)')
 
   shim.waitforconn(mykey,12347,response)
 
