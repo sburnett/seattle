@@ -172,7 +172,7 @@ def binary_search_entry(stoptimes, comptime):
       left_index = current_index + 1
 
   # Check if the index is outside the array
-  if stoptimes[right_index][0] <= comptime or right_index < 0:
+  if right_index < 0 or stoptimes[right_index][0] <= comptime:
     return right_index + 1
   else:
     return right_index
@@ -186,6 +186,10 @@ def sampler_thread():
     # Get the resources
     check_time = getruntime()
     lim, usage, stoptimes = getresources()
+
+    # Skip if there are no stoptimes
+    if len(stoptimes) == 0:
+      sleep(TIME_BETWEEN_SAMPLES - (getruntime() - check_time))
 
     # Find the next entry
     next_index = binary_search_entry(stoptimes, LAST_ENTRY_TIME)
