@@ -370,23 +370,43 @@ def generate_island_time_usage(island):
               # the resources we've overused
               expected_time = max(over_use / use_limit, 0)
 
-            # Determine the actual time spent
-            actual_time = after_stop_event[1] - before_stop_event[1]
-        
-            # Determine the difference between the actual and expected time
-            diff_time = actual_time - expected_time
+            # Determine the actual time spent in the API
+            api_start = before_stop_event[1]
+            api_end = after_stop_event[1]
+            actual_time = api_end - api_start 
+       
+            # Determine the sum of all the stoptimes during this API call
+            all_stops = get_stoptimes_on_interval(api_start, api_end)
+            all_stoptimes = 0
+            for stop in all_stops:
+              TOS, stop_amount = stop
+              all_stoptimes += stop_amount
 
-            # NOTE: If the difference in actual vs. expected time is greater than
-            # the stoptime, attribute this the stopping. Otherwise, ignore the stop.
+
+            # NOTE: If the proportion of the stoptime to the actual time is greater than
+            # the proportion of the expected time, then attribute this the stopping. 
+            # Otherwise, ignore the stop.
             # This is somewhat troublesome, since in some cases the diff_time may be great.
             # E.g. on a sock.recv() there may be no data available. So, the big actual_time is
             # not due to repy throttling, but just blocking waiting for data. In this case, it
             # will cause the "stopped" time to increase, but it is hard to blame anything since
             # that time is not caused by a limited netrecv anyways.
-            if diff_time > amount:
-              commit_time(thread_dict, TOC)
-              thread_dict["begin"] = resume_time
-              thread_dict["stopped"] += amount
+            if all_stoptimes > expected_time:
+              # If this is the first stop during this API, we will do all the
+              # accounting now
+              if all_stops[0][0] == TOC:
+                # The amount of time spent on the "resource" is at a minimum
+                # the expected time, or the actual_time - stopped_time
+                resource_time = max(expected_time, actual_time - all_stoptimes)
+
+                # Add the resource time
+                thread_dict[thread_dict["resource"]] += resource_time
+                thread_dict["begin"] = api_end
+        
+                # Make sure everything adds up. If the resource_time is
+                # actual_time - stopped_time, then this is just adding the
+                # stopped time. Otherwise this is the actual_time - expected_time.
+                thread_dict["stopped"] += actual_time - resource_time
 
           else:
             print "Repy Stopped. Thread in strange state:"
@@ -482,9 +502,10 @@ def generate_island_time_usage(island):
   
   # Total all the threads
   for thread,thread_dict in thread_usages.items():
-    if thread != ALL_THREADS:
-      for type in TIME_UTIL_KEYS:
-        total_time[type] += thread_dict[type]
+    if thread_dict is total_time:
+      continue
+    for type in TIME_UTIL_KEYS:
+      total_time[type] += thread_dict[type]
 
 
   # Return the time usages dict
@@ -508,7 +529,6 @@ def dump_island_time_usage(island, show_threads=True):
         for type in TIME_UTIL_KEYS:
           if thread_time[type] > 0.0:
             print "  Total '"+type+"': " + str(thread_time[type]) + " (" + str(round(100 * thread_time[type] / thread_time["live"], 2)) + "%)"
-            total_time[type] += thread_time[type]
 
   print "\nAll Threads (Global)"
 
