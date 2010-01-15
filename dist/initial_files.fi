@@ -141,3 +141,5 @@ req loggingrepy_core.py
 req safe_eval.repy
 req strace.py
 req stop_all_seattle_processes.py
+req geoip_client.repy
+req priority_queue.repy
