@@ -49,7 +49,7 @@ Test types:
 
 """
 
-def test_rsync(testtype, softwareurl, chgFile=[]):
+def test_rsync(testtype, softwareurl, chgFile=None):
   """
   <Purpose>
     Does the actual rsync test of the given type, at the given softwareurl,
@@ -72,6 +72,9 @@ def test_rsync(testtype, softwareurl, chgFile=[]):
     A string indicating the results of the test.
   """
   
+  if chgFile is None:
+    chgFile = []
+
   # Start building the standard test output that will be printed.
   testout = 'Test type: ' + str(testtype)
 

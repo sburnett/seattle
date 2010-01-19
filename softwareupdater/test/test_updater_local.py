@@ -87,7 +87,7 @@ if nonportable.ostype == 'Windows':
 
 
 
-def runRsyncTest(testtype, updatefolder, otherargs=[]):
+def runRsyncTest(testtype, updatefolder, otherargs=None):
   """
   <Purpose>
     Runs a test on the rsync-like portion of the software updater.  It first
@@ -114,6 +114,10 @@ def runRsyncTest(testtype, updatefolder, otherargs=[]):
   <Return>
     None
   """
+
+  if otherargs is None:
+    otherargs = []
+
   # Can't do this import until nminit is run, which has to happen at the end
   # of test_updater.main().
   import test_rsync
