@@ -59,6 +59,8 @@ repyhelper.translate_and_import("domainnameinfo.repy")
 
 repyhelper.translate_and_import("advertise.repy")   #  used to do OpenDHT lookups
 
+repyhelper.translate_and_import("geoip_client.repy") # used for `show location`
+
 import traceback
 
 import os.path    # fix path names when doing upload, loadkeys, etc.
@@ -734,6 +736,7 @@ show advertise  -- Display advertisement information about the vessels
 show ip [to file] -- Display the ip addresses of the nodes
 show hostname   -- Display the hostnames of the nodes
 show location   -- Display location information (countries) for the nodes
+show coordinates -- Display the latitude & longitude of the nodes
 show owner      -- Display a vessel's owner
 show targets    -- Display a list of targets
 show identities -- Display the known identities
@@ -1129,35 +1132,53 @@ update             -- Update information about the vessels
           if not currenttarget:
             raise UserError("Error, command requires a target")
 
+          geoip_init_client()
           
           # we should only visit a node once...
           printedIPlist = []
+
           for longname in targets[currenttarget]:
             thisnodeIP = vesselinfo[longname]['IP']
 
             # if we haven't visited this node
             if thisnodeIP not in printedIPlist:
               printedIPlist.append(thisnodeIP)
-              # print the ip (will print more in a sec.)
-              print thisnodeIP,
-              try: 
-                nodeinfo = socket.gethostbyaddr(thisnodeIP)
-              except (socket.herror,socket.gaierror, socket.timeout, socket.error):
-                # couldn't look up the name...
-                print 'has unknown location information'
-              else:
-                hostname = nodeinfo[0]
-                try:
-                  # figure out what the name means
-                  mylocationstring = domainnameinfo_gethostlocation(hostname)
-                except UnknownHostLocationError:
-                  # We don't know...
-                  print "has unknown location information (name '"+hostname+"')"
-                else:
-                  # yeah!   We know
-                  print 'is at:',mylocationstring
-                
+              location_dict = geoip_record_by_addr(thisnodeIP)
+
+              sys.stdout.write(str(thisnodeIP) + ": ")
+              if 'city' in location_dict:
+                sys.stdout.write(location_dict['city'] + ", ")
+              if 'country_name' in location_dict:
+                if location_dict['country_name'] in ['United States', 'Canada'] \
+                   and 'region_name' in location_dict:
+                  sys.stdout.write(location_dict['region_name'] + ", ")
+                sys.stdout.write(location_dict['country_name'])
+              print
   
+          continue
+
+        
+
+#show coordinates -- Display the latitude & longitude of the nodes
+        elif userinputlist[1] == 'coordinates':
+          if not currenttarget:
+            raise UserError("Error, command requires a target")
+
+          geoip_init_client()
+          
+          # we should only visit a node once...
+          printedIPlist = []
+
+          for longname in targets[currenttarget]:
+            thisnodeIP = vesselinfo[longname]['IP']
+
+            # if we haven't visited this node
+            if thisnodeIP not in printedIPlist:
+              printedIPlist.append(thisnodeIP)
+              location_dict = geoip_record_by_addr(thisnodeIP)
+
+              print str(thisnodeIP) + ": " + str(location_dict['latitude']) + ", " + str(location_dict['longitude'])
+
           continue
 
 
