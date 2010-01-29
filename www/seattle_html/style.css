@@ -1,0 +1,159 @@
+@charset "utf-8";
+body {
+     font: 100% Verdana; /* , Arial, Helvetica, sans-serif; */
+     background: #666666;
+     margin: 0;
+     padding: 0;
+     text-align: center; 
+     color: #333333;
+}
+
+a:link{color:#A14E00}
+a:visited{color:#6D3200}
+a:hover{color:#6D3200}
+
+/* main container page */
+#container { 
+	   width: 800px;
+	   background: #FFFFFF;
+	   margin: 0 auto; 
+	   border: 1px solid #000000;
+	   text-align: left;
+	   overflow:hidden;
+} 
+
+/* top header description (ie. about Seattle) */
+#topAbout {
+/*	  margin: 0 auto;*/
+	  margin: 0 80px 0 80px;
+	  font-size:18px;
+}
+
+/* header links for downloads/etc (ie. geni) */
+#headerLinks {
+	     margin: 0 70px 0 70px;
+	     font-size: 14px;
+}
+
+.boxLinks {
+	  float: left;
+	  width: 327px;
+}
+
+/* main content with pics/text (ie. edu/dev) */
+#mainContent {
+/* 	     margin: 0 91px 0 91px;*/
+	     margin: 0 61px 0 61px;
+	     font-size: 12px;
+} 
+
+#boxPic{
+	float: left;
+	height: 48px;
+	width: 224px;
+}
+
+#boxRes{
+	height: 48px;
+	display: block;
+	background-image: url("images/res_both.png");
+}
+
+#boxRes:hover {
+	background-position: 0 -48px;
+}
+
+#boxDev {
+	height: 48px;
+	display: block;
+	background-image: url("images/dev_both.png");
+}
+
+#boxDev:hover {
+	background-position: 0 -48px;
+}
+
+#boxEdu {
+	height: 48px;
+	display: block;
+	background-image: url("images/edu_both.png");
+}
+
+#boxEdu:hover {
+	background-position: 0 -48px;
+}
+
+.boxPicTxt{
+	float: left;
+	height: 60px;
+	display: block;
+	margin: 0 12px 0 12px;	
+}
+
+/* small content links/text */
+#smallContent {
+	float:left;
+	margin: 8px 0px 0 72px; /* 61 */
+	text-align: left;
+	font-size: 12px;
+}
+
+.boxTxt {
+	margin: 0 24px 0 0px;
+	float: left;
+	width: 202px;
+}
+
+/*  horizontal rule */
+.hr {
+    float: left;
+    border: 1;
+    width: 90%;
+    margin: 100px 39px 0 35px;
+}
+
+.foot {
+      color: #bbb;
+      font-size:10px;
+      width:800px;
+      margin:auto;
+}
+
+/* sub-headers for sub-pages  */
+#subHeader {
+    text-align: left;
+    font-size: 16px;
+}
+
+/* IE compatibility stuff */
+#sidebar1 {
+	  float: left; 
+	  width: 11em;
+	  background: #EBEBEB;
+	  padding: 15px 0;
+}
+#sidebar2 {
+	  float: right; 
+	  width: 11em; 
+	  background: #EBEBEB; 
+	  padding: 15px 0; 
+}
+#sidebar1 h3, #sidebar1 p, #sidebar2 p, #sidebar2 h3 {
+	  margin-left: 10px; 
+	  margin-right: 10px;
+}
+
+.fltrt { 
+       float: right;
+       margin-left: 8px;
+}
+.fltlft { 
+	float: left;
+	margin-right: 8px;
+}
+.clearfloat { 
+	    clear:both;
+    height:0;
+    font-size: 1px;
+    line-height: 0px;
+}

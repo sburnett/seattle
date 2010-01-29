@@ -1,0 +1,72 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<title>The Security and Network Impact of Seattle</title>
+<link href="style.css" rel="stylesheet" type="text/css" /><!--[if IE]>
+<style type="text/css"> 
+/* place css fixes for all versions of IE in this conditional comment */
+#sidebar1, #sidebar2 { padding-top: 30px; }
+#mainContent { zoom: 1; padding-top: 15px; }
+/* the above proprietary zoom property gives IE the hasLayout it needs to avoid several bugs */
+</style>
+<![endif]-->
+</head>
+
+<body class="style">
+
+<div id="container">
+    <center> <a href="index.html"><img src="images/header.png" border="0" /></a>
+    
+    <div id="topAbout">
+
+        <p>The Security and Network Impact of Seattle</p>
+    </div>
+    </center>
+    
+    <div id="mainContent">
+    <p>Installing any software on a computer involves risk.   One of our key design goals with Seattle is to mitigate that risk to the extent that is possible.   Seattle is designed to safely execute general-purpose programs from untrusted users.   Seattle does this by isolating the performance and execution of programs using virtualization.   This means that Seattle never takes more than a fixed amount of resources on your machine (by default 10%), while virtualization protects against malicious programs.   Our end goal is to provide a platform that provides a safer way for users to execute applications.</p>
+    
+    <div id="subHeader">
+    <p>Quick Links</p>
+    </div>
+    
+    <ul><a href="https://seattle.cs.washington.edu/wiki/SeattleComponents">Who can use resources</a></ul>
+    <ul><a href="https://seattle.cs.washington.edu/wiki/CodeSafety">Seattle's mechanism for code safety</a></ul>
+    <ul><a href="https://seattle.cs.washington.edu/wiki/ContainmentInSeattle">Safely sending network traffic</a></ul>
+    
+    <div id="subHeader">
+    <p>FAQ</p>
+    </div>    
+    
+    <p>Q: Is it safe to run Seattle on my home machine?<br />
+	   A: Our intent from the outset has been to maximize security.   We believe our system is safer than existing code sandboxes for web applications that are prevalent on all systems.   However, any software adds risk.</p>
+    
+    <p> Q: What sort of network traffic will my computer send?<br />
+	   A: Seattle only generates TCP and UDP traffic on ports 63100 - 63199 (inclusive).   There is an <a href="https://seattle.cs.washington.edu/wiki/ContainmentInSeattle">optional module</a> under development that will restrict the source and / or destination of Seattle traffic to only other Seattle nodes.</p>
+       
+    <p>Q: What files are accessible by programs running in the Seattle virtual machines?<br />
+	   A: Programs running on Seattle are restricted to reading and writing files in a single directory that is below the Seattle installation directory.</p>
+       
+    <p>Q: Can't a malicious person write a program that consumes all of the resources on my machine?<br />
+	   A: We've done some testing and believe it's not possible for a malicious party to negatively impact your performance.   We used a common set of benchmarks used to test virtual machine isolation (fork bombs, disk and network I/O stress tests, spinning in a loop, grabbing all available memory, etc.) and scored better than most of the industry standard isolation techniques used in data centers. </p>
+       
+    <p>Q: What resources do you performance restrict?<br />
+	A: CPU, memory, disk read / write rate, random number generation, disk space, network read / write rate, network port use, loopback read / write rate, threads, and open file handles.</p>
+    
+    <p>Q: How do you set the resource restriction values?<br />
+	   A: When our installer is run, we benchmark your system and try to get a conservative estimate of the resources on your system.   We then set the overall restrictions to be that value multiplied by the percent you are donating (by default 10%).</p>
+    
+    <p> Q: My question is not answered. Who do I contact?<br />
+	  A: Please contact our team at <a href="mailto:seattle-devel@cs.washington.edu">seattle-devel@cs.washington.edu</a> if you have any further questions concerning Seattle.</p>
+  
+    </div>
+</div>
+<div class="foot">
+	<p>This material is based upon work supported by the National Science Foundation under Grant No. 
+    (CNS-0834243). Any opinions, findings, and conclusions or recommendations expressed in this material 
+    are those of the author(s) and do not necessarily reflect the views of GPO Technologies, Corp., the 
+    GENI Project Office, or the National Science Foundation.</p>
+</div>
+</body>
+</html>

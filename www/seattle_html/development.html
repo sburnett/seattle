@@ -1,0 +1,82 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<title>Developing Code Using Seattle</title>
+<link href="style.css" rel="stylesheet" type="text/css" /><!--[if IE]>
+<style type="text/css"> 
+/* place css fixes for all versions of IE in this conditional comment */
+#sidebar1, #sidebar2 { padding-top: 30px; }
+#mainContent { zoom: 1; padding-top: 15px; }
+/* the above proprietary zoom property gives IE the hasLayout it needs to avoid several bugs */
+</style>
+<![endif]-->
+</head>
+
+<body class="style">
+
+<div id="container">
+    <center> <a href="index.html"><img src="images/header.png" border="0" /></a>
+    
+    <div id="topAbout">
+
+        <p>Developing Code Using Seattle</p>
+    </div>
+    </center>
+    
+    <div id="mainContent">
+    <p> Developers have long lamented the programming interface provided by the network.   It is clear that low-level sockets are not the ideal way to communicate and reason about execution on remote machines.   Seattle makes developing networked applications easy and makes the power of cloud computing accessible to all developers.   Seattle has a network- and resource-aware programming model that uses a subset of the Python language.   This makes it easy to create applications and to integrate with existing code.   Using Seattle is free and easy.   Seattle helps developers support their application's popularity by having their computational resources scale with their user base.</p>
+    
+    <div id="subHeader">
+    <p>Quick Links</p>
+    </div>
+    
+    <ul><a href="https://seattle.cs.washington.edu/wiki/StudentsPage#Tutorials">Programming Seattle</a></ul>
+    <ul><a href="https://seattle.cs.washington.edu/browser/seattle/trunk/LICENSE.txt">Seattle's Open Source License (MIT)</a></ul>
+    <ul><a href="https://seattle.cs.washington.edu/wiki/DonatingResources">How Donations Work</a></ul>
+    
+    <div id="subHeader">
+    <p>FAQ</p>
+    </div>
+    
+     <p>Q: Are there any restrictions on how I use Seattle?<br />
+		A: For the most part, the things that you shouldn't do aren't supported by the API.   You're welcome to use our code for commercial projects, etc.   Please see <a href="https://seattle.cs.washington.edu/browser/seattle/trunk/LICENSE.txt">our license</a> for details.   Our use policy is roughly modeled on the <a href="http://www.planet-lab.org/aup">PlanetLab Acceptable Use Policy.</a>   The main things to know are: 1) no illegal activity, 2) don't try to hack into Seattle user machines (if you want to test a vulnerability, let us know, we have machines set aside for this), and 3) even if the system doesn't have outgoing or incoming IP / port restrictions, don't abuse this.   Basically, it boils down to treating the system as though you're a network admin and it's on your network.</p>     
+    
+    <p>Q: What is SeattleGENI and how does it differ from Seattle?<br />
+	A: Seattle is the core software that all users will run.   SeattleGENI is a website that allows users to share Seattle resources.   Some Seattle users may not want to share resources and thus will not use an installer from SeattleGENI.</p>
+    
+    <p> Q: Who can access SeattleGENI resources to run Seattle programs?<br />
+	A: Anyone. These vessels are publicly available.</p>
+    
+    <p> Q: What is the difference between a Seattle program and a Seattle application.<br />
+	A: If the end user means to install it, it's an application.   If the end user is oblivious, it's a program.
+Each Seattle application is completely unrestricted.   A user must try to install a Seattle application.   The installation is done through an installer provided by the application developer.   As such, the application can do whatever you want on the user's system.   Seattle is simply acting like a library that you have access to.  Your application installer must enable the sharing Seattle resources with other users.  Seattle programs are encapsulated in a Seattle sandbox.   They are run safely on user machines that may not have opted into running the application.   This allows Seattle programs to be migrated and tested freely on any Seattle node.</p>
+    
+    <p> Q: How do I integrate a Seattle application with my existing code base?<br />
+	A: You can <a href="https://seattle.cs.washington.edu/wiki/RepyHelper">call Seattle code easily from Python.</a>   Of course, this isn't possible to do with Seattle programs as they aren't trusted to run anything but Seattle code. </p>
+    
+    <p>Q: The reliance on Repy really limits what I can do.   What about supporting programming language X?<br />
+	A: We're working on a way to do this.   More information to come. </p>
+    
+    <p> Q: Is Seattle under active development?<br />
+	A: Yes, we have around a dozen active developers.</p>
+    
+    <p> Q: I want feature X added to the API or language.   How do I get this changed?<br />
+	A: We tend to be very, very cautious about API changes.   We are very focused on security.   If you are deploying a Seattle application, you can easily do whatever calls you like, but this requires end user opt-in.</p>
+    
+    <p>Q: What's so great about Seattle?<br />
+	A: It's designed to be safe and has resource isolation built in.   Seattle has a minimal trusted computing base and hard resource allocation.   Seattle also is built to allow applications to be perfectly portable.   If you find any difference on a different OS, please tell us.   We have gone to great pains to ensure Seattle is truly 'write once, run anywhere'.   Seattle also allows networked access to other computational resources.   Networked code execution and resource allocation are no longer second class citizens.</p>
+    
+    <p> Q: Doesn't Java provide these characteristics?   Isn't it "write once, run anywhere"?<br />
+	A: No, not really.   These were Java design goals, but the designers made trade-offs that sacrificed some of these ideals.</p>
+    
+    </div>
+</div>
+<div class="foot">
+	<p>This material is based upon work supported by the National Science Foundation under Grant No. 
+    (CNS-0834243). Any opinions, findings, and conclusions or recommendations expressed in this material 
+    are those of the author(s) and do not necessarily reflect the views of GPO Technologies, Corp., the 
+    GENI Project Office, or the National Science Foundation.</p>
+</div>
+</body>
+</html>
