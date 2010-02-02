@@ -42,6 +42,7 @@ req emulfile.py
 req emulmisc.py
 req emultimer.py
 req fakelinecache.py
+req httpretrieve.repy
 req httpserver.repy
 req idhelper.py
 req loggingrepy.py
@@ -83,7 +84,6 @@ req softwareupdater.py
 req statusstorage.py
 req time.repy
 req tracebackrepy.py
-req registerhttpcallback.repy
 req createnodekeys.py
 req runonce.py
 req writemetainfo.py
