@@ -42,8 +42,7 @@ req emulfile.py
 req emulmisc.py
 req emultimer.py
 req fakelinecache.py
-req httpretrieve.repy
-req http_hierarchy_error.repy
+req httpserver.repy
 req idhelper.py
 req loggingrepy.py
 req math.repy
@@ -143,3 +142,4 @@ req strace.py
 req stop_all_seattle_processes.py
 req geoip_client.repy
 req priority_queue.repy
+req AdvertiseObjects.repy
