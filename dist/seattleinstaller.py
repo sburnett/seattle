@@ -1354,7 +1354,7 @@ def setup_linux_or_mac_startup():
     raise UnsupportedOSError
 
   # Derek Cheng: check to see if Seattle is being installed on a Nokia tablet.
-  if platform.node().startswith('Nokia-N'):
+  if platform.machine().startswith('armv'):
     return setup_nokia_startup()
 
   _output("Attempting to add an entry to the crontab...")
@@ -2006,7 +2006,7 @@ def main():
   # Derek Cheng: if the user is running a Nokia N800 tablet, we require them
   # to be on root first in order to have files created in the /etc/init.d and
   # /etc/rc2.d directories. 
-  if platform.node().startswith('Nokia-N'):
+  if platform.machine().startswith('armv'):
     _output('Seattle is being installed on a Nokia N800/900 Internet Tablet.')
     # if the current user name is not 'root'
     if pwd.getpwuid(os.getuid())[0] != 'root':

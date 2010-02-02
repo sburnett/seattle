@@ -453,7 +453,7 @@ def uninstall_Linux_and_Mac():
 
   # Derek Cheng: Find out if this is a Nokia N800/900 Tablet, and if so runs a 
   # separate uninstaller because there is no crontab on the tablets.
-  if platform.node().startswith('Nokia-N'):
+  if platform.machine().startswith('armv'):
     return uninstall_nokia()
 
 
@@ -590,7 +590,7 @@ def main():
   # require them to be on root to remove some files in /etc/init.d and 
   # /etc/rc2.d directories. This needs to preceed servicelogger.init, since
   # only root has permission to installInfo. 
-  if platform.node().startswith('Nokia-N'):
+  if platform.machine().startswith('armv'):
     # Check to see if the current user is root.
     if pwd.getpwuid(os.getuid())[0] != 'root':
       _output('Please run the uninstaller as root. This can be done by ' \
