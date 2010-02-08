@@ -26,7 +26,8 @@ fi
 
 rm -rf $tmpdir
 
-FAILURE_WORDS="fail exception traceback"
+#We fail if UTF log contains FAIL or ERROR.
+FAILURE_WORDS="FAIL ERROR"
 
 for word in `echo $FAILURE_WORDS`; do
   if [ ! -z "`grep -i $word $logfile`" ]; then

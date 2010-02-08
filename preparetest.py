@@ -161,6 +161,7 @@ def main():
   copy_to_target("softwareupdater/*", target_dir)
   copy_to_target("autograder/nm_remote_api.mix", target_dir)
   copy_to_target("keydaemon/*", target_dir)
+  copy_to_target("utf/*", target_dir)
   # The license must be included in anything we distribute.
   copy_to_target("LICENSE.TXT", target_dir)
   
@@ -168,15 +169,13 @@ def main():
     # Only copy the tests if they were requested.
     copy_to_target("repy/tests/*", target_dir)
     copy_to_target("nodemanager/tests/*", target_dir)
-    copy_to_target("portability/tests/*", target_dir)
+    copy_to_target("portability/tests/*", target_dir)  	
     copy_to_target("seash/tests/*", target_dir)
+    copy_to_target("oddball/tests/*", target_dir)
     copy_to_target("seattlelib/tests/*", target_dir)
     copy_to_target("keydaemon/tests/*", target_dir)
+    copy_to_target("utf/tests/*", target_dir)
     copy_to_target("dist/update_crontab_entry.py", target_dir)
-
-    # The web server is used in the software updater tests
-    copy_to_target("assignments/webserver/*", target_dir)
-    copy_to_target("softwareupdater/test/*", target_dir)
 
   #set working directory to the test folder
   os.chdir(target_dir)

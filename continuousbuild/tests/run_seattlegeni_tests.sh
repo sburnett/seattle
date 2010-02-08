@@ -2,8 +2,10 @@
 
 trunkdir=$1
 logfile=$2
+#find the first character. We need to check if it's a slash (indicating absolute path).
+absolutemarker=${trunkdir:0:1}
 
-if [ -z "$trunkdir" ] || [ -z "$logfile" ]; then
+if [ -z "$trunkdir" ] || [ -z "$logfile" ] || [ "$absolutemarker" != "/" ]; then
   echo "Usage: $0 trunkdir logfile (where logfile should be an absolute path, not a relative one)"
   exit 1
 fi

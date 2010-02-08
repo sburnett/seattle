@@ -89,25 +89,25 @@ def change_nmmain_version(nmmain_filename, new_version):
   nmmainfile.close()
 
 
-def create_folders(topdir='../'):
-  """
-  <Purpose>
-    Creates all the test update folders in the specified location.  Note
-    that this must not be the current directory.  By default it is the
-    parent directory.
-  <Arguments>
-    topdir - The directory in which to put the test subdirectories.
-  <Side Effects>
-    Creates numerous update directories within the given directory.
-  <Return>
-    Returns a list of directories created relative to the topdir
+def create_folders(topdir='../'): 
+  """ 
+  <Purpose> 
+    Creates all the test update folders in the specified location.  Note  
+    that this must not be the current directory.  By default it is the 
+    parent directory. 
+  <Arguments> 
+    topdir - The directory in which to put the test subdirectories. 
+  <Side Effects> 
+    Creates numerous update directories within the given directory. 
+  <Return> 
+    Returns a list of directories created relative to the topdir 
   """
 
-  # Update folders need a metainfo file and all of the files needed
+  # Update folders need a metainfo file and all of the files needed 
   # for the Seattle platform.  The metainfo file must contain all of 
-  # the file names, their hashes, and their sizes.  The metainfo file
+  # the file names, their hashes, and their sizes.  The metainfo file 
   # must be correctly signed.  Of course for sites testing error 
-  # conditions, these things might not hold.
+  # conditions, these things might not hold. 
   
   # Ensure a baseurl was given
   if len(sys.argv) < 2:
@@ -140,7 +140,7 @@ def create_folders(topdir='../'):
   # Also change it to update from the given base url instead of the standard one
   siteindex = updata.find('softwareurl = "http://')
   eolindex = updata.find('\n', siteindex)
-  updata = updata[:siteindex] + 'softwareurl = "' + baseurl + '/"' + \
+  updata = updata[:siteindex] + 'softwareurl = "' + baseurl + '"' + \
       updata[eolindex:]
 
   # Also change the key to the test key
@@ -259,7 +259,7 @@ writemetainfo.py e6c00469d77bd645a43b9ae7b734af66ed231d6a 40524
   # Also change it to update from a new url
   siteindex = updata.find('softwareurl = "http://')
   eolindex = updata.find('\n', siteindex)
-  updata = updata[:siteindex] + 'softwareurl = "' + baseurl + '/"' + \
+  updata = updata[:siteindex] + 'softwareurl = "' + baseurl + '"' + \
       updata[eolindex:]
 
   # Write this change back to softwareupdater

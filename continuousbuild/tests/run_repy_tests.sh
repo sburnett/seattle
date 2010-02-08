@@ -17,31 +17,32 @@ cd $trunkdir
 python preparetest.py -t $tmpdir
 cd $tmpdir
 
-python run_tests.py  >$logfile 2>&1
+python utf.py -m repytests  >$logfile 2>&1
 
 if [ "$?" != "0" ]; then
-  echo "run_tests.sh didn't run properly"
+  echo "utf repytests didn't run properly"
   rm -rf $tmpdir
   exit 1
 fi
 
 rm -rf $tmpdir
 
-# We don't include "exception" because it is in the name of some of the tests
-# themselves which end up in the log file.
-FAILURE_WORDS="[failed] failure: traceback"
+# We fail if UTF log contains FAIL or ERROR
+FAILURE_WORDS="FAIL ERROR"
 
 for word in `echo $FAILURE_WORDS`; do
-  if [ ! -z "`grep -iF \"$word\" $logfile`" ]; then
+  if [ ! -z "`grep -F \"$word\" $logfile`" ]; then
     echo "Encountered failure word '$word' in logfile."
     exit 1
   fi
 done
 
-SUCCESS_STRING=" tests passed, 0 tests failed"
+#TODO(sjs25): Add count functionality to UTF 
+#(commented code left here intentionally)
+#SUCCESS_STRING=" tests passed, 0 tests failed"
 
-if [ -z "`grep -F \"$SUCCESS_STRING\" $logfile`" ]; then
-  echo "Did not find success string '$SUCCESS_STRING' in logfile."
-  exit 1
-fi
+#if [ -z "`grep -F \"$SUCCESS_STRING\" $logfile`" ]; then
+#  echo "Did not find success string '$SUCCESS_STRING' in logfile."
+#  exit 1
+#fi
 
