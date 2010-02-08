@@ -450,7 +450,10 @@ def _import_file_contents_to_caller_namespace(modulename, preserve_globals):
   false, then globals that are already defined in the callers namespace get 
   skipped.
   
-  Doesn't include objects that start with "_"
+  This function will not import names that start with '__'.  However, unlike 
+  Python, this function will include objects that start with "_", because 
+  otherwise private names are not available to an imported module through
+  their namespace.   See ticket #841.
   
   BIG HACK WARNING:
     The idea here is to use inspect to get a handle to the caller's module, and 
@@ -476,9 +479,9 @@ def _import_file_contents_to_caller_namespace(modulename, preserve_globals):
   #Now iterate over the import's members, and insert them into the
   #caller's namespace
   for name,definition in inspect.getmembers(import_module):
-    
-    #like normal python from imports, don't import names starting with "_"
-    if name.startswith('_'):
+
+    # Don't want to import things like __name__...
+    if name.startswith('__'):
       continue
     
     #Skip blacklisted items
