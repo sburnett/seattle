@@ -161,12 +161,14 @@ def main():
   copy_to_target("softwareupdater/*", target_dir)
   copy_to_target("autograder/nm_remote_api.mix", target_dir)
   copy_to_target("keydaemon/*", target_dir)
-  copy_to_target("utf/*", target_dir)
   # The license must be included in anything we distribute.
   copy_to_target("LICENSE.TXT", target_dir)
   
+  # Only copy the tests if they were requested.
   if repytest:
-    # Only copy the tests if they were requested.
+    # The test framework itself.
+    copy_to_target("utf/*.py", target_dir)
+    # The various tests.
     copy_to_target("repy/tests/*", target_dir)
     copy_to_target("nodemanager/tests/*", target_dir)
     copy_to_target("portability/tests/*", target_dir)  	
@@ -175,6 +177,9 @@ def main():
     copy_to_target("seattlelib/tests/*", target_dir)
     copy_to_target("keydaemon/tests/*", target_dir)
     copy_to_target("utf/tests/*", target_dir)
+    # jsamuel: This file, dist/update_crontab_entry.py, is directly included by
+    # make_base_installers and appears to be a candidate for removal someday.
+    # I assume zackrb needed this for installer testing.
     copy_to_target("dist/update_crontab_entry.py", target_dir)
 
   #set working directory to the test folder

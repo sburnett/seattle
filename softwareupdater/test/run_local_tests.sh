@@ -47,6 +47,8 @@ fi
 python preparetest.py $testsdir 
 
 # Copy the extra files that must be in the tests directory for the local software updater tests.
+# We copy the utf files because the -t flag to prepartest.py wasn't used.
+cp utf/*.py $testsdir
 cp -R softwareupdater/test/* $testsdir
 cp -R assignments/webserver/* $testsdir
 
