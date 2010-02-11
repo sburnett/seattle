@@ -32,16 +32,6 @@ import tempfile
 import time
 import getpass
 
-# Derek Cheng: we only need to import pwd and stat if we're on Nokia.
-if platform.machine().startswith('armv') and \
-      platform.system().startswith('Linux'):
-  # Derek Cheng: This is for detecting if the user is root on the 
-  # Nokia N800/900 tablet.
-  import pwd
-  # Derek Cheng: This is for changing the permission bits on the startup 
-  # scripts on the Nokia tablet. (i.e., stat.S_IXUSR gives owner permission to 
-  # execute)
-  import stat
 
 # Python should do this by default, but doesn't on Windows CE.
 sys.path.append(os.getcwd())
@@ -1285,6 +1275,11 @@ def setup_nokia_startup():
   finally:
     startup_script_handle.close()
 
+  # Derek Cheng: This is for changing the permission bits on the startup scripts
+  # on the Nokia tablet. (i.e., stat.S_IXUSR gives owner permission to execute)
+  # JAC: this is only needed on the Nokia, so is imported here since stat isn't
+  # portable
+  import stat
   # Changes the permission bits of the startup script to executable by owner.
   try:
     os.chmod(startup_script_path, stat.S_IXUSR)
@@ -2012,6 +2007,8 @@ def main():
   # /etc/rc2.d directories. 
   if platform.machine().startswith('armv'):
     _output('Seattle is being installed on a Nokia N800/900 Internet Tablet.')
+    # JAC: I can't import this on Windows, so will do it here...
+    import pwd
     # if the current user name is not 'root'
     if pwd.getpwuid(os.getuid())[0] != 'root':
       _output('Please run the installer as root. This can be done by ' \

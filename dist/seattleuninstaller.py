@@ -31,14 +31,9 @@ import getopt
 import time
 # Derek Cheng: This is for detecting Nokia N800/900 tablets.
 import platform
-# We only need to import pwd and errno if we're on the Nokia.
-if platform.machine().startswith('armv') and \
-      platform.system().startswith('Linux'):
-  # Derek Cheng: This is for detecting if the user is root (for Nokia tablets)
-  import pwd
-  # Derek Cheng: This is for detecting error codes when removing the script or
-  # the link is unsuccessful.
-  import errno
+# Derek Cheng: This is for detecting error codes when removing the script or
+# the link is unsuccessful.
+import errno
 
 # Import seattle modules
 import persist
@@ -594,6 +589,9 @@ def main():
   # /etc/rc2.d directories. This needs to preceed servicelogger.init, since
   # only root has permission to installInfo. 
   if platform.machine().startswith('armv'):
+    # Derek Cheng: This is for detecting if the user is root.   This module 
+    # isn't portable so I only can import it on Linux / Nokia devices
+    import pwd
     # Check to see if the current user is root.
     if pwd.getpwuid(os.getuid())[0] != 'root':
       _output('Please run the uninstaller as root. This can be done by ' \
