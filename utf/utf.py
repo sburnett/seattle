@@ -238,11 +238,12 @@ def test_module(module_name, module_file_list):
 
   
   sub = None
-  # If we must open a process to run on the side of 
+  # If we must open a process to run concurrently with the tests 
   if subprocess_file:
     print "Now starting subprocess: " + subprocess_file
     sub = subprocess.Popen(['python', subprocess_file])
-    time.sleep(10)
+    # Give the process time to start
+    time.sleep(30)
 
   if setup_file:
     print "Now running setup script: " + setup_file
