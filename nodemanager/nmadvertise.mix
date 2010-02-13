@@ -16,6 +16,8 @@ include rsa.repy
 
 include advertise.repy
 
+include listops.repy
+
 import misc
 
 import threading
@@ -85,6 +87,11 @@ class advertthread(threading.Thread):
         # this list contains the keys we will advertise
         advertisekeylist = []
 
+        # JAC: advertise under the node's key
+        if rsa_publickey_to_string(self.nodekey) not in lastadvertisedict and self.nodekey not in advertisekeylist:
+          advertisekeylist.append(self.nodekey)
+
+
         # make a copy so there isn't an issue with a race
         for vesselname in self.addict.keys()[:]:
 
@@ -105,8 +112,9 @@ class advertthread(threading.Thread):
               if rsa_publickey_to_string(userkey) not in lastadvertisedict and userkey not in advertisekeylist:
                 advertisekeylist.append(userkey)
 
-            # also advertise under the node key
-            advertisekeylist.append(self.nodekey)
+
+        # there should be no dups.   
+        assert(advertisekeylist == listops_uniq(advertisekeylist))
 
         # now that I know who to announce to, send messages to annouce my IP and 
         # port to all keys I support
