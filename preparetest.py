@@ -166,17 +166,19 @@ def main():
   
   if repytest:
     # Only copy the tests if they were requested.
-    copy_to_target("repy/tests/*", target_dir)
-    copy_to_target("nodemanager/tests/*", target_dir)
-    copy_to_target("portability/tests/*", target_dir)
-    copy_to_target("seash/tests/*", target_dir)
+    copy_to_target("repy/tests/run_tests.py", target_dir)
+    copy_to_target("repy/tests/restrictions.*", target_dir)
+    copy_to_target("repy/testsV2/*", target_dir)
+    #copy_to_target("nodemanager/tests/*", target_dir)
+    #copy_to_target("portability/tests/*", target_dir)
+    #copy_to_target("seash/tests/*", target_dir)
     copy_to_target("seattlelib/tests/*", target_dir)
-    copy_to_target("keydaemon/tests/*", target_dir)
+    #copy_to_target("keydaemon/tests/*", target_dir)
     copy_to_target("dist/update_crontab_entry.py", target_dir)
 
     # The web server is used in the software updater tests
-    copy_to_target("assignments/webserver/*", target_dir)
-    copy_to_target("softwareupdater/test/*", target_dir)
+    #copy_to_target("assignments/webserver/*", target_dir)
+    #copy_to_target("softwareupdater/test/*", target_dir)
 
   #set working directory to the test folder
   os.chdir(target_dir)
