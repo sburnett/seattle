@@ -6,7 +6,7 @@ logfile=$2
 absolutemarker=${trunkdir:0:1}
 
 if [ -z "$trunkdir" ] || [ -z "$logfile" ] || [ "$absolutemarker" != "/" ]; then
-  echo "Usage: $0 trunkdir logfile (where logfile should be an absolute path, not a relative one)"
+  echo "Usage: $0 trunkdir logfile (where trunkdir and logfile should be absolute paths, not relative ones)"
   exit 1
 fi
 
