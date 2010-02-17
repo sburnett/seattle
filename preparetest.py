@@ -166,8 +166,8 @@ def main():
   
   if repytest:
     # Only copy the tests if they were requested.
-    copy_to_target("repy/tests/run_tests.py", target_dir)
     copy_to_target("repy/tests/restrictions.*", target_dir)
+    copy_to_target("utf/*.py", target_dir)
     copy_to_target("repy/testsV2/*", target_dir)
     #copy_to_target("nodemanager/tests/*", target_dir)
     #copy_to_target("portability/tests/*", target_dir)
