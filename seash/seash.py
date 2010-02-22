@@ -1144,7 +1144,7 @@ update             -- Update information about the vessels
             if thisnodeIP not in printedIPlist:
               printedIPlist.append(thisnodeIP)
               location_dict = geoip_record_by_addr(thisnodeIP)
-              print geoip_location_str(location_dict)
+              print str(vesselinfo[longname]['ID'])+'('+str(thisnodeIP)+'): '+geoip_location_str(location_dict)
   
           continue
 
