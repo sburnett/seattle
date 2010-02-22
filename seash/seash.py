@@ -1144,16 +1144,7 @@ update             -- Update information about the vessels
             if thisnodeIP not in printedIPlist:
               printedIPlist.append(thisnodeIP)
               location_dict = geoip_record_by_addr(thisnodeIP)
-
-              sys.stdout.write(str(thisnodeIP) + ": ")
-              if 'city' in location_dict:
-                sys.stdout.write(location_dict['city'] + ", ")
-              if 'country_name' in location_dict:
-                if location_dict['country_name'] in ['United States', 'Canada'] \
-                   and 'region_name' in location_dict:
-                  sys.stdout.write(location_dict['region_name'] + ", ")
-                sys.stdout.write(location_dict['country_name'])
-              print
+              print geoip_location_str(location_dict)
   
           continue
 
