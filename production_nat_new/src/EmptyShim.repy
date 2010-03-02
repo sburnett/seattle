@@ -1,0 +1,59 @@
+
+
+class EmptyShim:
+
+  # default class for all shims
+  # simply calls the next shim
+
+  # this allows shims to implement only that portion of the network
+  # API that they want to interpose on.
+
+  name = 'EmptyShim'
+
+
+  def __init__(self,next_shim=None,optional_args=None):
+    self.shim_stack = ShimStack(next_shim)
+
+  def waitforconn(self,host,port,callback):
+    return self.shim_stack.waitforconn(host,port,callback)
+
+  def recvmess(self,host,port,callback):
+    return self.shim_stack.recvmess(host,port,callback)
+
+  def openconn(self,host,port,localhost=None,localport=None,timeout=5):
+    return self.shim_stack.openconn(host,port,localhost,localport,timeout)
+
+  def sendmess(self,host,port,msg,localhost=None,localport=None):
+    return self.shim_stack.sendmess(host,port,msg,localhost,localport)
+
+  def stopcomm(self,handle):
+    return self.shim_stack.stopcomm(handle)
+
+  
+  def get_names(self):
+    
+    # Each shim implements this method
+    # by adding its name, and optional arguments to 
+    # each item in the list provided by the shim below.
+    # Branches result in more items in the list.
+
+    # the strings in the list created are of the form required
+    # to be used with the Shim Stack constructor so calling
+    # new_stack = ShimStack(old_stack.get_names[index]) would create
+    # a compatiable stack
+
+    if self.shim_stack.top_shim is None:
+      name_list = ['']
+    else:
+      name_list = self.shim_stack.get_names()
+    
+    new_name_list = []
+    for name in name_list:
+      name = '('+self.name+')'+name
+      new_name_list.append(name)
+    return new_name_list
+
+
+
+
+shimstack_reg_layer('EmptyShim',{'class':EmptyShim})

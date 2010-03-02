@@ -1,0 +1,56 @@
+"""
+
+repeats a waitforconn on the same port with a different function
+the function should be replaced, but the same forwarder connection mainted
+
+"""
+
+#pragma repy restrictions.normal
+
+include ShimStack.repy
+include NullShim.repy
+include NatForwardingShim.repy
+
+
+def responseA(remote_ip,remote_port,sock,th,listenhandle):
+  sock.send('A')
+  sock.close()
+
+def responseB(remote_ip,remote_port,sock,th,listenhandle):
+  sock.send('B')
+  sock.close()
+
+
+if callfunc == 'initialize':
+  
+  serverkey = 'NAT$BLAHBLAHBLAH'
+
+  ip = '127.0.0.1'
+  port = 12345
+
+  server_shim = ShimStack('(NatForwardingShim,'+ip+','+str(port)+')(NullShim)')
+  client_shim = ShimStack('(NatForwardingShim,'+ip+','+str(port)+')(NullShim)')
+  
+  # do the first waitfor conn
+  handle1 = server_shim.waitforconn(serverkey,12347,responseA)
+  
+  # connect as a client
+  sock = client_shim.openconn(serverkey,12347)
+  msg = sock.recv(1)
+  sock.close()
+  if msg != 'A':
+    raise Exception("Unexpected msg from A: "+msg)
+ 
+
+  # do the additional waitforconn on the same port
+  handle2 = server_shim.waitforconn(serverkey,12347,responseB)
+
+  # connect again
+  sock = client_shim.openconn(serverkey,12347)  
+  msg = sock.recv(1)
+  sock.close()
+  if msg != 'B':
+    raise Exception("Unexpected msg from B: "+msg)
+
+  
+  server_shim.stopcomm(handle2)

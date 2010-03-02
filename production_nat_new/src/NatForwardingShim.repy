@@ -1,0 +1,420 @@
+
+"""
+<Program Name>
+  NatForwardingShim.repy
+
+<Started>
+  Jan 5, 2010
+
+<Author>
+  Eric Kimbrel
+
+<Purpose>
+  Provide a NAT (network address translator) forwarding service within the 
+  service compostion framework
+
+  When a server does a nat_waitforconn he connects to a nat_forwarder and
+  registers.  When a client connects the to the nat_forwarder the nat_forwarder
+  uses the control sock to have the server open a new connection.  Traffic
+  is then exchanged  via the nat_forwarder
+
+
+  when completed this library should..
+
+    optionally takes a socket connection to a forwarder on shim construction
+    creates a socket connection to a forwarder ( if one is not provided)
+    manages re-connection of connection to the forwarder is lost
+    advertises the forwarder connection
+    listens for connection requests over a control socket
+    makes new connections to the forwarder for client communications
+    Provides meaningful exceptions when connections are rejected
+
+"""
+
+
+include session.repy
+include ShimStack.repy
+include NAT_CONSTANTS.repy
+include AdvertiseObjects.repy
+include EmptyShim.repy
+include NullShim.repy
+include NatForwardingLib.repy
+
+
+
+
+
+# custom obj used as a comm handle and to keep state 
+# for diffent calls to waitforconn
+class NatStateObj:
+  def __init__(self,host,port,callback):
+    self.sock = None
+    self.running = True
+    self.callback = callback
+    self.host = host
+    self.port = port
+    self.adhandle = None
+
+
+
+class NatForwardingShim(EmptyShim):
+  
+  
+  name ='NatForwardingShim'
+
+  advertise_obj = AdvertisePipe()
+  lookup_obj = LookupCache()
+
+ 
+  ######    CONSTRUCTOR
+
+  def __init__(self,next_shim=None,optional_args=None):
+    
+    # call the base constructor
+    EmptyShim.__init__(self,next_shim,optional_args)    
+
+    self.state_objs = {}
+    
+
+    # hop_key and hop_port can be used to avoid doing a lookup with
+    # openconn, primarily used for testing
+    self.hop_key = None
+    self.hop_port = None
+
+    # optional args should not be supplied, or should be a hop key and port
+    # note: these are done as optional args to conform with ShimStack standards
+    if optional_args is not None:
+      if len(optional_args) == 2:
+       self.hop_key = optional_args[0]
+       self.hop_port = int(optional_args[1])
+      else:
+        raise Exception("Improper optional args passed into NatForwardingShim")
+    
+    
+
+  #######  SERVER METHODS  
+
+
+
+  def waitforconn(self,key,port,callback):
+    """
+    <Purpose>
+      Provide a means to register with a nat_forwarder and wait for connections
+
+    <Arguments>
+      key: They srv key to register with a nat forwarder, its up to the user
+      of this library to come up with a unique value to use as key, and to 
+      communicate this key to potential clients.
+
+      port: The port to be used
+
+      localip,localport: see openconn
+  
+      callback: see waitforconn
+
+    <Exceptions>
+      Sock exceptions may occur in event of connection failure, etc
+    
+    <Side Effects>
+      1 thread is consumed to wait for connections over the control socket
+      1 thread is consumed to advertise this connection
+
+      every call to waitforconn will use 2 threads, until stopcomm is called
+
+    """
+
+    if port in self.state_objs:
+      # if this port alreayd has an active listener just replace the callback
+      state_obj = self.state_objs[port]
+      state_obj.callback = callback
+      return state_obj
+
+
+    # create a new state object for this listener
+    state_obj = NatStateObj(key,port,callback)
+
+    # establish a control socket with a forwarder
+    self.establish_control_sock(state_obj)
+    self.state_objs[port] = state_obj
+
+    # start a thread to listen for new requests
+    settimer(0,self.nat_waitfor_request,[state_obj])
+
+    # return a handle
+    return state_obj
+
+
+
+
+  def establish_control_sock(self,state_obj):
+    # connect to a forwarder and establish a control socket
+    # this control socket is used to listen for connection requests
+
+    if self.hop_key is not None and self.hop_port is not None:
+      # use the manually configured forwarder if it exists
+      control_sock = self.shim_stack.openconn(self.hop_key,int(self.hop_port))  
+      for_ip = self.hop_key
+      for_port = int(self.hop_port)
+    
+    else:
+      # use the lookup mechanism to find a forwarder
+      
+      forwarder_list = natforwardinglib_forwarder_lookup()
+      connected = False      
+      
+      ex_str =''
+      for (for_ip,for_port) in forwarder_list:
+        try:
+          control_sock = self.shim_stack.openconn(for_ip,for_port)
+        except Exception,e:
+          ex_str = ex_str+' '+str(e)
+        else:
+          connected = True
+          break
+      
+      if not connected:
+        raise NatConnError("Could not establish control socket with any of "
+                     +str(len(forwarder_list))+" forwarders: "+ex_str)   
+
+        
+    #register the with the forwarder
+    control_sock.send(NAT_SERVER) 
+    session_sendmessage(control_sock,NAT_INIT)
+    session_sendmessage(control_sock,str(state_obj.host)) 
+    session_sendmessage(control_sock,str(state_obj.port))
+
+  
+    # see if the connection was established
+    response = session_recvmessage(control_sock)
+    if response != NAT_YES:
+      raise Exception, 'NAT node refused connection'
+
+    ad_key = state_obj.host+'$'+str(state_obj.port)+'$TCP'
+    ad_value = self.name+'$'+for_ip+'$'+str(for_port)
+    state_obj.adhandle = self.advertise_obj.add(ad_key,ad_value)
+    state_obj.sock = control_sock
+
+
+
+
+  def establish_comms_sock(self,control_sock):
+    # upon recieve a connection request make a new connection
+    # to the forwarder to facilliate the communication
+    # raises an exception if failure occurs
+
+    # read the connection request over the control socket
+    remote_key = session_recvmessage(control_sock)
+    remote_port = session_recvmessage(control_sock)
+    forwarder_ip = session_recvmessage(control_sock)
+    forwarder_port = session_recvmessage(control_sock)
+
+    # create the new connection
+    new_sock = self.shim_stack.openconn(forwarder_ip,int(forwarder_port))
+    new_sock.send(NAT_SERVER)
+    session_sendmessage(new_sock,NAT_NEW_CONN)
+    session_sendmessage(new_sock,remote_key)
+    session_sendmessage(new_sock,remote_port) 
+    
+    # verify the connection is established
+    response = session_recvmessage(new_sock)
+    if response != NAT_YES:
+      new_sock.close() # this connection failed
+    else:
+      # confirm the connection over the control sock 
+      session_sendmessage(control_sock,NAT_YES)
+      
+      # wait for the forwarder to verify that the socket is ready
+      # to pass up to the users fuction
+      response = session_recvmessage(control_sock)
+      
+      # return the connection along with the identity of the clt
+      if response == NAT_YES: return (remote_key,remote_port,new_sock)
+      else: raise Exception("Establish comms failed")
+     
+
+
+  def stopcomm(self,handle):  
+    """
+    acts just like a stopcomm
+
+    """
+
+    if not isinstance(handle,NatStateObj):
+      raise Exception("Bad handle passed to NatFOrwardingSHim.stopcomm ")
+    
+    self.advertise_obj.remove(handle.adhandle) 
+    handle.running = False
+    handle.sock.close()
+    
+    # remove this port fromt the list of active state objects
+    del self.state_objs[handle.port]
+    
+    return True
+
+
+
+
+  
+  def nat_waitfor_request(self,state_obj):
+    # wait for requsts for new connections over a control socket
+
+    while state_obj.running:
+      # do this until stopcomm is called 
+      try:
+        request = NAT_CONNECTION_ALIVE
+       
+        # respond to forwarder checks to see if this connection is still
+        # active, if we've lost the control sock we will detect it here
+        # and can reconnection
+        while request == NAT_CONNECTION_ALIVE:
+          try:
+            request = session_recvmessage(state_obj.sock)
+            if request != NAT_CONNECTION_ALIVE: break
+            session_sendmessage(state_obj.sock,NAT_YES)  
+          except:
+            # error over the control socket, establish a new one
+            if state_obj.running:
+              state_obj.sock.close()
+              self.advertise_obj.remove(state_obj.adhandle)
+              self.establish_control_sock(state_obj)
+
+            else:
+              raise # if stop has been called don't re-establish
+
+        # take a request to make a new connection 
+        if request != NAT_NEW_CONN:
+          raise Exception("in establish comms sock with request: "+request)  
+       
+        # try to establish the new connection
+        try:
+          (remote_key,remote_port,comms_sock) = self.establish_comms_sock(state_obj.sock)
+        except:
+          pass #todo log this? there was a failure setting up a new connection
+        else:
+          # new connection complete, send socket to callback func
+         
+          # WARNING, i just return the socket as the listen handle, TODO,
+          # make sure this works
+          state_obj.callback(remote_key,remote_port,comms_sock,comms_sock,state_obj)    
+     
+      except Exception, e:
+        if state_obj.running:
+          #stopcomm has not been called and the connection failed
+          raise Exception('ERROR OCCURED IN nat_watifor_request '+str(e))      
+     
+       
+
+
+
+  ############ CLIENT METHODS
+
+
+  def openconn(self,id,port,localip=None,localport=None,timeout=5):
+    """
+    <Purpose>
+      creates a "virtual" connection to the desired host but connecting
+      to a forwarder that will exchange traffic between the host and a
+      socklikeobj returned by this function
+
+    <Retruns>
+      a socket like object
+
+    <Exceptions>
+      see openconn
+      Exception if Forwarder rejects connection   
+
+    <Warning> TODO: Does not correctly adhere to timeout semantics
+
+    """  
+    
+    if self.hop_key is not None and self.hop_port is not None:
+      # if a hop key and port have been specified, use em.
+      base_sock = self.shim_stack.openconn(self.hop_key,self.hop_port,localip,localport,timeout)
+      self.establish_client_server_conn(base_sock,id,port)
+      return base_sock
+
+    else:
+      #find the host with a lookup
+      
+      host_list = self.lookup_host(id,port)
+
+      exception_str = ''
+      for (forip,forport) in host_list:
+        try:
+          base_sock = self.shim_stack.openconn(forip,forport,localip,
+                                                 localport,timeout)
+          self.establish_client_server_conn(base_sock,id,port)
+        except Exception,e:
+          exception_str = exception_str+',  '+str(e)
+        else:
+          return base_sock
+
+      raise NatConnError("Failed to get connection: "+exception_str)
+      
+
+
+
+  def establish_client_server_conn(self,base_sock,id,port):
+    #used by opennconn to establish connection
+
+    # specify this is a client connection, and what server we want
+    try:
+      base_sock.send(NAT_CLIENT)
+      session_sendmessage(base_sock,str(id)) 
+      session_sendmessage(base_sock,str(port))
+    except Exception,e:
+      raise NatConnError("Error initializing socket connection: "+str(e))    
+
+    # see if the connection was established
+    response =  session_recvmessage(base_sock)
+    if response != NAT_YES:
+      base_sock.close()
+      if response == NAT_SERVER_NOT_FOUND:
+        raise NatConnError('The Host requested was not found at the forwarder')
+      elif response == NAT_FORWARDER_BUSY:
+        raise NatConnError('The Host requested has reach its client capacity')
+      elif response == NAT_SERVER_ERROR:
+        raise NatConnError('The Host requested suffered an unexpected error during connection')
+      else:
+        raise NatConnError("Unknown nat failure: "+response)
+
+    #if the connection is established we can return the socket
+    return base_sock
+
+
+
+  ####   ADVERTISE / LOOKUP METHODS
+
+
+      
+
+
+  def lookup_host(self,host,port):
+    # returns a list of tuples (forwarderip,forwarderport)
+    raw_list = self.lookup_obj.lookup(host+'$'+str(port)+'$TCP')
+    if raw_list is None or len(raw_list) == 0:
+      raise NatLookupError('No lookup results for: '+host+':'+str(port))
+
+ 
+
+    tuple_list = []
+    for item in raw_list:
+      try:
+        (name,ip,port) = item.split('$')
+        if name == self.name:
+          tuple_list.append((ip,int(port)))
+      except:
+        pass
+
+    if len(tuple_list) == 0:
+      raise NatLookupError('No valid lookup results for: '+host+':'+str(port))
+    else:
+      return tuple_list
+
+
+
+
+
+
+# register with the shimstack framework
+shimstack_reg_layer('NatForwardingShim',{'class':NatForwardingShim})

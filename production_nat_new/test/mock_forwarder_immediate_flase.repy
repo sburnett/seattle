@@ -1,0 +1,92 @@
+"""
+<Program Name>
+  nat_forwarder.py
+
+<Started>
+  Jan 3, 2010
+
+<Author>
+  Eric Kimbrel
+
+<Purpose>
+  A mock forwarder for testing the check behind nat functionality
+  of the client
+
+
+"""
+
+
+include session.repy
+include NAT_CONSTANTS.repy
+include advertise.repy
+
+
+
+def check_behind_nat(rip,rport,sock,th,lh):
+  # used by remote machines to deterimine if they have
+  # bi-directional connectivity
+  
+  try:
+    (server_ip,server_port) = session_recvmessage(sock).split(':')
+    server_port = int(server_port)
+  except Exception,e:
+    print 'ERROR: exception recieving data in check_behind_nat: '+str(e)
+    sock.close()
+    return
+
+
+  session_sendmessage(sock,NAT_NO)
+  sock.close()
+
+    
+
+
+
+
+
+
+
+def common_entry(rip,rport,sock,th,lh):
+  # common entry point for clients and servers
+  # determine what type of connection this is
+  # and call the appropriate method
+
+  try:
+    type = sock.recv(1)
+  except Exception,e:
+    print 'INFO error in common entry: '+str(e)
+  else: 
+    if type == NAT_CLIENT:
+      raise Exception("NOT A VALID REQUEST FOR MOCK FORWARDER)
+    elif type == NAT_SERVER:
+      raise Exception("NOT A VALID REQUEST FOR MOCK FORWARDER)
+    elif type == NAT_CHECK_CONN:
+      check_behind_nat(rip,rport,sock,th,lh)
+    else:
+      print 'INFO: invalid conn type recvied '+type
+      sock.close()
+  
+
+
+
+
+if callfunc == 'initialize':
+
+  if len(callargs) == 1:
+    ip = getmyip()
+    wait_port = int(callargs[0])
+  elif len(callargs) == 2:
+    ip = callargs[0]
+    wait_port = int(callargs[1])
+  else:
+    print 'usage: [ip] wait_port '
+    exitall()
+    
+  
+  
+  # we need these when servers are making new connections 
+  mycontext['myip'] = ip
+  mycontext['myport']= str(wait_port)
+
+  waitforconn(ip,wait_port,common_entry)
+  

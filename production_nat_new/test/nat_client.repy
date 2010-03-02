@@ -1,0 +1,32 @@
+"""
+
+A bare bones client to illustrate how openconns should be performed
+
+"""
+
+include ShimStack.repy
+include NullShim.repy
+include NatForwardingShim.repy
+
+
+if callfunc == 'initialize':
+  
+  serverkey = 'BASICNATTESTSERVER'
+  
+  
+  shim = ShimStack('(NatForwardingShim)(NullShim)')
+  
+  # do it ten times
+  for j in range(10): 
+    try:
+      sock = shim.openconn(serverkey,12347)
+    except Exception,e:
+      print 'ERROR, got exception: '+str(e)
+    else:
+      for i in range(10):
+        sock.send('a')
+        msg = sock.recv(1)
+        if msg != 'A': print 'ERROR: got '+msg
+      sock.close()
+      print 'completed pass: '+str(j)
+

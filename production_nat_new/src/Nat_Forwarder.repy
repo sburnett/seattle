@@ -1,0 +1,458 @@
+"""
+<Program Name>
+  nat_forwarder.py
+
+<Started>
+  Jan 3, 2010
+
+<Author>
+  Eric Kimbrel
+
+<Purpose>
+  Provide a working nat forwarding service.
+
+  This program is a NAT FORWARDER.  A server connects and registers. 
+  Clients then connect and request the server.The srv  opens a new 
+  connection to the forwarder and the client and server exchange traffic 
+  through the forwarder.
+
+  
+Load Limiting Policy:
+
+  Allow up to MAX_SERVERS servers to connect
+    for each server there is one control socket
+  for each server allow up to MAX_CLIENTS clients
+    for each client there are two sockets and 2 threads
+
+
+"""
+
+
+include session.repy
+include NAT_CONSTANTS.repy
+include advertise.repy
+
+
+
+
+
+MAX_SERVERS = 5
+MAX_CLIENTS = 4 # for a total of 20 across all 5 clients
+
+
+SRV_DICT = {}  # keep track of registered servers
+CLT_DICT = {} # HOLDS CLIENT SOCKETS
+
+CLT_SERVER_DICT = {} #maps clts to servers they want to connect to
+
+
+NEW_SERVER_LOCK = getlock()
+
+
+
+
+
+
+def check_behind_nat(rip,rport,sock,th,lh):
+  # used by remote machines to deterimine if they have
+  # bi-directional connectivity
+  
+  try:
+    (server_ip,server_port) = session_recvmessage(sock).split(':')
+    server_port = int(server_port)
+  except Exception,e:
+    print 'ERROR: exception recieving data in check_behind_nat: '+str(e)
+    sock.close()
+    return
+
+  if rip != server_ip:
+    # this party needs to use nat
+    try:
+      session_sendmessage(sock,NAT_YES)
+    except Exception,e:
+      print 'ERROR: exception sending data in check_behind_nat: '+str(e)
+  
+    
+  else:
+    # the external ip address matches, but we need to attempt to open a
+    # connection to the server
+    
+    try:
+      # have the server wait for a connection
+      session_sendmessage(sock,NAT_CHECK_CONN)
+      # wait for the server to confirm
+      msg = session_recvmessage(sock)
+      if msg != NAT_YES: raise Exception('bad response from server: '+msg)
+    except Exception,e:
+      print 'ERROR sending request to server in check_behind_nat: '+str(e)
+      sock.close()
+      return
+
+    
+    # try to open a connection to the server
+    try:
+      server_sock = openconn(server_ip,server_port)
+      server_sock.close()
+    except Exception,e:
+      response = NAT_YES # the server should use nat
+    else:
+      response = NAT_NO # the server should not use nat
+   
+ 
+    # tell the server the result
+    try:
+      session_sendmessage(sock,response)
+    except Exception,e:
+      print 'ERROR sending message to server in check behind nat'
+       
+    
+  # close this connection
+  sock.close()
+
+
+def check_servers():
+  # check that servers are still alive and connected
+  # delete closed sockets from the SRV_DICT
+  servers = SRV_DICT.keys()
+  remove_list = []
+  for server in servers:
+    try:
+      sock = SRV_DICT[server]['sock']
+      session_sendmessage(sock,NAT_CONNECTION_ALIVE)
+      response = session_recvmessage(sock)
+    except:      
+      remove_list.append(server)
+    else: 
+      if response != NAT_YES:
+        remove_list.append(server)
+  
+  for server in remove_list:
+    safely_remove_server(server)
+    print 'INFO: check_server_thread removed server '+server
+
+
+
+def safely_remove_server(server):
+  # safely remove a server from the list of servers
+  # warning, NOT THREAD SAFE do locking outside of this method
+  try:
+    SRV_DICT[server]['sock'].close()
+  except:
+    pass
+  try:
+    del SRV_DICT[server]
+  except KeyError:
+    pass  #its possible this has gotten removed before
+  
+
+
+
+
+def new_srv(rip,rport,sock,th,lh):
+  # handle server connections (waitforconns)  
+  
+  #Read the servers request
+  try:
+    action = session_recvmessage(sock)
+    key = session_recvmessage(sock)
+    port = session_recvmessage(sock)
+  except:
+    sock.close()
+    print 'ERROR initially reading from new server request'
+    return
+
+  # setup a new server 
+  if action == 'INIT':
+    NEW_SERVER_LOCK.acquire()
+ 
+    # if there are MAX_SERVERS connected check to see if some are dead
+    # and remove them, this is the only time we clean up old servers
+    if len(SRV_DICT.keys()) >= MAX_SERVERS:
+      check_servers()
+
+      # if none were removed then we can't allow a new connection
+      if len(SRV_DICT.keys()) >= MAX_SERVERS:
+        try:
+          session_sendmessage(sock,NAT_NO)
+          sock.close()
+        except:
+          pass #TODO log this event?
+      
+        print 'MAX_SERVERS LIMIT REACHED, NOT ALLOWING NEW SERVER at '+rip
+        NEW_SERVER_LOCK.release()
+        return
+
+    #register the srv
+    SRV_DICT[key+','+port] = {'sock':sock,'lock':getlock(),'clts':0}
+    NEW_SERVER_LOCK.release()
+    print 'INFO: registered '+key+','+port
+
+    # tell the forwarder it has registered
+    try:
+      session_sendmessage(sock,NAT_YES)    
+    except:
+      print 'ERROR sending ack to new server, dropping server: '+key+','+port
+      NEW_SERVER_LOCK.acquire()
+      safely_remove_server(key+','+port)
+      NEW_SERVER_LOCK.release()
+
+
+  
+  elif action == NAT_NEW_CONN:
+    # setup a new connection between a clt and srv
+
+    try:
+      clt_sock = CLT_DICT[key+','+port]
+    except:
+      print 'ERROR: server requested client that does not exist'
+      try:
+        session_sendmessage(sock,NAT_NO)
+      except:
+        sock.close() #TODO log this?
+      return
+    
+    
+    else:
+      # if we found the clt confirm with the forwarder and start
+      # exchanging traffic
+      try:
+        session_sendmessage(sock,NAT_YES)
+      except:
+        # TODO log this?
+        sock.close()
+      else:
+        # exchange traffic
+        settimer(0,exchange_streams,[sock,clt_sock,True])
+        exchange_streams(clt_sock,sock,False)
+    
+      clt = key+','+port
+
+      #del the clt dict entry when the connection is finished
+      del CLT_DICT[clt]
+      
+      # decrement the number of clients
+      try:
+        server_state = SRV_DICT[CLT_SERVER_DICT[clt]]    
+        server_state['lock'].acquire()
+        server_state['clts'] -= 1
+        server_state['lock'].release()
+      except:
+        pass # the server may have been deleted if it had an error
+      
+      # remove the entry from the clt server dict
+      del CLT_SERVER_DICT[clt]
+
+  # unknown action
+  else:
+    sock.close()
+    print 'recived unknown request: '+msg
+
+
+
+
+
+def new_clt(rip,rport,clt_sock,th,lh):
+  # handle new client connections (nat openconns go here)  
+  
+  try:
+    # read the srv that the clt wants to connect to
+    key = session_recvmessage(clt_sock)
+    port = session_recvmessage(clt_sock)
+  except:
+    sock.close()
+    print 'ERROR initially reading from new clt'
+    return 
+
+
+  server = key+','+port
+
+  
+  try:
+    # lookup the server in the registration
+    control_sock = SRV_DICT[server]['sock']
+    srv_lock = SRV_DICT[server]['lock']
+  except:
+    print 'ERROR: clt: '+rip+':'+str(rport)+' requested unknown server:'+server
+    try:
+      session_sendmessage(clt_sock,NAT_SERVER_NOT_FOUND)
+      clt_sock.close()
+    except: pass #TODO log this?
+    finally: return
+  
+
+  #add the clt to the clt dict
+  CLT_DICT[rip+','+str(rport)] = clt_sock
+  CLT_SERVER_DICT[rip+','+str(rport)] = server
+
+  # begin the client/server handshake, 
+  srv_lock.acquire()
+
+  # don't allow if MAX_CLIENTS are allready connected
+  if SRV_DICT[server]['clts'] >= MAX_CLIENTS:
+    print 'INFO: maxclients recieved for '+key+':'+port+' not allowing new client'
+    try:
+      session_sendmessage(clt_sock,NAT_FORWARDER_BUSY)
+    except:
+      clt_sock.close() #TODO log this?
+    finally:
+      srv_lock.release()
+      return
+
+  
+  # tell the server it has a new connection
+  response = None
+  try:
+    session_sendmessage(control_sock,NAT_NEW_CONN)
+    session_sendmessage(control_sock,rip)
+    session_sendmessage(control_sock,str(rport))
+    session_sendmessage(control_sock,mycontext['myip'])
+    session_sendmessage(control_sock,mycontext['myport'])
+    
+    #wait for the server to verify
+    response = session_recvmessage(control_sock)
+
+  except Exception,e:
+    print 'ERROR communicating new connection request, removing server: '+server+' due to '+str(e)
+    safely_remove_server(server)
+    try:
+      session_sendmessage(clt_sock,NAT_SERVER_ERROR)
+    except:
+      pass #todo log this?
+    finally:
+      clt_sock.close()
+      srv_lock.release()
+      del CLT_DICT[rip+','+str(rport)]
+      return 
+
+
+  # check the servers response
+  if response != NAT_YES:
+    #send an error to the client
+    print 'ERROR: requested server did not make new connection'
+    try:
+      session_sendmessage(clt_sock,NAT_SERVER_ERROR)
+    except:
+      pass #todo log this?
+    clt_sock.close()
+    srv_lock.release()
+    del CLT_DICT[rip+','+str(rport)]
+    return
+    
+
+  try:
+    # tell the client the connection is ready
+    session_sendmessage(clt_sock,NAT_YES)
+  except:
+    # if the clt failed remove this clt
+    del CLT_DICT[rip+','+str(rport)]
+    clt_sock.close()    
+    clt_ready =False
+  else:
+    clt_ready = True
+    
+
+  # communicate connection readiness to the server
+  if clt_ready: srv_response = NAT_YES
+  else: srv_response = NAT_NO
+  try:
+    session_sendmessage(control_sock,srv_response)
+  except:
+    # remove the server 
+    srv_lock.release()
+    safely_remove_server(server)
+  else:
+    #increment the number of clients for the server
+    if clt_ready:
+      SRV_DICT[server]['clts'] += 1
+      clts = SRV_DICT[server]['clts']
+      srv_lock.release()
+      print 'INFO: recieved client #'+str(clts)+' for srv '+server
+
+ 
+
+
+
+
+def exchange_streams(from_sock,to_sock,do_print):
+  # exchange traffic between two sockets
+  # until an exception occurs
+  while True:
+    try:
+      msg = from_sock.recv(1024)
+      sent = to_sock.send(msg)
+      if sent != len(msg):
+        # this is a subtle error that can occur and will violate
+        # semantics if not detected. 
+
+        # TODO actually address the error and do the right thing
+        # for now i just detect the error and close the connection 
+        # which does perserve semantics
+        raise Exception("ERROR IN EXCHANGE:recv: "+str(len(msg))+"bytes and sent"+str(sent))
+    except Exception,e:
+      if do_print: print 'INFO: terminated a connection because, '+str(e)
+      from_sock.close()
+      to_sock.close()
+      return
+            
+
+
+
+
+def common_entry(rip,rport,sock,th,lh):
+  # common entry point for clients and servers
+  # determine what type of connection this is
+  # and call the appropriate method
+
+  try:
+    type = sock.recv(1)
+  except Exception,e:
+    print 'INFO error in common entry: '+str(e)
+  else: 
+    if type == NAT_CLIENT:
+      new_clt(rip,rport,sock,th,lh)
+    elif type == NAT_SERVER:
+      new_srv(rip,rport,sock,th,lh)
+    elif type == NAT_CHECK_CONN:
+      check_behind_nat(rip,rport,sock,th,lh)
+    else:
+      print 'INFO: invalid conn type recvied '+type
+      sock.close()
+  
+
+
+def forwarder_advertise_thread(ip,waitport):
+  # advertises the forwarder
+
+  base_value = ip+':'+str(waitport)+':'
+  while True:
+    value = base_value+str(len(SRV_DICT))
+    try:
+      advertise_announce(NAT_FORWARDER,value,120)
+    except Exception,e:
+       print 'ADVERTISE ERROR: '+str(e)
+       sleep(10)
+    else:
+      sleep(60)
+
+
+if callfunc == 'initialize':
+
+  if len(callargs) == 1:
+    ip = getmyip()
+    wait_port = int(callargs[0])
+  elif len(callargs) == 2:
+    ip = callargs[0]
+    wait_port = int(callargs[1])
+  else:
+    print 'usage: [ip] wait_port '
+    exitall()
+    
+  
+  
+  # we need these when servers are making new connections 
+  mycontext['myip'] = ip
+  mycontext['myport']= str(wait_port)
+
+  waitforconn(ip,wait_port,common_entry)
+  
+  forwarder_advertise_thread(ip,wait_port)

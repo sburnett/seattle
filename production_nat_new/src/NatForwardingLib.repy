@@ -1,0 +1,163 @@
+"""
+
+<Program Name>
+  NatForwardingLib.repy
+
+<Author>
+  Eric Kimbrel
+
+<Purpose>
+
+
+  Provide several functions used by vairos shims to accomplish
+  Nat Forwarding
+
+  1. Check connectivty to determine if a host needs to use
+     nat forwarding.
+
+  2. Lookup nat forwarders that are currently advertising and
+     return a ranked list of them
+
+
+
+"""
+
+include NAT_CONSTANTS.repy
+include session.repy
+include AdvertiseObjects.repy
+
+
+class NatConnError(Exception):
+  # base class for problem with nat connections
+  pass
+
+class NatLookupError(NatConnError):
+  # unable to lookup a needed value
+  pass
+
+
+
+
+
+def natforwardinglib_isBidirectional(ip,port):
+  # returns True if some kind of forwarding should be used
+  # returns False if this host can recieve incomming connections
+  #               OR there is an error and we can't decide for sure
+  
+  host_str = ip+':'+str(port)
+
+  lookup_obj = LookupCache()
+  nat_shim = NatForwardingShim()
+
+  try:
+    ip_port_list = natforwardinglib_forwarder_lookup()
+  except:
+    return False
+
+  for (forwarder_ip,forwarder_port) in ip_port_list:
+    try:
+       return  _natforwardinglib_do_check(host_str,forwarder_ip,forwarder_port)
+    except:
+      pass
+
+  return False
+
+
+
+
+
+def _natforwardinglib_do_check(host_str,forwarder_ip,forwarder_port):
+  # returns True if some kind of forwarding should be used
+  # returns False if this host can recieve incomming connections
+  # raises an Exception if an error occurs
+
+  sock = openconn(forwarder_ip,forwarder_port)
+  
+  # tells the forwrader we want to check behind nat
+  sock.send(NAT_CHECK_CONN) 
+     
+  #send my ip, this should be what the other end sees
+  session_sendmessage(sock,host_str)
+
+  msg = session_recvmessage(sock)
+  
+  if msg == NAT_YES:
+    sock.close()
+    return True
+
+
+  elif msg == NAT_CHECK_CONN:
+   
+    # setup a listener
+    handle = waitforconn(ip,port,checkconnectivity_listen)
+
+    # tell the forwarder we are ready for a connection
+    session_sendmessage(sock,NAT_YES)
+
+    # check the connection
+    msg = session_recvmessage(sock)
+           
+    sock.close()
+    stopcomm(handle)
+
+    # if NAT_YES return True - to use the forwarder
+    # otherwise false
+    return (msg == NAT_YES)
+
+  # if we got something weird from the server return false
+  else:
+    sock.close()
+    return False
+  
+
+
+
+
+def _natforwardinglib_listen(remote_ip,remote_port,
+                                      sock,this_handle,listen_handle):
+  # internal call back method for outside forwarder to connect to
+  sock.close()
+
+
+
+
+
+def natforwardinglib_forwarder_lookup():
+  # retrns a list of forwarders in the form [(ip,port),...]
+  # ordered by the server load on the forwareders
+  # 
+  # raises exception if no valid forwarder entries are found
+
+  lookup_obj = LookupCache()
+
+  raw_data = lookup_obj.lookup(NAT_FORWARDER)
+  if len(raw_data) == 0 or raw_data[0] == '':
+    raise NatLookupError("No Nat Forwarders were found")
+
+
+  # hash the forwarders based on the load they have    
+  tuple_list_dict = {}
+  for item in raw_data:
+    try:
+      (ip,port,load) = item.split(':')
+      port = int(port)
+    except:
+      pass  # throw out invalid entries, todo log this?
+    else:
+      if load not in tuple_list_dict:
+        tuple_list_dict[load] = []
+      tuple_list_dict[load].append((ip,port))
+
+  if len(tuple_list_dict) < 1:
+    raise NatLookupError("No Valid entries were found for nat forwarders")
+
+  # drop all of the tuples into a list ordered by increasing 
+  # forwarder load
+  ranked_tuple_list = []
+  key_list =  tuple_list_dict.keys()
+  key_list.sort()
+  for key in key_list:
+    for tuple in tuple_list_dict[key]:
+      ranked_tuple_list.append(tuple)
+    
+  return ranked_tuple_list
