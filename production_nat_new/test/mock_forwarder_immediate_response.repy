@@ -11,6 +11,14 @@
 <Purpose>
   A mock forwarder for testing the check behind nat functionality
   of the client
+  
+  usage: call start_mock_for(ip,port) to replicate a forwarder 
+  listening on ip:port
+  
+  call stop_mock_for() to stop the listener
+  
+  this forwarder can only use the check_behind_nat feature
+  and always returns a response without trying to open a connection
 
 
 """
@@ -20,7 +28,7 @@ include session.repy
 include NAT_CONSTANTS.repy
 include advertise.repy
 
-
+MOCK_FOR_DICT = {}
 
 def check_behind_nat(rip,rport,sock,th,lh):
   # used by remote machines to deterimine if they have
@@ -35,14 +43,8 @@ def check_behind_nat(rip,rport,sock,th,lh):
     return
 
 
-  session_sendmessage(sock,NAT_NO)
+  session_sendmessage(sock,MOCK_FOR_DICT['response'])
   sock.close()
-
-    
-
-
-
-
 
 
 
@@ -57,9 +59,9 @@ def common_entry(rip,rport,sock,th,lh):
     print 'INFO error in common entry: '+str(e)
   else: 
     if type == NAT_CLIENT:
-      raise Exception("NOT A VALID REQUEST FOR MOCK FORWARDER)
+      raise Exception("NOT A VALID REQUEST FOR MOCK FORWARDER")
     elif type == NAT_SERVER:
-      raise Exception("NOT A VALID REQUEST FOR MOCK FORWARDER)
+      raise Exception("NOT A VALID REQUEST FOR MOCK FORWARDER")
     elif type == NAT_CHECK_CONN:
       check_behind_nat(rip,rport,sock,th,lh)
     else:
@@ -67,26 +69,10 @@ def common_entry(rip,rport,sock,th,lh):
       sock.close()
   
 
-
-
-
-if callfunc == 'initialize':
-
-  if len(callargs) == 1:
-    ip = getmyip()
-    wait_port = int(callargs[0])
-  elif len(callargs) == 2:
-    ip = callargs[0]
-    wait_port = int(callargs[1])
-  else:
-    print 'usage: [ip] wait_port '
-    exitall()
-    
+def start_mock_for(ip,wait_port,response):
+  MOCK_FOR_DICT['response'] = response
+  MOCK_FOR_DICT['handle'] = waitforconn(ip,wait_port,common_entry)
   
   
-  # we need these when servers are making new connections 
-  mycontext['myip'] = ip
-  mycontext['myport']= str(wait_port)
-
-  waitforconn(ip,wait_port,common_entry)
-  
+def stop_mock_for():
+  return stopcomm(MOCK_FOR_DICT['handle'])

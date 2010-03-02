@@ -3,6 +3,9 @@
 Manually connecto to a forwarder and see that we get the right response for
 check behind nat
 
+This tests verifies that the forwarder behaves correctly,
+other tests verify that the library behaves correctly.
+
 
 """
 

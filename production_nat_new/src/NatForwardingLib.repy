@@ -88,8 +88,9 @@ def _natforwardinglib_do_check(host_str,forwarder_ip,forwarder_port):
 
   elif msg == NAT_CHECK_CONN:
    
-    # setup a listener
-    handle = waitforconn(ip,port,checkconnectivity_listen)
+    (ip,port) = host_str.split(':')
+    port = int(port)
+    handle = waitforconn(ip,port,_natforwardinglib_listen)
 
     # tell the forwarder we are ready for a connection
     session_sendmessage(sock,NAT_YES)

@@ -26,6 +26,7 @@ echo "Copying Resource files..."
 cp ./src/* ./built
 cp ./test/* ./built
 
+
 cd built/
 test_files=`ls *.py`
 src_files=`ls *.repy`

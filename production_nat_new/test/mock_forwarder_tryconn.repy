@@ -1,0 +1,108 @@
+"""
+<Program Name>
+  nat_forwarder.py
+
+<Started>
+  Jan 3, 2010
+
+<Author>
+  Eric Kimbrel
+
+<Purpose>
+  A mock forwarder for testing the check behind nat functionality
+  of the client
+  
+  usage: call start_mock_for(ip,port) to replicate a forwarder 
+  listening on ip:port
+  
+  call stop_mock_for() to stop the listener
+  
+  this forwarder can only use the check_behind_nat feature
+  and always tries to open a connection before responding
+
+
+"""
+
+
+include session.repy
+include NAT_CONSTANTS.repy
+include advertise.repy
+
+MOCK_FOR_DICT = {}
+
+def check_behind_nat(rip,rport,sock,th,lh):
+  # used by remote machines to deterimine if they have
+  # bi-directional connectivity
+  
+  try:
+    (server_ip,server_port) = session_recvmessage(sock).split(':')
+    server_port = int(server_port)
+  except Exception,e:
+    print 'ERROR: exception recieving data in check_behind_nat: '+str(e)
+    sock.close()
+    return
+
+    
+  try:
+    # have the server wait for a connection
+    session_sendmessage(sock,NAT_CHECK_CONN)
+    # wait for the server to confirm
+    msg = session_recvmessage(sock)
+    if msg != NAT_YES: raise Exception('bad response from server: '+msg)
+  except Exception,e:
+    print 'ERROR sending request to server in check_behind_nat: '+str(e)
+    sock.close()
+    return
+
+    
+  # try to open a connection to the server
+  try:
+    server_sock = openconn(server_ip,server_port)
+    server_sock.close()
+  except Exception,e:
+    response = NAT_YES # the server should use nat
+  else:
+    response = NAT_NO # the server should not use nat
+   
+ 
+  # tell the server the result
+  try:
+    session_sendmessage(sock,response)
+  except Exception,e:
+    print 'ERROR sending message to server in check behind nat'
+       
+    
+  # close this connection
+  sock.close()
+
+
+
+
+def common_entry(rip,rport,sock,th,lh):
+  # common entry point for clients and servers
+  # determine what type of connection this is
+  # and call the appropriate method
+
+  try:
+    type = sock.recv(1)
+  except Exception,e:
+    print 'INFO error in common entry: '+str(e)
+  else: 
+    if type == NAT_CLIENT:
+      raise Exception("NOT A VALID REQUEST FOR MOCK FORWARDER")
+    elif type == NAT_SERVER:
+      raise Exception("NOT A VALID REQUEST FOR MOCK FORWARDER")
+    elif type == NAT_CHECK_CONN:
+      check_behind_nat(rip,rport,sock,th,lh)
+    else:
+      print 'INFO: invalid conn type recvied '+type
+      sock.close()
+  
+
+def start_mock_for(ip,wait_port,response):
+  MOCK_FOR_DICT['response'] = response
+  MOCK_FOR_DICT['handle'] = waitforconn(ip,wait_port,common_entry)
+  
+  
+def stop_mock_for():
+  return stopcomm(MOCK_FOR_DICT['handle'])
