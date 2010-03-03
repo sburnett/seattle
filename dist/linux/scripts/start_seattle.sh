@@ -13,6 +13,9 @@ else
 	"can be run.  To install, run the install.sh script."
 fi
 
+# Wait a little so that it's unlikely that the processes launched in the
+# background won't show up in the process list.
+sleep 1
 
 # Check to confirm that nmmain.py and softwareupdater.py are running, and echo
 #   the status to the user.
