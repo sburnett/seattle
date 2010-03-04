@@ -6,7 +6,7 @@
 
 <Author>
   Vjekoslav Brajkovic
-
+  Stephen Sievers
 
 <Started>
   2009-07-11
@@ -126,6 +126,11 @@ def main():
                         help="execute a specific test file", 
                         metavar="FILE")
 
+  # Run all tests in current directory
+  group_test.add_option("-a", "--all", dest="all", action="store_true",
+                        help="execute all test files",
+                        metavar="ALL")
+
   parser.add_option_group(group_test)
   
   # All files in the current working directory.
@@ -139,8 +144,18 @@ def main():
   ###
   (options, args) = parser.parse_args()
 
+
+  #Count number of args for legal number of args test
+  i = 0
+  if (options.module):
+    i = i + 1
+  if (options.all):
+    i = i + 1
+  if (options.file):
+    i = i + 1
+
   # Test for mutual exclusion.
-  if (options.module and options.file):
+  if i > 1:
     parser.error("Options are mutually exclusive!")
     
 
@@ -157,9 +172,15 @@ def main():
     module_file_list = filter_files(valid_files, module = module_name)
     test_module(module_name, module_file_list)
     
-  else: # If no options are present, run all tests.
-    
+  elif (options.all): #all test files
     test_all(valid_files)
+
+  else: # If no options are present, print the usage
+    
+    print "Usage: python utf.py (-f filename | -m modulename | -a)"
+    print "-f -- test a specific filename"
+    print "-m -- test a module of modulename"
+    print "-a -- run all tests in current directory"
 
 
 
