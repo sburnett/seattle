@@ -1,13 +1,13 @@
 from django.conf.urls.defaults import *
-from installer_creator.html import views
+from custom_installer_website.html import views
 
 # Uncomment the next two lines to enable the admin:
 # from django.contrib import admin
 # admin.autodiscover()
 
-urlpatterns = patterns('installer_creator.html.views',
+urlpatterns = patterns('custom_installer_website.html.views',
                        
-                       (r'^installer_creator$', 'installer_creator', {}, 'installer_creator'),
+                       (r'^custom_installer_website$', 'custom_installer_website', {}, 'custom_installer_website'),
                        (r'^check_session$', 'check_session', {}, 'check_session'),
                        (r'^add_user$', 'add_user', {}, 'add_user'),
                        (r'^create_installer$', 'create_installer', {}, 'create_installer'),

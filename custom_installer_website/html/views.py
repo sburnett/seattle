@@ -10,7 +10,7 @@
   September, 2009
   
 <Purpose>
-  Django view functions used in rendering the HTML view of the installer_creator.
+  Django view functions used in rendering the HTML view of the custom_installer_website.
 """
 import hashlib
 import os
@@ -26,12 +26,12 @@ from django.core.urlresolvers import reverse
 from django.views.generic.simple import direct_to_template
 from django.utils import simplejson
 
-from installer_creator import settings
-from installer_creator.common import builder
-from installer_creator.common import validations 
+from custom_installer_website import settings
+from custom_installer_website.common import builder
+from custom_installer_website.common import validations 
 
 
-def installer_creator(request):
+def custom_installer_website(request):
   """
   <Purpose>
     Displays the main installer creator page.
@@ -51,10 +51,10 @@ def check_session(request):
     clean or dirty. If clean (session dict has no entries), the JS on the 
     main page does nothing. If the session dict is dirty (contains key entries),
     then the JS on the page will refresh the page, triggering a session flush 
-    from the installer_creator() view function.
+    from the custom_installer_website() view function.
   """
   if not request.method == 'POST' or request.POST['action'] != 'checksession':
-    return HttpResponseRedirect(reverse("installer_creator"))
+    return HttpResponseRedirect(reverse("custom_installer_website"))
 
   if request.session.items():
     return HttpResponse("need_refresh")
@@ -74,7 +74,7 @@ def add_user(request):
     The keys are eventually stored in the user's SESSION, for later retrieval. 
   """
   if not request.method == 'POST':
-    return HttpResponseRedirect(reverse("installer_creator"))
+    return HttpResponseRedirect(reverse("custom_installer_website"))
   
   if request.POST['action'] == 'adduser':
     #username = _standarize(request.POST['username'])
@@ -147,7 +147,7 @@ def create_installer(request):
     [ {owner, percentage, [users]}, {owner, percentage, [users]} ... ]
   """
   if not request.method == 'POST':
-    return HttpResponseRedirect(reverse("installer_creator"))
+    return HttpResponseRedirect(reverse("custom_installer_website"))
   
   if (request.POST['action'] == 'createinstaller'):
     vessel_list = simplejson.loads(request.POST['content'])

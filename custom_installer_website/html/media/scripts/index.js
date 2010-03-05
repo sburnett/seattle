@@ -118,7 +118,7 @@ function checkIfNewSession() {
 
 function refreshIfNewSession(ajax) {
   if (ajax.responseText == "need_refresh") {
-    location.href = "/html/installer_creator";
+    location.href = "/html/custom_installer_website";
   }
 }
 

@@ -21,7 +21,7 @@
 from SimpleXMLRPCServer import SimpleXMLRPCDispatcher
 from django.http import HttpResponse
 
-from installer_creator.xmlrpc.views import PublicXMLRPCFunctions
+from custom_installer_website.xmlrpc.views import PublicXMLRPCFunctions
 
 
 # This is the url that will be displayed if the xmlrpc service is requested

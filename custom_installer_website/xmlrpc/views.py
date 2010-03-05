@@ -29,7 +29,7 @@
 """
 
 import django.core.mail # To send the admins emails when there's an unhandled exception.
-from installer_creator.common.validations import ValidationError
+from custom_installer_website.common.validations import ValidationError
 
 import os
 import traceback
@@ -40,10 +40,10 @@ import xmlrpclib        # Used for raising xmlrpc faults
 
 #repyhelper.translate_and_import('rsa.repy')
 
-from installer_creator import settings
-from installer_creator.common import builder
-from installer_creator.common import validations
-from installer_creator.common.exceptions import *
+from custom_installer_website import settings
+from custom_installer_website.common import builder
+from custom_installer_website.common import validations
+from custom_installer_website.common.exceptions import *
 
 # XMLRPC Fault Code Constants
 FAULTCODE_OPERROR = 100

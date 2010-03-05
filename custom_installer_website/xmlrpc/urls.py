@@ -4,7 +4,7 @@ from django.conf.urls.defaults import *
 # from django.contrib import admin
 # admin.autodiscover()
 
-urlpatterns = patterns('installer_creator.xmlrpc.dispatcher',
+urlpatterns = patterns('custom_installer_website.xmlrpc.dispatcher',
                        
                        (r'', 'rpc_handler', {}, 'rpc_handler'),
                        

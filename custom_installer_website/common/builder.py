@@ -13,7 +13,7 @@
   Contains functions that are related to, or 
   directly involved with the building of the installers.
   
-  This code is shared among the HTML and XMLRPC views of the installer_creator.
+  This code is shared among the HTML and XMLRPC views of the custom_installer_website.
 """
 
 import hashlib
@@ -27,8 +27,8 @@ import time
 from django.http import HttpResponse
 from django.core.servers.basehttp import FileWrapper
 
-from installer_creator import settings
-from installer_creator.common import validations
+from custom_installer_website import settings
+from custom_installer_website.common import validations
 
 from seattle import repyhelper
 from seattle import repyportability
@@ -89,7 +89,7 @@ def prepare_installer(vessel_list, key_dict, build_id):
   os.mkdir(prefix)
  
   # create the install_info dir, a temporary directory where the vesselinfo
-  # will reside right before it gets added into the install package by installer_creator
+  # will reside right before it gets added into the install package by custom_installer_website
   os.mkdir(temp_installinfo_dir)
 
   # strip out the privkeys from the key_dict, we won't need them for building the vesselinfo file
