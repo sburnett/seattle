@@ -131,7 +131,7 @@ req virtual_namespace.py
 req experimentlib.py
 req seattlegeni_xmlrpc.py
 req repyimporter.py
-req LICENSE.TXT
+req LICENSE.txt, LICENSE.TXT
 
 
 # Demo-specific files
