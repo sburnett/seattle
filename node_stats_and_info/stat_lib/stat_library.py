@@ -328,9 +328,9 @@ def split_lan_nodes(node_dicts):
   """
   <Purpose>
     Takes a dictionary of node_dicts and splits them based on their ip 
-    addresses (ignores NAT nodes).  If 'node a' and 'node b' are both part of
-    the '10.8.10.X' network they will be grouped together so you can tell how
-    many nodes are part of the same local network.
+    addresses (adding NAT nodes in one special category).  If 'node a' and 
+    'node b' are both part of the '10.8.10.X' network they will be grouped 
+    together so you can tell how many nodes are part of the same local network.
   <Argument>
     node_dicts
       A dictionary {nodeid:node_dict} of node dictionaries.
@@ -360,7 +360,7 @@ def split_lan_nodes(node_dicts):
       # Original string is in the form of "10.8.10.6:123" and it is then split
       # into the form of ["10.8.10", .6:123"], thus striping of the last octet
       # and port information.
-      lan_key = ip_port.rsplit('.',1)[0] + ".X"
+      lan_key = ip_port.rsplit('.', 1)[0] + ".X"
       
       if lans.has_key(lan_key):
         lans[lan_key].append(single_node_dict)
