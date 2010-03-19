@@ -52,7 +52,16 @@ KEYBITSIZE = 1024
 DISABLE_STARTUP_SCRIPT = False
 OS = nonportable.ostype
 SUPPORTED_OSES = ["Windows", "WindowsCE", "Linux", "Darwin"]
-# Supported Windows Versions: XP, Vista
+# Supported Windows Versions: XP, Vista, 7
+#      NOTE: python versions later than 2.5 do not properly detect Windows 7.
+#            Instead, it detects "post2008server". If the version of python
+#            included in the seattle Windows installer is ever upgraded,
+#            it must be checked that this is still the case (maybe a patch
+#            will be created after this comment is written that will actually
+#            allow python to detect that it is running on Windows 7, in which
+#            case the function below 'get_filepath_of_win_startup_folder...()'
+#            will need to be amended appropriately).
+
 RESOURCE_PERCENTAGE = 10
 # Armon: DISABLE_INSTALL: Special flag for testing purposes that can be
 #        accessed from the command-line argument "--onlynetwork". All
@@ -241,8 +250,13 @@ def get_filepath_of_win_startup_folder_with_link_to_seattle():
     raise UnsupportedOSError("The startup folder only exists on Windows.")
 
 
+  # Currently, the call to platform.release() on Windows 7 machines using
+  # a version of python LATER than Python2.5 returns "post2008server" rather
+  # than something indicating that python is running on Windows 7.
+  # For Python2.5 running on Windows 7, platform.release() returns "Vista".
+  # The startup_path is the same for Vista and Windows 7.
   version = platform.release()
-  if version == "Vista":
+  if version == "Vista" or version == "post2008server":
     startup_path = os.environ.get("HOMEDRIVE") + os.environ.get("HOMEPATH") \
         + "\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs" \
         + "\\Startup" + os.sep + get_starter_shortcut_file_name()
@@ -253,6 +267,7 @@ def get_filepath_of_win_startup_folder_with_link_to_seattle():
         + "\\Start Menu\\Programs\\Startup" + os.sep \
         + get_starter_shortcut_file_name()
     return (startup_path, os.path.exists(startup_path))
+
 
   else:
     raise UnsupportedOSError("This version of Windows is not supported. " \
