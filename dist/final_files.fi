@@ -16,7 +16,6 @@ del foo.py
 del foowrite.py
 del generatekeys.py
 del newvessel.resources
-del restrictions.test
 del softwareupdater.logfile
 del key_daemon.repy
 del key_daemon_parser.repy
