@@ -1,0 +1,422 @@
+"""
+
+This module is an extension to the production nat forwarder
+that allows backward compatibility with the older version of 
+the nat_client (nm_client / seash)
+
+
+Backward compatibility with servers (node managers)
+is not supported 
+
+"""
+
+include NAT_advertisement.repy
+include deserialize.repy
+
+_CONN_ID_LOCK = getlock()
+FORWARDER_STATE = {}
+FORWARDER_STATE['Next_Conn_ID'] = 0
+TYPE_SOCK = 2   # Single socket, client or RPC type
+ # Lock for CONNECTIONS dictionary
+CONNECTIONS_LOCK = getlock()
+CONNECTIONS = {}
+
+RPC_FIXED_SIZE = 4   # Size of the RPC dictionar
+RPC_REQUEST_ID = "id" 
+RPC_FUNCTION = "request" # The remote function to call
+RPC_PARAM = "value"      # The parameter to the requested function (if any)
+RPC_ADDI_REQ = "additional" # Are there more RPC requests on the socket?
+RPC_REQUEST_STATUS = "status" # The boolean status of the request
+RPC_RESULT = "value"     # The result value if the RPC request
+RPC_BI_DIRECTIONAL = "bidirectional"
+RPC_CLIENT_INIT = "client_init"
+
+
+NAT_STATUS_NO_SERVER = "NO_SERVER"
+NAT_STATUS_BSY_SERVER = "BSY_SERVER"
+NAT_STATUS_CONFIRMED = "CONFIRMED"
+NAT_STATUS_FAILED = "FAILED"
+
+DEBUG2 = True
+DEBUG3 = False
+
+USE_NAT_CHECK_LOCK = getlock()
+
+
+# Handles a new incoming connection, for non-servers
+# This is for RPC calls and new clients
+def legacy_client_inbound(remoteip, remoteport, sock, thiscommhandle, listencommhandle):
+  # DEBUG
+  if DEBUG2: print getruntime(),"Inbound Conn.",remoteip,remoteport
+  
+  # Get the connection ID
+  id = _get_conn_id()
+  
+  # Create an entry for the connection
+  _connection_entry(id,sock,None,remoteip,remoteport,TYPE_SOCK)
+  
+  # Trigger a new RPC call
+  legacy_rpc(id, sock)
+  
+  # Cleanup the connection
+  CONNECTIONS_LOCK.acquire()
+  del CONNECTIONS[id]
+  CONNECTIONS_LOCK.release()
+  
+  # DEBUG
+  if DEBUG3: print getruntime(), "Closed inbound connection #",id
+  
+
+ 
+def legacy_rpc(conn_id, sock):
+
+  # If anything fails, close the socket
+  try:
+    # Get the RPC object
+    rpc_dict = RPC_decode(sock)
+    
+    # DEBUG
+    print getruntime(),"#"+str(conn_id),"RPC Request:",rpc_dict
+    
+    # Get the RPC call id
+    if RPC_REQUEST_ID in rpc_dict:
+      callID = rpc_dict[RPC_REQUEST_ID]
+    else:
+      callID = None
+    
+    # Get the requested function
+    if RPC_FUNCTION in rpc_dict:
+      request = rpc_dict[RPC_FUNCTION]
+    else:
+      request = None
+    
+    # Get the value, this is the parameter to the function
+    if RPC_PARAM in rpc_dict:
+      value = rpc_dict[RPC_PARAM]
+    else:
+      value = None
+    
+    # Determine if there are remaining RPC requests
+    if RPC_ADDI_REQ in rpc_dict:
+      additional = rpc_dict[RPC_ADDI_REQ]
+    else:
+      additional = False
+  
+    # If the request exists, call the function
+    if request in RPC_FUNCTIONS:
+      # What type of connection is this?
+      conn_type = CONNECTIONS[conn_id]["type"]
+      
+     
+      func = RPC_FUNCTIONS[request]
+    
+      # Give the function the conn_id, and the value to the request
+      # Store the status, and the return value
+      status,retvalue = func(conn_id,value)
+  
+      # if we get back none theres nothing left to do, so just exit
+      if status == None and retvalue == None:
+        return
+  
+    # The Request made was not in RPC_FUNCTIONS
+    else:
+      status = False
+      retvalue = None
+    
+    # Send the status of the request
+    statusdict = {RPC_REQUEST_STATUS:status,RPC_RESULT:retvalue}
+  
+    
+    # Add identifier if one was specified
+    if callID != None:
+      statusdict[RPC_REQUEST_ID] = callID
+          
+    # DEBUG
+    print getruntime(),"#"+str(conn_id),"RPC Response:",statusdict  
+    
+    # Encode the RPC response dictionary
+    response = RPC_encode(statusdict) 
+  
+    # Send the response
+    try:
+      sock.send(response)
+    except:
+      return # the other side of this connection is no longer availabe
+
+    # Check if there is more RPC calls
+    if additional:
+      # Recurse
+      new_rpc(conn_id, sock)
+    else:
+      _safe_close(sock)
+      
+  except Exception, e:
+    # DEBUG
+    print getruntime(),"#"+str(conn_id),"Exception in RPC Layer:",str(e)
+    _safe_close(sock)
+
+
+
+
+# Returns a connection ID, calls are serialized to prevent races
+def _get_conn_id():
+  # Get the lock
+  _CONN_ID_LOCK.acquire()
+  
+  # Get the connection ID
+  id = FORWARDER_STATE["Next_Conn_ID"]
+  
+  # Increment the global ID counter
+  FORWARDER_STATE["Next_Conn_ID"] += 1
+  
+  # Release the lock
+  _CONN_ID_LOCK.release()
+  
+  return id
+
+
+
+
+
+# determine if a client needs to use nat to establish bi-directional connections
+def legacy_is_connection_bi_directional(conn_id,value):
+  
+   ret_value = False # assume innocent until proven guilty
+
+   # value is a dictionary of the form
+   # {locaip:the ip of the client,waitport:the port the client established for waiting}
+
+   # get the connection info
+   # info = {"ip":remoteip,"port":remoteport,"sock":sock,"type":type}
+   info = CONNECTIONS[conn_id]
+
+   # if locaip != external ip the client needs to use nat
+   if (value['localip'] != info['ip']):
+     ret_value = True
+     
+
+   # if the ips match try to make a connection
+   else:
+     USE_NAT_CHECK_LOCK.acquire()
+     test_sock = None # prevent an error in the except block if the socket is never assgiend
+     try:
+       test_sock = openconn(value['localip'],value['waitport'])
+       test_str = "test connection ok"
+       test_sock.send(test_str)
+     
+       recieved = 0
+       msg=''
+       while recieved < len(test_str):
+         msg += test_sock.recv(len(test_str)-recieved)
+         recieved += len(msg)
+       ret_value = (msg != test_str)
+       test_sock.close() #be sure to close the connection!
+       USE_NAT_CHECK_LOCK.release()
+     except Exception:
+       _safe_close(test_sock)
+       USE_NAT_CHECK_LOCK.release()
+       ret_value = True # failed to make connection
+       
+   
+   
+   return (True,ret_value)
+
+
+
+
+
+# Handle new clients
+def legacy_new_client(conn_id, value):
+  
+  # Get the connection info
+  conninfo = CONNECTIONS[conn_id]
+  rip = conninfo['ip']
+  rport = conninfo['port']
+  clt_sock = conninfo['sock']
+  
+  servermac = value["server"]
+  port = value["port"]
+  
+  # get info from new forwarder
+  server = servermac+','+str(port)
+  
+  try:
+    # lookup the server in the registration
+    control_sock = SRV_DICT[server]['sock']
+    srv_lock = SRV_DICT[server]['lock']
+  except:
+    print 'ERROR Processing legacy clt: requested unknown server:'+server
+    return (False,NAT_STATUS_NO_SERVER)
+
+  
+  #add the clt to the clt dict
+  #TODO, we don't have the rip and rport
+  CLT_DICT[rip+','+str(rport)] = clt_sock
+  CLT_SERVER_DICT[rip+','+str(rport)] = server
+
+
+  #allow only one client to be prcoessed in per server at a time
+  srv_lock.acquire()
+
+      
+  # don't allow if MAX_CLIENTS are allready connected
+  if SRV_DICT[server]['clts'] >= MAX_CLIENTS:
+    print 'INFO: maxclients recieved for '+key+':'+port+' not allowing new legacy client'
+    del CLT_DICT[rip+','+str(rport)]
+    del CLT_SERVER_DICT[rip+','+str(rport)]
+    srv_lock.release()
+    return (False,NAT_STATUS_BSY_SERVER)
+  
+  
+   # tell the server it has a new connection
+  response = None
+  try:
+    
+    session_sendmessage(control_sock,NAT_NEW_CONN)
+    session_sendmessage(control_sock,rip)
+    session_sendmessage(control_sock,str(rport))
+    session_sendmessage(control_sock,mycontext['myip'])
+    session_sendmessage(control_sock,mycontext['myport'])
+    
+    #wait for the server to verify
+    response = session_recvmessage(control_sock)
+
+  except Exception,e:
+    del CLT_DICT[rip+','+str(rport)]
+    del CLT_SERVER_DICT[rip+','+str(rport)]
+    srv_lock.release()
+    print "ERROR communicating to server while estabilsing new legacy clt connection"
+    return (False,NAT_STATUS_FAILED)
+    
+  
+  # check the servers response
+  if response != NAT_YES:
+    #send an error to the client
+    print 'ERROR: requested server did not make new connection to the legacy client'
+    del CLT_DICT[rip+','+str(rport)]
+    del CLT_SERVER_DICT[rip+','+str(rport)]
+    srv_lock.release()
+    return (False,NAT_STATUS_FAILED)
+    
+  
+  try:
+     # Manually send the confirmation RPC dict, since we will not return to the new_rpc function
+    rpc_response = {RPC_REQUEST_STATUS:True,RPC_RESULT:NAT_STATUS_CONFIRMED}
+    
+    # DEBUG
+    if DEBUG2: print getruntime(),"Client Conn. Successful",rpc_response
+    
+    # this should be the clt sock #TODO CHECK THIS IS CORRECT
+    # SUSPECT THIS LINE
+    conninfo["sock"].send(RPC_encode(rpc_response))
+  except: 
+    clt_ready =False
+  else:
+    clt_ready = True
+  
+
+  # communicate connection readiness to the server
+  if clt_ready: srv_response = NAT_YES
+  else: srv_response = NAT_NO
+  
+
+  try:
+    session_sendmessage(control_sock,srv_response)
+  except:
+    # remove the server 
+    del CLT_DICT[rip+','+str(rport)]
+    del CLT_SERVER_DICT[rip+','+str(rport)]
+    srv_lock.release()
+    safely_remove_server(server)
+    return (False,NAT_STATUS_FAILED)
+  else:
+    #increment the number of clients for the server
+    if clt_ready:
+      SRV_DICT[server]['clts'] += 1
+      clts = SRV_DICT[server]['clts']
+      srv_lock.release()
+      print 'INFO: recieved client #'+str(clts)+' for srv '+server
+
+ 
+  # we are returning NONE HERE because we alreayd sent
+  # a go signal to the clieng
+  return (None,None)
+
+
+
+
+
+# Setup a new server entry
+def _connection_entry(id,sock,mux,remoteip,remoteport,type):
+  # Get the lock
+  CONNECTIONS_LOCK.acquire()
+  
+  # Register this server/multiplexer
+  # Store the ip,port, and set the port set
+  info = {"ip":remoteip,"port":remoteport,"sock":sock,"type":type}
+  
+  # DEBUG
+  if DEBUG3: print getruntime(), "Adding Connection #",id,info
+  
+  CONNECTIONS[id] = info
+  
+  # Release the lock
+  CONNECTIONS_LOCK.release()
+
+
+ # Helper Functions
+def RPC_encode(rpc_dict):
+  """
+  <Purpose>
+    Encodes an RPC request dictionary
+  
+  <Arguments>
+    rpc_dict:
+      A dictionary object
+  
+  <Returns>
+    Returns a string that can be sent over a socket
+  """
+  rpc_dict_str = str(rpc_dict) # Conver to string
+  rpc_length = str(len(rpc_dict_str)).rjust(RPC_FIXED_SIZE, "0") # Get length string
+  return rpc_length + rpc_dict_str # Concatinate size with string
+
+def RPC_decode(sock,blocking=False):
+  """
+  <Purpose>
+    Returns an RPC request object from a socket
+  
+  <Arguments>
+    sock:
+      A socket that supports recv
+    
+    blocking:
+      If the socket supports the blocking mode of operations, speicify this to be True
+  
+  <Returns>
+    Returns a dictionary object containing the RPC Request
+  """
+  # Get the dictionary length
+  # Then, Get the dictionary
+  if blocking:
+    length = int(sock.recv(RPC_FIXED_SIZE,blocking=True))
+    dict_str = sock.recv(length,blocking=True)
+  else:
+    length = int(sock.recv(RPC_FIXED_SIZE))
+    dict_str = sock.recv(length)
+  
+  dict_obj = deserialize(dict_str) # Convert to object
+  return dict_obj
+  
+
+def _safe_close(sock):
+  try:
+    sock.close()
+  except:
+    pass
+
+
+
+# Dictionary maps valid RPC calls to internal functions
+RPC_FUNCTIONS = {RPC_BI_DIRECTIONAL:legacy_is_connection_bi_directional,
+                  RPC_CLIENT_INIT:legacy_new_client}

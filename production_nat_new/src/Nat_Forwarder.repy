@@ -31,8 +31,7 @@ Load Limiting Policy:
 include session.repy
 include NAT_CONSTANTS.repy
 include advertise.repy
-
-
+include LegacyForwarderLib.repy
 
 
 
@@ -199,8 +198,10 @@ def new_srv(rip,rport,sock,th,lh):
 
   
   elif action == NAT_NEW_CONN:
+    #TODO REMOVE
+    print 'GOT NEW SERVER CONNECTION'
+    
     # setup a new connection between a clt and srv
-
     try:
       clt_sock = CLT_DICT[key+','+port]
     except:
@@ -284,6 +285,7 @@ def new_clt(rip,rport,clt_sock,th,lh):
   CLT_DICT[rip+','+str(rport)] = clt_sock
   CLT_SERVER_DICT[rip+','+str(rport)] = server
 
+  
   # begin the client/server handshake, 
   srv_lock.acquire()
 
@@ -295,6 +297,8 @@ def new_clt(rip,rport,clt_sock,th,lh):
     except:
       clt_sock.close() #TODO log this?
     finally:
+      del CLT_DICT[rip+','+str(rport)]
+      del CLT_SERVER_DICT[rip+','+str(rport)]
       srv_lock.release()
       return
 
@@ -322,6 +326,7 @@ def new_clt(rip,rport,clt_sock,th,lh):
       clt_sock.close()
       srv_lock.release()
       del CLT_DICT[rip+','+str(rport)]
+      del CLT_SERVER_DICT[rip+','+str(rport)]
       return 
 
 
@@ -336,6 +341,7 @@ def new_clt(rip,rport,clt_sock,th,lh):
     clt_sock.close()
     srv_lock.release()
     del CLT_DICT[rip+','+str(rport)]
+    del CLT_SERVER_DICT[rip+','+str(rport)]
     return
     
 
@@ -345,6 +351,7 @@ def new_clt(rip,rport,clt_sock,th,lh):
   except:
     # if the clt failed remove this clt
     del CLT_DICT[rip+','+str(rport)]
+    del CLT_SERVER_DICT[rip+','+str(rport)]
     clt_sock.close()    
     clt_ready =False
   else:
@@ -414,6 +421,10 @@ def common_entry(rip,rport,sock,th,lh):
       new_srv(rip,rport,sock,th,lh)
     elif type == NAT_CHECK_CONN:
       check_behind_nat(rip,rport,sock,th,lh)
+    elif type == NAT_LEGACY_CLIENT:
+      #SUPPORT OLD CLIENTS
+      #TODO
+      legacy_client_inbound(rip,rport,sock,th,lh)
     else:
       print 'INFO: invalid conn type recvied '+type
       sock.close()
@@ -455,4 +466,6 @@ if callfunc == 'initialize':
 
   waitforconn(ip,wait_port,common_entry)
   
+  
+  # advertise the forwarder
   forwarder_advertise_thread(ip,wait_port)

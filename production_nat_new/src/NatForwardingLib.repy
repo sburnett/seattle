@@ -24,6 +24,7 @@
 
 include NAT_CONSTANTS.repy
 include session.repy
+include sockettimeout.repy
 include AdvertiseObjects.repy
 
 
@@ -70,8 +71,9 @@ def _natforwardinglib_do_check(host_str,forwarder_ip,forwarder_port):
   # returns True if some kind of forwarding should be used
   # returns False if this host can recieve incomming connections
   # raises an Exception if an error occurs
-
-  sock = openconn(forwarder_ip,forwarder_port)
+  
+  
+  sock = timeout_openconn(forwarder_ip,forwarder_port,timeout=30)
   
   # tells the forwrader we want to check behind nat
   sock.send(NAT_CHECK_CONN) 

@@ -10,7 +10,8 @@ within this file
 
 # connection types
 NAT_SERVER = 'S'
-NAT_CLIENT = 'C'
+NAT_LEGACY_CLIENT = 'C'
+NAT_CLIENT = 'c'
 NAT_CHECK_CONN = '?'
 
 # requests

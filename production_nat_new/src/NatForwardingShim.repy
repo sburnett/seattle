@@ -43,7 +43,6 @@ include NatForwardingLib.repy
 
 
 
-
 # custom obj used as a comm handle and to keep state 
 # for diffent calls to waitforconn
 class NatStateObj:
@@ -189,9 +188,18 @@ class NatForwardingShim(EmptyShim):
     if response != NAT_YES:
       raise Exception, 'NAT node refused connection'
 
+    # create an add key and add value for new clients
     ad_key = state_obj.host+'$'+str(state_obj.port)+'$TCP'
     ad_value = self.name+'$'+for_ip+'$'+str(for_port)
-    state_obj.adhandle = self.advertise_obj.add(ad_key,ad_value)
+    ad_handle = self.advertise_obj.add(ad_key,ad_value)
+    
+    # create an add key and add value for legacy clients
+    legacy_key = "__NAT_SRV__"+state_obj.host
+    legacy_value = for_ip+"*"+str(for_port)
+    legacy_ad_handle = self.advertise_obj.add(legacy_key,legacy_value)
+    
+    
+    state_obj.adhandle = (ad_handle,legacy_ad_handle)
     state_obj.sock = control_sock
 
 
@@ -207,6 +215,8 @@ class NatForwardingShim(EmptyShim):
     remote_port = session_recvmessage(control_sock)
     forwarder_ip = session_recvmessage(control_sock)
     forwarder_port = session_recvmessage(control_sock)
+
+    
 
     # create the new connection
     new_sock = self.shim_stack.openconn(forwarder_ip,int(forwarder_port))
@@ -241,8 +251,9 @@ class NatForwardingShim(EmptyShim):
 
     if not isinstance(handle,NatStateObj):
       raise Exception("Bad handle passed to NatFOrwardingSHim.stopcomm ")
-    
-    self.advertise_obj.remove(handle.adhandle) 
+    (adhandle,legacyadhandle) = handle.adhandle
+    self.advertise_obj.remove(adhandle)
+    self.advertise_obj.remove(legacyadhandle) 
     handle.running = False
     handle.sock.close()
     
@@ -275,7 +286,11 @@ class NatForwardingShim(EmptyShim):
             # error over the control socket, establish a new one
             if state_obj.running:
               state_obj.sock.close()
-              self.advertise_obj.remove(state_obj.adhandle)
+              
+              (adhandle,legacyadhandle) = state_obj.adhandle
+              self.advertise_obj.remove(adhandle)
+              self.advertise_obj.remove(legacyadhandle) 
+              
               self.establish_control_sock(state_obj)
 
             else:
@@ -295,7 +310,7 @@ class NatForwardingShim(EmptyShim):
          
           # WARNING, i just return the socket as the listen handle, TODO,
           # make sure this works
-          state_obj.callback(remote_key,remote_port,comms_sock,comms_sock,state_obj)    
+          settimer(0,state_obj.callback,[remote_key,remote_port,comms_sock,comms_sock,state_obj])    
      
       except Exception, e:
         if state_obj.running:
