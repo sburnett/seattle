@@ -13,7 +13,7 @@
   Contains functions that are related to, or 
   directly involved with the building of the installers.
   
-  This code is shared among the HTML and XMLRPC views of the custom_installer_website.
+  This code is shared among the HTML and XMLRPC views of the custom installer creator service.
 """
 
 import hashlib
@@ -21,7 +21,6 @@ import os
 import sys
 import subprocess
 import shutil
-import fcntl
 import time
 
 from django.http import HttpResponse
@@ -53,6 +52,8 @@ ACCEPTDONATIONS_STATE_PUBKEY = _state_key_file_to_publickey_string("acceptdonati
 PATH_TO_CUSTOMIZE_INSTALLER_SCRIPT = os.path.join(os.path.dirname(__file__), 
                                                   "customize_installers.py")
 
+# How long (sec) to wait before releasing the access lock. Used for testing purposes.
+LOCK_RELEASE_DELAY = 0
 
 def prepare_installer(vessel_list, key_dict, build_id):
   """
@@ -78,9 +79,13 @@ def prepare_installer(vessel_list, key_dict, build_id):
   <Returns>
     Nothing.
   """
-
+  
   prefix = os.path.join(settings.USER_INSTALLERS_DIR, build_id)
   temp_installinfo_dir = os.path.join(prefix, "install_info")
+  
+  # first check if installer instance already exists
+  if (os.path.isdir(prefix)):
+    return
   
   # remove and recreate the prefix dir
   shutil.rmtree(prefix, True)
@@ -89,7 +94,7 @@ def prepare_installer(vessel_list, key_dict, build_id):
   os.mkdir(prefix)
  
   # create the install_info dir, a temporary directory where the vesselinfo
-  # will reside right before it gets added into the install package by custom_installer_website
+  # will reside right before it gets added into the install package by installer_creator
   os.mkdir(temp_installinfo_dir)
 
   # strip out the privkeys from the key_dict, we won't need them for building the vesselinfo file
@@ -109,7 +114,7 @@ def prepare_installer(vessel_list, key_dict, build_id):
 
 
 
-def check_and_build_if_new_installers(installer_id):
+def check_if_need_new_installers(installer_id):
   """
   <Purpose>
     Checks if the current user installers exist. If they don't, this function
@@ -123,7 +128,8 @@ def check_and_build_if_new_installers(installer_id):
   <Returns>
     -1 if base installers are missing or unreadable.
      0 if installers are up to date, and do not require rebuilding.
-     1 if installers were rebuilt using newest base installers.
+     1 if installers should be rebuilt using newest base installers.
+     #1 if installers were rebuilt using newest base installers.
   """
   user_installer_missing = False
   need_rebuild = False
@@ -166,33 +172,33 @@ def check_and_build_if_new_installers(installer_id):
     print "no rebuild needed!"
     return 0
   
-  # try to remove existing installers (even though they might not exist)
-  try:
-    os.remove(os.path.join(dist_folder, "seattle_win.zip"))
-  except Exception:
-    print "no win user installer to remove"
-    pass
-  else:
-    print "removed win user installer"
+#  # try to remove existing installers (even though they might not exist)
+#  try:
+#    os.remove(os.path.join(dist_folder, "seattle_win.zip"))
+#  except Exception:
+#    print "no win user installer to remove"
+#    pass
+#  else:
+#    print "removed win user installer"
+#  
+#  try:
+#    os.remove(os.path.join(dist_folder, "seattle_linux.tgz"))
+#  except Exception:
+#    print "no linux user installer to remove"
+#    pass
+#  else:
+#    print "removed linux user installer"
+#  
+#  try:
+#    os.remove(os.path.join(dist_folder, "seattle_mac.tgz"))
+#  except Exception:
+#    print "no mac user installer to remove"
+#    pass
+#  else:
+#    print "removed mac user installer"
   
-  try:
-    os.remove(os.path.join(dist_folder, "seattle_linux.tgz"))
-  except Exception:
-    print "no linux user installer to remove"
-    pass
-  else:
-    print "removed linux user installer"
-  
-  try:
-    os.remove(os.path.join(dist_folder, "seattle_mac.tgz"))
-  except Exception:
-    print "no mac user installer to remove"
-    pass
-  else:
-    print "removed mac user installer"
-  
-  print "about to call customize"
-  _run_customize_installer(installer_id)
+  #print "about to call customize"
+  #_run_customize_installer(installer_id)
   return 1
 
 
@@ -265,41 +271,47 @@ def dl_installer(request, installer_id, installer_name):
     # No dist folder for this user: this installer instance doesn't even exist, return error
     return HttpResponse("Sorry, the installer you requested does not exist.", status=404)
   
-  # Entering a critical section (multiple clients could potentially access
-  # the same installer_id installer instance). Begin locking.
-  lock = FileLock(os.path.join(dist_folder, "lock.file"))
-  acquired = False
-  timeout = 200
-  retrys = 0
-  while not acquired:
-    if lock.acquire():
-      print "[ LOCK ACQUIRED ]"
-      acquired = True
-    else:
-      # couldn't get lock, sleeping then try again
-      print "[ LOCK ACQUIRE FAIL. SLEEPING... ]"
-      time.sleep(0.01)
-      retrys += 1
-      if (retrys == timeout):
-        # we've exceeded lock timeout. bail out of while loop
-        acquired = True
-  
-  # exceeded lock timeout  
-  if (retrys == timeout):
-    return HttpResponse("<b>Fatal error:</b> lock acquire timeout exceeded for installer instance " + installer_id)
-
   # Found the vesselinfo, check if installer is out-of-date 
   print "Found dist folder, checking if installer is out-of-date"
   v_handle.close()
   
-  check_ret = check_and_build_if_new_installers(installer_id)
-
-  # End critical section, release lock.
-  print "[ LOCK RELEASED ]"
-  lock.release()
+  check_ret = check_if_need_new_installers(installer_id)
+  if (check_ret == 1):
+    # need to rebuild
+    print "[dl_installer]: need to rebuild"
+    
+    # Entering a critical section (multiple clients could potentially access
+    # the same installer_id installer instance). Begin locking.
+    lock = FileLock(os.path.join(dist_folder, "lock.file"))
+    acquired = False
+    timeout = 400
+    retrys = 0
+    while not acquired:
+      if lock.acquire():
+        print "[ LOCK ACQUIRED ]"
+        acquired = True
+      else:
+        # couldn't get lock, sleeping then try again
+        print "[ LOCK ACQUIRE FAIL. SLEEPING... ]"
+        time.sleep(0.1)
+        retrys += 1
+        if (retrys == timeout):
+          # we've exceeded lock timeout. bail out of while loop
+          acquired = True
+    
+    # exceeded lock timeout
+    if (retrys == timeout):
+      return HttpResponse("<b>Fatal error:</b> lock acquire timeout exceeded for installer instance " + installer_id)
   
-  print "check_and_build returned: " + str(check_ret)
-  if (check_ret == 0):      
+    #_run_customize_installer(installer_id)
+    print "[dl_installer]: rebuilt."
+    
+    # End critical section, release lock.
+    time.sleep(LOCK_RELEASE_DELAY)
+    print "[ LOCK RELEASED ]"
+    lock.release()
+  
+  if (check_ret == 0): 
     # no rebuild needed
     print "[dl_installer]: serving up cached installers." 
   elif (check_ret == 1):
@@ -309,8 +321,6 @@ def dl_installer(request, installer_id, installer_name):
     # something went wrong during the check, eg: base installers not found
     print "[dl_installer]: check_and_build returned fatal -1"
     return HttpResponse("<b>Fatal error:</b> check_and_build returned -1", status=500)
-  
-  print "[dl_installer]: serving up fresh installers."
   
   # read installer off disk and serve
   if (installer_name == "seattle_win.zip"):
@@ -372,6 +382,8 @@ def _run_customize_installer(installer_id, dist_str='wml'):
   prefix = os.path.join(settings.USER_INSTALLERS_DIR, installer_id)
   temp_installinfo_dir = os.path.join(prefix, "install_info")
   
+  time.sleep(5)
+  
   try:
     subprocess.check_call([sys.executable, PATH_TO_CUSTOMIZE_INSTALLER_SCRIPT, dist_str, 
                            settings.BASE_INSTALLERS_DIR, temp_installinfo_dir, prefix])
@@ -395,26 +407,26 @@ def _send_file(file_name):
 
 
 
-class DjangoLock:
-
-    def __init__(self, filename):
-        self.filename = filename
-        # This will create it if it does not exist already
-        self.handle = open(filename, 'w')
-
-    # flock() is a blocking call unless it is bitwise ORed with LOCK_NB to avoid blocking 
-    # on lock acquisition.  This blocking is what I use to provide atomicity across forked
-    # Django processes since native python locks and semaphores only work at the thread level
-    def acquire(self):
-        print self.handle
-        print fcntl.LOCK_EX
-        fcntl.flock(self.handle, fcntl.LOCK_EX)
-
-    def release(self):
-        fcntl.flock(self.handle, fcntl.LOCK_UN)
-
-    def __del__(self):
-        self.handle.close()
+#class DjangoLock:
+#
+#    def __init__(self, filename):
+#        self.filename = filename
+#        # This will create it if it does not exist already
+#        self.handle = open(filename, 'w')
+#
+#    # flock() is a blocking call unless it is bitwise ORed with LOCK_NB to avoid blocking 
+#    # on lock acquisition.  This blocking is what I use to provide atomicity across forked
+#    # Django processes since native python locks and semaphores only work at the thread level
+#    def acquire(self):
+#        print self.handle
+#        print fcntl.LOCK_EX
+#        fcntl.flock(self.handle, fcntl.LOCK_EX)
+#
+#    def release(self):
+#        fcntl.flock(self.handle, fcntl.LOCK_UN)
+#
+#    def __del__(self):
+#        self.handle.close()
         
 
 
