@@ -21,6 +21,8 @@ from custom_installer_website import settings
   to release its write lock (indicating correct operation).  
 """
 
+ACTUALLY_BUILD_INSTALLERS = False
+
 def main():
   # override builder's LOCK_RELEASE_DELAY to something long (10 sec)
   builder.LOCK_RELEASE_DELAY = 10
@@ -35,18 +37,25 @@ def main():
   settings.BASE_INSTALLERS_DIR = temp_base_installers_dir
   settings.USER_INSTALLERS_DIR = temp_user_installers_dir
   
-  vessel_list = [{'owner':'jchen', 'percentage':40, 'users':[]}, {'owner':'cloud', 'percentage':40, 'users':[]}]
-  pubkey_dict = {'jchen': {'pubkey':'jchen_pubkey1234'}, 'cloud':{'pubkey':'cloud_pubkey1234'}}
+  if ACTUALLY_BUILD_INSTALLERS == False:
+    builder._run_customize_installer = lambda self: 0
+  
+  # override builder's test flag so dl_installer returns us the cache check return value rather than sending us a file
+  builder.TEST_RETURN_CHECK_RET = True
+  
+  vessel_list = [{'owner':'jchen', 'percentage':40, 'users':[]}, {'owner':'jchen_two', 'percentage':40, 'users':[]}]
+  pubkey_dict = {'jchen': {'pubkey':'jchen_pubkey1234'}, 'jchen_two':{'pubkey':'jchen_two_pubkey1234'}}
   
   # prepare installer creation filesystem environment
-  print "*** prepare installer creation filesystem environment ***"
+  print "*** Preparing directory/vesselinfo for installer build..."
   ret = views.PublicXMLRPCFunctions.create_installer(vessel_list, pubkey_dict, "windows")
 
   print ""
-  print "*** simulating installer download request (call to dl_installer)"
-  build_id = ret.split("/")[5]
+  print "*** Simulating installer download request..."
+  build_id = ret.split("/")[4]
   installer_name = "seattle_win.zip"
-  print builder.dl_installer({}, build_id, installer_name)
+  
+  builder.dl_installer({}, build_id, installer_name)
 
 
 if __name__=="__main__":

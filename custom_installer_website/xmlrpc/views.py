@@ -176,15 +176,9 @@ class PublicXMLRPCFunctions(object):
     
     # Generate build ID
     build_id = builder.generate_build_id(vessel_list, pubkey_dict)
-    print "[xmlrpc CREATE_INSTALLER]: build_id: " + build_id
+    #print "[xmlrpc CREATE_INSTALLER]: build_id: " + build_id
     
     builder.prepare_installer(vessel_list, pubkey_dict, build_id)
-    
-#    dist_folder = os.path.join(settings.USER_INSTALLERS_DIR, build_id + "_dist")
-#    installer_urls_dict = {}
-#    installer_urls_dict['w'] = settings.USER_INSTALLERS_URL + "%s_dist/seattle_win.zip"%(build_id)
-#    installer_urls_dict['l'] = settings.USER_INSTALLERS_URL + "%s_dist/seattle_linux.tgz"%(build_id)
-#    installer_urls_dict['m'] = settings.USER_INSTALLERS_URL + "%s_dist/seattle_mac.tgz"%(build_id)
     
     if (os == 'windows'):
       installer_url = settings.USER_INSTALLERS_URL + build_id + "/seattle_win.zip"

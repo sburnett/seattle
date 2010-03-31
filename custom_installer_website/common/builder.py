@@ -52,8 +52,9 @@ ACCEPTDONATIONS_STATE_PUBKEY = _state_key_file_to_publickey_string("acceptdonati
 PATH_TO_CUSTOMIZE_INSTALLER_SCRIPT = os.path.join(os.path.dirname(__file__), 
                                                   "customize_installers.py")
 
-# How long (sec) to wait before releasing the access lock. Used for testing purposes.
-LOCK_RELEASE_DELAY = 0
+# *** DO NOT CHANGE THE FOLLOWING FLAGS, THEY ARE USED BY TESTS ONLY ***
+TEST_LOCK_RELEASE_DELAY = 0      # How long (sec) to wait before releasing the access lock.
+TEST_RETURN_CHECK_RET = False    # Return cache check return code instead of sending a file
 
 def prepare_installer(vessel_list, key_dict, build_id):
   """
@@ -129,7 +130,6 @@ def check_if_need_new_installers(installer_id):
     -1 if base installers are missing or unreadable.
      0 if installers are up to date, and do not require rebuilding.
      1 if installers should be rebuilt using newest base installers.
-     #1 if installers were rebuilt using newest base installers.
   """
   user_installer_missing = False
   need_rebuild = False
@@ -169,7 +169,7 @@ def check_if_need_new_installers(installer_id):
       need_rebuild = True
   
   if not need_rebuild:
-    print "no rebuild needed!"
+    #print "no rebuild needed!"
     return 0
   
 #  # try to remove existing installers (even though they might not exist)
@@ -233,8 +233,6 @@ def generate_build_id(vessel_list, key_dict):
   for key in key_dict:
     prehash_str += str(key_dict[key]['pubkey']) + ","
   
-  print prehash_str
-  
   build_id = hashlib.sha1(prehash_str).hexdigest()
   return build_id
 
@@ -250,6 +248,9 @@ def dl_installer(request, installer_id, installer_name):
   
   <Arguments>
     The arguments are inferred from the URL itself.
+  
+  <Returns>
+    An HTTP file-attachment response so the user's browser can download the installer.
   """
   
   # check inputs
@@ -264,7 +265,7 @@ def dl_installer(request, installer_id, installer_name):
   dist_folder = os.path.join(settings.USER_INSTALLERS_DIR, installer_id)
   
   # first check if this installer build exists by trying to read the vesselinfo 
-  print "searching for vesselinfo at: " + os.path.join(dist_folder, "install_info", "vesselinfo")
+  #print "searching for vesselinfo at: " + os.path.join(dist_folder, "install_info", "vesselinfo")
   try:
     v_handle = open(os.path.join(dist_folder, "install_info", "vesselinfo"), 'rb');
   except IOError:
@@ -272,7 +273,7 @@ def dl_installer(request, installer_id, installer_name):
     return HttpResponse("Sorry, the installer you requested does not exist.", status=404)
   
   # Found the vesselinfo, check if installer is out-of-date 
-  print "Found dist folder, checking if installer is out-of-date"
+  #print "Found dist folder, checking if installer is out-of-date"
   v_handle.close()
   
   check_ret = check_if_need_new_installers(installer_id)
@@ -303,15 +304,15 @@ def dl_installer(request, installer_id, installer_name):
     if (retrys == timeout):
       return HttpResponse("<b>Fatal error:</b> lock acquire timeout exceeded for installer instance " + installer_id)
   
-    #_run_customize_installer(installer_id)
-    print "[dl_installer]: rebuilt."
+    _run_customize_installer(installer_id)
+    #print "[dl_installer]: rebuilt."
     
     # End critical section, release lock.
-    time.sleep(LOCK_RELEASE_DELAY)
+    time.sleep(TEST_LOCK_RELEASE_DELAY)
     print "[ LOCK RELEASED ]"
     lock.release()
   
-  if (check_ret == 0): 
+  if (check_ret == 0):
     # no rebuild needed
     print "[dl_installer]: serving up cached installers." 
   elif (check_ret == 1):
@@ -322,20 +323,24 @@ def dl_installer(request, installer_id, installer_name):
     print "[dl_installer]: check_and_build returned fatal -1"
     return HttpResponse("<b>Fatal error:</b> check_and_build returned -1", status=500)
   
-  # read installer off disk and serve
-  if (installer_name == "seattle_win.zip"):
-    print "[dl_installer]: serving up win installer"
-    return _send_file(os.path.join(dist_folder, "seattle_win.zip"))
-  elif (installer_name == "seattle_linux.tgz"):
-    print "[dl_installer]: serving up linux installer"
-    return _send_file(os.path.join(dist_folder, "seattle_linux.tgz"))
-  elif (installer_name == "seattle_mac.tgz"):
-    print "[dl_installer]: serving up mac installer"
-    return _send_file(os.path.join(dist_folder, "seattle_mac.tgz"))
+  # used by test suite to determine cache check return value
+  if TEST_RETURN_CHECK_RET:
+    return check_ret
   else:
-    # we should never get here, since validations should have caught invalid
-    # installer_names. be safe, and just return a generic error message
-    return HttpResponse("Sorry, the installer you requested does not exist.", status=404)
+    # read installer off disk and serve
+    if (installer_name == "seattle_win.zip"):
+      print "[dl_installer]: serving up win installer"
+      return _send_file(os.path.join(dist_folder, "seattle_win.zip"))
+    elif (installer_name == "seattle_linux.tgz"):
+      print "[dl_installer]: serving up linux installer"
+      return _send_file(os.path.join(dist_folder, "seattle_linux.tgz"))
+    elif (installer_name == "seattle_mac.tgz"):
+      print "[dl_installer]: serving up mac installer"
+      return _send_file(os.path.join(dist_folder, "seattle_mac.tgz"))
+    else:
+      # we should never get here, since validations should have caught invalid
+      # installer_names. be safe, and just return a generic error message
+      return HttpResponse("Sorry, the installer you requested does not exist.", status=404)
 
 
 
