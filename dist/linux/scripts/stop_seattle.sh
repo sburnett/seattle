@@ -16,9 +16,10 @@ python stop_all_seattle_processes.py
 #     'ww': makes sure that the output is not limited by column length.
 #     
 
-NMMAIN=`ps axww 2>/dev/null | grep nmmain.py | grep -v grep`
-SOFTWAREUPDATER=`ps axww 2>/dev/null | grep softwareupdater.py | grep -v grep`
-
+NMMAIN=`ps axww 2>/dev/null | grep nmmain.py | grep -i python | grep -v grep`
+SOFTWAREUPDATER=`ps axww 2>/dev/null | grep softwareupdater.py | \
+    grep -i python | grep -v grep`
+    
 
 if ! echo "$NMMAIN" | grep nmmain.py > /dev/null
 then
