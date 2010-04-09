@@ -152,3 +152,7 @@ req allpairsping.repy
 req udpping.py
 req udppingserver.py
 req udpforward.py
+
+# Programs for Take Home Assignment
+req infloop.py
+req helloworld.py

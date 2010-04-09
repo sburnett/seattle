@@ -107,6 +107,16 @@ def prepare_files(trunk_location, temp_demokit_dir):
   shutil.copy2("udpforward.py", temp_demokit_dir)
   os.chdir(original_dir)
 
+  # infloop program from Take Home Assignment
+  os.chdir(trunk_location + os.sep + "repy/apps/infloop/")
+  shutil.copy2("infloop.py", temp_demokit_dir)
+  os.chdir(original_dir)
+
+  # helloworld program from Take Home Assignment
+  os.chdir(trunk_location + os.sep + "repy/apps/helloworld/")
+  shutil.copy2("helloworld.py", temp_demokit_dir)
+  os.chdir(original_dir)
+
 
   
 
