@@ -36,7 +36,6 @@ del runonce.py
 del safe_eval.repy
 del strace.py
 del priority_queue.repy
-del namespace.py
 del writemetainfo.py
 
 
@@ -58,6 +57,7 @@ req loggingrepy.py
 req loggingrepy_core.py
 req math.repy
 req misc.py
+req namespace.py
 req nanny.py
 req nonportable.py
 req openDHTadvertise.repy
@@ -151,6 +151,7 @@ req allpairsping.repy
 req udpping.py
 req udppingserver.py
 req udpforward.py
+req restrictions.allowallports
 
 # Programs for Take Home Assignment
 req infloop.py

@@ -107,6 +107,7 @@ def prepare_files(trunk_location, temp_demokit_dir):
   shutil.copy2("udpping.py", temp_demokit_dir)
   shutil.copy2("udppingserver.py", temp_demokit_dir)
   shutil.copy2("udpforward.py", temp_demokit_dir)
+  shutil.copy2("restrictions.allowallports", temp_demokit_dir)
   os.chdir(original_dir)
 
   # infloop program from Take Home Assignment
