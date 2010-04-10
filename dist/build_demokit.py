@@ -94,6 +94,8 @@ def prepare_files(trunk_location, temp_demokit_dir):
       temp_demokit_dir + os.sep + "pingneighbors.repy",
       temp_demokit_dir + os.sep + "pingneighbors.py"])
   repypp_proc.wait()
+  # Now remove unprocessed pingneighbors.repy
+  os.remove(temp_demokit_dir + os.sep + "pingneighbors.repy")
 
   # Original allpairsping demo
   os.chdir(trunk_location + os.sep + "repy/apps/allpairsping/")

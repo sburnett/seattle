@@ -138,7 +138,6 @@ req LICENSE.txt, LICENSE.TXT
 
 # All-pairs ping map application
 req appmap.py
-req pingneighbors.repy
 req pingneighbors.py
 req style.css
 req jquerygmaps.js
