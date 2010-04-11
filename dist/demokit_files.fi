@@ -148,11 +148,11 @@ req map_marker_sel_icon.png
 req allpairsping.repy
 
 # UDP ping demos
-req udpping.py
-req udppingserver.py
-req udpforward.py
+req udpping.repy
+req udppingserver.repy
+req udpforward.repy
 req restrictions.allowallports
 
 # Programs for Take Home Assignment
-req infloop.py
-req helloworld.py
+req infloop.repy
+req helloworld.repy

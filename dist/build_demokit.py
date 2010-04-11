@@ -104,20 +104,20 @@ def prepare_files(trunk_location, temp_demokit_dir):
 
   # UDP ping demos
   os.chdir(trunk_location + os.sep + "repy/apps/udpping/")
-  shutil.copy2("udpping.py", temp_demokit_dir)
-  shutil.copy2("udppingserver.py", temp_demokit_dir)
-  shutil.copy2("udpforward.py", temp_demokit_dir)
+  shutil.copy2("udpping.repy", temp_demokit_dir)
+  shutil.copy2("udppingserver.repy", temp_demokit_dir)
+  shutil.copy2("udpforward.repy", temp_demokit_dir)
   shutil.copy2("restrictions.allowallports", temp_demokit_dir)
   os.chdir(original_dir)
 
   # infloop program from Take Home Assignment
   os.chdir(trunk_location + os.sep + "repy/apps/infloop/")
-  shutil.copy2("infloop.py", temp_demokit_dir)
+  shutil.copy2("infloop.repy", temp_demokit_dir)
   os.chdir(original_dir)
 
   # helloworld program from Take Home Assignment
   os.chdir(trunk_location + os.sep + "repy/apps/helloworld/")
-  shutil.copy2("helloworld.py", temp_demokit_dir)
+  shutil.copy2("helloworld.repy", temp_demokit_dir)
   os.chdir(original_dir)
 
 
