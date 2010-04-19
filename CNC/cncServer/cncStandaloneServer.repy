@@ -1,0 +1,1671 @@
+"""
+<Program Name>
+  PrototypeServerRepy.py
+
+<Started>
+  February 8, 2009
+
+<Author>
+  Cosmin Barsan
+  
+<Purpose>
+  Standalone cnc server. Handles registration, update dissemination, and query requests for a specific keyrange.
+  
+<Usage>
+ python repy.py restrictions.cnc cncStandaloneServer.py <local available port to use> <user key range lower> <user key range upper> <server public key> <server private key>
+ 
+ NOTE: when specifying the private and public keys of the server in the program arguments, use the character '#' or '-' instead of 'space' within each key
+ The character '-' is allowed as an alternative to '#' as a space separator to allow compatibility with the node manager.
+ In other words:
+ public key format expected: str(key['e'])+"#"+str(key['n'])
+ private key format expected: str(key['d'])+"#"+str(key['p'])+"#"+str(key['q'])
+ 
+ 
+"""
+
+
+include random.repy
+include time.repy
+include keyrangelib.repy
+
+#also includes rsa.repy and sha.repy
+include cncSignData.repy
+
+ # rsa.repy is also included from this file
+include cncFileParser.repy
+
+#<cncperf>
+include cncmultifilelog.repy 
+include cncperfutils.repy 
+include cncperformance.repy
+#</cncperf>
+
+###Constants###
+
+#local ip and port used to receive and send messages to nodes
+LOCAL_IP = getmyip()
+
+
+#time until a renewal key expires
+RENEWAL_KEY_EXP = 3600
+
+#time until registration for an address expires
+REGISTRATION_EXP = 300
+
+#time until registration for an address, that is added to the table by a different server
+BACKUP_REGISTRATION_EXP = 3*REGISTRATION_EXP
+
+#file containing information on all cnc Servers and their public keys
+TRUSTED_CNC_SERVER_FILE="cnc_server_list.txt"
+
+#time between updates, unless update is empty
+UPDATE_INTERVAL=10
+
+#number of addresses to select to send updates to
+NUM_ADDRESSES_TO_SAMPLE = 4
+
+#interval to use for polling the schedule
+SCHEDULE_POLL_INTERVAL = .1
+
+#time untill a registration packet expires from the time sent
+REGISTRATION_PACKET_EXPIRATION_INTV = 20.0
+
+###Constants for computing update packet size###
+#an update packet will be 1024 bytes or less
+#the size of an update packet is given by UPDATE_HEADER_SIZE+USER_KEY_SIZE+ BYTES_PER_ADDRESS*(number of added adresses+ number of deleted addresses)
+
+#byte size of a user key
+USER_KEY_SIZE=20
+
+#21 = byte size of the header (message type) of the update packet, but also includes the space characters between components of the packet
+#4 = an additional amount of buffer space in the event all space is used for added data and it is necessary to include None for deleted data.
+#9 = start and end tags around the encoded address string
+#3 = number taht indicates the character count of the addresses added
+UPDATE_HEADER_SIZE = 21+4 +9 + 3
+
+#space taken up by the signature and public key that needs to be included in signed messages. 
+BYTES_PER_PUBLICKEY = 50
+BYTES_PER_SIGNATURE = 50
+
+#amount of bytes necessary per address in an update packet
+BYTES_PER_ADDRESS=7 #encoded address using cncperformance
+
+#the max size of an update packet
+PACKET_SIZE=1024
+
+#the max number of addreses to include in GetAddressesReply packet
+GET_ADDRESSES_MAX_COUNT = 1000
+
+#the space that will be available to store address data
+ADDRESS_DATA_SPACE = PACKET_SIZE - UPDATE_HEADER_SIZE - USER_KEY_SIZE - BYTES_PER_PUBLICKEY - BYTES_PER_SIGNATURE
+
+#UPDATE_PACKET_HISTORY_NUM gives the number of update packets to cache per userkey
+UPDATE_PACKET_HISTORY_NUM=10
+
+
+###Global Variables###
+
+
+#a dictionary indexed by addresses and containing keys that can be used to renew an address's registration through UDP
+#each entry is a (key,timecreated) tuple
+renewal_keys = dict()
+renewal_keys_lock = getlock()
+
+###Context Information### 
+#this information includes keys and other data for the current instance fo the server
+server_context_info = dict()
+server_context_info["public_key"] = None
+server_context_info["private_key"] = None
+server_context_info["key_range"] = (0,0) #lower,upper inclusive
+
+#structure that allows for looking up the public key of any cnc server
+server_context_info["cnc_server_dict"] = dict() #each key is of the form <ip>:<port>. each entry is the public key
+cnc_server_dict_lock = getlock()
+
+#structure that allows for looking up the backup server for each cnc server
+server_context_info["cnc_backup_dict"] = dict() #each key is string of the form <ip>:<port>. each entry is the backup server address (ip,port)
+cnc_backup_dict_lock = getlock()
+CNC_BACKUP_CONFIG_FILE = "cnc_backup_config.txt"
+
+#structure that indicates the cnc servers with each key range
+#each key is a pair of integers (lower user key, upper user key). Each entry is a list of (ip, port) pairs giving the address of the servers handling the respective key range. 
+server_key_range_table = dict()
+server_key_range_table_lock = getlock()
+
+
+#a dictionary indexed by user keys. each entry is a dictionary indexed by addresses, and containing port,timestamp entries
+#this is the main structure the update server uses to keep track of registered addresses. The userkeys are stored as strings, the ip_addresses as strings,
+#the port as an integer, and the timestamp as a float.
+#the userkey string does not require a special format, any string can be used. However, the client is expected to register using a hash of the rsa userkeys it gets from the nodemanager.
+#Example: control_list["mykey"]["11.11.11.1"] will retrieve the (port, timestamp) entry for the address "11.11.11.1" registered under the userkey "mykey" 
+control_list = dict()
+control_list_lock = getlock()
+
+#dictionary indexed by ip address. Each entry is a (port,timestamp) pair, where the port is an integer and the timestamp is a float
+#this structure tracks addresses that have registered for query. This is used to quickly reply to verify address requests
+query_table = dict()
+query_table_lock = getlock()
+
+#the schedule is a list of (userkey, timestamp) pairs that keek track of when updates need to be sent out
+#timestamps are stored in float format.
+#userkeys are stored as strings (the same as the userkey strings used in control_list). The string userkeys here
+#are hashes of rsa public keys.
+#updates at the front of the list are processed first, then appended to the end
+update_schedule=[]
+update_schedule_lock=getlock()
+
+#keeps track of addresses that have been added since the last update was sent
+#The dict is indexed by userkey strings (the same as the userkey strings used in control_list), and each entry in the dict is a list of ip address strings. Note, in practice the string userkeys used to index into
+#the dict are hashes of rsa public keys.
+#for example, update_deleted["myuserkey"] will access a list of ip addresses represented as strings for the string userkey "myuserkey".
+update_added = dict()
+
+#keeps track of addresses that have been deleted since the last update was sent
+#The dict is indexed by userkey strings (the same as the userkey strings used in control_list), and each entry in the dict is a list of ip address strings. Note, in practice the string userkeys used to index into
+#the dict are hashes of rsa public keys.
+#for example, update_deleted["myuserkey"] will access a list of ip addresses represented as strings for the string userkey "myuserkey".
+update_deleted = dict()
+
+#controls write access to both update_added and update_deleted structures
+update_added_deleted_lock = getlock() 
+
+#indexed by user key, each entry is an integer, which is the id of the last update packet that was sent for the respective userkey
+last_update_id= dict()
+last_update_id_lock = getlock() 
+
+#indexed by userkey, each entry is a dict that is used to cache update packet history for the repective userkey by id
+#for instance, to get the update packet with id 1234 for userkey foo, you would access update_packet_cache[foo][1234]
+#UPDATE_PACKET_HISTORY_NUM gives the number of update packets to cache per userkey
+update_packet_cache=dict() 
+
+###Registration Helper Functions###
+#sends a registration request to an update server through udp
+#returns true if successful, false if registration failed due to userkey not being in local keyrange
+def server_process_registration(userkey, sender_ip, sender_port):
+  """
+  <Purpose>
+    Registers on behalf of the sender_ip address, with the specified update port and userkey.
+    If the userkey is supported by one or more query servers, the registration request is sent to only the supporting query servers. 
+    The key or address will only be registered if it falls in the keyrange of the current server, or if it falls in the range of the server whose backup is teh current server
+
+  <Arguments>
+    userkey: the userkey with which the client is registering
+    sender_ip: ip address of the client
+    sender_port: the remote port from which the client is registering, this will be used as the update port.
+
+  <Exceptions>
+    ValueError if public or private keys (for this server instance) used to sign outgoing messages are invalid
+    We use time_gettime() which may throw a time error if time_updatetime() has not been called, but we call time_updatetime() when starting the server.
+    socket.error when communication errors happen on sending messages
+
+  <Side Effects>
+    None
+
+  <Returns>
+    None
+  """
+  
+  
+  #determine if we are doing registering an address under a userkey, or if we are registering an address for query verification
+  query_registration = (userkey=="query_registration")
+  
+  lookup_key = None
+  key_hash=None
+  if query_registration:
+    #if we are doing a query registration, we dont care about the userkey, so we hash the sender information
+    key_hash = keyrangelib_get_short_hash(sender_ip)
+    lookup_key = sender_ip
+  else:
+    #get the hash for the userkey
+    key_hash = keyrangelib_get_short_hash(userkey)
+    lookup_key = userkey
+  
+  #verify if the userkey is in the server that has the local server as its backup
+  userkey_in_backup_keyrange = verify_userkey_in_backup_keyrange(lookup_key)
+  
+  
+  #for the loacl key range, we check if the hash value is within the range
+  keyrange=server_context_info["key_range"]
+  lower_bound, upper_bound = keyrange
+
+  #check if the key hash falls into the range
+  if (lower_bound <= key_hash and key_hash<=upper_bound) or userkey_in_backup_keyrange:
+    
+    if query_registration:
+      server_query_register(sender_ip, sender_port)
+    else:
+      #we can register the address under this userkey
+      server_register_address(userkey, sender_ip, sender_port)
+    return True
+  else:
+    return False
+  
+  
+def server_validate_renewal_key(renew_key, sender_ip):
+  """
+  <Purpose>
+    helper function that determines if a given renewal key is valid
+    if this function detects the renewal key is expired, it is removed from renewal_keys
+
+  <Arguments>
+    renew_key: renew key to check
+    sender_ip: ip address of the client that is trying to use the renewal key
+
+  <Exceptions>
+    We use time_gettime() which may throw a time error if time_updatetime() has not been called, but we call time_updatetime() when starting the server.
+
+  <Side Effects>
+    if this function detects the renewal key is expired, it is removed from renewal_keys
+
+  <Returns>
+    True if valid, false otehrwise.
+  """
+
+  #check if stored renew key, exists, is still valid and if it is the same as the provided renew key
+  key_found = sender_ip in renewal_keys.keys()
+  
+  #initialize these values to false by default before we compute them
+  renew_key_expired= False
+  incorrect_renew_key= False
+      
+  if(key_found):
+    stored_key, stored_key_timestamp = renewal_keys[sender_ip]
+    renew_key_expired = (stored_key_timestamp + RENEWAL_KEY_EXP < time_gettime())
+    incorrect_renew_key = (stored_key!=int(renew_key))
+    
+    #if the key is expired, remove it from renewal_keys
+    if renew_key_expired:
+      #aquire the lock and check again in case it was modified
+      renewal_keys_lock.acquire()
+      if (stored_key_timestamp + RENEWAL_KEY_EXP < time_gettime()):
+        renewal_keys.pop(sender_ip)
+        
+      #release the lock
+      renewal_keys_lock.release()
+      
+  #return whether the key is valid
+  return key_found and not(renew_key_expired) and not(incorrect_renew_key)
+
+#helper function that gives a string representation of the server_key_range_table in the form:
+#<entry1>;<entry2>;<entry3>...
+#where each entry is of the form: lower_bound,upperbound:ip1,port1%ip2,port2%ip3,port3...
+def server_key_range_table_to_string():
+  result_string = ""
+  
+  for range_value in server_key_range_table.keys():
+    entry = str(range_value[0])+"," + str(range_value[1]) + ":"
+    
+    server_list = server_key_range_table[range_value]
+    
+    #only add an entry if the range has addresses in it
+    if len(server_list) > 0:
+      for server_address in server_list:  #server_address is a (ip,port) pair
+        entry = entry + server_address[0] + ","+ str(server_address[1]) + "%"
+      
+      #remove the trailing % form entry
+      entry = entry[0:len(entry)-1]
+      
+      result_string = result_string + entry + ";"
+    
+  
+  if result_string=="":
+    result_string = "None"
+  else:
+    #remove the trailing ;  
+    result_string = result_string[0:len(result_string)-1]
+  
+  return result_string
+    
+  
+  
+#method that writes to the log of the server.
+#currently, it just prints out anything it receives
+def server_write_to_log(message):
+  cncmultifilelog_write_to_base_file(message) #<cncperf>
+  print "log: " + message 
+
+
+#keeps the server_context_info["cnc_server_dict"] structure refreshed, updating it every 10 minutes by reading new data from a file
+def server_trusted_server_keys_refresh():
+
+  while True:
+    cnc_server_dict_lock.acquire()
+    server_context_info["cnc_server_dict"] = cncFileParser_read_server_list_file(TRUSTED_CNC_SERVER_FILE)
+    cnc_server_dict_lock.release()
+
+    sleep(600)
+    
+ 
+###Query Helper Functions###
+def server_query_register(sender_ip, sender_port):
+  """
+  <Purpose>
+    Register a specified address to be a repy member. This means that even if other nodes do not share userkeys with this address,
+    they will be able to communicate to it. registering an address with this method will mean it will be described as valid in 
+    verifyAddressReply's, but unless the address is also registered under one or more userkeys, it will not be disseminated in update packets.
+
+  <Arguments>
+    sender_ip: the ip address to register.
+    sender_port: The port on which the specified ip address will listen on for update packets. If the same ip is registered under using different ports,
+     the previous port will be overwritten each time.
+  <Exceptions>
+    We use time_gettime() which may throw a time error if time_updatetime() has not been called, but we call time_updatetime() when starting the server.
+
+
+  <Side Effects>
+    Changes data structures for this server instance as appropriate, see Purpose section.
+
+  <Returns>
+    None
+  """
+  
+  query_table_lock.acquire()
+  timestamp = time_gettime()
+  query_table[sender_ip] = sender_port,timestamp
+  query_table_lock.release()
+  
+  
+#check if a specified address is a valid entry in the query table, ie: in the query table and not expired.
+#returns validity, port. 
+def server_query_check_address(ip_to_check):
+  if not(ip_to_check in query_table.keys()):
+    return False,None
+
+  query_table_lock.acquire()
+  port,timestamp = query_table[ip_to_check]
+  validity = (timestamp+REGISTRATION_EXP > time_gettime())
+  
+  query_table_lock.release()
+  
+  if(validity):
+    return validity,port
+  else:
+    return validity, None
+ 
+###Update Helper Functions###
+
+#<cncperf>
+#periodically writes out the contents of controll list to the log file
+def log_server_table_contents():
+  string_out = "UpdateTableStart\n"
+  control_list_lock.acquire()
+  for userkey in control_list.keys():
+    
+    #skip userkeys with no entries
+    if len(control_list[userkey].keys())==0:
+      continue
+    
+    string_out+=userkey + ":"
+    
+    for ip in control_list[userkey].keys():
+      string_out+= ip + ',' + str(control_list[userkey][ip][0]) + ',' + str(control_list[userkey][ip][1])
+    
+    string_out+='\n'
+    
+  control_list_lock.release()
+  string_out+="UpdateTableEnd"
+  server_write_to_log(string_out)
+  settimer(300,log_server_table_contents, [])
+#</cncperf>
+
+def server_register_address(userkey, sender_ip, sender_port):
+  """
+  <Purpose>
+    Register a specified address to a specified userkey. This consists of several steps:
+    1.update the control_list[userkey][sender_ip] entry if it exists, and create it if it does not, specifying a port and timestamp for the entry
+    2.If the userkey did not exist in control_list previously, schedule it to receive updates using server_schedule_append(new_user_key)
+    3.Update the update_added and update_deleted structures to reflect any changes made to control_list
+
+  <Arguments>
+    userkey: userkey to register the sender address under
+    sender_ip: the ip address to register. The same ip can be registered under multiple userkeys.
+    sender_port: The port on which the specified ip address will listen on for update packets. If the same ip is registered under teh same userkey using different ports,
+     the previous port will be overwritten each time. The entries of a set of ip addresses registered under a given userkey are always unique
+  <Exceptions>
+    We use time_gettime() which may throw a time error if time_updatetime() has not been called, but we call time_updatetime() when starting the server.
+
+
+  <Side Effects>
+    Changes data structures for this server instance as appropriate, see Purpose section.
+
+  <Returns>
+    None
+  """
+  
+  #use the following fields to keep track of changes made
+  #then once lock is released, save changes to the update_added and update_deleted lists
+  new_address_added = False
+  new_address_data = None
+  
+  new_user_key_added = False
+  new_user_key = None
+
+  #will indicate if the update port was changed from a previous value
+  #should remain set to false if tehre si no previous value
+  update_port_changed =False 
+  
+  #get the lock on control_list
+  control_list_lock.acquire()
+  
+  known_users = control_list.keys()
+  #check if there is an entry for userkey in control_list
+  if userkey in known_users:
+    known_addresses = control_list[userkey].keys()
+    
+    if(sender_ip in known_addresses):
+      if control_list[userkey][sender_ip][0] != sender_port :
+        update_port_changed = True
+        new_address_data = (userkey, sender_ip)
+        
+      #if the address timestamp entry already exists in control_list[userkey], overwrite it
+      control_list[userkey][sender_ip]=(sender_port, time_gettime())
+    else:
+      #otherwise add it and update the add and remove lists
+      control_list[userkey][sender_ip]=(sender_port, time_gettime())
+      
+      #save change for add and delete lists
+      new_address_added = True
+      new_address_data = (userkey, sender_ip)
+    
+  else:
+    #if there is no entry, add one
+    control_list[userkey] = dict()
+    
+    #the new user key will be scheduled to receive update packets after lock is released
+    new_user_key_added=True
+    new_user_key=userkey
+           
+    #add an entry with the timestamp under the client address
+    control_list[userkey][sender_ip]=(sender_port, time_gettime())
+    
+    #save change for add and delete lists
+    new_address_added = True
+    new_address_data = (userkey, sender_ip)
+      
+  #release the lock on control_list
+  control_list_lock.release()
+  
+  #update the schedule
+  if new_user_key_added :
+    server_schedule_append(new_user_key)
+
+  #update the add and delete lists
+  if (new_address_added or update_port_changed): 
+    server_update_add_change(new_address_data[0],new_address_data[1])
+
+  return
+
+###Announcement###
+
+#sends an announcement packet to the specified ip and port, unless
+#an announcement packet was already sent to specified address in the last 
+def send_announcement_packet_helper(messageName, dest_ip, dest_port):
+  #assemble the packet
+  message = messageName + " " + str(server_context_info["key_range"][0]) + " " + str(server_context_info["key_range"][1])
+      
+  #sign the message
+  signed_message = cncSignData_sign_message(message, server_context_info["public_key"], server_context_info["private_key"])
+  
+  signed_message = cncperfutils_apply_sequenceid(signed_message, dest_ip, dest_port) #<cncperf>
+  bytes_sent = sendmess(dest_ip, dest_port, signed_message, LOCAL_IP, server_context_info["local_port"])
+  server_write_to_log("UDPPacketSent " + signed_message.split()[0] + " " + str(bytes_sent) + " bytes") #<cncperf>
+  return
+
+
+def server_announce_to_cnc_servers():
+  """
+  <Purpose>
+    Every 10 minutes, this method sends a signed announcement packet to cnc servers. This packet containing the key range supported by
+    this server, so other servers can provide accurate key range information to clients
+
+  <Arguments>
+    none
+
+  <Exceptions>
+    ValueError if public or private keys used to sign messages are invalid
+    socket.error when communication errors happen on sending messages
+    We use time_gettime() which may throw a time error if time_updatetime() has not been called, but we call time_updatetime() when starting the server.
+        
+
+  <Side Effects>
+    None.
+
+  <Returns>
+    Never returns
+  """
+  
+  while True:
+    
+    cnc_server_dict_lock.acquire()
+    #first, update the server_context_info["cnc_server_dict"] structure
+    server_context_info["cnc_server_dict"] = cncFileParser_read_server_list_file(TRUSTED_CNC_SERVER_FILE)
+    
+    #for each registration server, send a packet announcing the current update server's key range and public key
+    for raw_address in server_context_info["cnc_server_dict"].keys():
+      dest_ip, dest_port = raw_address.split(':')
+      dest_port = int(dest_port)
+      
+      send_announcement_packet_helper("CNCServerToServerAnnounce", dest_ip, dest_port)
+      
+    cnc_server_dict_lock.release()
+    #sleep a few minutes before sending the announcement again
+    sleep(600)
+    
+    
+###Schedule Modification Methods###
+
+def server_schedule_front(userkey_to_schedule, entries_to_skip=5):
+  """
+  <Purpose>
+    Places a user key at the beggining of the schedule, this method aquires the lock for the schedule.
+    Removes any duplicates of the key that are also in the list
+    If the user key is already in the first entries_to_skip entries, it is not moved.
+
+  <Arguments>
+    userkey_to_schedule: the string userkey to add to the update schedule
+    entries_to_skip: If the user key is already in the first entries_to_skip entries, no change is made.
+
+  <Exceptions>
+    We use time_gettime() which may throw a time error if time_updatetime() has not been called, but we call time_updatetime() when starting the server.
+
+
+  <Side Effects>
+    None
+
+  <Returns>
+    None
+  """
+  
+  #if the key is already toward the front of the schedule, do not waste time moving it.
+  for int_index_iterator in range(0,min(len(update_schedule),entries_to_skip)):
+    if update_schedule[int_index_iterator][0] == userkey_to_schedule :
+      return
+      
+  #aquire the lock for the schedule
+  update_schedule_lock.acquire()
+  
+  for int_index_iterator in range(0,len(update_schedule)):
+    if update_schedule[int_index_iterator][0] == userkey_to_schedule :
+      update_schedule.pop(int_index_iterator)
+  
+  
+  #construct the entry and add it
+  entry = (userkey_to_schedule, time_gettime() - UPDATE_INTERVAL - 1)
+  update_schedule.insert(0, entry)
+  
+  #release the lock
+  update_schedule_lock.release()
+  
+  
+#places a string user key at the end of the schedule, this method aquires the lock for the schedule.
+def server_schedule_append(userkey):
+
+  #aquire the lock for the schedule
+  update_schedule_lock.acquire()
+  
+  #construct the entry and add it
+  entry = (userkey, time_gettime())
+  update_schedule.append(entry)
+  
+  #release the lock
+  update_schedule_lock.release()
+  
+
+###Helper Methods for modification of the update_added and update_deleted lists###
+
+#updates the update_added and update_deleted lists to reflect an added address for the given user key
+#will aquire locks to update_added and update_deleted lists
+def server_update_add_change(registered_userkey,address):
+  """
+  <Purpose>
+    updates the update_added list to reflect a deleted address for the given user key. If the address:userkey entry is already in the update_deleted list,
+    it is removed and added to the update_added list. 
+    If the address:userkey entry is already in the update_added list, nothing is done.
+
+  <Arguments>
+    registered_userkey: the string userkey under which the address is registered
+    address: the address to add under the specified userkey
+
+  <Exceptions>
+    We use time_gettime() which may throw a time error if time_updatetime() has not been called, but we call time_updatetime() when starting the server.
+
+  <Side Effects>
+    None
+
+  <Returns>
+    None
+  """
+  
+  update_added_deleted_lock.acquire()
+  
+  #if there is no list for the user key in either update_added or update_deleted, create the entries where needed
+  if not(registered_userkey in update_deleted.keys()):
+    update_deleted[registered_userkey]=[]
+  if not(registered_userkey in update_added.keys()):
+    update_added[registered_userkey]=[]
+  
+  #remove the address if it is in the deleted list
+  if address in update_deleted[registered_userkey]:
+    update_deleted[registered_userkey].remove(address)
+    
+  #add the address to the add list only if it is not already in the add list
+  if not(address in update_added[registered_userkey]):
+    update_added[registered_userkey].append(address)
+  
+  #release the lock
+  update_added_deleted_lock.release()
+  
+  #check if the data now fits within a packet
+  if (len(update_added[registered_userkey]) + len(update_deleted[registered_userkey])) * BYTES_PER_ADDRESS > ADDRESS_DATA_SPACE :
+    #if the data does not fit, check entry's position in the schedule, and if it is far down, move it to the top
+    server_schedule_front(registered_userkey)
+    
+
+#updates the update_added and update_deleted lists to reflect a deleted address for the given user key
+#will aquire locks to update_added and update_deleted lists
+def server_update_delete_change(registered_userkey,address):
+  """
+  <Purpose>
+    updates the update_deleted list to reflect a deleted address for the given user key. If the address:userkey entry is already in the update_added list,
+    it is removed and added to the update_deleted list. 
+    If the address:userkey entry is already in the update_deleted list, nothing is done.
+
+  <Arguments>
+    registered_userkey: the string userkey under which the address is registered
+    address: the address to delete under the specified userkey
+
+  <Exceptions>
+    We use time_gettime() which may throw a time error if time_updatetime() has not been called, but we call time_updatetime() when starting the server.
+
+  <Side Effects>
+    None
+
+  <Returns>
+    None
+  """
+  
+  update_added_deleted_lock.acquire()
+  #if there is no list for the user key in either update_added or update_deleted, create the entries where needed
+  if not(registered_userkey in update_deleted.keys()):
+    update_deleted[registered_userkey]=[]
+  if not(registered_userkey in update_added.keys()):
+    update_added[registered_userkey]=[]
+  
+  #remove the address if it is in the update_added list
+  if address in update_added[registered_userkey]:
+    update_added[registered_userkey].remove(address)
+    
+  #add the address to the deleted list only if it is not already in the delete list
+  if not(address in update_deleted[registered_userkey]):
+    update_deleted[registered_userkey].append(address)
+  
+  #release the lock
+  update_added_deleted_lock.release()
+  #check if the data now fits within a packet
+  if (len(update_added[registered_userkey]) + len(update_deleted[registered_userkey])) * BYTES_PER_ADDRESS > ADDRESS_DATA_SPACE :
+    #if the data does not fit, check entry's position in the schedule, and if it is far down, move it to the top
+    server_schedule_front(registered_userkey)
+    
+
+###Update Methods###
+
+def server_assemble_update_packet(userkey):
+  """
+  <Purpose>
+    assembles the update packet for a given user key and resets the appropriate portions of the update_added and update_deleted data structures.
+    The update packet does not incude all the data in update_added and update_deleted data structures, but rather only as much as will fit in the packet, 
+    up to PACKET_SIZE bytes
+
+  <Arguments>
+    userkey: the userkey for which to assemble the update packet
+
+  <Exceptions>
+    ValueError if public or private keys (for this server instance) used to sign update message are invalid
+    We use time_gettime() which may throw a time error if time_updatetime() has not been called, but we call time_updatetime() when starting the server.
+
+  <Side Effects>
+    None
+
+  <Returns>
+    a signed AddressListUpdate message.
+  """
+  
+  #the first part of teh massage including up to the user key
+  message = "AddressListUpdate " + userkey
+  data_added=""
+  data_deleted=""
+  
+  #get the lock for the update_added and update_deleted dictionaries
+  update_added_deleted_lock.acquire()
+
+  
+  #to assemble the data from the list, first determine the total amount of space available
+  space_left = PACKET_SIZE - UPDATE_HEADER_SIZE - USER_KEY_SIZE
+  
+  #assemble the data added portion
+  #if there is no data added, set this portion to None
+  if (not(userkey in update_added.keys()) or len(update_added[userkey])==0):
+    data_added="None"
+    
+  else:
+    
+    #assemble data untill we use up all space
+    tmp_address_to_add = update_added[userkey].pop(0)
+    encoded_addr = cncperformance_encode_ip_port(tmp_address_to_add, control_list[userkey][tmp_address_to_add][0])
+    data_added = encoded_addr
+    
+    #we pop items from the front of the list, so there is no need to clear the lists afterwards
+    while len(update_added[userkey]) > 0:
+    
+      #break if there is no more space
+      if(space_left<BYTES_PER_ADDRESS):
+        break
+        
+      #otherwise, add the data to the message and deincrement available space
+      tmp_address_to_add = update_added[userkey].pop(0)
+      encoded_addr = cncperformance_encode_ip_port(tmp_address_to_add, control_list[userkey][tmp_address_to_add][0])
+      data_added = data_added+ encoded_addr
+      space_left = space_left - BYTES_PER_ADDRESS
+  
+  
+  #assemble the data deleted portion
+  #if there is no data added, or there is no space left set this portion to None
+  if (not(userkey in update_deleted.keys()) or len(update_deleted[userkey])==0 or space_left<BYTES_PER_ADDRESS):
+    data_deleted="None"
+  
+  else:
+    #assemble data until we use up all space
+    address_to_encode = update_deleted[userkey].pop(0)
+    data_deleted = cncperformance_encode_ip(address_to_encode)
+  
+    #we pop items from the front of the list, so there is no need to clear the lists afterwards
+    while len(update_deleted[userkey]) > 0:
+    
+      #break if there is no more space
+      if(space_left<BYTES_PER_ADDRESS):
+        break
+        
+      #otherwise, add the data to the message and deincrement available space
+      address_to_encode = update_deleted[userkey].pop(0)
+      encoded_address= cncperformance_encode_ip(address_to_encode)
+      data_deleted = data_deleted+encoded_address
+      space_left = space_left - BYTES_PER_ADDRESS
+      
+      
+  
+  #release the lock on update_added and update_deleted
+  update_added_deleted_lock.release()
+  
+  #assign a sequence id
+  last_update_id_lock.acquire()
+  if (userkey in last_update_id.keys()):
+    last_update_id[userkey]=(last_update_id[userkey]+1)
+  else:
+    last_update_id[userkey]=0
+  
+  message = message + " " + str(last_update_id[userkey])
+  last_update_id_lock.release()
+  
+  message = message + " " + str(len(data_added))+ " start" + data_added + data_deleted+"end"
+  
+  #sign the message
+  signed_message = cncSignData_sign_message(message, server_context_info["public_key"], server_context_info["private_key"])
+  
+  #cache the message
+  last_update_id_lock.acquire()
+  
+  if not(userkey in update_packet_cache.keys()):
+    update_packet_cache[userkey]=dict()
+  
+  update_packet_cache[userkey][last_update_id[userkey]] = signed_message
+  
+  #if we are at maximum cacpacity for this key's packets, clear one from the cache
+  if ( len(update_packet_cache[userkey].keys())>=UPDATE_PACKET_HISTORY_NUM):
+    #remove the oldest packet
+    min_key = (last_update_id[userkey]-UPDATE_PACKET_HISTORY_NUM)
+    if ( min_key in update_packet_cache[userkey].keys()):
+      update_packet_cache[userkey].pop(min_key)
+  
+  last_update_id_lock.release()
+  
+  return signed_message
+
+
+def server_send_update_for_userkey(userkey):
+  """
+  <Purpose>
+    Helper method used to handle sampling the addresses and sending the actual packets. If there are NUM_ADDRESSES_TO_SAMPLE addresses or less uder the userkey, we 
+    simply send the update packet to all these addresses. If there are more, we select NUM_ADDRESSES_TO_SAMPLE addresses randomly, and send the update packets to these addreses.
+
+  <Arguments>
+    userkey: userkey for which to assemble the update packet
+
+  <Exceptions>
+    ValueError if public or private keys (for this server instance) used to sign update message are invalid
+    We use time_gettime() which may throw a time error if time_updatetime() has not been called, but we call time_updatetime() when starting the server.
+    socket.error when communication errors happen on sending messages
+
+  <Side Effects>
+    None.
+
+  <Returns>
+    None
+  """
+  
+  #get a list of the adresses from which we can sample
+  addresses = control_list[userkey].keys()
+
+  #if the user key has no addresses listed, there is nothing to send, so return
+  #however, we do need to clear the add delete list such that next time the nodes come online
+  #they do not receive incorrect update info
+  if (len(addresses)==0):
+    update_added_deleted_lock.acquire()
+    update_deleted[userkey]=[]
+    update_added[userkey]=[]
+    update_added_deleted_lock.release()
+    return
+    
+  #if there is no added or deleted data, do not send any update and return
+  if (len(update_deleted[userkey])==0 and len(update_added[userkey])==0):
+    return
+  
+  #create a set in which to store the sample addresses
+  address_dist = set()
+  
+  #if there are a small number of addresses, we can just copy them all to the set, without randomly sampling
+  if len(addresses) < NUM_ADDRESSES_TO_SAMPLE + 1 :
+    for ip_addr in addresses:
+    
+      #lookup to the controll list and get the port
+      control_list_lock.acquire()
+      if (ip_addr in control_list[userkey].keys()):
+        addr = (ip_addr, control_list[userkey][ip_addr][0])
+        address_dist.add(addr)
+      control_list_lock.release()
+  else:
+    #we randomly select NUM_ADDRESSES_TO_SAMPLE addresses to use
+    
+    while (len(address_dist) < NUM_ADDRESSES_TO_SAMPLE) and (len(addresses)>0):
+      
+      #randomly select an address and remove it from addresses
+      rand_int_index = random_randint(0,len(addresses)-1)
+      ip_addr = addresses.pop(rand_int_index)
+      
+      #lookup to the controll list and get the port
+      control_list_lock.acquire()
+      if (ip_addr in control_list[userkey].keys()):
+      
+        #store the ip and port components
+        addr = (ip_addr, control_list[userkey][ip_addr][0])
+        
+        #add the address to the set
+        address_dist.add(addr)
+      control_list_lock.release()
+      
+  #assemble the message
+  message =server_assemble_update_packet(userkey)
+  
+  #for debugging purposes only, prints update messages that are sent and their destinations
+  #print message
+  #print "~sent to ips:" + str(address_dist) + "\n" #remove
+  
+  #we have selected the addresses to use, now we need to send the update packet
+  for destination_address in address_dist:
+    seqmessage = cncperfutils_apply_sequenceid(message, destination_address[0], destination_address[1]) #<cncperf>
+    bytes_sent = sendmess(destination_address[0], destination_address[1],seqmessage, LOCAL_IP, server_context_info["local_port"])
+    server_write_to_log("UDPPacketSent " + seqmessage.split()[0] + " " + str(bytes_sent) + " bytes") #<cncperf>
+    
+  #send the update packet to the backup server if there is one specified.
+  this_server_tag = LOCAL_IP +":"+ str(server_context_info["local_port"])
+  cnc_backup_dict_lock.acquire()
+  if (server_context_info["cnc_backup_dict"].keys()):
+    destination_address=server_context_info["cnc_backup_dict"][this_server_tag]
+    seqmessage = cncperfutils_apply_sequenceid(message, destination_address[0], destination_address[1]) #<cncperf>
+    bytes_sent = sendmess(destination_address[0], destination_address[1],seqmessage, LOCAL_IP, server_context_info["local_port"])
+    server_write_to_log("UDPPacketSent " + seqmessage.split()[0] + " " + str(bytes_sent) + " bytes") #<cncperf>
+    
+  cnc_backup_dict_lock.release()
+  return
+
+def server_main_update_distribute():
+  """
+  <Purpose>
+    Top level method handling update distribution. A 'schedule' is maintained in the form of a list, where each item in the schedule is a userkey.
+    Every SCHEDULE_POLL_INTERVAL seconds, we check if the next userkey in the list is due for processing. If so, we remove any expired addresses under the userkey and proceed
+    to send updates by calling server_send_update_for_userkey.
+    After the item is processed, it is appended to the end of the schedule.
+
+  <Arguments>
+    none
+
+  <Exceptions>
+    ValueError if public or private keys (for this server instance) used to sign update message are invalid
+    We use time_gettime() which may throw a time error if time_updatetime() has not been called, but we call time_updatetime() when starting the server.
+    socket.error when communication errors happen on sending messages
+
+  <Side Effects>
+    None.
+
+  <Returns>
+    never
+  """
+  
+  while True:
+  
+    #if list is empty, sleep
+    if (len(update_schedule) == 0):
+      sleep(SCHEDULE_POLL_INTERVAL)
+      continue
+    
+    #check if the next item in the list is not yet due for processing, in which case sleep
+    current_time = time_gettime()
+    if (len(update_schedule) == 0) or (current_time <= update_schedule[0][1]+UPDATE_INTERVAL):
+      sleep(SCHEDULE_POLL_INTERVAL)
+      continue
+    else:
+      #there is a item in the list we need to send an update for
+      
+      #get the lock for the schedule, and remove the first entry
+      update_schedule_lock.acquire()
+      entry = update_schedule.pop(0)
+      
+      #the entry has been removed, so release the lock
+      update_schedule_lock.release()
+      
+      #get the user key
+      user_key = entry[0]
+      
+      #verify that all addresses registered for the current entry's user are valid
+      for addr in control_list[user_key].keys():
+        server_verify_address_valid(user_key,addr)
+      
+      #process the send update job for the user key
+      server_send_update_for_userkey(user_key)
+        
+      #the entry has been processed
+      #place the entry back into the schedule and continue to the next entry
+      update_schedule_lock.acquire()
+      entry = (user_key,time_gettime())
+      update_schedule.append(entry)
+      update_schedule_lock.release()
+
+  
+#helper function that assembles a list of address (ip,port) pairs for a given user key.
+#this data is taken from the control list and the format is an encoded string
+#essentially this provides a string representation of control_list[user_key] for unexpired addresses.
+def server_assemble_addresses_string(user_key):
+  addresses = ""
+  return_data=""
+  for address in control_list[user_key].keys():
+    if server_verify_address_valid(user_key, address):
+      encoded_ip_port_address = cncperformance_encode_ip_port(address, control_list[user_key][address][0])
+      addresses += encoded_ip_port_address
+      
+      
+
+  #each address is encoded as BYTES_PER_ADDRESS characters
+  #so if there is too much data, we can just take a fragment of it
+  num_addresses = len(addresses)/BYTES_PER_ADDRESS
+  if(num_addresses>GET_ADDRESSES_MAX_COUNT):
+    
+    rand_fragment_start_index = random_randint(0,len(addresses) - GET_ADDRESSES_MAX_COUNT)
+    
+    
+    #take only a subsection of the addresses string
+    addresses=addresses[rand_fragment_start_index*BYTES_PER_ADDRESS:len(addresses)]
+    
+    server_write_to_log("Unable to fit all addresses in GetAddressesReply, "+ str(num_addresses) + " total, can only fit " + str(GET_ADDRESSES_MAX_COUNT))
+    
+  
+  if len(addresses)>0:
+    return_data = "tbl"+addresses+"end"
+  else:
+    return_data="None"
+    
+  return return_data
+
+
+#verify if an address entry in control list for a given user key exists and is valid  
+#if the address is expired, it is removed from the list
+#registered_userkey is the userkey string the address is registered under.
+def server_verify_address_valid(registered_userkey, address):
+  if registered_userkey not in control_list.keys():
+    return False
+  
+  if address not in control_list[registered_userkey]:
+    return False
+  
+  #check if address is expired
+  if (control_list[registered_userkey][address][1] + REGISTRATION_EXP)< time_gettime():
+  
+    #acquire lock on control_list, recheck if invalid entry is still present, and if so remove it
+    #this is done to avoid getting the lock in the most common case where the address is not expired
+    control_list_lock.acquire()
+    
+    userkey_is_backup = verify_userkey_in_backup_keyrange(registered_userkey)
+    address_is_expired=((control_list[registered_userkey][address][1] + REGISTRATION_EXP)< time_gettime())
+    address_backup_expired = ((control_list[registered_userkey][address][1] + BACKUP_REGISTRATION_EXP)< time_gettime())
+    
+    if (address in control_list[registered_userkey]):
+      if (userkey_is_backup and address_backup_expired) or (not(userkey_is_backup) and address_is_expired):
+        control_list[registered_userkey].pop(address)
+      control_list_lock.release()
+    
+      #if the address was expired, add it to the delete list, but not while holding the control_list lock
+      server_update_delete_change(registered_userkey,address)
+    else:
+      control_list_lock.release()
+    
+    return False
+    
+  #if no problem was found, return true
+  return True
+
+
+
+###Backup Methods###
+
+#if an update packet is older than this many seconds, it is ignored and not saved to backup
+SERVER_UPDATE_PACKET_EXPIRATION_INTV = 600.0
+
+#checks if a userkey is in the range of a server taht has the local server listed as a backup
+def verify_userkey_in_backup_keyrange(userkey):
+  #get list of server addresses that cover the userkey
+  address_list = keyrangelib_get_addresses_for_userkey(userkey, server_key_range_table)
+  
+  this_server_name = LOCAL_IP + ":"+ str(server_context_info["local_port"])
+  
+  matching_server_list=[]
+  for iteration_key in server_context_info["cnc_backup_dict"].keys():
+    ip_to_check, port_to_check = server_context_info["cnc_backup_dict"][iteration_key]
+    
+    tag_to_check = ip_to_check+":"+str(port_to_check)
+    if(tag_to_check==this_server_name):
+      matching_server_list.append(iteration_key)
+  
+  #check if any of the matching servers are in the list of addresses that match the key
+  for address_tag in matching_server_list:
+    ip_to_check, port_to_check = address_tag.split(':')
+    port_to_check=int(port_to_check)
+    
+    if (ip_to_check, port_to_check) in address_list:
+      return True
+  
+  return False
+
+#keeps the server_context_info["cnc_backup_dict"] structure up to date, updating it every 10 minutes by reading new data
+def server_backup_info_refresh():
+
+  while True:
+    cnc_backup_dict_lock.acquire()
+    server_context_info["cnc_backup_dict"] = cncFileParser_read_backup_config(CNC_BACKUP_CONFIG_FILE)
+    cnc_backup_dict_lock.release()
+
+    sleep(600)
+
+
+
+#process AddressListUpdate packets
+#if it is determined the sender is trusted, the data from the update packet will be added to the control list
+def server_process_update_packet(remoteIP, remoteport, message):
+  
+  #parse the reply
+  split_packet_data = message.split()
+  
+  #if the number of tokens in the message is incorrect, return and ignore the message after logging
+  if (len(split_packet_data) < 7):
+    server_write_to_log("address list message is in incorrect format, message = "+message)
+    return
+  
+  message_part, signature_part = message.rsplit(' ',1)
+  data, publickey_str, timestamp = message_part.rsplit(' ',2)
+  
+  #check public key in message
+  message_public_key_str = publickey_str.replace('#',' ')
+  message_public_key = rsa_string_to_publickey(message_public_key_str)
+  
+  if(not(message_public_key in server_context_info["cnc_server_dict"].values())):
+    #public keys dont match
+    server_write_to_log("message public key -" + message_public_key_str+ "- was not found in cnc_server_dict")
+    
+    #message cannot be trused, so return
+    return
+  
+  server_tag = remoteIP+":" + str(remoteport)
+  if not(server_tag in server_context_info["cnc_server_dict"].keys()):
+    #public keys dont match
+    server_write_to_log("server -" + server_tag+ "- was not found in cnc_server_dict keys")
+        
+    #message cannot be trused, so return
+    return
+    
+  #check the signature
+  signature_correct = cncSignData_check_signature(message_part, signature_part, message_public_key)
+  if not(signature_correct):
+    server_write_to_log("signature check failed on AddressListUpdate packet: " + message)
+    return
+    
+  #get the userkey form the packet
+  userkey = split_packet_data[1]
+  
+  #get the sequence id of the update packet
+  current_id = int(split_packet_data[2])
+  
+  #also, if the update is very old, we ignore it
+  valid, reason = cncSignData_checktimestamp(timestamp, SERVER_UPDATE_PACKET_EXPIRATION_INTV)
+  if not(valid):
+    server_write_to_log("timestamp check failed on update packet: " + reason + " message="+ message)
+    return
+  
+  server_write_to_log("processing update packet from " + str(remoteIP))
+  #the packet is valid, so now we can apply the changes it describes.
+    
+  
+  control_list_lock.acquire()
+  #ensure we have a userkey entry in the control_list for the packet userkey
+  userkey_added=False
+  
+  if not(userkey in control_list.keys()):
+    control_list[userkey]=dict()
+    userkey_added=True
+  
+  
+  size_add_info = int(split_packet_data[3])
+  #get the add and delete information
+  encoded_address_string = message_part[message_part.find("start"):message_part.rfind("end")]
+  
+  add_info = encoded_address_string[0+len("start"):size_add_info+len("start")]
+  del_info = encoded_address_string[size_add_info+len("start"):len(encoded_address_string)]
+  
+  
+  #process the elements that need to be added
+  if(add_info!="None"):
+    #decode the addresses
+    encoded_address_string = add_info
+    address_port_list=cncperformance_decode_ip_port_list(encoded_address_string)
+    
+    for address_port_pair in address_port_list:
+      ip_str, port = address_port_pair
+      
+      #add each entry to the control list
+      control_list[userkey][ip_str]= (port, float(timestamp))
+      server_write_to_log("debug: added " + ip_str + ":" + str(port) + " to table for userkey " + userkey)
+      
+  #process the elements that need to be deleted
+  if(del_info!="None"):
+    encoded_address_string = del_info
+    address_list = cncperformance_decode_ip_list(encoded_address_string)
+    
+    for address_ip in address_list:
+      ip_str = address_ip
+      
+      if (ip_str in control_list[userkey].keys()):
+        control_list[userkey].pop(ip_str)
+        server_write_to_log("debug: deleted " + ip_str + " from table for userkey " + userkey)
+       
+      
+      
+  #we are done processing the update packet
+  control_list_lock.release()
+
+  #save sequence id specified in the packet
+  last_update_id_lock.acquire()
+  last_update_id[userkey]=current_id
+  last_update_id_lock.release()
+
+  if(userkey_added):
+    server_schedule_append(userkey)
+  
+  return
+
+###Server Request Handlers###  
+    
+def server_handle_tcp_connection(remoteip, remoteport, socketobj, thiscommhandle, listencommhandle):
+  """
+  <Purpose>
+    Used with waitforconn.
+    This method handles all inbound tcp connections to the registration server. See Packetformat.txt for information on message format.
+    Currently tcp is only used for registration ad described below:
+    RegisterAddressRequest: Forward a registration request on behalf of the sender to each of the userkeys specified. Generate a 
+      15 digit random number to include in the 'registration successful' reply. The client will be able to use this 15 digit password to renew
+      registration through udp instead of tcp.
+
+  <Arguments>
+    remoteip, remoteport, socketobj, thiscommhandle, listencommhandle
+
+  <Exceptions>
+    ValueError if public or private keys (for this server instance) used to sign outgoing messages are invalid. This only applies to 
+      the registration udp messages sent to the update and query servers. The confirmation reply sent to the client is not signed.
+    We use time_gettime() which may throw a time error if time_updatetime() has not been called, but we call time_updatetime() when starting the server.
+    socket.error when communication errors happen on sending messages back through the socket object
+
+  <Side Effects>
+    This method will modify data structures for this server instance as determined by the request received. For details on behavior for specific requests, 
+    see Purpose section. In particular, the assigned renewal passcode for the client address will be saved in renewal_keys[<client_ip>].
+
+  <Returns>
+    None
+  """
+  
+  #if we disconnect, we will break out of the loop
+  while True:
+    
+    try:
+      message_data = socketobj.recv(1024)
+    except Exception, e:
+      #there is a problem with the socket connection, so return
+      server_write_to_log("Unexpected problem with socket: " + str(e))
+      return
+    
+    server_write_to_log("TCPDataReceived " + str(len(message_data)) + " bytes, sender = " + remoteip + ":" + str(remoteport)) #<cncperf>
+    
+    #parse the data
+    split_packet_data=message_data.split()
+      
+    #if the data is empy, disconnect
+    if len(message_data)==0:
+      break
+      
+    #the first entry in split_packet_data is always the packet type
+    if split_packet_data[0] == "RegisterAddressRequest":
+      #get the user keys that the address needs to be registered to
+      userkeys_to_register = split_packet_data[1].split(',')
+
+      #register the sender with each user
+      for userkey_to_register in userkeys_to_register:
+        userkey_registered = server_process_registration(userkey_to_register, remoteip, remoteport)
+        if not(userkey_registered):
+          #registering this userkey failed since it does not fall in this server's key range
+          #send a reply to inform the client it needs to update its key range
+          response = "RegisterFailOutOfKeyRange"
+          socketobj.send(response)
+          server_write_to_log("TCPDataSent " + str(len(response)) + " bytes") #<cncperf>
+          
+          #this registration failed (even though it is possible part of the keys were registered), so return
+          socketobj.close()
+          return
+        
+      #prepare a response containing a randomly generated 15 digit key that can be used to re-register through UDP
+      udp_key = random_randint(100000000000000,1000000000000000)
+        
+      renewal_keys_lock.acquire()
+      renewal_keys[remoteip]=(udp_key, time_gettime())
+      renewal_keys_lock.release()
+        
+      response = "RegisterAddressRequestComplete "+ str(udp_key)
+      socketobj.send(response)
+      server_write_to_log("TCPDataSent " + str(len(response)) + " bytes") #<cncperf>
+      
+      socketobj.close()
+      
+      #this request was handled, so we are can close the connection
+      return
+   
+    else:
+      #packet type was not recognised so log an error
+      server_write_to_log("unrecognized packet type: " + message_data)
+
+
+def server_handle_udp_packet(remoteIP, remoteport, message, commhandle):
+  """
+  <Purpose>
+    Used with recvmess.
+    This method handles all inbound udp messages to the registration server. See Packetformat.txt for information on message format
+    RenewAddressRequest: if the specified password token is valid, forward a registration request on behalf of the sender to each of the userkeys specified.
+    GetUserKeyRangeTables: Reply to this request with information about the keyranges supported by each update server, and the userkey supported by each query server
+    CNCUpdateAnnounceToRegistrationServer: process the announce message for the update server by making an entry in the server_key_range_table. 
+      Subsequent registration requests will be forwarded to this address if appropriate.
+
+  <Arguments>
+    remoteIP, remoteport, message, commhandle
+
+  <Exceptions>
+    ValueError if public or private keys (for this server instance) used to sign outgoing messages are invalid
+    We use time_gettime() which may throw a time error if time_updatetime() has not been called, but we call time_updatetime() when starting the server.
+    socket.error when communication errors happen on sending messages
+    TypeError: this following Exception may be thrown when checking the signature of incoming messages.
+      TypeErrors that are raised by rsa_verify, and that do not contain 'RSA' in the message, will be caught and raised after by this function.
+      TypeErrors that are raised by rsa_verify, but contain 'RSA' in the message, indicate bad signature or public key, so these are caught.
+
+  <Side Effects>
+    This method will modify data structures for this server instance as determined by the request received. For details on behavior for specific requests, 
+    see Purpose section.
+
+  <Returns>
+    None
+  """
+  
+  message_data = message.strip()
+  
+  #ignore empty data packets
+  if message_data.strip() == '':
+    return
+  
+  server_write_to_log("UDPPacketReceived " + message_data.split()[0] + " " + str(len(message_data)) + " bytes, sender = " + remoteIP + ":" + str(remoteport)) #<cncperf>
+  (message_data, error_str) = cncperfutils_analyzesequencemessage(message_data, remoteIP, remoteport) #<cncperf>
+  if not(error_str==""): #<cncperf>
+    server_write_to_log(error_str) #<cncperf>
+  
+  #parse the data
+  split_packet_data=message_data.split()      
+  
+  try:
+  
+    #the first entry in split_packet_data is always the packet type
+    if split_packet_data[0] == "RenewAddressRequest":
+      renew_key = int(split_packet_data[2])
+        
+      #check if stored renew key, exists, is still valid and if it is the same as the provided renew key
+      key_valid = server_validate_renewal_key(renew_key, remoteIP)
+        
+      if(not(key_valid)):
+        message = "RenewFailedInvalidRenewalKey"
+        message = cncperfutils_apply_sequenceid(message, remoteIP, remoteport) #<cncperf>
+        bytes_sent = sendmess(remoteIP, remoteport,message, LOCAL_IP, server_context_info["local_port"])
+        server_write_to_log("UDPPacketSent " + message.split()[0] + " " + str(bytes_sent) + " bytes") #<cncperf>
+        return
+        
+      #if renewal key is valid, register the address
+      userkeys_to_register = split_packet_data[1].split(',')
+      for userkey_to_register in userkeys_to_register:
+        userkey_registered = server_process_registration(userkey_to_register, remoteIP, remoteport)
+        if not(userkey_registered):
+          #registering this userkey failed since it does not fall in this server's key range
+          #send a reply to inform the client it needs to update its key range
+          response = "RegisterFailOutOfKeyRange"
+          bytes_sent = sendmess(remoteIP, remoteport,response, LOCAL_IP, server_context_info["local_port"])
+          server_write_to_log("UDPPacketSent " + response.split()[0] + " " + str(bytes_sent) + " bytes") #<cncperf>
+          #this registration failed (even though it is possible part of the keys were registered), so return
+          return
+      
+      #send a RenewAddressRequestComplete packet to indicate we are done
+      message = "RenewAddressRequestComplete"
+      message = cncperfutils_apply_sequenceid(message, remoteIP, remoteport) #<cncperf>
+      bytes_sent = sendmess(remoteIP, remoteport,message, LOCAL_IP, server_context_info["local_port"])
+      server_write_to_log("UDPPacketSent " + message.split()[0] + " " + str(bytes_sent) + " bytes") #<cncperf>
+      return
+
+    elif split_packet_data[0] == "AddressListUpdate":
+      server_process_update_packet(remoteIP, remoteport, message_data)
+      
+    elif split_packet_data[0] == "GetUserKeyRangeTables":
+      #this packet is a request the key range table server_key_range_table
+      
+      #get a string representation of the table
+      server_key_range_table_string = server_key_range_table_to_string()
+      
+      
+      #beggin to assemble the packet
+      reply_packet = "GetUserKeyRangeTablesReply " + server_key_range_table_string
+      
+      #sign the message
+      signed_reply_packet = cncSignData_sign_message(reply_packet, server_context_info["public_key"], server_context_info["private_key"])
+      
+      signed_reply_packet = cncperfutils_apply_sequenceid(signed_reply_packet, remoteIP, remoteport) #<cncperf>
+      #send the message
+      bytes_sent = sendmess(remoteIP, remoteport,signed_reply_packet, LOCAL_IP, server_context_info["local_port"])
+      server_write_to_log("UDPPacketSent " + signed_reply_packet.split()[0] + " " + str(bytes_sent) + " bytes") #<cncperf>
+      
+    elif split_packet_data[0] == "CNCServerToServerAnnounce" or split_packet_data[0] == "CNCServerToServerAnnounceReply":
+      #this packet is an announcement of a new CNC server
+
+      server_write_to_log("processing CNCServerToServerAnnounce request from " + remoteIP + ":"+ str(remoteport))
+      
+      
+      #we need the cnc_server_dict to remain consistent through this entire block, so we get the lock
+      cnc_server_dict_lock.acquire()
+    
+      #we need to verify this server is valid.
+      #check if we have this 
+      server_tag = remoteIP+":" + str(remoteport)
+      if not(server_tag in server_context_info["cnc_server_dict"].keys()):
+        #we do not recognize the source address, it is possible that it is valid and it just has not yet been loaded
+        #if this is the case, the update server will retry to contact us again in 10 mintues.
+        server_write_to_log("CNCServerToServerAnnounce denied, source address " + server_tag + " not recognized")
+        cnc_server_dict_lock.release()
+        return
+    
+      #now we check the number of tokens in the message
+      if not(len(split_packet_data)==6):
+        server_write_to_log("CNCServerToServerAnnounce denied, number of tokens in message is not 6, message = " + message)
+        cnc_server_dict_lock.release()
+        return
+      
+      message_public_key_raw = split_packet_data[3]
+      stored_key_to_string = rsa_publickey_to_string(server_context_info["cnc_server_dict"][server_tag]).replace(' ','#')
+      #check if the public key given in message matches the entry for teh server
+      if message_public_key_raw != stored_key_to_string:
+        cnc_server_dict_lock.release()
+        server_write_to_log("CNCServerToServerAnnounce denied, stored public key: " + stored_key_to_string + " \n does not match received key: " + message_public_key_raw)
+        return
+    
+      #check the timestamp
+      valid, reason = cncSignData_checktimestamp(split_packet_data[4], 30.0)
+      if not(valid):
+        cnc_server_dict_lock.release()
+        server_write_to_log("CNCServerToServerAnnounce denied, timestamp check failed. -" + reason)
+        return
+        
+      message_part, signature_part = message_data.rsplit(' ',1)
+      signature_correct = cncSignData_check_signature(message_part, signature_part, server_context_info["cnc_server_dict"][server_tag])
+    
+      cnc_server_dict_lock.release()
+      
+      if not(signature_correct):
+        cnc_server_dict_lock.release()
+        server_write_to_log("CNCServerToServerAnnounce denied, signature check failed.")
+        return
+        
+      #reply with information about the local server key range
+      if split_packet_data[0] == "CNCServerToServerAnnounce":
+        send_announcement_packet_helper("CNCServerToServerAnnounceReply", remoteIP, remoteport) 
+      
+      #if signature_correct store the cnc server key range and information
+      remoteaddress = (remoteIP,remoteport)
+      lower_bound = int(split_packet_data[1])
+      upper_bound = int(split_packet_data[2])
+      userkey_range = (lower_bound,upper_bound)
+      
+      #get the lock to modify the key range table
+      server_key_range_table_lock.acquire()
+      
+      #if there is already an entry for this address at the same key range, ignore it
+      if ((userkey_range in server_key_range_table.keys()) and (remoteaddress in server_key_range_table[userkey_range])):
+        server_key_range_table_lock.release()
+        return
+        
+      #there is no entry for the address under the specified key range, so we must add it. Note, if there is an entry for the address under a different key range, we must remove it,
+      #but we do so after adding the new entry to avoid race conditions.
+      if not(userkey_range in server_key_range_table.keys()):
+        server_key_range_table[userkey_range]=[]
+      
+      server_key_range_table[userkey_range].append(remoteaddress)
+      
+      #now remove any other instances of this address under different key ranges.
+      for indexing_key in server_key_range_table.keys():
+        #skip entry we just added
+        if indexing_key == userkey_range:
+          continue
+          
+        if remoteaddress in server_key_range_table[indexing_key]:
+          server_key_range_table[indexing_key].remove(remoteaddress)
+         
+      #release the lock to modify the key range table   
+      server_key_range_table_lock.release()
+      
+    #the first entry in split_packet_data is always the packet type
+    elif split_packet_data[0] == "GetAddressesForUserRequest":
+      user_key = split_packet_data[1]
+     
+      if user_key not in control_list.keys():
+        message = "UserKeyNotFound "+ user_key
+        signed_message = cncSignData_sign_message(message, server_context_info["public_key"], server_context_info["private_key"])
+        signed_message = cncperfutils_apply_sequenceid(signed_message, remoteIP, remoteport) #<cncperf>
+        bytes_sent = sendmess(remoteIP, remoteport, signed_message, LOCAL_IP, server_context_info["local_port"])
+        server_write_to_log("UDPPacketSent " + signed_message.split()[0] + " " + str(bytes_sent) + " bytes") #<cncperf>
+        return
+        
+      #the userkey is in the server table, esure we have a update packet sequence id set up for this userkey
+      last_update_id_lock.acquire()
+      if ( not(user_key in last_update_id.keys()) or (last_update_id[user_key] ==None)):
+        last_update_id[user_key]=0
+      
+      last_update_id_lock.release()
+      
+      #assemble the packet and send it
+      addresses = server_assemble_addresses_string(user_key)
+      
+      #assemble the message
+      message = "GetAddressesReply "+ user_key + " " + str(last_update_id[user_key]) + " " + addresses
+      
+      #sign the message
+      signed_message = cncSignData_sign_message(message, server_context_info["public_key"], server_context_info["private_key"])
+      
+      signed_message = cncperfutils_apply_sequenceid(signed_message, remoteIP, remoteport) #<cncperf>
+      bytes_sent = sendmess(remoteIP, remoteport,signed_message, LOCAL_IP, server_context_info["local_port"])
+      server_write_to_log("UDPPacketSent " + signed_message.split()[0] + " " + str(bytes_sent) + " bytes") #<cncperf>
+      return
+  
+  
+    elif split_packet_data[0] == "VerifyAddressRequest":
+      address = split_packet_data[1].strip()
+    
+      validity, port = server_query_check_address(address)
+        
+      message = "VerifyAddressReply "+ address + " " + str(port)+ " " + str(validity)
+
+      #sign the message
+      signed_message = cncSignData_sign_message(message, server_context_info["public_key"], server_context_info["private_key"])
+      
+      signed_message = cncperfutils_apply_sequenceid(signed_message, remoteIP, remoteport) #<cncperf>
+      bytes_sent = sendmess(remoteIP, remoteport,signed_message, LOCAL_IP, server_context_info["local_port"])
+      server_write_to_log("UDPPacketSent " + signed_message.split()[0] + " " + str(bytes_sent) + " bytes") #<cncperf>
+      return
+
+    elif split_packet_data[0] == "GetUpdatePacketById":
+      user_key = split_packet_data[1].strip()
+      
+      packet_id = int(split_packet_data[2].strip())
+        
+      if not(user_key in update_packet_cache.keys()):
+        message = "UserKeyNotFound "+ user_key
+        signed_message = cncSignData_sign_message(message, server_context_info["public_key"], server_context_info["private_key"])
+        signed_message = cncperfutils_apply_sequenceid(signed_message, remoteIP, remoteport) #<cncperf>
+        bytes_sent = sendmess(remoteIP, remoteport, signed_message, LOCAL_IP, server_context_info["local_port"])
+        server_write_to_log("UDPPacketSent " + signed_message.split()[0] + " " + str(bytes_sent) + " bytes") #<cncperf>
+        return
+
+      #if the userkey is found, try to retrieve the missed packet
+      if (packet_id in update_packet_cache[user_key].keys()):
+        signed_message = update_packet_cache[user_key][packet_id] #<cncperf>
+        signed_message = cncperfutils_apply_sequenceid(signed_message, remoteIP, remoteport) #<cncperf>
+        bytes_sent = sendmess(remoteIP, remoteport,signed_message, LOCAL_IP, server_context_info["local_port"])
+        server_write_to_log("sent udp packet reply to request for update packet with key " + str(user_key) + " , id " + str(packet_id))
+        server_write_to_log("UDPPacketSent " + signed_message.split()[0] + " " + str(bytes_sent) + " bytes") #<cncperf>
+        return
+      else:
+        server_write_to_log("unable to find cached update packet with key " + str(user_key) + " , id " + str(packet_id))
+        server_write_to_log("currently update packets with these id's are cached for userkey " + str(user_key) + " , ids: " + str(update_packet_cache[user_key].keys()))
+      
+    #Additional packet types here 
+    else:
+      #packet type was not recognised so log an error
+      server_write_to_log("unrecognized packet type: " + message_data)
+    
+  except Exception, e:
+    #an internal error has occured. Log it.
+    server_write_to_log("Internal Error Has Occured: " + str(e))
+    return
+        
+
+###Startup Code###
+if callfunc == 'initialize':
+  
+  if len(callargs) < 3:
+    print "invalid number of arguments, expected available port and key range information"
+    raise Exception, "ArgumentError: invalid number of arguments, expected available port and key range information"
+    
+  elif len(callargs)==3:
+    #set the key range
+    lower_bound = int(callargs[1])
+    upper_bound = int(callargs[2])
+    server_context_info["key_range"] = (lower_bound,upper_bound)
+    
+    #no keys were specified, so generate a pair
+    generated_keys = rsa_gen_pubpriv_keys(50)
+    server_context_info["public_key"] = generated_keys[0]
+    server_context_info["private_key"] = generated_keys[1]
+    
+  elif len(callargs) < 5:
+    print "invalid number of arguments, expected key range information and both public and private keys"
+    raise Exception, "ArgumentError: invalid number of arguments, expected key range information and both public and private keys" 
+    
+  elif len(callargs)==5:
+    #both key ranges and server keys are specified.
+    
+    #set the key range
+    lower_bound = int(callargs[1])
+    upper_bound = int(callargs[2])
+    server_context_info["key_range"] = (lower_bound,upper_bound)
+    
+    #now set the public and private keys
+    arg_public_key = callargs[3]
+    arg_private_key = callargs[4]
+    
+    #the keys use the '#' in place of the space separator,
+    #so we need to replace it manually before we convert the string to a key.
+    #the '-' character is also supported as a separator here as an alternative to '#' to allow compatibility with the node manager
+    arg_public_key = arg_public_key.replace('#',' ').replace('-',' ')
+    arg_private_key = arg_private_key.replace('#',' ').replace('-',' ')
+    
+    server_context_info["public_key"] = rsa_string_to_publickey(arg_public_key)
+    server_context_info["private_key"] = rsa_string_to_privatekey(arg_private_key)
+  
+  print "CNC Containment Server is initiating..."
+
+  
+  # set the address of the current machine and port here
+  ip, port = LOCAL_IP, int(callargs[0])
+  server_context_info["local_port"] = port
+
+  #update the current time
+  time_updatetime(server_context_info["local_port"])
+  sleep(15) #wait to make sure port is freed
+    
+  base_name_suffix = "_"+ str(server_context_info["key_range"][0])+"-"+str(server_context_info["key_range"][1])
+  cncmultifilelog_initialize("cncserverlog"+ base_name_suffix, 600) #<cncperf>
+  server_write_to_log("Instance_Key_Range-" + str(server_context_info["key_range"]))
+  server_write_to_log("Instance_Public_Key-" + rsa_publickey_to_string(server_context_info["public_key"]).replace(' ','#'))
+  server_write_to_log("Instance_Private_Key-" + rsa_privatekey_to_string(server_context_info["private_key"]).replace(' ','#'))
+  server_write_to_log("Instance_LocalIP_and_Port-" + getmyip() +':'+ str(server_context_info["local_port"]))
+  
+  #start the TCP server
+  tcp_server_handle = waitforconn(ip,port,server_handle_tcp_connection)
+  print "TCP Server Started"
+    
+    
+  #start the UDP server
+  udp_server_handle = recvmess(ip,port,server_handle_udp_packet)
+  print "UDP Server Started"
+  
+  #begin a thread that periodically updates the dict containing key information of cnc servers
+  settimer(0,server_trusted_server_keys_refresh,[])
+  
+  #begin a thread that periodically updates the dict containing the server backup configuration
+  settimer(0,server_backup_info_refresh,[])
+  
+  
+  #start the update processing thread
+  settimer(0,server_main_update_distribute,[])
+  print "Update Service Started"
+  
+  #announce to registration server
+  settimer(0,server_announce_to_cnc_servers,[])
+  print "Announcement Service Started"
+  
+  settimer(0,log_server_table_contents, []) #<cncperf>
+  
+  #when the main thread terminates, the server will stop running.
+  #we use sleep() because it makes it easy to stop the program with a keyboard interupt when debugging
+  #in the actual server, we could use this thread to print status information periodically.
+  sleep(3600)

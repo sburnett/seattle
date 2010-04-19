@@ -1,0 +1,64 @@
+"""
+<Author>
+  Cosmin Barsan
+  
+<Expected Output>
+  the program will print all packets it receives
+
+<Purpose>
+  The purpose is to test the cncclient functionality
+  
+<Usage>
+ repy.py restrictions.cnc testprogram.py <program local port> <cnc local communication port>
+  
+  
+test code for sending messages:
+    print "sending message"
+    target_ip = "192.168.2.104"
+    target_port = 50011
+    
+    try:
+      cnc_sendmess(target_ip, target_port, "hello 321233132", localip=getmyip(), localport = program_port)
+    except Exception, e:
+      print "cache miss\n"
+      
+"""
+
+include cncclient.repy
+
+
+#UDP listener function
+#listens to incoming UDP messages on the client port and prints them
+def udp_request_handler(remoteIP, remoteport, message, commhandle):
+  #print the message
+  print remoteIP+":" + str(remoteport) + "-"+message
+    
+    
+#main method
+def main(program_port, cnc_port):
+
+  print "my ip is: " + getmyip()
+  #start the packet listener
+  print "starting the udpo listener that echos received messages"
+  recvmess(getmyip(), program_port, udp_request_handler)
+    
+  print "Initializing connection to cnc..."
+  cncclient_initialize(cnc_port)
+  
+  print "initialize complete"
+  
+  while True:
+    print str(user_node_table)
+    sleep(20)
+    
+  #sleep
+  sleep(36000)
+if callfunc == 'initialize':
+  if len(callargs) < 2:
+    print "invalid number of agruments, need to specify two available local ports: program_com_port, cnc_com_port"
+    raise Exception, "ArgumentError: invalid number of agruments, expected port"
+  
+  #get the port
+  port = int(callargs[0])
+  cnc_port = int(callargs[1])
+  main(port, cnc_port)

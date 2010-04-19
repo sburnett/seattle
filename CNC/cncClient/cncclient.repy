@@ -1,0 +1,1334 @@
+"""
+<Author>
+  Cosmin Barsan
+  
+
+<Purpose>
+  The purpose is to provide a wrapper that repy programs can include 
+  
+<Usage>
+  include in a repy program and call _cncclient_initialize
+  
+  
+<Dependencies>
+  The cnc client wrapper requires the following files (from the cnc libraries):
+  
+  cncFileParser.repy
+  cncSignData.repy
+  keyrangelib.repy
+  cnc_server_list.txt - must list the server addresses and public keys in format specified in cncFileParser.repy
+
+  
+"""
+
+include time.repy
+include cncFileParser.repy
+include random.repy
+include keyrangelib.repy
+include cncSignData.repy
+include nmclient.repy
+include cncmultifilelog.repy
+include cncperformance.repy
+
+#<cncperf>
+include cncperfutils.repy 
+#</cncperf>
+
+##Constants
+
+#registering with this key will register the ip of the local machine as part of the repy system
+CNCCLIENT_REPY_MEMBERSHIP_KEY = "query_registration"
+
+CNCCLIENT_NUM_RETRIES = 4 #number of times to retry if the server cannot be contacted
+
+#number of addresses to forward update packets to
+CNCCLIENT_NUM_FORWARDING_ADDRESSES=4
+
+#indicates the time interval after a cached address expires, only addresses obtained from query requests expire
+CNCCLIENT_CACHED_ADDRESS_EXPIRATION_INTV = 1800.0
+
+#indicates the interval to wait inbetween checking each entry within a single iteration
+CNCCLIENT_TABLE_CHECK_INTV_ENTRY = .05
+CNCCLIENT_TABLE_CHECK_INTV_ITERATION = 20
+
+#time until a renewal key expires
+CNCCLIENT_RENEWAL_KEY_EXP = 3600
+
+#time until registration for an address expires
+CNCCLIENT_REGISTRATION_EXP = 300
+
+#time between registration attempts
+CNCCLIENT_REGISTRATION_INTV = CNCCLIENT_REGISTRATION_EXP/2 - 15
+ 
+#in the case of a failure in registration, this is the interval we wait for before retrying
+CNCCLIENT_REGISTRATION_RETRY_INTV=15
+
+#in the event the server is not responding to a UDP Packet, retry sending it on this interval
+CNCCLIENT_UDP_RETRY_INTERVAL = 6
+
+#interval between polling to check if a reply was received to a UDP request
+CNCCLIENT_UDP_POLL_INTERVAL = .1
+
+#how frequently to send a request to the server for the full list of nodes for a particular user key
+CNCCLIENT_DATA_UPDATE_INTERVAL = 15
+
+
+#file containing information on all cnc servers and their public keys
+TRUSTED_CNC_SERVER_FILE="cnc_server_list.txt"
+
+#interval after which a packet is considered expired, not used for update packets
+CNCCLIENT_PACKET_EXPIRATION_INTV = 20.0
+
+#UPDATE_PACKET_HISTORY_NUM gives the number of update packets to cache per userkey
+CNCCLIENT_UPDATE_PACKET_HISTORY_NUM=10
+
+
+##state variables
+
+cncclient_context = {}
+
+#type dict with keys consistiong of user keys and entries of type set.
+#for example, cncclient_user_node_table["user1"] gives a set of node ip addresses (only ip address, no port component) under the control of user1.
+cncclient_user_node_table = dict()
+
+#the cncclient_user_node_table, has a special entry at index CNCCLIENT_QUERY_RESULT_SET_KEY. The set at this entry stores addresses 
+#from VerifyAddress responses. This index is not modified by getaddresslist queries or AddressList updates
+CNCCLIENT_QUERY_RESULT_SET_KEY = "results_from_verify_address_requests"
+
+
+#each key is an ip string. each entry is an integer port.
+cncclient_address_port_table=dict()
+cncclient_address_expiration_table=dict()
+
+#this lock managed access to the cncclient_user_node_table and cncclient_address_port_table. While holding the lock, it is guaranteed neither structure will change.
+cncclient_user_node_table_lock = getlock()
+
+
+#indexed by user key, each entry is an integer, which is the id of the last update packet that was processed for the respective userkey
+cncclient_last_update_id= dict()
+cncclient_last_update_id_lock = getlock()
+
+#renewal data to allow node to register through UDP
+cncclient_context['renewal_key']=dict()
+cncclient_context['renewal_key_expiration']= dict() #we initialize to 0 to avert race conditions in which we check expiration for a key whose expiration has not been set yet
+cncclient_renewal_lock = getlock()
+
+#structure that allows for looking up the public key of any registration server
+cncclient_context["cnc_server_dict"] = dict() #each key is of the form <ip>:<port>. each entry is the public key
+
+
+#structure that allows for looking up the backup server for each cnc server
+cncclient_context["cnc_backup_dict"] = dict() #each key is string of the form <ip>:<port>. each entry is the backup server address (ip,port)
+CNC_BACKUP_CONFIG_FILE = "cnc_backup_config.txt"
+
+#list of (ip,port) pairs indicating available registration servers.
+cncclient_context["registration_server_list"]=None
+
+#keeps track of the current registration server, (ip,port) pair
+cncclient_context["current_registration_server"]=None
+
+#keeps track of the port to be used for cnc communication
+#port on which client connects and sends messages to the server, port on which client listents for cnc communication
+cncclient_context["client_con_port"] = None
+
+##variables used to store data received from the server. The exact unmodified reply is stored as the entry
+
+cncclient_context['renewal_request_reply'] = dict() #reply for RenewAddressRequest requests
+cncclient_getaddresslist_replies = {} #replies for GetAddressesForUserRequest requests
+
+#structure used to keep information about what keyrange is managed by each server.
+#each key is a pair of integers (lower user key, upper user key). Each entry is a list of (ip, port) pairs giving the address of the servers in the respective update unit. 
+cncclient_context['server_key_range_table'] = None
+		
+#used to keep track of replies to GetUserKeyRangeTables requests
+cncclient_context["keyrange_tables_reply"]=None
+
+#amount of time client has to wait before resending a verifyAddressRequest for a given address
+CNCCLIENT_PACKET_MAX_QUERY_RATE = 30
+
+#amount of time client has to wait before resending a verifyAddressRequest for a given address, if the last reply was that the address is invallid
+CNCCLIENT_PACKET_MAX_QUERY_RATE_ON_MISS = 120
+
+#used to keep track of when the last query was sent for a specified address
+cncclient_query_times = dict()
+cncclient_query_times_lock = getlock()
+
+#to protect from memory leaks, every time we have a cache miss, we check one entry in cncclient_query_times, to see if it is old and can be removed
+#this index tracks the position where we left off cleanup at the last call, eliminating the need for a separate thread
+#access to this value is controlled by cncclient_query_times_lock
+cncclient_context["cncclient_query_times_cleanup_index"] = 0
+
+#if we get an update from the server by request, we dont want to forward it because doing so will result in too much update traffic.
+cncclient_context["update_forwards_to_skip"] = 0
+cncclient_context["update_forwards_to_skip_lock"]= getlock()
+
+##Fields used for caching userkeys from the nodemanager
+#the userkey list is cached and refreshed no more frequently than CNCCLIENT_USER_KEY_LIST_REFRESH_INTV
+cncclient_context["userkey_list_timestamp"] = 0.0
+cncclient_context["current_userkey_list"]= []
+CNCCLIENT_USER_KEY_LIST_REFRESH_INTV=30.0
+
+
+#throw when trying to send a packet or open a connection to an address not in the cache
+class CncCacheMissException(Exception):
+  pass
+
+##helper functions
+
+
+#every 10 minutes (600 secs), a new log file is created with the next number as a suffix, and the previous log file is closed
+def cncclient_write_to_log(message):
+  print "log: "+message
+  cncmultifilelog_write(message)
+
+#same as cncclient_write_to_log but does not print
+def cncclient_write_to_log_noprint(message):
+  cncmultifilelog_write(message)
+  
+  
+#get the address (ip,port) of the backup server for the specified server ip and port
+#primary_ip is the string ip of the primary server
+#primary_port is the integer port of the primary server
+def cncclient_get_backup_server_address(primary_ip, primary_port):
+  primary_server_name = primary_ip + ":" + str(primary_port)
+  if this_server_tag in server_context_info["cnc_backup_dict"].keys():
+    backup_address=server_context_info["cnc_backup_dict"][this_server_tag]
+    return backup_address
+  else:
+    return None
+
+#returns the list of local user keys, each user key is a string
+#the keys returned are not teh actual node user keys, but rather hashes of the node userkeys.
+userkey_list_lock = getlock() #to ensure caching is handled properly, controls writing the cached list
+cncclient_context["debug_userkey_list"]= None #debug test keys, ; separated
+def _cncclient_get_userkey_list():
+
+  #if debug key data is specified, use it instead
+  if cncclient_context["debug_userkey_list"]!=None:
+    debug_key_list = []
+    splitkeys = cncclient_context["debug_userkey_list"].split('r')
+    for keystr in splitkeys:
+      rawkey = keystr.strip()
+      if (rawkey!=""):
+        #hash the string
+	hashed_key = sha_hexhash(rawkey)
+	resultkey = hashed_key.replace(' ','#')
+        debug_key_list.append(resultkey)
+    
+    cncclient_write_to_log("client using debug user key set " + str(debug_key_list) + " for registration")
+    return debug_key_list
+    
+  #if the current userkey list is recent, return it
+  if(time_gettime() < cncclient_context["userkey_list_timestamp"]+CNCCLIENT_USER_KEY_LIST_REFRESH_INTV):
+    return cncclient_context["current_userkey_list"]
+  
+  userkey_list_lock.acquire()
+  
+  #another thread may have already gotten the new user key list while we waited for the lock
+  if(time_gettime() < cncclient_context["userkey_list_timestamp"]+CNCCLIENT_USER_KEY_LIST_REFRESH_INTV):
+    userkey_list_lock.release()
+    return cncclient_context["current_userkey_list"]
+    
+  #get the list of userkeys on the vessel
+  try:
+    nmhandle = nmclient_createhandle(getmyip(), 1224)
+    vessel_dict = nmclient_getvesseldict(nmhandle)
+  except Exception, e:
+    #an internal error has occured. Log it.
+    cncclient_write_to_log("Error Has Trying to get Node key list: " + str(e))
+    userkey_list_lock.release()
+    return []
+    
+  #get the userkeys from the vessel dict
+  nodekeys_result = []
+  if("vessels" in vessel_dict.keys()):
+    for vessel_id in vessel_dict["vessels"].keys():
+      if "userkeys" in vessel_dict["vessels"][vessel_id].keys():
+        userkeys = vessel_dict["vessels"][vessel_id]["userkeys"]
+        for userkey in userkeys:
+          cnc_userkey = keyrangelib_publickey_to_cncuserkey(userkey)
+          nodekeys_result.append(cnc_userkey)
+          
+  if("vessels" in vessel_dict.keys()):
+    for vessel_id in vessel_dict["vessels"].keys():
+      if "ownerkey" in vessel_dict["vessels"][vessel_id].keys():
+        ownerkey = vessel_dict["vessels"][vessel_id]["ownerkey"]
+        cnc_ownerkey = keyrangelib_publickey_to_cncuserkey(ownerkey)
+        nodekeys_result.append(cnc_ownerkey)
+  
+  #cache the result
+  cncclient_context["userkey_list_timestamp"]=time_gettime()
+  cncclient_context["current_userkey_list"] = nodekeys_result
+  userkey_list_lock.release()
+  
+  cncclient_write_to_log("client using node user key set " + str(nodekeys_result) + " for registration")
+  return nodekeys_result
+
+#returns a list of users on the node of the format:
+#user1,user2,user3,...
+def _cncclient_get_user_list_string(user_key_list):
+  
+  if len(user_key_list)<1:
+   return ""
+ 
+  user_string = ""
+  for user_key in user_key_list:
+    user_string = user_string+user_key + ","
+    
+  #don't include the trailing comma
+  return user_string[0:len(user_string)-1]
+
+
+#parses the keys of cncclient_context["cnc_server_dict"] to construct a list of registration servers
+def _cncclient_getRegistrationServerList():
+  result_list = []
+  
+  reg_dict_keys = cncclient_context["cnc_server_dict"].keys()
+  for entry in reg_dict_keys:
+    #split the entry to ip and port
+    entry_ip, entry_port_str = entry.split(':')
+    entry_port = int(entry_port_str)
+    entry_to_add = (entry_ip, entry_port)
+    result_list.append(entry_to_add)
+    
+  return result_list
+  
+
+#sets the current registration server address to be used for keyrange information to a randomly chosen registration server.
+def _cncclient_reset_registration_server_address():
+  #pick an index randomly
+  rand_int_index = random_randint(0,len(cncclient_context["registration_server_list"])-1)
+  cncclient_context["current_registration_server"] = cncclient_context["registration_server_list"][rand_int_index]
+  return
+
+
+#slowly iterates through the entries in the cncclient_user_node_table dict and removes any entries that are marked as no expiration and are not in the list of keys on the local node
+def _cncclient_cleanup_node_table():
+  while True:
+    node_keys = _cncclient_get_userkey_list()
+    table_keys = cncclient_user_node_table.keys()
+    non_node_keys=[]
+    for iteration_key in table_keys:
+      if not(iteration_key in node_keys):
+        non_node_keys.append(iteration_key)
+    
+    
+    for index_key in non_node_keys:
+      #if the address is expired, remove the entry from this table and the cncclient_user_node_table
+      cncclient_user_node_table_lock.acquire()
+      
+      addresses_to_remove=[]
+      
+      #check entries under each address for this userkey
+      for index_address in cncclient_user_node_table[index_key]:
+        if cncclient_address_expiration_table[index_address]==None:
+          addresses_to_remove.append(index_address)
+      
+      for address_to_remove in addresses_to_remove:
+          cncclient_user_node_table[index_key].remove(address_to_remove)
+          cncclient_write_to_log("removed address " + str(address_to_remove) + "from userkey " + str(index_key)) #<cncperf>
+      
+      #we cleared the invallid entries, so release the lock
+      cncclient_user_node_table_lock.release()
+      
+      #sleep a short time to allow other threads that need the lock to work
+      sleep(CNCCLIENT_TABLE_CHECK_INTV_ENTRY)
+      
+    #sleep a long time before starting the next iteration
+    sleep(CNCCLIENT_TABLE_CHECK_INTV_ITERATION)
+
+#udpdates the server_key_range_table and query_server_table structures
+#this function blocks until complete.
+def _cncclient_update_key_range_table():
+  cncclient_context["keyrange_tables_reply"]=None
+  
+  for attempt in range(0,CNCCLIENT_NUM_RETRIES):
+    message = "GetUserKeyRangeTables"
+    seqmessage = cncperfutils_apply_sequenceid(message, cncclient_context["current_registration_server"][0], cncclient_context["current_registration_server"][1]) #<cncperf>
+    bytes_sent = sendmess(cncclient_context["current_registration_server"][0], cncclient_context["current_registration_server"][1], seqmessage, localip=getmyip(), localport=cncclient_context["client_con_port"])
+    cncclient_write_to_log("UDPPacketSent " + seqmessage.split()[0] + " " + str(bytes_sent) + " bytes") #<cncperf>
+    
+    #wait and poll to check if a reply has been received
+    time_to_wait = CNCCLIENT_UDP_RETRY_INTERVAL
+    while time_to_wait>0 :
+      time_to_wait = time_to_wait - CNCCLIENT_UDP_POLL_INTERVAL
+        
+      #if we have a reply break
+      if cncclient_context["keyrange_tables_reply"]!=None :
+        break
+        
+      #otherwise, sleep and keep trying
+        
+      sleep(CNCCLIENT_UDP_POLL_INTERVAL)
+        
+    #if we have a reply break
+    if cncclient_context["keyrange_tables_reply"]!=None :
+      break
+    
+    #we do not have a reply, so write to the log
+    cncclient_write_to_log("GetUserKeyRangeTables: Unable to get reply from server, timeout set to " + str(CNCCLIENT_UDP_RETRY_INTERVAL) + " seconds.")
+    
+  #if after all the retries,we did not get response, try using a different registration server
+  if cncclient_context["keyrange_tables_reply"]==None:
+    cncclient_write_to_log("Registration server" + str(cncclient_context["current_registration_server"]) + " is not responding to GetUserKeyRangeTables requests, changing registration server")
+    _cncclient_reset_registration_server_address()
+    
+    #retry with the new registration server address
+    _cncclient_update_key_range_table()
+    return
+    
+  #we did get a reply
+  keyrangetablemessage, remoteip, remoteport = cncclient_context["keyrange_tables_reply"]  
+  split_packet_data = keyrangetablemessage.split()
+  server_tag = remoteip+":" + str(remoteport)
+ 
+  
+  #check public key in message
+  message_public_key_str = split_packet_data[2].replace('#',' ')
+  try:
+    message_public_key = rsa_string_to_publickey(message_public_key_str)
+  except Exception, e:
+    #unable to convert string to public key
+    cncclient_write_to_log("failed to convert string -" + message_public_key_str+ "- to public key")
+    #retry recursively
+    _cncclient_update_key_range_table()
+    return
+    
+  if(not(message_public_key in cncclient_context["cnc_server_dict"].values())):
+    #public keys dont match
+    cncclient_write_to_log("message public key -" + message_public_key_str+ "- was not found in cnc_server_dict")
+    
+    #retry recursively
+    _cncclient_update_key_range_table()
+    return
+  
+  #check the timestamp
+  valid, reason = cncSignData_checktimestamp(split_packet_data[3], CNCCLIENT_PACKET_EXPIRATION_INTV)
+  if not(valid):
+    cncclient_write_to_log("timestamp check failed: " + reason + " message="+ keyrangetablemessage)
+    
+    #retry recursively
+    _cncclient_update_key_range_table()
+    return
+    
+  message_part, signature_part = keyrangetablemessage.rsplit(' ',1)
+  signature_correct = cncSignData_check_signature(message_part, signature_part, message_public_key)
+  if not(signature_correct):
+    cncclient_write_to_log("signature check failed on GetUserKeyRangeTablesReply packet. Resending request.")
+    
+    #retry recursively
+    _cncclient_update_key_range_table()
+    return
+  
+  #the packet is valid. parse it and store content.
+  cncclient_context['server_key_range_table'] = keyrangelib_parse_server_key_ranges_string(split_packet_data[1])
+  return
+    
+##Cache Verification
+#checks if given address is in the cache. returns True or False
+def _cncclient_verify_address_in_cache(address_ip):
+
+  #we need the lock to make sure the data in the cache stays consistent while we go through these checks
+  cncclient_user_node_table_lock.acquire()
+
+  #if there is no entry for the address in the address info table, it is not in the cache so return
+  if not(address_ip in cncclient_address_port_table.keys()):
+    cncclient_user_node_table_lock.release()
+    cncclient_write_to_log("cache miss: " + str(address_ip) + " not in address info table")
+    return False
+  
+ 
+  #if the address ip is expired, return false right away
+  timestamp = cncclient_address_expiration_table[address_ip]
+  if (not(timestamp==None) and timestamp < time_gettime()):
+    cncclient_user_node_table_lock.release()
+    cncclient_write_to_log("cache miss: " + str(address_ip) + " in address info table, but is expired")
+    return False
+    
+  for indexing_userkey in cncclient_user_node_table.keys():
+    if address_ip in cncclient_user_node_table[indexing_userkey]:
+      cncclient_user_node_table_lock.release()
+      cncclient_write_to_log("cache hit: " + str(address_ip) + " found in user node table")
+      return True;
+  
+  #we did not find the address, so return false
+  cncclient_user_node_table_lock.release()
+  cncclient_write_to_log("cache miss: " + str(address_ip) + " found in info table, but not in user node table.")
+  return False
+
+
+##restricting the sending of traffic
+
+#if specified address is not in the cache, throws a CncCacheMissException, and sends a verify address request to the 
+# server that has key CNCCLIENT_REPY_MEMBERSHIP_KEY
+def _cncclient_restrict_traffic(ip_address):
+
+  #if the ip_address is in the cache, return
+  if(_cncclient_verify_address_in_cache(ip_address)):
+    return
+    
+  #verify when we last send a query for the ip address that missed
+  query_last_sent = 0
+    
+  current_time = time_gettime()
+  
+  cncclient_query_times_lock.acquire()  
+  if (ip_address in cncclient_query_times.keys()):
+    query_last_sent = cncclient_query_times[ip_address]
+    
+  #do a cleanup step in cncclient_query_times to avoid memory leaks
+  times_table_size = len(cncclient_query_times.keys())
+  if (times_table_size>1):
+    cncclient_context["cncclient_query_times_cleanup_index"] = (cncclient_context["cncclient_query_times_cleanup_index"]+1)%times_table_size
+    target_index_to_check = cncclient_query_times.keys()[cncclient_context["cncclient_query_times_cleanup_index"]]
+    if (cncclient_query_times[target_index_to_check]<(current_time - CNCCLIENT_PACKET_MAX_QUERY_RATE - CNCCLIENT_PACKET_MAX_QUERY_RATE_ON_MISS)):
+      cncclient_query_times.pop(target_index_to_check)
+    
+  cncclient_query_times_lock.release()
+
+  if (query_last_sent < (current_time - CNCCLIENT_PACKET_MAX_QUERY_RATE)):
+    #address is not in the cache
+    #get the list of server addresses for the CNCCLIENT_REPY_MEMBERSHIP_KEY
+    #get the address of a server that handles this address
+    server_address_list = keyrangelib_get_addresses_for_userkey(ip_address, cncclient_context['server_key_range_table'])
+      
+    #pick one of the addresses
+    if (len(server_address_list)>0) :
+      rand_int_index = random_randint(0,len(server_address_list)-1)
+      target_server_address = server_address_list[rand_int_index]
+      
+      #send a request to the server
+      request_message = "VerifyAddressRequest "+ ip_address
+      cncclient_write_to_log("Preparing VerifyAddressRequest for address " + ip_address + ", sending to " + target_server_address[0] + ":" + str(target_server_address[1]))
+      request_message = cncperfutils_apply_sequenceid(request_message, target_server_address[0],target_server_address[1]) #<cncperf>
+      bytes_sent = sendmess(target_server_address[0],target_server_address[1], request_message, localip=getmyip(), localport=cncclient_context["client_con_port"])
+      
+      #update cncclient_query_times to indicate when this query was sent
+      cncclient_query_times_lock.acquire()
+      if not(ip_address in cncclient_query_times.keys()):
+        cncclient_query_times[ip_address] = current_time
+      elif ((ip_address in cncclient_query_times.keys()) and (cncclient_query_times[ip_address] < current_time)):
+        cncclient_query_times[ip_address] = current_time
+      cncclient_query_times_lock.release()
+      
+      cncclient_write_to_log("UDPPacketSent " + request_message.split()[0] + " " + str(bytes_sent) + " bytes") #<cncperf>
+  
+  raise CncCacheMissException, str("address: " + ip_address + " not found in cache.")
+
+def cnc_sendmess(desthost, destport, message, localip=None, localport=0):
+  _cncclient_restrict_traffic(desthost)
+  bytes_sent=sendmess(desthost, destport, message, localip, localport)
+  cncclient_write_to_log_noprint("NonCncUDPPacketSent " + message.split()[0] + " " + str(bytes_sent) + " bytes")
+  return
+
+def cnc_openconn(desthost, destport, localip=None, localport=0, timeout = 5):
+  _cncclient_restrict_traffic(desthost)
+  cnc_openconn(desthost, destport, localip, localport, timeout)
+  return
+  
+##registration functions
+
+#register with a single server, using the keys specified in the userkey_list
+#all the userkeys in the userkey_list fall in the same keyrange, which is managed by the specified server
+def _cncclient_register_one_server(userkey_list, target_server, renewal_key_invalid=None):
+  cncclient_write_to_log("registering keys" + str(userkey_list) + " with server " + str(target_server))
+  
+  user_list_string =_cncclient_get_user_list_string(userkey_list)
+  
+  #check if we have entries for the current server in the cncclient_context['renewal_key'] and cncclient_context['renewal_key_expiration'] dicts
+  if not(target_server in cncclient_context['renewal_key'].keys()):
+    cncclient_context['renewal_key'][target_server]=None
+  if not(target_server in cncclient_context['renewal_key_expiration'].keys()):
+    cncclient_context['renewal_key_expiration'][target_server]=None
+  
+  #check if the current renew key is expired, if so, set it to None so we save time and connect directly through TCP
+  if (cncclient_context['renewal_key'][target_server] != None and cncclient_context['renewal_key_expiration'][target_server] < time_gettime()) :
+    
+    #we need to get the lock to the renewal data
+    cncclient_renewal_lock.acquire()
+    
+    #we need to verify again if the key is expired since it may have been changed by a thread since the lock was acquired
+    if (cncclient_context['renewal_key'][target_server] != None and cncclient_context['renewal_key_expiration'][target_server] < time_gettime()) :
+      cncclient_context['renewal_key'][target_server] = None
+    cncclient_renewal_lock.release()
+    
+  #check if the current renew key has been marked as invalid by the caller, if so, set the renew key to none
+  if (cncclient_context['renewal_key'][target_server] != None and renewal_key_invalid != None):
+  
+    #we need to get the lock to the renewal data
+    cncclient_renewal_lock.acquire()
+      
+    #we need to verify again if the key is expired since it may have been changed by a thread since the lock was acquired
+    if (cncclient_context['renewal_key'][target_server] != None and renewal_key_invalid != None):
+      cncclient_context['renewal_key'][target_server] = None
+    cncclient_renewal_lock.release()
+     
+  #check if there is no renewal key available, if so, connect through TCP
+  if cncclient_context['renewal_key'][target_server]==None:
+  
+    #connect through TCP
+    registered = False
+    reply = None
+    while not(registered):
+      try:
+        server_con_handle = openconn(target_server[0], target_server[1],localip=getmyip(), localport=cncclient_context["client_con_port"])
+        #send the registration request
+        message = 'RegisterAddressRequest ' + user_list_string 
+        server_con_handle.send(message)
+        cncclient_write_to_log("TCPDataSent " + str(len(message)) + " bytes") #<cncperf>
+        
+	reply = server_con_handle.recv(1024)
+        server_con_handle.close()
+        
+        cncclient_write_to_log("TCPDataReceived " + str(len(reply)) + " bytes") #<cncperf>
+        registered=True
+      except Exception, e:
+        cncclient_write_to_log("Unable to open tcp connection to " + target_server[0] + ":" + str(target_server[1]))
+        cncclient_write_to_log("Exception thrown: " + str(e))
+        cncclient_write_to_log("Reseting default registration server and retrying.")
+            
+        #try registering again in a short time, we do not exit this method untill the initial tcp registration is done
+        sleep(CNCCLIENT_REGISTRATION_RETRY_INTV)
+      
+      
+    parsed_reply = reply.split()
+      
+    #check for failure to register
+      
+    if (parsed_reply[0]=="RegisterFailOutOfKeyRange"):
+      #the registration failed because we have out of date key range information
+      cncclient_write_to_log("Registration failed due to out of date keyrange information , reply from server = " + reply)
+      _cncclient_update_key_range_table()
+      _cncclient_register_one_server(userkey_list, target_server)
+    
+    elif (parsed_reply[0]!="RegisterAddressRequestComplete") :
+      cncclient_write_to_log("TCP Registration failed, reply from server = " + reply)
+            
+      backup_address = cncclient_get_backup_server_address(target_server[0], target_server[1])
+      if backup_address!=None:
+        #try registering with backup server in case of failure
+        _cncclient_register_one_server(userkey_list, backup_address)
+        
+      return
+    #otherwise, registration was successful
+    else:
+      cncclient_write_to_log("TCP Registration successful, reply from server = " + reply)
+        
+      #get the lock to the renew data
+      cncclient_renewal_lock.acquire()
+      
+      #store the renew key
+      cncclient_context['renewal_key'][target_server] = parsed_reply[1]
+        
+      #compute the renew key expiration
+      cncclient_context['renewal_key_expiration'][target_server] = time_gettime() + CNCCLIENT_RENEWAL_KEY_EXP
+      cncclient_renewal_lock.release()
+      
+      return
+      
+    #if there is a renew key available, connect through UDP
+  else:
+  
+    #save the renew key we are using before sending the packet
+    #in the case we fail, we can identify the invalid renewal key
+    renewal_key_used = cncclient_context['renewal_key'][target_server]
+    
+    #send a request for the full list of nodes for the user and listen for a reply
+      
+    #try sending untill we get a reply
+    cncclient_context['renewal_request_reply'][target_server] = None
+    for attempt in range(0,CNCCLIENT_NUM_RETRIES):
+      
+      message = "RenewAddressRequest " + user_list_string + " " + renewal_key_used
+      
+      message = cncperfutils_apply_sequenceid(message, target_server[0], target_server[1]) #<cncperf>
+      bytes_sent = sendmess(target_server[0], target_server[1], message, localip=getmyip(), localport=cncclient_context["client_con_port"])
+      cncclient_write_to_log("UDPPacketSent " + message.split()[0] + " " + str(bytes_sent) + " bytes") #<cncperf>
+      
+      #wait and poll to check if a reply has been received
+      time_to_wait = CNCCLIENT_UDP_RETRY_INTERVAL
+      while time_to_wait>0 :
+        time_to_wait = time_to_wait - CNCCLIENT_UDP_POLL_INTERVAL
+            
+        #if we have a reply break
+        if cncclient_context['renewal_request_reply'][target_server]!=None :
+          break
+            
+        #otherwise, sleep and keep trying
+            
+        sleep(CNCCLIENT_UDP_POLL_INTERVAL)
+            
+      #if we have a reply break
+      if cncclient_context['renewal_request_reply'][target_server]!=None :
+        break
+        
+      #we do not have a reply, so write to the log
+      cncclient_write_to_log("RenewAddressRequest: Unable to get reply from server, timeout set to " + str(CNCCLIENT_UDP_RETRY_INTERVAL) + " seconds")
+        
+    #if after all the retries,we did not get response, wrtie to log and exit the thread  
+    if cncclient_context['renewal_request_reply'][target_server]==None:
+      cncclient_write_to_log("server " + str(target_server) + " is not responding to renew requests")
+      
+      return
+
+    
+    reply = cncclient_context['renewal_request_reply'][target_server]
+    parsed_reply = reply.split()
+      
+    #check for failure to register
+    #first check if the renewal key was expired or invallid
+    if (parsed_reply[0]=="RenewFailedInvalidRenewalKey"):
+      #mark the renew key used as invallid and make a recursive call
+      cncclient_write_to_log("UDP Renew failed due to invalid renewal key " + renewal_key_used + " , reply from server = " + reply)
+      _cncclient_register_one_server(userkey_list, target_server, renewal_key_used)
+    
+    elif (parsed_reply[0]=="RegisterFailOutOfKeyRange"):
+      #the registration failed because we have out of date key range information
+      cncclient_write_to_log("Renew failed due to out of date keyrange information , reply from server = " + reply)
+      _cncclient_update_key_range_table()
+      _cncclient_register_one_server(userkey_list, target_server)
+      
+    #ifthe renew failed for some other reason, log and retry later  
+    elif (parsed_reply[0]!="RenewAddressRequestComplete") :
+      cncclient_write_to_log("UDP Renew failed, reply from server = " + reply)
+      
+      backup_address = cncclient_get_backup_server_address(target_server[0], target_server[1])
+      if backup_address!=None:
+        #try registering with backup server in case of failure
+        _cncclient_register_one_server(userkey_list, backup_address)
+      return
+      
+    #otherwise, renew was successful
+    else:
+      cncclient_write_to_log("UDP Renew Successful, reply from server = " + reply)
+      return
+      
+
+#maintains registration with the server for a given user key
+def _cncclient_maintain_registration():
+  #get the list of user keys to register with
+  user_key_list = _cncclient_get_userkey_list()
+  
+  #we need to go through each user key and determine which servers to register with
+  #save this info in this table, each key is a mapping using the hash of the matching server list (using str function)
+  #to userkey_list, server_list. where userkey list is a list of user keys to register with for each server in the server list.
+  server_reg_target_table = dict()
+  
+  #as a special case, we need to register with a server for query, meaning we need to use this clients ip
+  #as the key to determine the keyrange of the target server
+  #before after we get the mathcing servers, we insert the CNCCLIENT_REPY_MEMBERSHIP_KEY in the packet,
+  #not the ip of the local client
+  myip= getmyip()
+  user_key_list.append(myip)
+  
+  for userkey_to_process in user_key_list:
+    target_servers = keyrangelib_get_addresses_for_userkey(userkey_to_process, cncclient_context['server_key_range_table'])
+    
+    if(len(target_servers)==0):
+      cncclient_write_to_log_noprint("Warning no matching servers for key " + userkey_to_process)
+    
+    tablekey = str(target_servers)
+    if not(tablekey in server_reg_target_table.keys()):
+      server_reg_target_table[tablekey] = [],target_servers
+    
+    key_list, serverlist = server_reg_target_table[tablekey]
+    
+    if(userkey_to_process == myip):
+      key_list.append(CNCCLIENT_REPY_MEMBERSHIP_KEY)
+    else:
+      key_list.append(userkey_to_process)
+  
+  #we are done with determining which servers we need to register with
+  
+  #now register with each of the servers
+  for iterator_key in server_reg_target_table.keys():
+    
+    key_list, serverlist = server_reg_target_table[iterator_key]
+    
+    for server_address in serverlist:
+      _cncclient_register_one_server(key_list, server_address)
+
+  settimer(CNCCLIENT_REGISTRATION_INTV,_cncclient_maintain_registration,[])
+  return
+
+
+##functions involving updating the datatable
+
+#adds the specified address to the cache under given userkey
+#timestamp_float is the timestamp of the source packet.
+#if no userkey is specified, we will add the address to cncclient_user_node_table[CNCCLIENT_QUERY_RESULT_SET_KEY]
+def _cncclient_add_address_to_cache(address_ip, address_port, expiration_time, userkey = CNCCLIENT_QUERY_RESULT_SET_KEY):
+  #we need to add this address to cncclient_user_node_table if it is not already present
+  cncclient_user_node_table_lock.acquire()
+      
+  #if no set exists for the current userkey, create one
+  if not(userkey in cncclient_user_node_table.keys()):
+    cncclient_user_node_table[userkey] = set()
+        
+  #if address is not already in the table, add it
+  if not(address_ip in cncclient_user_node_table[userkey]):
+    cncclient_write_to_log(str(address_ip) + ":" + str(address_port) + " added to cache.")
+    cncclient_user_node_table[userkey].add(address_ip)
+    
+  cncclient_address_port_table[address_ip] = address_port
+  cncclient_address_expiration_table[address_ip]=expiration_time
+       
+       
+  cncclient_write_to_log("port for address  " + str(address_ip) + ":" + str(cncclient_address_port_table[address_ip]) + " has been updated to port " + str(address_port))
+
+  
+
+  #we are done with this address, so release the lock
+  cncclient_user_node_table_lock.release()
+  return
+
+#sends queries to update servers to get the full list of addresses for each local userkey
+def _cncclient_address_list_query_repeat():
+  while True:
+    _cncclient_address_list_query()
+    
+    #sleep 30 minutes before doing a full query again
+    sleep(30*60)
+
+def _cncclient_address_list_query():
+  #used to avoid duplicates
+  sent_keys = set()
+    
+  user_key_list = _cncclient_get_userkey_list()
+  for user_key in user_key_list:
+    #send the query for the userkey
+    if not (user_key in sent_keys):
+      _cncclient_address_list_query_single_userkey(user_key)
+      sent_keys.add(user_key)
+      
+  cncclient_write_to_log("sent address list queries for " + str(len(sent_keys)) + " unique keys from " + str(len(user_key_list)) + " keys")
+
+#helper method that sends a querry for a full address list for a single user key
+def _cncclient_address_list_query_single_userkey(user_key):
+  #get the address of a server that handles this userkey
+  server_address_list = keyrangelib_get_addresses_for_userkey(user_key, cncclient_context['server_key_range_table'])
+      
+  #pick one of the addresses
+  if len(server_address_list)>0:
+    rand_int_index = random_randint(0,len(server_address_list)-1)
+    target_server_address = server_address_list[rand_int_index]
+      
+    #send a request to the server
+    message = "GetAddressesForUserRequest "+ user_key
+    message = cncperfutils_apply_sequenceid(message, target_server_address[0],target_server_address[1]) #<cncperf>
+    bytes_sent = sendmess(target_server_address[0],target_server_address[1], message, localip=getmyip(), localport=cncclient_context["client_con_port"])
+    cncclient_write_to_log("UDPPacketSent " + message.split()[0] + " " + str(bytes_sent) + " bytes") #<cncperf>
+  return
+
+
+#processes replies from GetAddressesForUserRequest requests
+#these replies include UserKeyNotFound packets and GetAddressesReply packets
+def _cncclient_process_address_list_message(remoteIP, remoteport, message):
+  #parse the reply
+  split_packet_data = message.split()
+  
+  #if the number of tokens in the message is incorrect, return and ignore the message after logging
+  if (len(split_packet_data) < 6):
+    cncclient_write_to_log("address list message is in incorrect format, message = "+message)
+    return
+  
+  message_part, signature_part = message.rsplit(' ',1)
+  data, publickey_str, timestamp = message_part.rsplit(' ',2)
+  
+  #check public key in message
+  message_public_key_str = publickey_str.replace('#',' ')
+  message_public_key = rsa_string_to_publickey(message_public_key_str)
+  
+  if(not(message_public_key in cncclient_context["cnc_server_dict"].values())):
+    #public keys dont match
+    cncclient_write_to_log("message public key -" + message_public_key_str+ "- was not found in cnc_server_dict")
+    
+    #message cannot be trused, so return
+    return
+  
+  #check the timestamp
+  valid, reason = cncSignData_checktimestamp(timestamp, CNCCLIENT_PACKET_EXPIRATION_INTV)
+  if not(valid):
+    cncclient_write_to_log("timestamp check failed: " + reason + " message="+ message)
+    return
+    
+  signature_correct = cncSignData_check_signature(message_part, signature_part, message_public_key)
+  if not(signature_correct):
+    cncclient_write_to_log("signature check failed on reply packet: " + message)
+    return
+
+  #packet is valid, so now process it
+  
+  #if the packet is of type UserKeyNotFound, refresh the keyrange and query tables and resend the getaddresses query
+  if split_packet_data[0]=="UserKeyNotFound":
+    cncclient_write_to_log("UserKeyNotFound packet received for userkey: " + split_packet_data[1])
+    cncclient_write_to_log("Refreshing keyrange and query tables, and resending the address list query.")
+    _cncclient_update_key_range_table()
+    _cncclient_address_list_query_single_userkey(split_packet_data[1])
+    return
+    
+  elif split_packet_data[0]=="GetAddressesReply":
+    #process the reply
+    user_key = split_packet_data[1]
+    
+    last_update_id = int(split_packet_data[2])
+    
+    #get the lock to the cncclient_user_node_table
+    cncclient_user_node_table_lock.acquire()
+
+    cncclient_write_to_log("processing full address list reply for userkey " + str(user_key))
+    
+    cncclient_last_update_id_lock.acquire()
+    if not(user_key in cncclient_last_update_id.keys()):
+      cncclient_last_update_id[user_key]=last_update_id
+
+    #determine the id lag of the current update, with respect to what we expected
+    actual_id_lag =  (cncclient_last_update_id[user_key])-last_update_id
+   
+    #if the current update id is older than taht specified in the get addresses reply, overwrite the cache set for the userkey
+    if(cncclient_last_update_id[user_key]<last_update_id or actual_id_lag>0):
+      cncclient_last_update_id[user_key] = last_update_id
+      cncclient_user_node_table[user_key] = set()
+      cncclient_write_to_log("Cache cleared for user_key " + str(user_key))
+    
+    cncclient_last_update_id_lock.release()
+    
+    if not(user_key in cncclient_user_node_table.keys()):
+      cncclient_user_node_table[user_key] = set()
+      
+    
+    # if the address list is empty, release the lock and we are done.
+    address_data = message_part[len("tbl")+message_part.find("tbl"):message_part.rfind("end")]
+    if address_data=="None":
+      cncclient_write_to_log("done processing full address list reply for userkey " + str(user_key) + ", no addresses added")
+      cncclient_user_node_table_lock.release()
+      return
+    
+    #decode the addresses string
+    address_port_list = cncperformance_decode_ip_port_list(address_data)
+    
+    for address_port_pair in address_port_list:
+      address_to_store,port_to_store = address_port_pair
+      
+      
+      #store the address
+      cncclient_user_node_table[user_key].add(address_to_store)
+      
+      #set the port to waht was specified in the message
+      cncclient_address_port_table[address_to_store] = port_to_store
+      
+      #this address soes not expire unless removed by update packet
+      cncclient_address_expiration_table[address_to_store] = None
+      
+      cncclient_write_to_log(str(address_to_store) + " added to node cache.")
+      
+    #packet has been processed, so release the lock and return
+    cncclient_user_node_table_lock.release()
+    return
+    
+  return
+
+#processes VerifyAddressReply packets
+#VerifyAddressReply <ip_address> <address_port> <validity> <public_key> <timestamp> <signature>
+def _cncclient_process_verify_address_packet(remoteIP, remoteport, message):
+  #parse the reply
+  split_packet_data = message.split()
+  
+  #if the number of tokens in the message is incorrect, return and ignore the message after logging
+  if (len(split_packet_data) < 7):
+    cncclient_write_to_log("VerifyAddressReply message is in incorrect format, message = "+message)
+    return
+  
+  message_part, signature_part = message.rsplit(' ',1)
+  data, publickey_str, timestamp = message_part.rsplit(' ',2)
+  
+  #check public key in message
+  message_public_key_str = publickey_str.replace('#',' ')
+  message_public_key = rsa_string_to_publickey(message_public_key_str)
+  
+  if(not(message_public_key in cncclient_context["cnc_server_dict"].values())):
+    #public keys dont match
+    cncclient_write_to_log("message public key -" + message_public_key_str+ "- was not found in cnc_server_dict")
+    
+    #message cannot be trused, so return
+    return
+
+  #check the timestamp
+  valid, reason = cncSignData_checktimestamp(timestamp, CNCCLIENT_PACKET_EXPIRATION_INTV)
+  if not(valid):
+    cncclient_write_to_log("timestamp check failed: " + reason + " message="+ message)
+    return
+    
+  #check the signature
+  signature_correct = cncSignData_check_signature(message_part, signature_part, message_public_key)
+  if not(signature_correct):
+    cncclient_write_to_log("signature check failed on VerifyAddressReply packet: " + message)
+    return
+    
+  
+  #packet is valid, so we can process it
+  
+  validity = split_packet_data[3]
+  cncclient_write_to_log("VerifyAddressReply packet indicates validity : " + str(validity))
+  #if the address is valid, add it to the cache
+  if(validity == "True"):
+    user_key = split_packet_data[4]
+    address=split_packet_data[1]
+    port = int(split_packet_data[2])
+  
+    #we do not need to keep track of the port, since we never forward updates to addresses that are only obtained from verifyAddress replies
+    _cncclient_add_address_to_cache(address, port, float(timestamp)+CNCCLIENT_CACHED_ADDRESS_EXPIRATION_INTV)
+    
+  else:
+    #if the address is invallid do nothing for now
+    #if a user keeps trying to contact an invallid address, he/she will get repeating cahce misses
+    
+    #since the address is invallid, lets increase the time at which the query was sent
+    #by CNCCLIENT_PACKET_MAX_QUERY_RATE_ON_MISS - CNCCLIENT_PACKET_MAX_QUERY_RATE,
+    #such that verify address requests for this IP will occur no more often than CNCCLIENT_PACKET_MAX_QUERY_RATE_ON_MISS
+    address=split_packet_data[1]
+    cncclient_query_times_lock.acquire()
+    if address in cncclient_query_times.keys():
+      cncclient_query_times[address] = cncclient_query_times[address] + CNCCLIENT_PACKET_MAX_QUERY_RATE_ON_MISS - CNCCLIENT_PACKET_MAX_QUERY_RATE
+    cncclient_query_times_lock.release()
+    
+    pass
+  
+  return
+  
+
+#processes AddressListUpdate packets
+def _cncclient_process_update_packet(remoteIP, remoteport, message):
+  #parse the reply
+  split_packet_data = message.split()
+  
+  #if the number of tokens in the message is incorrect, return and ignore the message after logging
+  if (len(split_packet_data) < 7):
+    cncclient_write_to_log("address list message is in incorrect format, message = "+message)
+    return
+  
+  message_part, signature_part = message.rsplit(' ',1)
+  data, publickey_str, timestamp = message_part.rsplit(' ',2)
+  
+  #check public key in message
+  message_public_key_str = publickey_str.replace('#',' ')
+  message_public_key = rsa_string_to_publickey(message_public_key_str)
+  
+  if(not(message_public_key in cncclient_context["cnc_server_dict"].values())):
+    #public keys dont match
+    cncclient_write_to_log("message public key -" + message_public_key_str+ "- was not found in cnc_server_dict")
+    
+    #message cannot be trused, so return
+    return
+    
+  #check the signature
+  signature_correct = cncSignData_check_signature(message_part, signature_part, message_public_key)
+  if not(signature_correct):
+    cncclient_write_to_log("signature check failed on AddressListUpdate packet: " + message)
+    return
+    
+  #get the userkey form the packet
+  userkey = split_packet_data[1]
+  
+  #get the sequence id of the update packet
+  current_id = int(split_packet_data[2])
+  
+  #make sure we have a matching local userkey
+  userkey_list = _cncclient_get_userkey_list()
+  if not(userkey in userkey_list):
+    #we do not have a matching local userkey, so ignore the packet
+    cncclient_write_to_log("ignoring AddressListUpdate packet for reason that specified userkey key is not on local node," + message)
+    return
+  
+  cncclient_last_update_id_lock.acquire()
+  #determine the id lag of the current update, with respect to what we expected
+  actual_id_lag = (cncclient_last_update_id[userkey]+1)-current_id
+  
+  cncclient_write_to_log("id lag for update packet is " + str(actual_id_lag) + ", stored " + str(cncclient_last_update_id[userkey]) + ", message " + str(current_id));
+  
+  #if the packet has an id that is directly before the last update, we ignore it as it is likely a duplicate
+  if((userkey in cncclient_last_update_id.keys()) and not(cncclient_last_update_id[userkey] ==None) and (actual_id_lag>0)):
+    cncclient_write_to_log("update packet ignored for reason: update packet is older than current data, last id " + str(cncclient_last_update_id[userkey])+ ", packet id " + str(current_id))
+    cncclient_last_update_id_lock.release()
+    return
+  
+  #check the sequence id and verify it is exactly equal to the last id+1. If not, get the previous updates and apply them first
+  if ( (userkey in cncclient_last_update_id.keys()) and not(cncclient_last_update_id[userkey] ==None) and not(cncclient_last_update_id[userkey]+1==current_id)):
+
+    #determine the range of id's we need update packets for
+    range_needed = range(cncclient_last_update_id[userkey]+1, current_id)
+
+    
+    #if the previous id is very old that it would not be on the server do full address list request
+    if(range_needed==None or len(range_needed)>CNCCLIENT_UPDATE_PACKET_HISTORY_NUM):
+      #we need more packets than are in the history cache, do full address list request and return
+      _cncclient_address_list_query_single_userkey(userkey)
+      cncclient_last_update_id_lock.release()
+      return
+    
+    cncclient_write_to_log("detected at least one update packet was missed, need updates with ids " + str(range_needed))
+    
+    for update_id_to_get in range_needed:
+      start_id = (update_id_to_get-1)
+      #send a request for the id
+      update_request = "GetUpdatePacketById " + str(userkey)+" " + str(update_id_to_get)
+      
+      server_address_list = keyrangelib_get_addresses_for_userkey(userkey, cncclient_context['server_key_range_table'])
+      
+      #pick one of the addresses
+      if (len(server_address_list)>0) :
+        rand_int_index = random_randint(0,len(server_address_list)-1)
+        target_address = server_address_list[rand_int_index]
+        seq_message = cncperfutils_apply_sequenceid(update_request, target_address[0], target_address[1]) 
+        bytes_sent = sendmess(target_address[0], target_address[1], seq_message, localip=getmyip(), localport=cncclient_context["client_con_port"])
+        cncclient_write_to_log("UDPPacketSent " + update_request.split()[0] + " " + str(bytes_sent) + " bytes") #<cncperf>
+        
+        #skip disseminating the next update packet that is processed successfully
+        cncclient_context["update_forwards_to_skip_lock"].acquire()
+        cncclient_context["update_forwards_to_skip"]+=1
+        cncclient_context["update_forwards_to_skip_lock"].release()
+      
+      cncclient_last_update_id_lock.release()
+        
+      #wait specified time value TODO
+      for wait_attempt in range(0,10):
+        end_id = cncclient_last_update_id[userkey]
+        if not(start_id==end_id):
+          break
+        sleep(4)
+      
+      cncclient_last_update_id_lock.acquire()
+      #if current_id was incremented, we were successful and we continue to next id
+      #-otherwise, we print an error message that we failed to get the packet and try to request full address list and do cncclient_last_update_id_lock.release()
+      if not(start_id==end_id):
+        continue
+      else:
+        _cncclient_address_list_query_single_userkey(userkey)
+        cncclient_last_update_id_lock.release()
+        cncclient_write_to_log("failed to retrieve missed update packet from server, userkey = " + str(userkey) + ", id=" + str(update_id_to_get))
+        
+        #reset update forwarding so all updates are now forwarded since we are getting the full address list
+        cncclient_context["update_forwards_to_skip_lock"].acquire()
+        cncclient_context["update_forwards_to_skip"]=0
+        cncclient_context["update_forwards_to_skip_lock"].release()
+        return
+  
+    #we retrieved all pacekts prior to the current one and applied them.
+    
+    #other updates may have been applied in the meantime, so retry applying this update
+    cncclient_last_update_id_lock.release()
+    _cncclient_process_update_packet(remoteIP, remoteport, message)
+    return
+    
+  #save the sequence id as the last one for this userkey, but only if we have a previous sequence id
+  if (userkey in cncclient_last_update_id.keys() and not(cncclient_last_update_id[userkey] ==None)):
+    cncclient_last_update_id[userkey] = current_id
+  cncclient_last_update_id_lock.release()
+  
+  #we no longer check timestamps for update packets, since we are basing our checks on id.  
+  cncclient_write_to_log("processing update packet from " + str(remoteIP))
+  
+  size_add_info = int(split_packet_data[3])
+  #get the add and delete information
+  encoded_address_string = message_part[message_part.find("start"): message_part.rfind("end")]
+  
+  add_info = encoded_address_string[0+len("start"):size_add_info+len("start")]
+  del_info = encoded_address_string[size_add_info+len("start"):len(encoded_address_string)]
+  
+  #process the elements that need to be added
+  if(add_info!="None"):
+
+    #decode the addresses
+    address_port_list=cncperformance_decode_ip_port_list(add_info)
+    
+    for address_port_pair in address_port_list:
+      ip_str, port = address_port_pair
+      
+      #we need to add this address to cncclient_user_node_table if it is not already present
+      _cncclient_add_address_to_cache(ip_str, port, None, userkey)
+      
+  #process the elements that need to be deleted
+  if(del_info!="None"):
+  
+    address_list = cncperformance_decode_ip_list(del_info)
+    
+    for address_ip in address_list:
+      ip_str = address_ip
+      
+      cncclient_user_node_table_lock.acquire()
+      #if no set exists for the current userkey, we dont need to remove anything, so we are done
+      if not(userkey in cncclient_user_node_table.keys()):
+        cncclient_user_node_table_lock.release()  
+        continue
+        
+      #if the address is not in the table, we dont need to do anything
+      if not(ip_str in cncclient_user_node_table[userkey]):
+        cncclient_user_node_table_lock.release()  
+        continue
+      
+      #ip address must be in the table, so remove it      
+      cncclient_user_node_table[userkey].remove(ip_str)
+      
+      cncclient_write_to_log(str(ip_str) + " removed from node cache for userkey " + str(userkey) + ", by reason updatepacket")
+      
+      
+      #we are done with this address, so release the lock
+      cncclient_user_node_table_lock.release()    
+      
+      
+  #we are done processing the update packet
+  #we now need to forward it to other nodes that have the appropriate userkey
+  
+  #only forward the packet if we have no updates that need to be skipped
+  cncclient_context["update_forwards_to_skip_lock"].acquire()
+  forward_ok = (cncclient_context["update_forwards_to_skip"] == 0)
+  
+  #deincrement the updates to skip if we are skipping this one
+  if not(forward_ok):
+    cncclient_context["update_forwards_to_skip"] = cncclient_context["update_forwards_to_skip"]-1
+  cncclient_context["update_forwards_to_skip_lock"].release()
+  
+  if forward_ok:
+    _cncclient_forward_update_packet(message, userkey)
+  return
+
+  
+#forwards the given update pakcet message to nodes that have the userkey value specified.
+#CNCCLIENT_NUM_FORWARDING_ADDRESSES tells the number of addreses we shoudl forward to if possible
+def _cncclient_forward_update_packet(message, userkey):
+  #we can get the ports to which to send the message from cncclient_address_port_table
+  #we need the lock to make sure the state of the data does not change while we set up the addreses to forward the update to
+  cncclient_user_node_table_lock.acquire()
+  
+  #if we dont have the specified userkey in the table, return
+  if not(userkey in cncclient_user_node_table.keys()):
+    cncclient_write_to_log("Unable to forward update packet, userkey " + str(userkey) +" not in table")
+    return
+  
+  address_list = list(cncclient_user_node_table[userkey])
+  
+  target_addresses = []
+  
+  while len(target_addresses)<CNCCLIENT_NUM_FORWARDING_ADDRESSES :
+    #if we have no more addresses to try, break
+    if len(address_list)==0:
+      break;
+  
+    #pick an index randomly
+    rand_int_index = random_randint(0,len(address_list)-1)
+    
+    address_to_try = address_list.pop(rand_int_index)
+    
+    #if the address is expired, skip it and continue
+    port = cncclient_address_port_table[address_to_try]
+    
+    
+    #add the address to list of addresses that will get an update sent to
+    address_to_add = address_to_try,port
+    target_addresses.append(address_to_add)
+      
+  #we have finished assembling the list of addresses to send the update to, so release the lock
+  cncclient_user_node_table_lock.release()
+  
+  #now for each address in target_addresses, we want to send the update packet to it
+  for target_address in target_addresses:
+    seq_message = cncperfutils_apply_sequenceid(message, target_address[0], target_address[1]) #<cncperf>
+    bytes_sent = sendmess(target_address[0], target_address[1], seq_message, localip=getmyip(), localport=cncclient_context["client_con_port"])
+    cncclient_write_to_log("UDPPacketSent " + seq_message.split()[0] + " " + str(bytes_sent) + " bytes") #<cncperf>
+    
+  return
+  
+#UDP listener function
+#listens to incoming UDP messages on the client port and processes them
+def _cncclient_udp_packet_handler(remoteIP, remoteport, message, commhandle):
+  
+  message_data = message.strip()
+  
+  #ignore empty data packets
+  if message_data.strip() == '':
+    return
+    
+  cncclient_write_to_log("UDPPacketReceived " + message_data.split()[0] + " " + str(len(message_data)) + " bytes, sender = " + remoteIP + ":" + str(remoteport)) #<cncperf>
+  (message_data, error_str) = cncperfutils_analyzesequencemessage(message_data, remoteIP, remoteport) #<cncperf>
+  if not(error_str==""): #<cncperf>
+    cncclient_write_to_log(error_str) #<cncperf>
+    
+
+  #parse the reply
+  split_packet_data = message_data.split()
+  
+  #check if the message is a reply to a get address list request
+  if split_packet_data[0]=="UserKeyNotFound" or split_packet_data[0]=="GetAddressesReply" :
+    #call the processing function
+    _cncclient_process_address_list_message(remoteIP, remoteport, message_data)
+  
+  #check if message is of type GetUserKeyRangeTablesReply
+  elif split_packet_data[0]=="GetUserKeyRangeTablesReply":
+    cncclient_context["keyrange_tables_reply"]= (message_data,remoteIP, remoteport)
+  
+  #check if the message is a reply to a renew registration request
+  elif split_packet_data[0]=="RenewAddressRequestComplete" or split_packet_data[0]=="RenewFailedInvalidRenewalKey" :
+    #store the data
+    source_address=remoteIP,remoteport
+    cncclient_context['renewal_request_reply'][source_address] = message_data
+  
+  #check if we received an update packet
+  elif split_packet_data[0]=="AddressListUpdate":
+    _cncclient_process_update_packet(remoteIP, remoteport, message_data)
+  
+  #check if we received a verifyAddress reply packet
+  elif split_packet_data[0]=="VerifyAddressReply":
+    _cncclient_process_verify_address_packet(remoteIP, remoteport, message_data)
+    
+  #otherwise, we have an unrecognized packet
+  else:
+    cncclient_write_to_log("Uexpected packet received: " + message)
+    
+    
+#main method, starts the registration event sequence for each user key and  
+#starts the event sequence that updates the node list for each user key
+def cncclient_initialize(port):
+  cncclient_context["client_con_port"] = port
+
+  #update the current time
+  time_updatetime(port)
+  sleep(5) #wait to make sure port is freed
+  
+  #initialize fields for the multifile log
+  cncmultifilelog_initialize("cncclientlog", 600)
+  
+  cncclient_write_to_log("starting _cncclient_initialize...")
+  cncclient_write_to_log("local ip is:" + getmyip())
+  
+  #initialize cnc_server_dict
+  cncclient_context["cnc_server_dict"] = cncFileParser_read_server_list_file(TRUSTED_CNC_SERVER_FILE)
+  
+  #initialize backup config dict
+  cncclient_context["cnc_backup_dict"]=cncFileParser_read_backup_config(CNC_BACKUP_CONFIG_FILE)
+  
+  #set up the list of registration servers.
+  cncclient_context["registration_server_list"] = _cncclient_getRegistrationServerList()
+  
+  #select and set a registration server address
+  _cncclient_reset_registration_server_address()
+  
+  #start an event sequence that maintains the list of user keys
+  
+  #start the packet listener
+  cncclient_write_to_log("starting the UDP packet listener")
+  recvmess(getmyip(), cncclient_context["client_con_port"], _cncclient_udp_packet_handler)
+    
+  #update the key rage and query tables
+  _cncclient_update_key_range_table()
+  
+  #start the registration sequence
+  cncclient_write_to_log("starting the registration event sequence")
+  _cncclient_maintain_registration()
+  
+  #start the full address list query sequence
+  cncclient_write_to_log("doing a full address list query...")
+  _cncclient_address_list_query()
+  
+  settimer(0,_cncclient_cleanup_node_table,[])
+    
+  #initialize function is complete.

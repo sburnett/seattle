@@ -1,0 +1,80 @@
+"""
+<Library Name>
+  cncperformance.repy
+
+<Started>
+  March 31, 2009
+
+<Author>
+  Cosmin Barsan
+  
+<Purpose>
+  Contains library methods to help optimize cnc system performance.
+
+"""
+
+#encodes an ip, port pair to a 7 character string
+def cncperformance_encode_ip_port(ip, port):
+  port = int(port)
+    
+  components = ip.split('.')
+  result=""
+  for i in range(0,len(components)):
+    result+=chr(int(components[i]))
+  
+  port_lower = port%256
+  port_upper = port/256
+  result+=chr(port_upper)
+  result+=chr(port_lower)
+  return result
+
+#encodes an ip to a 4 character string
+def cncperformance_encode_ip(ip):
+    
+  components = ip.split('.')
+  result=""
+  for i in range(0,len(components)):
+    result+=chr(int(components[i]))
+
+  return result
+
+def cncperformance_decode_ip_port(encoded_str):
+  result_ip = ""
+  ip_comp = encoded_str[0:4]
+  port_comp = encoded_str[4:6]
+  
+  for i in range(0,len(ip_comp)):
+    result_ip+=str(ord(ip_comp[i])) + "."
+  
+  result_ip = result_ip[0:len(result_ip)-1]
+  
+  port_upper = ord(port_comp[0])
+  port_lower = ord(port_comp[1])
+  
+  result_port=port_upper*256 + port_lower
+  return result_ip, result_port
+  
+def cncperformance_decode_ip_port_list(encoded_str):
+  result = []
+  for i in range(0, len(encoded_str)/7):
+    encoded_fragment = encoded_str[i*7:(i+1)*7]
+    ip,port = cncperformance_decode_ip_port(encoded_fragment)
+    result.append((ip,port))
+  return result
+    
+def cncperformance_decode_ip(encoded_str):
+  result_ip = ""
+  
+  for i in range(0,len(encoded_str)):
+    result_ip+=str(ord(encoded_str[i])) + "."
+  
+  result_ip = result_ip[0:len(result_ip)-1]
+  return result_ip
+
+def cncperformance_decode_ip_list(encoded_str):
+  result = []
+  for i in range(0, len(encoded_str)/4):
+    encoded_fragment = encoded_str[i*4:(i+1)*4]
+    ip= cncperformance_decode_ip(encoded_fragment)
+    result.append(ip)
+  return result

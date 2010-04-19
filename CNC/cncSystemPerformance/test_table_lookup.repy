@@ -1,0 +1,70 @@
+include time.repy
+include random.repy
+
+mycontext = dict()
+main_table=dict()
+info_table=dict()
+
+def setup_table(num_keys, data_per_key):
+  print "setting up experiment, " + str(num_keys) + " keys, " + str(data_per_key) + " addresses per key"
+  for userkey_count in range(0,num_keys):
+    key_name = "keygen_"+str(userkey_count)
+    main_table[key_name] = set()
+    
+    #next add random addresses to each key
+    for i in range(0,data_per_key):
+      data = random_randint(1000000, 9999999)
+      
+      #add the data to both tables
+      info_table[data] = 1
+      main_table[key_name].add(data)
+      
+  #print "debug " + str(main_table)
+
+def do_experiment():
+  addresses_list = info_table.keys()
+  SAMPLE_SIZE = 10
+  
+  addresses_to_test = []
+  for i in range(0,SAMPLE_SIZE):
+    rand_index = random_randint(0, len(addresses_list)-1)
+    addresses_to_test.append(addresses_list[rand_index])
+  
+  sum=0.0
+  
+  
+  #for each of the addresses, try lookup and get time
+  for addr in addresses_to_test:
+    start_time=time_gettime()
+    res = lookup_address(addr)
+    end_time = time_gettime()
+    diff = end_time-start_time
+    sum+=diff
+  
+  #compute the average
+  avg = 1.0*sum/SAMPLE_SIZE
+  print "average is " + str(avg)
+  
+#simulates a table lookup, returning if value was found
+def lookup_address(addr):
+  
+  #if address not in info table, return false
+  if not(addr in info_table.keys()):
+    return False
+    
+  entry = info_table[addr]
+  if not(entry==1):
+    return False
+    
+  for indexing_userkey in main_table.keys():
+    if addr in main_table[indexing_userkey]:
+      return True;
+      
+  return False
+
+if callfunc == 'initialize':
+  time_updatetime(63156)
+  print "\n"
+  setup_table(int(callargs[0]) , int(callargs[1]))
+  do_experiment()
+  

@@ -1,0 +1,61 @@
+"""
+<Library Name>
+  cncperfutils.repy
+
+<Started>
+  March 31, 2009
+
+<Author>
+  Cosmin Barsan
+  
+<Purpose>
+  Contains library methods to help collect performace information for the cnc system.
+
+"""
+cncperfutils_context=dict()
+
+#keeps track of the current sequence number for given address indeces
+#one dict keeps track of sequence number for send, the other for receive
+cncperfutils_send_sequence=dict()
+cncperfutils_receive_sequence = dict()
+
+
+#append a sequence number to the given message that will be sent to the given target ip, port. Return the message with the sequence number appended
+def cncperfutils_apply_sequenceid(message, target_ip, target_port):
+  target_address = target_ip, target_port
+  if not(target_address in cncperfutils_send_sequence.keys()):
+    cncperfutils_send_sequence[target_address] = 0
+  
+  sequence_message = message + " " + str(cncperfutils_send_sequence[target_address])
+  cncperfutils_send_sequence[target_address]+=1
+  return sequence_message
+  
+#returns (message without sequence number),(error message). If there is no error, error message is an empty string. 
+#Any error message will indicate the message is out of sequence
+cncperfutils_analyze_lock = getlock()
+def cncperfutils_analyzesequencemessage(message, source_ip, source_port):
+  cncperfutils_analyze_lock.acquire()
+  target_address = source_ip, source_port
+  nonsequence_message, seq_num = message.rsplit(' ',1)
+  seq_num = int(seq_num)
+  message_type = message.split()[0] #first token in a message is its type
+  
+  if not(target_address in cncperfutils_receive_sequence.keys()):
+    cncperfutils_receive_sequence[target_address] = 0
+    
+  local_sequence_num = cncperfutils_receive_sequence[target_address]
+  
+  error_message_str=""
+  if not(local_sequence_num==seq_num):
+    error_message_str = "MessageOutOfSequence " + message_type + " , expected sequence number " + str(local_sequence_num) + " , but got " + str(seq_num)
+  
+  #if message sequence number is ahead of stored, save it to stored, otherwise leave it
+  if seq_num>local_sequence_num:
+    cncperfutils_receive_sequence[target_address] = seq_num+1
+  
+  elif seq_num==local_sequence_num:
+    #if sequence numbers match, increment the stored sequence number in preparation for next time.
+    cncperfutils_receive_sequence[target_address]+=1
+    
+  cncperfutils_analyze_lock.release()
+  return nonsequence_message, error_message_str

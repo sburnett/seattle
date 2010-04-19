@@ -1,0 +1,98 @@
+"""
+<Library Name>
+  cncFileParser.repy
+
+<Started>
+  March 31, 2009
+
+<Author>
+  Cosmin Barsan
+  
+<Purpose>
+  Contains helper methods to read and write files containing data used by the update and registration servers
+
+"""
+include rsa.repy
+
+###Constants###
+
+#file containing information on cnc servers and their public keys
+TRUSTED_CNC_SERVER_FILE="cnc_server_list.txt"
+
+
+def cncFileParser_read_server_list_file(filename):
+  """
+  <Purpose>
+    Constructs a dict associating server addresses with public keys
+    each line in the file is of the format: <ip>:<port> <publickey>,
+    where the public key string uses '#' as separators internally instead of the 'space' character
+
+  <Arguments>
+    filename: name of the file listing the available servers and their keys
+
+  <Exceptions>
+    IOError if file not found
+
+  <Side Effects>
+    None.
+
+  <Returns>
+    return a dict where each key is a string of the form <ip>:<port> and each entry is the public key of that server. The public keys of the server
+    are stored as rsa public keys.
+  """
+  
+  result_dict = dict()
+
+  file_obj = open(filename)
+  for line in file_obj:
+      tokenlist = line.split()
+      if (len(tokenlist)>1):
+        
+        #try statement so thta if there is an error in one entry, we can continue
+        try:
+          space_separated_key = tokenlist[1].replace('#',' ')
+          result_dict[tokenlist[0]] = rsa_string_to_publickey(space_separated_key)
+        except KeyError, e:
+          print "error in building server-public_key dict: " + str(e)
+  file_obj.close()
+  
+  return result_dict
+  
+def cncFileParser_read_backup_config(filename):
+  """
+  <Purpose>
+    Constructs a dict associating each server addresses with the address for the backup server
+    each line in the file is of the format: <primary_server_ip>:<primary_server_port> <backup_server_ip>:<backup_server_port>
+    if an address does not have a backup server assigned the format it is not listed in the file
+  <Arguments>
+    filename: name of the file
+
+  <Exceptions>
+    IOError if file not found
+
+  <Side Effects>
+    None.
+
+  <Returns>
+    return a dict where each key is a string of the form <ip>:<port> and each entry is a pair or the form (ip,port)
+    
+  """
+  
+  result_dict = dict()
+
+  file_obj = open(filename)
+  for line in file_obj:
+      tokenlist = line.split()
+      if (len(tokenlist)>1):
+        
+        #try statement so that if there is an error in one entry, we can continue
+        try:
+          key_value = tokenlist[0].split(':')
+          value_ip,value_port_str = tokenlist[1].split(':')
+          value_port= int(value_port_str)
+          result_dict[key_value] = value_ip, value_port
+        except KeyError, e:
+          print "error in building backup dict: " + str(e)
+  file_obj.close()
+  
+  return result_dict

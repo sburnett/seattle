@@ -1,0 +1,900 @@
+"""
+Author: Cosmin Barsan
+Description:
+This module has some basic functions to help with the deployment of repy programs, and is used by deployallpairsping.mix and deploycncservers.mix.
+
+Usage:
+deployallpairsping.py
+
+"""
+
+include getvesselresources.repy
+include nmclient.repy
+include rsa.repy
+
+
+CURRENT_SEATTLE_VERSION = "0.1o"
+
+XMLRPC_SERVER_URL = 'https://seattlegeni.cs.washington.edu/geni/xmlrpc/'
+
+#timeout to use for nmhandles by default
+DEFAULT_TIMEOUT = 80
+UPLOAD_TIMEOUT = 500
+
+#number threads to use for parallelization
+ACTIVE_THREADS_MAX=25
+
+#keys we use to contact the nodes
+TESTACCT_PUBLIC_KEY_STR="27779104037708382248454949189351919491752282985846503806294773475174077126813 94480253696611980494016959316578370988044440086309567556206523975351392844908923972396484178898116163696397491215341337657012025692799713836747689527734093436315970783164765532488798240331321965112614202956612434924090726803948818561652354273519367377638457891379771057630879798731439698821874859068713844677"
+TESTACCT_PRIVATE_KEY_STR= "30530140670717297440150355601824060462801119736914402755700946524121929480035320708885259830054134071441364108013246809904096896197518001598242451433218003195686984480636460778612159620895913702399550633391619361393694795579672161284780604263702443224436451881657043943604426707598863983325595582481294973405 12532565891514112862526728855937779198405230278884973423123488928869767600461580908471244274782122377855441092257396612447055579769221690667446569847928059 7538779729104413839903952642113808871371442726967297524189626712483085527711095322720066075270289401195995007246471598021697087597159559560630068336509503"
+
+TESTACCT3_PUBLIC_KEY_STR="90443727491452298524853029741997812502236770112956805556942706434445705679459 50049613513486731430912230049258045671645842827468581165932637843604044315127426315530003807861369516267135344898403467332956462571201890167444587694811731920229339458682885524507912332509376504668248121088200997144438687858658741227829183066846233764515969578116802948721059596686273131730401415851712318869"
+TESTACCT3_PRIVATE_KEY_STR= "14903733795747944786616596451983287857405310610149435844122233325995307698810854333648603913271739928229732295784377617442383169685371146187121537629614526317823601989188217783714689315555024169268870302789320529039809420426249970367285620055129830971340372789104719482656010012441377970404802047325406404427 3800444186099551396657125147060867144963400554071442243528724812432761765235478845319169921333803966830079304090357965835542017456894787231216039231320077 13169411537879561460072936151391699254927874878199393521539331479358844696149398997091735602498570070780016729806529732317407795533892114216582926325328297"
+
+TESTACCT4_PUBLIC_KEY_STR="6514068465907655809609121993917453612356976526347569656235659110584614531309 3814227717759877381900442586830591038023480803645744907961868953089679783892311826602270324685136940221044779161190953097516323007020641012075035711698309360648121805234496520984400792440719877331188563338085697948056103562515217885844568856902659411821521484047296898357385696941243277129981385862323895471"
+TESTACCT4_PRIVATE_KEY_STR= "924219883194464822179071470509610504963504586899624484803939153539750848274941939848041874612506594349782598020884558159344676051876744869529530743596951972007269741175944060451904382780632585862198990128235817227329574124755251305195250762404108654714086821486398715741175238883204156652115187846240077781 3219506145992115199697555034566492149452458595074797607078086839922566165885554647989952336937398752770481990553394825254921903631779598595660420953499827 1184724471642371791817279019354547897148573434757093057139007653520174226311736083420095778260222836226382842042253180149648167313199938290235055394980373"
+
+
+
+#strores information for functions that make use of multiple threads
+cncdeploylib_parallel_context = dict()
+
+def cncdeploylib_check_node_version(ipaddress, user_publickey, user_privatekey):
+  """
+  <Purpose>
+    check if the node at the specified ip address has the most recent version of seattle
+
+  <Arguments>
+    ipaddress: ip address of the node to check
+    user_publickey: public key of a user on the vessels (in rsa publickey format)
+    user_privatekey: private key of a user on the vessels, must match public key (in rsa private key format)
+  <Exceptions>
+    None
+
+  <Side Effects>
+    None
+
+  <Returns>
+    False if node version is not current or if there are any problems contacting the node. True if ok.
+  """
+  #set up the nmhandle
+  try:
+    nmhandle = nmclient_createhandle(ipaddress, 1224)
+  except NMClientException, e:
+    return False
+    
+  myhandleinfo = nmclient_get_handle_info(nmhandle)
+    
+  myhandleinfo['publickey']=user_publickey
+  myhandleinfo['privatekey']=user_privatekey
+  myhandleinfo['timeout']=DEFAULT_TIMEOUT
+  nmclient_set_handle_info(nmhandle, myhandleinfo)
+  
+    #get the list of vessels that are accessible on the ipaddress
+  try:
+    (ownervessels, uservessels) = nmclient_listaccessiblevessels(nmhandle,myhandleinfo['publickey'])
+    node_vessel_dict = nmclient_getvesseldict(nmhandle)
+  except NMClientException, e:
+    return False
+    
+  #if the node is not the current version, return false
+  if node_vessel_dict["version"] < CURRENT_SEATTLE_VERSION:
+    return False
+  
+  return True
+
+def cncdeploylib_constructDeployInfo(ip_deploylist, user_publickey, user_privatekey):
+  """
+  <Purpose>
+    constructs a structure that keeps track of information we will need during the deployment.
+    The result is a dict. Each index in the dict is in the form (ip, vessel).
+
+  <Arguments>
+    ip_deploylist: a list of ip addresses to get deployment info for
+    user_publickey: public key of a user on the vessels (in rsa publickey format)
+    user_privatekey: private key of a user on the vessels, must match public key (in rsa private key format)
+
+  <Exceptions>
+    NMClient exception may be thrown when trying to create handle
+
+  <Side Effects>
+    Prints information about any errors encountered.
+
+  <Returns>
+    <result>[<vesselip,vesselname>]['nmhandle'] gives a nodemanager handle to the vessel
+    <result>[<vesselip,vesselname>]['ports'] gives a list of availabel ports on the handle, in integer types
+  """
+  
+  result_vesseldata = dict()
+  
+  for ip_address_to_check in ip_deploylist:
+    
+    #set up the nmhandle
+    try:
+      nmhandle = nmclient_createhandle(ip_address_to_check, 1224)
+      myhandleinfo = nmclient_get_handle_info(nmhandle)
+    except NMClientException, e:
+      print "error trying to create handle to "+ ip_address_to_check + ", excluding node from experiment"
+      continue
+      
+    myhandleinfo['publickey']=user_publickey
+    myhandleinfo['privatekey']=user_privatekey
+    myhandleinfo['timeout']=DEFAULT_TIMEOUT
+    nmclient_set_handle_info(nmhandle, myhandleinfo)
+    
+    #get the list of vessels to deploy on
+    try:
+      (ownervessels, uservessels) = nmclient_listaccessiblevessels(nmhandle,myhandleinfo['publickey'])
+      node_vessel_dict = nmclient_getvesseldict(nmhandle)
+    except NMClientException, e:
+      print "error trying to list vessels on "+ ip_address_to_check
+      continue
+    
+    vessels_to_target = ownervessels
+    vessels_to_target.extend(uservessels)
+    
+    #if the node is not the current version, skip all vessels in it
+    if node_vessel_dict["version"] < CURRENT_SEATTLE_VERSION:
+      print "The node " + str(ip_address_to_check) + "is running an unsupported version of Seattle"
+      print "Version of node: " + str(node_vessel_dict["version"]) + ", min required version: " + str(CURRENT_SEATTLE_VERSION)
+      continue
+    
+    
+    for vessel in vessels_to_target:
+      try:
+        vessel_resource_dict = getvesselresources_vesselname(vessel, ip_address_to_check)
+      except NMClientException, e:
+        print "error trying to resource info on "+ ip_address_to_check + " vessel:" + vessel
+        continue
+      
+      #get a list of ports for the vessel, each port is a connport and a messport
+      port_list=[]
+      for port in vessel_resource_dict[vessel]['messport']:
+        
+        #just to be sure, check if the port is also a connport, if not skip this port
+        if not(port in vessel_resource_dict[vessel]['connport']):
+          continue
+        
+        port_list.append(int(port))
+          
+      #if all went well, we add an entry to the result_vesseldata
+      entry_index = ip_address_to_check, vessel
+      result_vesseldata[entry_index] = dict()
+      result_vesseldata[entry_index]['ports'] = port_list
+      result_vesseldata[entry_index]['nmhandle'] = nmhandle
+    
+  return result_vesseldata
+
+def cncdeploylib_addVesselsToDeployInfo(deploy_info_dict, ip_deploylist, user_publickey, user_privatekey):
+  """
+  <Purpose>
+    Adds vessels to specified deploy_info_dict
+    The result is a dict. Each index in the dict is in the form (ip, vessel).
+
+  <Arguments>
+    ip_deploylist: a list of ip addresses to get deployment info for
+    user_publickey: public key of a user on the vessels (in rsa publickey format)
+    user_privatekey: private key of a user on the vessels, must match public key (in rsa private key format)
+
+  <Exceptions>
+    NMClient exception may be thrown when trying to create handle
+
+  <Side Effects>
+    Prints information about any errors encountered.
+
+  <Returns>
+    <result>[<vesselip,vesselname>]['nmhandle'] gives a nodemanager handle to the vessel
+    <result>[<vesselip,vesselname>]['ports'] gives a list of availabel ports on the handle, in integer types
+  """
+  
+  for ip_address_to_check in ip_deploylist:
+    
+    #set up the nmhandle
+    nmhandle = nmclient_createhandle(ip_address_to_check, 1224)
+    myhandleinfo = nmclient_get_handle_info(nmhandle)
+    
+    myhandleinfo['publickey']=user_publickey
+    myhandleinfo['privatekey']=user_privatekey
+    myhandleinfo['timeout']=DEFAULT_TIMEOUT
+    nmclient_set_handle_info(nmhandle, myhandleinfo)
+    
+    #get the list of vessels to deploy on
+    try:
+      (ownervessels, uservessels) = nmclient_listaccessiblevessels(nmhandle,myhandleinfo['publickey'])
+      node_vessel_dict = nmclient_getvesseldict(nmhandle)
+    except NMClientException, e:
+      print "error trying to list vessels on "+ ip_address_to_check
+      continue
+    
+    vessels_to_target = ownervessels
+    vessels_to_target.extend(uservessels)
+    
+    #if the node is not the current version, skip all vessels in it
+    if node_vessel_dict["version"] < CURRENT_SEATTLE_VERSION:
+      print "The node " + str(ip_address_to_check) + "is running an unsupported version of Seattle"
+      print "Version of node: " + str(node_vessel_dict["version"]) + ", required version: " + str(CURRENT_SEATTLE_VERSION)
+      continue
+    
+    
+    for vessel in vessels_to_target:
+      try:
+        vessel_resource_dict = getvesselresources_vesselname(vessel, ip_address_to_check)
+      except NMClientException, e:
+        print "error trying to resource info on "+ ip_address_to_check + " vessel:" + vessel
+        continue
+      
+      #get a list of ports for the vessel, each port is a connport and a messport
+      port_list=[]
+      for port in vessel_resource_dict[vessel]['messport']:
+        
+        #just to be sure, check if the port is also a connport, if not skip this port
+        if not(port in vessel_resource_dict[vessel]['connport']):
+          continue
+        
+        port_list.append(int(port))
+          
+      #if all went well, we add an entry to the result_vesseldata
+      entry_index = ip_address_to_check, vessel
+      if not(entry_index in deploy_info_dict.keys()):
+        deploy_info_dict[entry_index] = dict()
+        deploy_info_dict[entry_index]['ports'] = port_list
+        deploy_info_dict[entry_index]['nmhandle'] = nmhandle
+    
+  return deploy_info_dict
+  
+
+def cncdeploylib_DeleteVesselfromDeployInfo(deploy_info_dict, vessel_index):
+  """
+  <Purpose>
+    Deletes specified vessel from the deployinfodict
+    Each index in the dict is in the form (ip, vessel_name).
+
+  <Arguments>
+    ip_deploylist: a list of ip addresses to get deployment info for
+    vessel_index: (ip, vessel_name), pair of strings
+
+  <Exceptions>
+    None
+
+  <Side Effects>
+    None
+
+  <Returns>
+    None
+  """
+  if vessel_index in deploy_info_dict.keys():
+    deploy_info_dict.pop(vessel_index)
+  return
+  
+  
+def cncdeploylib_resetVessels(deploy_info_dict):
+  """
+  <Purpose>
+    resets the vessels we will deploy on. 
+    If there are any failures, we remove any vessels that fail from the deploy_info_dict
+
+  <Arguments>
+    deploy_info_dict: a structure created by constructDeployInfo that keeps track of handles to each vessel 
+      in the experiment as well as a list of ports
+
+  <Exceptions>
+    None, all NMClient exceptions are caught
+
+  <Side Effects>
+    Prints information about any errors encountered.
+
+  <Returns>
+    None
+  """
+  
+  for ip_address, vesselname in deploy_info_dict.keys():
+    
+    print "reseting " + ip_address + ":" + vesselname
+    
+    #get the nmhandle
+    vessel_index=ip_address, vesselname
+    nmhandle = deploy_info_dict[vessel_index]['nmhandle']
+  
+    #try to reset the vessel
+    try:
+      nmclient_signedsay(nmhandle, "ResetVessel", vesselname)
+    except NMClientException, e:
+      print "error: " + str(e) + " trying to reset the vessel " + vesselname + " on " + ip_address
+      print "removing " + ip_address + ":" + vesselname + " from deployment"
+      index_to_remove = ip_address, vesselname
+      if index_to_remove in deploy_info_dict.keys():
+        deploy_info_dict.pop(index_to_remove)
+      continue
+  
+
+cncdeploylib_parallel_context["active_stopthread_change"]= getlock()
+def cncdeploylib_StopVessels_parallel(deploy_info_dict):
+  """
+  <Purpose>
+    Stops a all vessels in the experiment
+
+  <Arguments>
+    deploy_info_dict: a structure created by constructDeployInfo that keeps track of handles to each vessel 
+      in the experiment as well as a list of ports
+
+  <Exceptions>
+    None, all NMClient exceptions are caught
+
+  <Side Effects>
+    Prints information about any errors encountered.
+
+  <Returns>
+    None
+  """
+  cncdeploylib_parallel_context["active_stop_threads"]= 0
+  for vessel_index in deploy_info_dict.keys():
+  
+    #increase thread count
+    cncdeploylib_parallel_context["active_stopthread_change"].acquire()
+    cncdeploylib_parallel_context["active_stop_threads"]+=1
+    cncdeploylib_parallel_context["active_stopthread_change"].release()
+    
+    cncdeploylib_StopVessel(deploy_info_dict, vessel_index)
+    settimer(0,cncdeploylib_StopVessel,[deploy_info_dict, vessel_index, "active_stop_threads"])
+    
+    while cncdeploylib_parallel_context["active_stop_threads"]>ACTIVE_THREADS_MAX:
+      sleep(1)
+    
+  #wait for all threads to finish
+  while cncdeploylib_parallel_context["active_stop_threads"]>0:
+    sleep(1)
+    
+
+def cncdeploylib_StopVessel(deploy_info_dict, vessel_index, parallel_thread_track = None):
+  """
+  <Purpose>
+    Stops a single vessel in the experiment specified by vessel_index
+
+  <Arguments>
+    deploy_info_dict: a structure created by constructDeployInfo that keeps track of handles to each vessel 
+      in the experiment as well as a list of ports
+    vessel_index: (ip, vessel_name), pair of strings. Vessel to stop. Must have an entry in deploy_info_dict
+
+  <Exceptions>
+    None, all NMClient exceptions are caught
+
+  <Side Effects>
+    Prints information about any errors encountered.
+
+  <Returns>
+    True if successful, False otherwise
+  """
+  ip_address, vesselname = vessel_index
+  print "stopping " + ip_address + ":" + vesselname
+  stop_success = False
+  #get the nmhandle
+  nmhandle = deploy_info_dict[vessel_index]['nmhandle']
+  
+  #try to stop the vessel
+  try:
+    nmclient_signedsay(nmhandle, "StopVessel", vesselname)
+    stop_success = True
+  except NMClientException, e:
+    print "error: " + str(e) + " trying to stop the vessel " + vesselname + " on " + ip_address
+    stop_success = False
+  
+  #if this is executing in a separate thread, mark it as done
+  if (parallel_thread_track!=None):
+    cncdeploylib_parallel_context["active_stopthread_change"].acquire()
+    cncdeploylib_parallel_context[parallel_thread_track] = cncdeploylib_parallel_context[parallel_thread_track]-1
+    cncdeploylib_parallel_context["active_stopthread_change"].release()
+  
+  return
+
+def cncdeploylib_uploadFiles(deploy_info_dict, files_to_upload):
+  """
+  <Purpose>
+    Upload the list of specified files to every vessel in the experiment.
+    If there are any failures, we remove any vessels that fail from the deploy_info_dict
+
+  <Arguments>
+    deploy_info_dict: a structure created by constructDeployInfo that keeps track of handles to each vessel 
+      in the experiment as well as a list of ports
+    files_to_upload: list of filename strings. Every one of these files will be uploaded to each vessel in the experiment.
+
+  <Exceptions>
+    IOError if any of the files do not exist.
+
+  <Side Effects>
+    Prints information about any errors encountered.
+
+  <Returns>
+    None
+  """
+  
+  for ip_address, vesselname in deploy_info_dict.keys():
+    
+    print "uploading files to " + ip_address + ":" + vesselname
+    #get the nmhandle
+    vessel_index=ip_address, vesselname
+    cncdeploylib_uploadFilesToSingleVessel(deploy_info_dict, files_to_upload, vessel_index)
+ 
+ 
+
+cncdeploylib_parallel_context["upload_active_thread_change"]= getlock()
+def cncdeploylib_uploadFiles_parallel(deploy_info_dict, files_to_upload):
+  """
+  <Purpose>
+    Upload the list of specified files to every vessel in the experiment.
+    If there are any failures, we remove any vessels that fail from the deploy_info_dict
+    Same as cncdeploylib_uploadFiles, but works using multiple threads for faster upload
+
+  <Arguments>
+    deploy_info_dict: a structure created by constructDeployInfo that keeps track of handles to each vessel 
+      in the experiment as well as a list of ports
+    files_to_upload: list of filename strings. Every one of these files will be uploaded to each vessel in the experiment.
+
+  <Exceptions>
+    IOError if any of the files do not exist.
+
+  <Side Effects>
+    Prints information about any errors encountered.
+
+  <Returns>
+    None
+  """
+  cncdeploylib_parallel_context["upload_activethreads"]= 0
+  for ip_address, vesselname in deploy_info_dict.keys():
+    
+    print "uploading files to " + ip_address + ":" + vesselname
+    #get the nmhandle
+    vessel_index=ip_address, vesselname
+    
+    #increase thread count
+    cncdeploylib_parallel_context["upload_active_thread_change"].acquire()
+    cncdeploylib_parallel_context["upload_activethreads"]+=1
+    cncdeploylib_parallel_context["upload_active_thread_change"].release()
+    
+    settimer(0,cncdeploylib_uploadFilesToSingleVessel,[deploy_info_dict, files_to_upload, vessel_index, "upload_activethreads"])
+    
+    while cncdeploylib_parallel_context["upload_activethreads"]>ACTIVE_THREADS_MAX:
+      sleep(1)
+    
+  #wait for all threads to finish
+  while cncdeploylib_parallel_context["upload_activethreads"]>0:
+    sleep(1)
+
+cncdeploylib_parallel_context["file_read_lock"]= getlock()  
+def cncdeploylib_uploadFilesToSingleVessel(deploy_info_dict, files_to_upload, vessel_index, parallel_thread_track = None):
+  """
+  <Purpose>
+    Upload the list of specified files to a single vessel in the experiment.
+    If there are any failures, we remove any vessels that fail from the deploy_info_dict
+
+  <Arguments>
+    deploy_info_dict: a structure created by constructDeployInfo that keeps track of handles to each vessel 
+      in the experiment as well as a list of ports
+    files_to_upload: list of filename strings. Every one of these files will be uploaded to each vessel in the experiment.
+    vessel_index: (ip, vessel_name), pair of strings. Index of vessel to upload file to
+    parallel_thread_track: set to the entry containing number of active threads, function is expected to deincrement the entry once it completes, if set to none ignore
+  <Exceptions>
+    IOError if any of the files do not exist.
+
+  <Side Effects>
+    Prints information about any errors encountered.
+
+  <Returns>
+    True if successful, False otherwise
+  """
+  upload_successful = False
+  ip_address, vesselname = vessel_index
+  nmhandle = deploy_info_dict[vessel_index]['nmhandle']
+    
+  #we need to increase the timeout on the handle for uploading files
+  myhandleinfo = nmclient_get_handle_info(nmhandle)
+  myhandleinfo['timeout']= UPLOAD_TIMEOUT
+  nmclient_set_handle_info(nmhandle, myhandleinfo)
+
+  for fn_for_upload in files_to_upload:
+  
+    #we need to first read the contents of the file
+    cncdeploylib_parallel_context["file_read_lock"].acquire()
+    fileobj = open(fn_for_upload,"r")
+    filedata = fileobj.read()
+    fileobj.close()
+    cncdeploylib_parallel_context["file_read_lock"].release()
+    
+    try:
+      nmclient_signedsay(nmhandle, "AddFileToVessel", vesselname, fn_for_upload,filedata)
+      upload_successful = True
+    except NMClientException, e:
+      print "error: " + str(e) + " trying to upload file " + fn_for_upload+ " to vessel " + vesselname + " on " + ip_address
+      print "removing " + ip_address + ":" + vesselname + " from deployment"
+      index_to_remove = ip_address, vesselname
+      if index_to_remove in deploy_info_dict.keys():
+        deploy_info_dict.pop(index_to_remove)
+      upload_successful = False
+      continue
+      
+  #we are done uploading, so set the timeout back to 10
+  myhandleinfo = nmclient_get_handle_info(nmhandle)
+  myhandleinfo['timeout']=DEFAULT_TIMEOUT
+  nmclient_set_handle_info(nmhandle, myhandleinfo)
+  
+  print "finished upload to " + ip_address + ":" + vesselname
+  
+  #if this is executing in a separate thread, mark it as done
+  if (parallel_thread_track!=None):
+    cncdeploylib_parallel_context["upload_active_thread_change"].acquire()
+    cncdeploylib_parallel_context[parallel_thread_track] = cncdeploylib_parallel_context[parallel_thread_track]-1
+    cncdeploylib_parallel_context["upload_active_thread_change"].release()
+    
+  return upload_successful
+  
+  
+  
+def cncdeploylib_pull_cncclient_logs_async(deploy_info_dict, poll_intv, logfile_base_name):
+  """
+  <Purpose>
+    every NMCLIENT_LOG_CHECK_INTV seconds, this function pulls the completed cncclient log 
+    files from each vessel and appends the data to the log file for the particular vessel
+    each vessel's log file follows the format <veseslip>.<vesselname>.deployallpairsping_LOG_FILE_BASE_NAME
+    Since we do not know when a log file is complete, the most recent log file is always left on the vessel.
+
+  <Arguments>
+    deploy_info_dict: a structure created by constructDeployInfo that keeps track of handles to each vessel 
+      in the experiment as well as a list of ports
+    poll_intv: list of filename strings. Every one of these files will be uploaded to each vessel in the experiment.
+    logfile_base_name: prefix of the log file.
+  <Exceptions>
+    IOError if any of the files do not exist.
+
+  <Side Effects>
+    Prints information about any errors encountered.
+    This call BLOCKS PERMANENTLY, so should be used as an event with settimer
+
+  <Returns>
+    Never
+  """
+  
+  while True:
+    
+    #for each vessel, pull the cncclient logs
+    for ip_address, vesselname in deploy_info_dict.keys():
+      
+      #get the nmhandle
+      vessel_index=ip_address, vesselname
+      nmhandle = deploy_info_dict[vessel_index]['nmhandle']
+      
+      #get the list of files from the vessel
+      try:
+        filelist_str = nmclient_signedsay(nmhandle, "ListFilesInVessel", vesselname)
+      except NMClientException, e:
+        print "error: " + str(e) + " trying to get list of files from vessel " + vesselname + " on " + ip_address
+        continue
+        
+      filelist=filelist_str.split()
+      
+      #get a list of all cncclient log files
+      cnclogfilelist=[]
+      for filename in filelist:
+        #check each filename if it is a cncclient log file
+        if filename.startswith(logfile_base_name):
+          cnclogfilelist.append(filename)
+      
+      #if there are 1 or less log files, then we dont need to pull any of them
+      if len(cnclogfilelist)<2:
+        continue
+      
+      #get the earliest cncclient log file
+      lowest_fn = cnclogfilelist[0]
+      for logfn in cnclogfilelist:
+        #get the number of the min logfile name
+        lowestval = int(lowest_fn.split('.')[1])
+        
+        #get the number for the current log file name
+        currentval = int(logfn.split('.')[1])
+        
+        #change the min if appliacable to the current fn
+        if currentval<lowestval:
+          lowest_fn=logfn
+      
+      #now we need to get the data for the lowest filename, if there is a problem, skip this vessel
+      try:
+        retrieveddata = nmclient_signedsay(nmhandle, "RetrieveFileFromVessel", vesselname, lowest_fn)
+      except NMClientException, e:
+        print "error: " + str(e) + " trying to get file " + lowest_fn+" from vessel " + vesselname + " on " + ip_address
+        continue
+      
+      #delete the log file from the vessel. If this fails, skip to next vessel and dont write anything to the log
+      #Next iteration then we can retry.
+      try:
+        nmclient_signedsay(nmhandle, "DeleteFileInVessel", vesselname, lowest_fn)
+      except NMClientException, e:
+        print "error: " + str(e) + " trying to delete file " + lowest_fn+" from vessel " + vesselname + " on " + ip_address
+        continue
+      
+      #ok, now we need to append the data to the log file for the vessel
+      vessel_cnc_logfn = logfile_base_name +"."+ ip_address +"."+ vesselname
+      fileobj = open(vessel_cnc_logfn,'a')
+      fileobj.write(retrieveddata)
+      fileobj.close()
+      print "updated file " + vessel_cnc_logfn #debug
+      
+    #sleep poll_intv seconds before we check for new log files again
+    sleep(poll_intv)
+    
+    
+def cncdeploylib_pull_cncclient_logs_sync(deploy_info_dict, poll_intv, logfile_base_name):
+  """
+  <Purpose>
+    every NMCLIENT_LOG_CHECK_INTV seconds, this function pulls the completed cncclient log 
+    files from each vessel and appends the data to the log file for the particular vessel
+    each vessel's log file follows the format <veseslip>.<vesselname>.deployallpairsping_LOG_FILE_BASE_NAME
+    Every log file is pulled from each vessel.
+
+  <Arguments>
+    deploy_info_dict: a structure created by constructDeployInfo that keeps track of handles to each vessel 
+      in the experiment as well as a list of ports
+    poll_intv: list of filename strings. Every one of these files will be uploaded to each vessel in the experiment.
+    logfile_base_name: prefix of the log file.
+  <Exceptions>
+    IOError if any of the files do not exist.
+
+  <Side Effects>
+    Prints information about any errors encountered.
+    This call may take a long time to execute.
+
+  <Returns>
+    None
+  """
+  vessels_to_process = set()
+  errors_for_vessel = dict()
+  
+  #once a vessel exceeds this many errors, we abort trying to get logs from it
+  error_threshhold = 10
+  
+  for vessel_index in deploy_info_dict.keys():
+    vessels_to_process.add(vessel_index)
+    errors_for_vessel[vessel_index] = 0
+    
+  while len(vessels_to_process)>0:
+
+    vessel_index = vessels_to_process.pop()
+    ip_address, vesselname = vessel_index
+    vessels_to_process.add(vessel_index)
+    
+    #get the nmhandle
+    vessel_index=ip_address, vesselname
+    nmhandle = deploy_info_dict[vessel_index]['nmhandle']
+      
+    #get the list of files from the vessel
+    try:
+      filelist_str = nmclient_signedsay(nmhandle, "ListFilesInVessel", vesselname)
+    except NMClientException, e:
+      print "error: " + str(e) + " trying to get list of files from vessel " + vesselname + " on " + ip_address
+      errors_for_vessel[vessel_index]+=1
+      if errors_for_vessel[vessel_index]>error_threshhold:
+        print "aborting log collection for a vessel, exceeded threshold for errors on " + vesselname + " on " + ip_address
+        vessels_to_process.remove(vessel_index)
+      continue
+        
+    filelist=filelist_str.split()
+      
+    #get a list of all cnc log files
+    cnclogfilelist=[]
+    for filename in filelist:
+      #check each filename if it is a cnc log file
+      if filename.startswith(logfile_base_name):
+        cnclogfilelist.append(filename)
+    
+    #if there are no log files, then we are done with this vessel
+    if len(cnclogfilelist)<1:
+      vessels_to_process.remove(vessel_index)
+      continue
+      
+    #get the earliest cncclient log file
+    lowest_fn = cnclogfilelist[0]
+    for logfn in cnclogfilelist:
+      #get the number of the min logfile name
+      lowestval = int(lowest_fn.split('.')[1])
+        
+      #get the number for the current log file name
+      currentval = int(logfn.split('.')[1])
+        
+      #change the min if appliacable to the current fn
+      if currentval<lowestval:
+        lowest_fn=logfn
+      
+    #now we need to get the data for the lowest filename, if there is a problem, skip this vessel
+    try:
+      retrieveddata = nmclient_signedsay(nmhandle, "RetrieveFileFromVessel", vesselname, lowest_fn)
+    except NMClientException, e:
+      print "error: " + str(e) + " trying to get file " + lowest_fn+" from vessel " + vesselname + " on " + ip_address
+      errors_for_vessel[vessel_index]+=1
+      if errors_for_vessel[vessel_index]>error_threshhold:
+        print "aborting log collection for a vessel, exceeded threshold for errors on " + vesselname + " on " + ip_address     
+        vessels_to_process.remove(vessel_index)
+      continue
+      
+    #delete the log file from the vessel. If this fails, skip to next vessel and dont write anything to the log
+    #Next iteration then we can retry.
+    try:
+      nmclient_signedsay(nmhandle, "DeleteFileInVessel", vesselname, lowest_fn)
+    except NMClientException, e:
+      print "error: " + str(e) + " trying to delete file " + lowest_fn+" from vessel " + vesselname + " on " + ip_address
+      errors_for_vessel[vessel_index]+=1
+      if errors_for_vessel[vessel_index]>error_threshhold:
+        print "aborting log collection for a vessel, exceeded threshold for errors on " + vesselname + " on " + ip_address      
+        vessels_to_process.remove(vessel_index)
+      continue
+      
+    #ok, now we need to append the data to the log file for the vessel
+    vessel_cnc_logfn = logfile_base_name +"."+ ip_address +"."+ vesselname
+    fileobj = open(vessel_cnc_logfn,'a')
+    fileobj.write(retrieveddata)
+    fileobj.close()
+    print "updated file " + vessel_cnc_logfn #debug
+      
+    #sleep poll_intv seconds before we check for new log files again
+    sleep(poll_intv)
+  return
+    
+cncdeploylib_parallel_context["logpull_active_thread_change"]= getlock()    
+def cncdeploylib_pull_cncclient_logs_sync_parallel(deploy_info_dict, logfile_base_name):
+  """
+  <Purpose>
+    every NMCLIENT_LOG_CHECK_INTV seconds, this function pulls the completed cncclient log 
+    files from each vessel and appends the data to the log file for the particular vessel
+    each vessel's log file follows the format <veseslip>.<vesselname>.deployallpairsping_LOG_FILE_BASE_NAME
+    Every log file is pulled from each vessel.
+    Same as cncdeploylib_pull_cncclient_logs_sync, but runs on multiple threads
+
+  <Arguments>
+    deploy_info_dict: a structure created by constructDeployInfo that keeps track of handles to each vessel 
+      in the experiment as well as a list of ports
+    poll_intv: list of filename strings. Every one of these files will be uploaded to each vessel in the experiment.
+    logfile_base_name: prefix of the log file.
+  <Exceptions>
+    IOError if any of the files do not exist.
+
+  <Side Effects>
+    Prints information about any errors encountered.
+    This call may take a long time to execute.
+
+  <Returns>
+    None
+  """
+  vessels_to_process = set()
+  errors_for_vessel = dict()
+  
+  #once a vessel exceeds this many errors, we abort trying to get logs from it
+  error_threshhold = 10
+  
+  cncdeploylib_parallel_context["activelogpullthreads"]= 0
+  
+  for vessel_index in deploy_info_dict.keys():
+    vessels_to_process.add(vessel_index)
+    errors_for_vessel[vessel_index] = 0
+    
+  while len(vessels_to_process)>0:
+  
+    vessel_index = vessels_to_process.pop()
+    ip_address, vesselname = vessel_index
+    
+    cncdeploylib_parallel_context["logpull_active_thread_change"].acquire()
+    cncdeploylib_parallel_context["activelogpullthreads"] += 1
+    cncdeploylib_parallel_context["logpull_active_thread_change"].release()
+    
+    settimer(0,cncdeploylib_pull_cncclient_logs_sync_single_vessel,[deploy_info_dict, vessel_index, logfile_base_name, 0, "activelogpullthreads"])
+    while cncdeploylib_parallel_context["activelogpullthreads"]>ACTIVE_THREADS_MAX:
+      sleep(1)
+    
+  #wait for all threads to finish
+  while cncdeploylib_parallel_context["activelogpullthreads"]>0:
+    sleep(1)
+  
+ 
+def cncdeploylib_pull_cncclient_logs_sync_single_vessel(deploy_info_dict, vessel_index, logfile_base_name, try_num=0, parallel_thread_track = None):
+  """
+  <Purpose>
+    This function pulls the completed cncclient log 
+    files from the specified vessel and appends the data to the log file for the particular vessel
+    each vessel's log file follows the format <veseslip>.<vesselname>.deployallpairsping_LOG_FILE_BASE_NAME
+    Every log file is pulled from the vessel.
+  <Arguments>
+    deploy_info_dict: a structure created by constructDeployInfo that keeps track of handles to each vessel 
+      in the experiment as well as a list of ports
+    vessel_index: (ip_address, vesselname) of the vessel to collect the logs from
+    logfile_base_name: prefix of the log file.: 
+    parallel_thread_track: set to the entry containing number of active threads, function is expected to deincrement the entry once it completes, if set to none ignore
+  <Exceptions>
+    IOError if any of the files do not exist.
+
+  <Side Effects>
+    Prints information about any errors encountered.
+    This call may take a long time to execute.
+
+  <Returns>
+    True if successful, false otherwise
+  """
+  
+  #get the nmhandle
+  ip_address, vesselname = vessel_index
+  nmhandle = deploy_info_dict[vessel_index]['nmhandle']
+      
+  #once a vessel exceeds this many errors, we abort trying to get logs from it
+  error_threshhold = 10
+  
+  if(try_num>=error_threshhold):
+    print "aborting log collection for a vessel, exceeded threshold for errors on " + vesselname + " on " + ip_address
+    #if this is executing in a separate thread, mark it as done
+    if (parallel_thread_track!=None):
+      cncdeploylib_parallel_context["logpull_active_thread_change"].acquire()
+      cncdeploylib_parallel_context[parallel_thread_track] = cncdeploylib_parallel_context[parallel_thread_track]-1
+      cncdeploylib_parallel_context["logpull_active_thread_change"].release()
+    
+    return False
+  
+  #get the list of files from the vessel
+  try:
+    filelist_str = nmclient_signedsay(nmhandle, "ListFilesInVessel", vesselname)
+  except NMClientException, e:
+    print "error: " + str(e) + " trying to get list of files from vessel " + vesselname + " on " + ip_address
+    return cncdeploylib_pull_cncclient_logs_sync_single_vessel(deploy_info_dict, vessel_index, logfile_base_name, try_num+1, parallel_thread_track)
+        
+  filelist=filelist_str.split()
+  
+  #get a list of all cncclient log files
+  cnclogfilelist=[]
+  for filename in filelist:
+    #check each filename if it is a cncclient log file
+    if filename.startswith(logfile_base_name):
+      cnclogfilelist.append(filename)
+      
+  
+  while len(cnclogfilelist) > 0:
+    #get the earliest cncclient log file
+    lowest_fn = cnclogfilelist[0]
+    for logfn in cnclogfilelist:
+      #get the number of the min logfile name
+      lowestval = int(lowest_fn.split('.')[1])
+      
+      #get the number for the current log file name
+      currentval = int(logfn.split('.')[1])
+        
+      #change the min if appliacable to the current fn
+      if currentval<lowestval:
+        lowest_fn=logfn
+      
+    #now we need to get the data for the lowest filename, if there is a problem, return
+    try:
+      retrieveddata = nmclient_signedsay(nmhandle, "RetrieveFileFromVessel", vesselname, lowest_fn)
+    except NMClientException, e:
+      print "error: " + str(e) + " trying to get file " + lowest_fn+" from vessel " + vesselname + " on " + ip_address
+      return cncdeploylib_pull_cncclient_logs_sync_single_vessel(deploy_info_dict, vessel_index, logfile_base_name, try_num+1, parallel_thread_track)
+      
+    #delete the log file from the vessel. If this fails, skip to next vessel and dont write anything to the log
+    #Next iteration then we can retry.
+    try:
+      nmclient_signedsay(nmhandle, "DeleteFileInVessel", vesselname, lowest_fn)
+    except NMClientException, e:
+      print "error: " + str(e) + " trying to delete file " + lowest_fn+" from vessel " + vesselname + " on " + ip_address
+      return cncdeploylib_pull_cncclient_logs_sync_single_vessel(deploy_info_dict, vessel_index, logfile_base_name, try_num+1, parallel_thread_track)
+      
+    #ok, now we need to append the data to the log file for the vessel
+    vessel_cnc_logfn = logfile_base_name +"."+ ip_address +"."+ vesselname
+    fileobj = open(vessel_cnc_logfn,'a')
+    fileobj.write(retrieveddata)
+    fileobj.close()
+    print "updated file " + vessel_cnc_logfn
+    
+    #remove the log file from the list
+    cnclogfilelist.remove(lowest_fn)
+    
+  #if there are no log files, then we are done with this vessel
+  if len(cnclogfilelist)<1:
+  
+    if (parallel_thread_track!=None):
+      cncdeploylib_parallel_context["logpull_active_thread_change"].acquire()
+      cncdeploylib_parallel_context[parallel_thread_track] = cncdeploylib_parallel_context[parallel_thread_track]-1
+      cncdeploylib_parallel_context["logpull_active_thread_change"].release()
+      
+    return True
+    
+    

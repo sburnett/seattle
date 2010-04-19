@@ -1,0 +1,146 @@
+"""
+<Library Name>
+  cncfilelog.repy
+
+<Started>
+  March 31, 2009
+
+<Author>
+  Cosmin Barsan
+  
+<Purpose>
+  Module to allow logging to files. After each specified interval, the current log file is closed, and a new one is opened, named with the
+  same specified prefix, and having the next number in the sequence as the suffix.
+  Log file names will follow the following format: <log_file_base_name>.<sequential_log_file_number>
+  cncmultifilelog_initialize must be called before the cncmultifilelog_write method is used.
+  time_updatetime() must be called before the cncmultifilelog_write method is used
+  
+  This module is useful as it allows scripts to remotely collect logs off of repy vessels (which are running code that uses this type of logging)
+  and then delete the closed log files. This makes it possible to have repy vessels run programs for extended periods of time and log massive
+  amounts of information without exceeding restrictions.
+  
+"""
+
+include time.repy
+
+cncmultifilelog_context=dict()
+cncmultifilelog_context["log_file_base_name"]=None
+cncmultifilelog_context["new_file_interval"]=None
+cncmultifilelog_context["logging_lock"]=getlock()
+cncmultifilelog_context["log_file_handle"]=None
+cncmultifilelog_context["logfile_created"]=0.0
+cncmultifilelog_context["logfile_number"]=1
+
+def cncmultifilelog_initialize(log_file_base_name, new_file_interval):
+  """
+  <Purpose>
+    Initializes fields in the cncmultilog module. Required before using cncmultifilelog_write
+    
+  <Arguments>
+    log_file_base_name: The prefix string to use for the log file names.
+    new_file_interval: The current log file will be closed and a new file opened every new_file_interval seconds. This argument may be a float or int.
+
+  <Exceptions>
+    None
+
+  <Side Effects>
+    None.
+
+  <Returns>
+    None
+  """
+  cncmultifilelog_context["log_file_base_name"]=log_file_base_name
+  cncmultifilelog_context["new_file_interval"]=new_file_interval
+
+
+
+def cncmultifilelog_write(message):
+  """
+  <Purpose>
+    Provides support for writing log messages to log files. 
+    Every cncmultifilelog_context["new_file_interval"] seconds, a new log file is created with the next number as a suffix, and the previous log file is closed
+    Log files start at number 1.
+    A timestamp is included with every message that is written to the log (format <timestamp>:message).
+    
+  <Arguments>
+    message: The string to write to the log.
+
+  <Exceptions>
+    IOError may be thrown if there are problems writing to the file.
+    Exception is raised if this method is called before cncmultifilelog_initialize
+    TimeError may be raised if time_updatetime() has not been called prior to using this function
+
+  <Side Effects>
+    None.
+
+  <Returns>
+    None
+  """
+  
+  cncmultifilelog_context["logging_lock"].acquire()
+  timestamp = str(time_gettime())
+  data_to_write = timestamp+": " + message + "\n"
+  
+  #if there is no open file handle, create one
+  if cncmultifilelog_context["log_file_handle"]==None:
+    logfilename = cncmultifilelog_context["log_file_base_name"] + "." + str(cncmultifilelog_context["logfile_number"])
+    cncmultifilelog_context["log_file_handle"] = open(logfilename, 'w')
+    cncmultifilelog_context["logfile_created"] = time_gettime()
+    
+  # if the current handle is 10 minutes or more old, close it
+  current_time = time_gettime()
+  if current_time > (cncmultifilelog_context["logfile_created"] + cncmultifilelog_context["new_file_interval"]) : 
+    #close the old file
+    cncmultifilelog_context["logfile_number"]= cncmultifilelog_context["logfile_number"]+1
+    cncmultifilelog_context["log_file_handle"].close()
+    cncmultifilelog_context["log_file_handle"]=None
+    
+    #open a new file
+    logfilename = cncmultifilelog_context["log_file_base_name"] + "." + str(cncmultifilelog_context["logfile_number"])
+    cncmultifilelog_context["log_file_handle"] = open(logfilename, 'w')
+    cncmultifilelog_context["logfile_created"] = time_gettime()
+    
+  
+  #write to the log file
+  cncmultifilelog_context["log_file_handle"].write(data_to_write)
+  cncmultifilelog_context["log_file_handle"].flush()
+  
+  cncmultifilelog_context["logging_lock"].release()
+  
+  
+def cncmultifilelog_write_to_base_file(message):
+  """
+  <Purpose>
+    Logs all information to a single file rather than multiple files.
+    
+  <Arguments>
+    message: The string to write to the log.
+
+  <Exceptions>
+    IOError may be thrown if there are problems writing to the file.
+    Exception is raised if this method is called before cncmultifilelog_initialize
+    TimeError may be raised if time_updatetime() has not been called prior to using this function
+
+  <Side Effects>
+    None.
+
+  <Returns>
+    None
+  """
+  
+  cncmultifilelog_context["logging_lock"].acquire()
+  timestamp = str(time_gettime())
+  data_to_write = timestamp+": " + message + "\n"
+  
+  #if there is no open file handle, create one
+  if not("base_log_file_handle" in cncmultifilelog_context.keys()) or cncmultifilelog_context["base_log_file_handle"]==None:
+    logfilename = cncmultifilelog_context["log_file_base_name"]
+    cncmultifilelog_context["base_log_file_handle"] = open(logfilename, 'w')
+
+    
+  
+  #write to the log file
+  cncmultifilelog_context["base_log_file_handle"].write(data_to_write)
+  cncmultifilelog_context["base_log_file_handle"].flush()
+  
+  cncmultifilelog_context["logging_lock"].release()

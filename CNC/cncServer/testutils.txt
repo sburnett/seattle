@@ -1,0 +1,36 @@
+#building the server:
+repy.py restrictions.test prototypeserv.py
+
+#running: note requires restrictions.cnc
+repy.py restrictions.cnc prototypeserv.py
+
+
+
+#for tcp
+def getSocket():
+	ip = "192.168.1.127"
+	port=50010
+	s=socket.socket(socket.AF_INET, socket.SOCK_STREAM) #for tcp
+	s.connect((ip,port))
+	return s
+
+#tcp send register address request
+s.send('RegisterAddressRequest 323421a2,1234d214,3432fd')
+
+
+
+#socket for UDP
+sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+#get addresses thorough UDP
+def getAddresses(userkey):
+	ip = "192.168.1.127"
+	port=50010
+	sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+	sock.sendto("GetAddressesForUserRequest " + userkey, (ip, port))
+	return sock.recv(1024)
+
+
+sock.sendto("RenewAddressRequest 324f,1234d214,3432fd 3027758", (ip,port))
+
+PATH=C:\Python25\;%PATH%

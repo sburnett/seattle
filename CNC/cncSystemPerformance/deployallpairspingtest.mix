@@ -1,0 +1,222 @@
+"""
+Author: Cosmin Barsan
+Description:
+This script deploys an all pairs ping test accross all nodes listed in the neighboriplist.txt file. 
+The all pairs ping program will use the cnc system for sending all traffic.
+In addition, this script will collect logging information from the nodes, as well as ping statistics.
+
+Usage:
+deployallpairsping.py
+
+"""
+from repyportability import *
+
+include cncdeploylib.mix
+
+#file used by all pairs ping program, that we generate
+NEIGHBOR_INFO_FILE_NAME = "neighboripportlist.txt"
+
+#a list of files that need to be uploaded to all the nodes
+deployallpairsping_FILES_TO_UPLOAD = ["cnc_backup_config.txt","cnc_server_list.txt","cncallpairsping.py"]
+
+#interval at which to check vessels for new logging information
+NMCLIENT_LOG_CHECK_INTV = 60
+
+#prefix for cnc log files
+#cnc log file names follow the format <prefix>.<number>
+deployallpairsping_LOG_FILE_BASE_NAME="cncclientlog"
+
+
+deployallpairsping_mycontext = dict()
+
+
+#debug_node_group_info specifies whether to split nodes into groups, it gives a number indicating how many groups nodes should 
+#be split into, by using artificial keys instead of getting user keys from the node
+def deployallpairsping_generate_node_groups(debug_node_group_info):
+  #each entry is a string, giving the node key.
+  #each index is a ip_address, vesselname pair
+  deployallpairsping_mycontext["node_group_assign"]=dict()
+  
+  count = 0
+  for ip_address, vesselname in deployallpairsping_mycontext['deploydict'].keys():
+    count +=1
+    vessel_index = ip_address, vesselname
+    
+    #generate a key val for each node such as to split the nodes evenly into debug_node_group_info groups
+    key_num = count % debug_node_group_info
+    keyval = "keygen" + str(key_num)
+    deployallpairsping_mycontext["node_group_assign"][vessel_index]=keyval
+  
+  return
+
+
+
+#Starts the vessels in deployallpairsping_mycontext['deploydict'] using specified file name. 
+#This function will specify any callargs needed to start the program since available ports are different accross vessels
+#currently, this function will pass in the first available two ports on each vessel as parameters
+deployallpairsping_parallel_start_dict = dict()
+deployallpairsping_parallel_start_dict["active_thread_change"]= getlock()
+def deployallpairsping_startVessels_parallel(experiment_name, filename = "cncallpairsping.py"):
+  deployallpairsping_parallel_start_dict["activethreads"]= 0  
+  
+  for ip_address, vesselname in deployallpairsping_mycontext['deploydict'].keys():
+        
+    vessel_index = ip_address, vesselname
+    
+    #increase thread count
+    deployallpairsping_parallel_start_dict["active_thread_change"].acquire()
+    deployallpairsping_parallel_start_dict["activethreads"]+=1
+    deployallpairsping_parallel_start_dict["active_thread_change"].release()
+    
+    if ("node_group_assign" in  deployallpairsping_mycontext.keys()):
+      #get the artificial key to pass to the node
+      keyval = deployallpairsping_mycontext["node_group_assign"][vessel_index]
+      settimer(0,deployallpairsping_startVessel,[experiment_name, vessel_index, keyval, "activethreads"])
+    else:
+      settimer(0,deployallpairsping_startVessel,[experiment_name, vessel_index, None, "activethreads"])
+    
+    while deployallpairsping_parallel_start_dict["activethreads"]>25:
+      sleep(1)
+    
+  #wait for all threads to finish
+  while deployallpairsping_parallel_start_dict["activethreads"]>0:
+    sleep(1)
+    
+#tries to start the specified vessel
+def deployallpairsping_startVessel(experiment_name, vessel_index, debug_node_keys = None, parallel_thread_track = None):
+  filename = "cncallpairsping.py"
+  ip_address, vesselname = vessel_index
+  
+  print "starting " + ip_address + ":1224:" + vesselname
+  #get the nmhandle
+  vessel_index=ip_address, vesselname
+  nmhandle = deployallpairsping_mycontext['deploydict'][vessel_index]['nmhandle']
+  
+  #set up the argument string to start the program
+  #cncallpairsping takes a the single cnc port as parameter
+  arguments = str(deployallpairsping_mycontext['deploydict'][vessel_index]['ports'][0]) 
+  arguments = arguments + " " + str(deployallpairsping_mycontext['deploydict'][vessel_index]['ports'][1]) 
+  arguments = arguments + " " + experiment_name
+  
+  #if debug node key information is specified, include it in the arguments
+  if (debug_node_keys!=None):
+    arguments = arguments+ " " + debug_node_keys
+  
+  argstring= filename + " " + arguments
+  #try to start the vessel
+  try:
+    nmclient_signedsay(nmhandle, "StartVessel", vesselname, argstring)
+  except NMClientException, e:
+    print "error: " + str(e) + " trying to start the vessel " + vesselname + " on " + ip_address
+
+    #if this is executing in a separate thread, mark it as done
+  if (parallel_thread_track!=None):
+    deployallpairsping_parallel_start_dict["active_thread_change"].acquire()
+    deployallpairsping_parallel_start_dict[parallel_thread_track] = deployallpairsping_parallel_start_dict[parallel_thread_track]-1
+    deployallpairsping_parallel_start_dict["active_thread_change"].release()
+      
+  return
+
+#generates a file 'neighboripportlist.txt' that lists the ip of each 
+def deployallpairsping_generateNeighborInfoFile():
+  file_writer = open(NEIGHBOR_INFO_FILE_NAME, mode='w')
+  
+  for ip_address, vesselname in deployallpairsping_mycontext['deploydict'].keys():
+    vessel_index=ip_address, vesselname
+    
+    #we use the second port in the file, since the first is always reserved for cnc communication
+    port_to_use= deployallpairsping_mycontext['deploydict'][vessel_index]['ports'][1]
+    file_writer.write(ip_address + " " + str(port_to_use))
+    
+    #if artificial node keys are available, also write these
+    if ("node_group_assign" in deployallpairsping_mycontext.keys()):
+      keyval = deployallpairsping_mycontext["node_group_assign"][vessel_index]
+      file_writer.write(" " + keyval)
+      
+    file_writer.write("\n")
+    
+  file_writer.close()
+
+
+  
+def deployallpairsping(ipdeploylist, rsa_publickey, rsa_privatekey, experiment_name, debug_node_groups = None):
+  """
+  <Purpose>
+    Deploys cncallpairsping.py on all vessels at the ip addresses specified in neighboriplist.txt
+    Also generates neighboripportlist.txt.
+    No logs are collected by this function.
+
+  <Arguments>
+    ipdeploylist: list of ip addresses that have vessels on which to deploy clients
+    rsa_publickey: publickey to use when contacting vessels
+    rsa_privatekey: privatekey to use when contacting vessels
+    experiment_name: name of the experiment
+  <Exceptions>
+    NMClientException thrown on failure to connect or start vessel
+
+  <Side Effects>
+    None
+
+  <Returns>
+    deploy_dict structure that has information on the vessels the program is running on
+  """
+  
+  
+  #we need to know information for each vessel
+  print "Getting vessel resource information for use in deployment, this may take a few minutes..."
+  deployallpairsping_mycontext['deploydict'] = cncdeploylib_constructDeployInfo(ipdeploylist, rsa_publickey, rsa_privatekey )
+  
+  if (debug_node_groups != None):
+    print "generating node artificial keys "
+    deployallpairsping_generate_node_groups(debug_node_groups)
+  
+  #generate the neighbor port info file
+  print "Writing neighbor port info file " + NEIGHBOR_INFO_FILE_NAME + " for deployment vessels..."
+  deployallpairsping_generateNeighborInfoFile()
+  
+  #reset the vessels
+  print "resetting deployment vessels, this may take a few minutes..."
+  cncdeploylib_resetVessels(deployallpairsping_mycontext['deploydict'])
+  
+  
+  #upload the files to all the nodes, printing a list of errors if any occur
+  print "uploading files to deployment vessels, this may take a few minutes..."
+  cncdeploylib_uploadFiles_parallel(deployallpairsping_mycontext['deploydict'], deployallpairsping_FILES_TO_UPLOAD)
+  
+  #starting program on all deployment vessels
+  print "starting cncallpairsping.py on deployment vessels, this may take a few minutes..."
+  deployallpairsping_startVessels_parallel(experiment_name)
+  
+  print "vessels started, experiment in progress..."
+  
+  return deployallpairsping_mycontext['deploydict']
+
+"""
+if __name__ == '__main__':
+  time_updatetime(34612)
+  
+  deployallpairsping_mycontext["user_publickey"]= rsa_string_to_publickey(TESTACCT_PUBLIC_KEY_STR)
+  deployallpairsping_mycontext["user_privatekey"]= rsa_string_to_privatekey(TESTACCT_PRIVATE_KEY_STR)
+  
+  #read the ip list of nodes we need to launch the test on. The file simply has a list of ips.
+  #in the case taht we have multiple nodes on a single ip, the test will automatically detect these nodes and deploy the test on all of them
+  ipdeploylist = []
+  
+  print "Parsing neighborlist.txt file..."
+  
+  f = open("neighboriplist.txt", mode='r')
+  for line in f:
+    ipdeploylist.append(line.strip())
+  f.close()
+  
+  deployallpairsping(ipdeploylist, deployallpairsping_mycontext["user_publickey"], deployallpairsping_mycontext["user_privatekey"])
+  
+  
+  #set up separate thread to pull cncclientlogfiles
+  print "starting thread to pull cncclient logs from vessels"
+  log_event_handle=settimer(0,cncdeploylib_pull_cncclient_logs_async,[deployallpairsping_mycontext['deploydict'], NMCLIENT_LOG_CHECK_INTV, deployallpairsping_LOG_FILE_BASE_NAME])
+  
+  #sleep while separate threads are gathering log info
+  while True:
+    sleep(30)
+"""

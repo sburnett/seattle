@@ -1,0 +1,222 @@
+###INFORMATION###
+#This is a modified version of all pairs ping designed to test the cnc system
+#Unlike allpairsping.py, this code reads from a file that gives an available port on each neighbor as well as the ip
+
+#Usage: cncallpairsping.py <pingport> <cncport> <experiment name> <optional: debug key information to use in place of node keys>
+
+#Note <optional: debug key information to use in place of node keys> is in format <key1>r<key2>r<key3>;...
+#in such situations, r is used as the separator character
+
+include cncclient.repy
+include centralizedadvertise.repy
+
+ADVERTISE_PERSIST = 36000 #advertisement should persist for 10 hours to be safe
+ADVERTIZE_RETRY_RATE = 120 #interval on which to reload the neighbor info from the advertize server
+
+
+
+#controlls access to mycontext["neighborlist']
+neighborlist_lock = getlock()
+
+# send a probe message to each neighbor
+def probe_neighbors():
+  neighborlist_lock.acquire()
+  print "probing neighbors, " + str(len(mycontext["neighborlist"])) + " items in list"
+  print str(mycontext["neighborlist"])
+  for neighbor in mycontext["neighborlist"]:
+    neighborip, neighborport = neighbor
+    mycontext['sendtime'][neighbor] = getruntime()
+    
+    try:
+      cnc_sendmess(neighborip, neighborport, 'ping',getmyip(), mycontext['myport'])
+    except CncCacheMissException, e:
+      #cncclient will log cache misses so we can just pass
+      pass
+    
+    localvessel = getmyip(), mycontext['myport']
+    try:
+      cnc_sendmess(neighborip, neighborport,'share'+encode_row(localvessel, mycontext["neighborlist"], mycontext['latency'].copy()),getmyip(), mycontext['myport'])
+    except CncCacheMissException, e:
+      #cncclient will log cache misses so we can just pass
+      pass
+      
+    # sleep in between messages to prevent us from getting a huge number of 
+    # responses all at once...
+    sleep(.5)
+  neighborlist_lock.release()
+  # Call me again in 10 seconds
+  while True:
+    try:
+      settimer(10,probe_neighbors,[])
+      return
+    except Exception, e:
+      if "Resource 'events'" in str(e):
+        # there are too many events scheduled, I should wait and try again
+        sleep(.5)
+        continue
+      raise
+  
+
+
+# Handle an incoming message
+def got_message(srcip,srcport,mess,ch):
+  cncclient_write_to_log_noprint("NonCncUDPPacketReceived " + mess.split()[0] + " " + str(len(mess)) + " bytes, sender = " + srcip + ":" + str(srcport)) #<cncperf>
+  src_ipport_pair = srcip, srcport
+  if mess == 'ping':
+    try:
+      cnc_sendmess(srcip,srcport,'pong', getmyip(), mycontext['myport'])
+    except CncCacheMissException, e:
+      #cncclient will log cache misses so we can just pass
+      pass
+    
+  elif mess == 'pong':
+    # elapsed time is now - time when I sent the ping
+    mycontext['latency'][src_ipport_pair] = getruntime() - mycontext['sendtime'][src_ipport_pair]
+
+  elif mess.startswith('share'):
+    mycontext['row'][src_ipport_pair] = mess[len('share'):]
+
+
+
+def encode_row(row_ipport_pair, neighborlist, latencylist):
+
+  retstring = "<tr><td>"+row_ipport_pair[0] + ":" + str(row_ipport_pair[1]) +"</td>"
+  for neighbor in neighborlist:
+    neighborip, neighborport= neighbor
+    if neighbor in latencylist:
+      retstring = retstring + "<td>"+str(latencylist[neighbor])[:4]+"</td>"
+    else:
+      retstring = retstring + "<td>Unknown</td>"
+
+  retstring = retstring + "</tr>"
+  return retstring
+
+
+# Displays a web page with the latency information
+def show_status(srcip,srcport,connobj, ch, mainch): 
+
+  webpage = "<html><head><title>Latency Information</title></head><body><h1>Latency information from "+getmyip()+' </h1><table border="1">'
+  
+  #get a string representation of each neighbor
+  neighborstringlist=[]
+  for neighborip, neighborport in mycontext['neighborlist']:
+    neighborstringlist.append(neighborip+":"+str(neighborport))  
+  
+  webpage = webpage + "<tr><td></td><td>"+ "</td><td>".join(neighborstringlist)+"</td></tr>"
+
+  # copy to prevent a race
+#  connobj.send(encode_row(getmyip(), mycontext['neighborlist'], mycontext['latency'].copy()))
+
+  for nodeip, nodeport in mycontext['neighborlist']:
+    node_ipport_pair = nodeip, nodeport
+    if node_ipport_pair in mycontext['row']:
+      webpage = webpage + mycontext['row'][node_ipport_pair]+'\n'
+    else:
+      webpage = webpage + '<tr><td>'+nodeip + ":" + str(nodeport) +'</td><td>No Data Reported</td></tr>\n'
+
+  # now the footer...
+  webpage = webpage + '</table></html>'
+
+  # send the header and page
+  connobj.send('HTTP/1.0 200 OK\nContent-Length: '+str(len(webpage))+'\nDate: Fri, 31 Dec 1999 23:59:59 GMT\nContent-Type: text/html\n\n'+webpage) 
+
+  # and we're done, so let's close this connection...
+  connobj.close()
+
+#periodially reload information from the advertise server
+def reloadneighborinfo():
+  
+  
+  lookup_results=None
+  try:
+    lookup_results = centralizedadvertise_lookup(mycontext['experiment_name'])
+  except Exception, e:
+    settimer(ADVERTIZE_RETRY_RATE, reloadneighborinfo , [])
+    return
+    
+  neighborlist_lock.acquire()
+  mycontext['neighborlist']=[]
+  
+  for neighbor_str in lookup_results:
+  
+    if neighbor_str=='':
+      continue
+    
+    ip, port_str, neighborkeyval_str = neighbor_str.split(':')
+    port = int(port_str)
+    
+    if (mycontext['use_artificial_keys']):
+      vessel_entry = ip, port
+      neighborkeys = neighborkeyval_str.split('r')
+      mykeys = cncclient_context["debug_userkey_list"].split('r')
+      neighborkeys_set = set(neighborkeys)
+      mykeys_set=set(mykeys)
+      
+      #only add this neighbor if he shares a key with the local client
+      if (len(mykeys_set.intersection(neighborkeys_set))>0):
+        mycontext['neighborlist'].append(vessel_entry)
+        
+    else:
+      vessel_entry = ip, port
+      mycontext['neighborlist'].append(vessel_entry)
+      
+  
+  neighborlist_lock.release()
+  settimer(ADVERTIZE_RETRY_RATE, reloadneighborinfo , [])
+  return
+
+    
+
+if callfunc == 'initialize':
+
+  # this holds the response information (i.e. when nodes responded)
+  mycontext['latency'] = {}
+
+  # this remembers when we sent a probe
+  mycontext['sendtime'] = {}
+
+  # this remembers row data from the other nodes
+  mycontext['row'] = {}
+  
+  # get the nodes to probe
+  #used to store neighbor ip,port pairs
+  mycontext['neighborlist'] = []
+  
+  mycontext['use_artificial_keys']=False
+  keyinfo = None
+  
+  if len(callargs) < 3:
+    raise Exception, "Must specify the 2 ports to use for ping and cnc communcation, and the experiment name"
+  if len(callargs) == 4:
+    #the third argument specifies debug userkeys to use for cnc, so install the info
+    keyinfo = callargs[3].strip()
+    cncclient_context["debug_userkey_list"] = keyinfo
+    mycontext['use_artificial_keys'] = True
+    
+  mycontext['myport']=int(callargs[0])
+  mycontext['cncport']= int(callargs[1])
+  mycontext['experiment_name']= callargs[2]
+  
+  reloadneighborinfo()
+  
+  print "found neighbors " + str(mycontext['neighborlist'])
+  
+  ip = getmyip() 
+    
+  
+  #get necessary cncclient data and register with cnc servers
+  cncclient_initialize(mycontext['cncport'])
+  sleep(10)
+  
+  #advertize that the current client has started
+  my_advetisement_info = getmyip() + ":"+ str(mycontext['myport']) + ":" + str(keyinfo)
+  centralizedadvertise_announce(mycontext['experiment_name'], my_advetisement_info, ADVERTISE_PERSIST)
+  
+  
+  # call gotmessage whenever receiving a message
+  recvmess(ip,mycontext['myport'],got_message)  
+
+  probe_neighbors()
+
+
+

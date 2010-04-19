@@ -1,0 +1,51 @@
+ssh -i iddat uw_seattle@131.247.2.245
+ssh -i iddat uw_seattle@137.226.138.156
+ssh -i iddat uw_seattle@139.19.142.1
+
+
+
+cnc1:139.19.142.1:50010 (0-332)
+cnc2:137.226.138.156:50014 (333-665)
+cnc3:131.247.2.245:50016 (666-999)
+
+
+passphrase: AM$@)(20samkl;klow)_#$@)_samce9o2::f90wasvwea*()$!890NJKF*)#huC*(@HJCS@(
+
+
+python repy.py restrictions.cnc cncStandaloneServer.py 50010 0 332 22451987#80329465511154864793285983911 37383233955950055073465396571#150322679804923#534380212057157
+python repy.py restrictions.cnc cncStandaloneServer.py 50014 333 665 4763233#188928332703867293095442539603 10597992131984624583046053817#926646411626237#203883952210319
+python repy.py restrictions.cnc cncStandaloneServer.py 50016 666 999 20268851#71837637846618948020775272623 28215525095175050155794403931#245827821801803#292227451392941
+
+
+
+tar cvf cncexperimentrunner.tar cncexperimentrunner
+
+#on each PL box do 
+scp cosminb@blackbox.cs.washington.edu:cncexperimentrunner.tar cncexperimentrunner.tar
+tar xvf cncexperimentrunner.tar
+
+#after experiment to get logs do
+scp cncserverlog cosminb@blackbox.cs.washington.edu:cncexperimentrunner/cncexperiment-wan-10_2-11-2055/cncserver333
+scp cncserverlog cosminb@blackbox.cs.washington.edu:cncexperimentrunner/cncexperiment-wan-10_2-11-2055/cncserver666
+scp cncserverlog cosminb@blackbox.cs.washington.edu:cncexperimentrunner/cncexperiment-wan-10_2-11-2055/cncserver999
+
+#on each pl node do
+rm cncserverlog*
+
+
+
+###Deploy command is in this format (20min experiments)
+python deploycncexperiment.py wan 100 1200 1
+
+###Analysis command is in this format
+python analyze_logs.py cncexperimentrunner cncexperiment-wan-8* > resfixed.txt
+
+
+##temp notes##
+scp cosminb@blackbox.cs.washington.edu:cnc_server_list.txt cnc_server_list.txt
+scp cosminb@blackbox.cs.washington.edu:cncStandaloneServer.py  cncStandaloneServer.py
+scp cosminb@blackbox.cs.washington.edu:safe.py  safe.py
+
+
+##temp cal notes
+131.247.2.245:50016 target for key 150.189.2.102

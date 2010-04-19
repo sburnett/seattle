@@ -1,0 +1,4 @@
+on %4 upload registration_server_list.txt registration_server_list.txt
+on %4 upload update_query_server_list.txt update_query_server_list.txt
+on %2 run testprogram.py 63120 63156
+on %4 start testprogram_send.py 63156 63129 192.33.90.66 63120

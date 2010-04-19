@@ -1,0 +1,462 @@
+"""
+Author: Cosmin Barsan
+Description:
+This script deploys a set of cnc servers whose topology is determined by the arguments passed in.
+Multiple instances of this script should not be run from within the same directory or else common files will be overwritten.
+The output of the script will be written to a file called 'cnc_experiment_out', not standard out.
+
+Usage:
+python deploycncexperiment.py <source of client vessels> <number of cncallpairsping clients> <source of server vessels> 
+	<server_topology_arg>
+	<duration of experiment in seconds> <special_client_options>
+where <source of client vessels> = lan|wan|random
+where <source of server vessels> = lan|wan|random
+where <server_topology_arg> is of the form <entry1>;<entry2>;<entry3>...
+  and each entry is of the form <lower_keyrange_bound>-<upper_keyrange_bound>
+where <duration of experiment in seconds> must be larger than 300
+where <special_client_options> = none|churn . churn option indicates clients will be removed and replaced over the course of the experiment.
+
+Here's the cron script line that runs the script:
+15 16 * * * export GMAIL_USER='seattle.devel@gmail.com' && export GMAIL_PWD='repyrepy' && /usr/bin/python <deploycncexperiment.py and args>
+
+To run from the command line:
+$ export GMAIL_USER='seattle.devel@gmail.com' && export GMAIL_PWD='repyrepy' && /usr/bin/python <deploycncexperiment.py and args>
+
+
+example:
+$ export GMAIL_USER='seattle.devel@gmail.com' && export GMAIL_PWD='repyrepy' && /usr/bin/python deploycncexperiment.py wan 4 wan 1 0-999 repy_membership2 400 none
+
+Alternate Usage, using preconfigured cnc servers, cnc_server_list.txt and cnc_backup_config.txt must already have been created
+python deploycncexperiment.py <source of client vessels> <number of cncallpairsping clients> <duration of experiment> <optional: number of client groups>
+
+"""
+from repyportability import *
+import time
+import xmlrpclib
+import shutil
+import os
+import sys
+import glob
+import send_gmail
+from datetime import datetime
+import seattlegeni_xmlrpc
+
+include cncdeploylib.mix
+include deploycncservers.mix
+include deployallpairspingtest.mix
+include random.repy
+
+
+###CONSTANTS###
+
+XMLRPC_SERVERPORT = 9001
+XMLRPC_CRED = {'username':'testacct', 'api_key':'CH8VM96U4FAPJS75D0KWZGBL3NR2IQ1T'}
+
+deployexperiment_context=dict()
+
+# the people to notify on failure/if anything goes wrong
+NOTIFY_LIST = ["cosminb@cs.washington.edu"]
+
+
+#we use this object to redirect print statements to a file
+class FilePrinter:
+  def __init__(self, fileobj):
+    self.file = fileobj
+  def write(self, string):
+    self.file.write(string)
+    self.file.flush()
+
+#returns a list of ip addresses of teh aquired vessels. Vessels are all running most recent version of seattle
+#arg vessel_type = 'lan'|'wan'|'random'
+def deploycncexperiment_aquirevessels(number_vessels, vessel_type):
+  ip_handle_dict = dict()
+  
+  while len(ip_handle_dict.keys()) < number_vessels:
+    #aquire more vessels than we actually need
+    num_vessels_to_get = number_vessels - len(ip_handle_dict.keys())
+  
+    proxy = seattlegeni_xmlrpc.SeattleGENIClient(username=XMLRPC_CRED['username'], api_key=XMLRPC_CRED['api_key'], xmlrpc_url= XMLRPC_SERVER_URL, allow_ssl_insecure=True)
+
+    acquired_dict = []
+    print "Acquiring resources..."
+    raised_exception = None
+    for xmlrpc_try in range(0,10):
+      try:
+        acquired_list=None
+        
+        if vessel_type=="lan":
+          acquired_list=proxy.acquire_lan_resources(num_vessels_to_get)
+        elif vessel_type=="wan":
+          acquired_list=proxy.acquire_wan_resources(num_vessels_to_get)
+        else:
+          acquired_list=proxy.acquire_random_resources(num_vessels_to_get)
+        
+        break
+      except Exception, fault:
+        print "failed to acquire " + str(num_vessels_to_get) + " vessels, " + str(fault) + ", try " + str(xmlrpc_try)
+        raised_exception=fault
+    
+    if(raised_exception!=None):
+      raise raised_exception
+    
+    print "got " + str(len(acquired_list)) + " nodes"
+    handles_to_release = []
+    for dict_entry in acquired_list:
+      if cncdeploylib_check_node_version(dict_entry['node_ip'], deployexperiment_context["user_publickey"], deployexperiment_context["user_privatekey"]):
+        ip_handle_dict[dict_entry['node_ip']] = dict_entry['handle']
+      else:
+        handles_to_release.append(dict_entry['handle'])
+    print str(len(ip_handle_dict.keys())) + " nodes," + str(ip_handle_dict.keys()) + " valid."
+    
+    #release nodes taht have bad version
+    print "releasing "+ str(len(handles_to_release))
+    if (len(handles_to_release)>0):
+      proxy.release_resources(handles_to_release)
+    
+  return ip_handle_dict
+
+#while the experiment has not finished, this function periodically removes a client from the experiment and adds a different client back in
+def switch_out_client(client_ip_handle_dict, client_deploy_info_dict, source_of_client_vessels):
+  if time.time() > deployexperiment_context["experiment_finish_time"] - 20 :
+    return
+  
+  #select a client randomly
+  available_client_vesels = client_deploy_info_dict.keys()
+  rand_int_index = random_randint(0,len(available_client_vesels)-1)
+  vessel_ip, vessel_name = available_client_vesels[rand_int_index]
+  vessel_index = vessel_ip, vessel_name
+  
+  #stop the vessel
+  cncdeploylib_StopVessel(client_deploy_info_dict, vessel_index)
+  
+  #get the logs from the vessel
+  cncdeploylib_pull_cncclient_logs_sync_single_vessel(client_deploy_info_dict, vessel_index, .5, deployallpairsping_LOG_FILE_BASE_NAME)
+  
+  #remove the vessel from the experiment
+  cncdeploylib_DeleteVesselfromDeployInfo(client_deploy_info_dict, vessel_index)
+  
+  #remove the vessel from the dict of client resources
+  resource_handle = client_ip_handle_dict[vessel_ip]
+  client_ip_handle_dict.pop(vessel_ip)
+  
+  #use xmlrpc to release the vessel
+  proxy = seattlegeni_xmlrpc.SeattleGENIClient(username=XMLRPC_CRED['username'], api_key=XMLRPC_CRED['api_key'], xmlrpc_url= XMLRPC_SERVER_URL, allow_ssl_insecure=True)
+  proxy.release_resources([resource_handle])
+  
+  #get a new vessel
+  new_singleclient_ip_handle_dict = deploycncexperiment_aquirevessels(1, source_of_client_vessels)
+  single_client_ip_list = new_singleclient_ip_handle_dict.keys()
+  client_ip = single_client_ip_list[0]
+  
+  #add the vessel to the experiment and resource list
+  new_vesel_deploy_info = cncdeploylib_constructDeployInfo(single_client_ip_list, deployexperiment_context["user_publickey"], deployexperiment_context["user_privatekey"])
+  new_vessel_index=None
+  for firstnewvessel_index in new_vesel_deploy_info:
+    client_deploy_info_dict[firstnewvessel_index] = new_vesel_deploy_info[firstnewvessel_index]
+    new_vessel_index=firstnewvessel_index
+    break
+    
+  client_ip_handle_dict[client_ip] = new_singleclient_ip_handle_dict[client_ip]
+  
+  
+  #generate a new neighbor ip list file and push it out to all vessels
+  deployallpairsping_generateNeighborInfoFile()
+  cncdeploylib_uploadFiles(client_deploy_info_dict, [NEIGHBOR_INFO_FILE_NAME]) #NEIGHBOR_INFO_FILE_NAME is included from deployallpairsping.mix
+  
+  #upload program files to the new vessel and start the new vessel
+  cncdeploylib_uploadFilesToSingleVessel(client_deploy_info_dict, deployallpairsping_FILES_TO_UPLOAD, new_vessel_index)
+  deployallpairsping_startVessel(new_vessel_index)
+  
+  #switch out another client in a short time
+  settimer(1, switch_out_client, [client_ip_handle_dict, client_deploy_info_dict, source_of_client_vessels])
+
+#taken from preparetest
+#define a function to use for copying the files matching the file expression to the target folder
+#file_expr may contain wildcards
+#target must specify an existing directory with no wildcards
+def copy_to_target(file_expr, target):
+  files_to_copy = glob.glob(file_expr)
+  for file_path in files_to_copy:
+    if os.path.isfile(file_path):
+      shutil.copyfile(file_path,target +"/"+os.path.basename(file_path))
+
+#send a mail to members on the notify list with the script log
+def notify_with_script_log():
+  #read out the experiment log file
+  filereader = open('cnc_experiment_out','r')
+  message = filereader.read()
+  filereader.close()
+  notify(message)
+  return
+
+def notify(text):
+  """
+  <Purpose>
+     Send email with message body text to the members of the notify_list
+
+  <Arguments>
+     text, the text of the email message body to be generated
+
+  <Exceptions>
+     None.
+
+  <Side Effects>
+     Sends email.
+
+  <Returns>
+     None.
+  """
+  #read out the experiment log file
+    
+    
+  try:
+    hostname = socket.gethostname()
+  except:
+    hostname = "unknown host"
+  else:
+    try:
+      hostname = socket.gethostbyname_ex(hostname)[0]
+    except:
+      pass
+  subj = "seattle test failed @ " + hostname + " : " + sys.argv[0]
+  for emailaddr in NOTIFY_LIST:
+    send_gmail.send_gmail(emailaddr, subj, text, "")
+  return
+    
+
+def deploycncexperiment_clean_existing_log_files():
+  #TODO: Clean existing log files
+  print "Cleaning logs from " + os.getcwd()
+  files_to_remove = glob.glob("cncserverlog_*")
+  files_to_remove.extend(glob.glob("cncclientlog*"))
+  
+  #clean the test folder
+  for f in files_to_remove: 
+    if os.path.isdir(f):
+      continue		
+    else:
+      os.remove(f)
+  
+  return
+
+#experiment name is teh name if the current experiment and should inclde the date, time, and server client dstribution of the experiment
+def copy_logs_to_storage(experiment_name):
+  print "preparing to copy files to new directory " + experiment_name
+  #make a new directory
+  os.mkdir(experiment_name)
+  
+  
+  copy_to_target("cncserverlog*", experiment_name)
+  copy_to_target("cncclientlog*", experiment_name)
+  
+  #look for the file that we are piping the output of this script to
+  copy_to_target("cnc_experiment_out", experiment_name)
+  return
+
+  
+
+#deploys the cnc experiment
+def deploy_cnc_experiment(source_of_client_vessels, num_clients, source_of_server_vessels,
+    server_rules, duration_of_experiment,
+    client_special_options, user_publickey, user_privatekey):
+
+  deployexperiment_context["user_publickey"]= user_publickey
+  deployexperiment_context["user_privatekey"]= user_privatekey
+  
+  #generate a name for the experiment of the format
+  #cncexperiment-<clientsource>-<num_clients>-<serversource>-<num registration servers>-<num update servers>-<num query servers>_<day>-<month>-<time>
+  now= datetime.now()
+  the_time = str(now.hour)+str(now.minute)
+  day = str(now.day)
+  month = str(now.month)
+  experiment_name = "cncexperiment-"+source_of_client_vessels+"-"+str(num_clients)+'-'+source_of_server_vessels+'-'
+  experiment_name+= str(len(server_rules))
+  experiment_name+= '_'+day+'-'+month+'-' + the_time
+  print '###Experiment Name is "' + experiment_name + '"###'
+  
+  deploycncexperiment_clean_existing_log_files()
+  
+  target_client_ips = []
+  target_server_ips = []
+  client_ip_handle_dict=None
+  server_ip_handle_dict=None
+  
+  #acquire specified number of client vessels
+  client_ip_handle_dict = deploycncexperiment_aquirevessels(num_clients, source_of_client_vessels)
+  target_client_ips = client_ip_handle_dict.keys()
+  
+  
+  #get number of server vessels we need
+  num_servers = len(server_rules)
+  server_ip_handle_dict = deploycncexperiment_aquirevessels(num_servers, source_of_server_vessels)
+  target_server_ips = server_ip_handle_dict.keys()
+  
+    
+  print "###Deploying Servers###"
+  server_deploy_info_dict = deploycncservers(target_server_ips, server_rules, deployexperiment_context["user_publickey"], deployexperiment_context["user_privatekey"])
+  
+  print "###Deploying Clients###"
+  client_deploy_info_dict = deployallpairsping(target_client_ips, deployexperiment_context["user_publickey"], deployexperiment_context["user_privatekey"], experiment_name)
+  
+  #we use this to keep track in separate threads when the experiment is over.
+  deployexperiment_context["experiment_finish_time"] = time.time() + duration_of_experiment
+  
+  #start a thread to switch out clients if the churn option is set
+  if client_special_options =='churn':
+    settimer(20, switch_out_client, [client_ip_handle_dict, client_deploy_info_dict, source_of_client_vessels])
+  
+  #sleep until for specified experiment duration
+  sleep(duration_of_experiment)
+  
+  #stop all vessels, first client then server
+  print "###Stopping all Vessels###"
+  cncdeploylib_StopVessels_parallel(client_deploy_info_dict)
+  cncdeploylib_StopVessels_parallel(server_deploy_info_dict)
+  
+  #get log information from all vessels
+  print "###Getting all log files###"
+  cncdeploylib_pull_cncclient_logs_sync_parallel(server_deploy_info_dict, deploycncserver_LOG_FILE_BASE_NAME)
+  cncdeploylib_pull_cncclient_logs_sync_parallel(client_deploy_info_dict, deployallpairsping_LOG_FILE_BASE_NAME)
+  
+  #release vessels
+  print "###Releasing Vessels###"
+  proxy = seattlegeni_xmlrpc.SeattleGENIClient(username=XMLRPC_CRED['username'], api_key=XMLRPC_CRED['api_key'], xmlrpc_url= XMLRPC_SERVER_URL, allow_ssl_insecure=True)
+  proxy.release_resources(client_ip_handle_dict.values())
+  
+  
+  proxy.release_resources(server_ip_handle_dict.values())
+  
+  #copy log info to experiment specific directory
+  copy_logs_to_storage(experiment_name)
+  return
+
+
+#when deploying an experiment against a preconfigured server farm, we also support using simulated user keys in place of the node user keys
+#to split vessels into groups, to do this pass in a number to debug_number_client_groups
+def deploy_cnc_experiment_static_config(source_of_client_vessels, num_clients,duration_of_experiment, 
+      user_publickey, user_privatekey, debug_number_client_groups = None):
+  deployexperiment_context["user_publickey"]= user_publickey
+  deployexperiment_context["user_privatekey"]= user_privatekey
+  
+  #generate a name for the experiment of the format
+  #cncexperiment-<clientsource>-<num_clients>_<day>-<month>-<time>
+  now= datetime.now()
+  the_time = str(now.hour)+str(now.minute)
+  day = str(now.day)
+  month = str(now.month)
+  experiment_name = "cncexperiment-"+source_of_client_vessels+"-"+str(num_clients)
+  experiment_name+= '_'+day+'-'+month+'-' + the_time
+  print '###Experiment Name is "' + experiment_name + '"###'
+  
+  deploycncexperiment_clean_existing_log_files()
+  
+  target_client_ips = []
+  client_ip_handle_dict=None
+  
+  #acquire specified number of client vessels
+  client_ip_handle_dict = deploycncexperiment_aquirevessels(num_clients, source_of_client_vessels)
+  target_client_ips = client_ip_handle_dict.keys()
+  
+  
+  print "###Deploying Clients###"
+  client_deploy_info_dict = deployallpairsping(target_client_ips, deployexperiment_context["user_publickey"], deployexperiment_context["user_privatekey"], experiment_name, debug_number_client_groups)
+  
+  #we use this to keep track in separate threads when the experiment is over.
+  deployexperiment_context["experiment_finish_time"] = time.time() + duration_of_experiment
+  
+  now= datetime.now()
+  the_time = str(now.hour) + ":"+str(now.minute)
+  day = str(now.day)
+  month = str(now.month)
+  print "experiment in progress, the time is " + month + "-" + day + " " + the_time
+  #sleep until for specified experiment duration
+  sleep(duration_of_experiment)
+  
+  #stop all vessels, first client then server
+  print "###Stopping all Vessels###"
+  cncdeploylib_StopVessels_parallel(client_deploy_info_dict)
+  
+  #get log information from all vessels
+  print "###Getting client log files###"
+  cncdeploylib_pull_cncclient_logs_sync_parallel(client_deploy_info_dict, deployallpairsping_LOG_FILE_BASE_NAME)
+  
+  #release vessels
+  print "###Releasing Vessels###"
+  proxy = seattlegeni_xmlrpc.SeattleGENIClient(username=XMLRPC_CRED['username'], api_key=XMLRPC_CRED['api_key'], xmlrpc_url= XMLRPC_SERVER_URL, allow_ssl_insecure=True)
+  proxy.release_resources(client_ip_handle_dict.values())
+  
+  #copy log info to experiment specific directory
+  copy_logs_to_storage(experiment_name)
+  return 
+      
+      
+if __name__ == '__main__':
+  time_updatetime(34612)
+  
+  #redirect print statements and standard error to a log file
+  output_fileobj=open('cnc_experiment_out','w')
+  sys.stdout = FilePrinter(output_fileobj)
+  sys.stderr = FilePrinter(output_fileobj)
+  
+    
+  user_publickey= rsa_string_to_publickey(TESTACCT_PUBLIC_KEY_STR)
+  user_privatekey= rsa_string_to_privatekey(TESTACCT_PRIVATE_KEY_STR)
+  
+  print str(sys.argv)
+  print "Parsing call arguments..."
+  
+  if len(sys.argv)==4:
+    #we are doing a run with a static server configuration
+    #assume that registration_server_list.txt and update_query_server_list.txt are already existing
+    source_of_client_vessels = sys.argv[1].strip()
+    num_clients = int(sys.argv[2])
+    duration_of_experiment = int(sys.argv[3])
+    
+    deploy_cnc_experiment_static_config(source_of_client_vessels, num_clients,duration_of_experiment, 
+      user_publickey, user_privatekey)
+  
+  elif len(sys.argv)==5:
+    #we are doing a run with a static server configuration
+    #assume that registration_server_list.txt and update_query_server_list.txt are already existing
+    #we are also spliting nodes into groups using simulated node keys
+    source_of_client_vessels = sys.argv[1].strip()
+    num_clients = int(sys.argv[2])
+    duration_of_experiment = int(sys.argv[3])
+    number_node_groups = int(sys.argv[4])
+    
+    deploy_cnc_experiment_static_config(source_of_client_vessels, num_clients,duration_of_experiment, 
+      user_publickey, user_privatekey, debug_number_client_groups=number_node_groups)
+      
+  elif len(sys.argv)<7:
+    raise Exception, "insufficient number of arguments, see header of script for usage." 
+
+  else:
+    source_of_client_vessels = sys.argv[1].strip()
+    num_clients = int(sys.argv[2])
+    source_of_server_vessels = sys.argv[3].strip()
+  
+    #parse the key range specification for the update servers
+    server_rules_str_list = sys.argv[4].split(';')
+    server_rules=[]
+    for str_bounds in server_rules_str_list:
+      str_lower, str_upper = str_bounds.split('-')
+      entry_to_add = int(str_lower), int(str_upper)
+      server_rules.append(entry_to_add)
+    
+    query_server_keys = sys.argv[6].split(';')
+    
+    duration_of_experiment = int(sys.argv[5])
+    if (duration_of_experiment < 300):
+      raise Exception, "duration of experiment must be greater than 300 seconds"
+    client_special_options = sys.argv[6].strip()
+    
+    
+    
+    try:
+      deploy_cnc_experiment(source_of_client_vessels, num_clients, source_of_server_vessels,
+        server_rules, duration_of_experiment,
+        client_special_options, user_publickey, user_privatekey)
+    except Exception, e:
+      print "exception caught: "+ str(e)
+      print "sending notification"
+      notify_with_script_log()

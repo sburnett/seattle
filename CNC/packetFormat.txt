@@ -1,0 +1,93 @@
+###TCP Registration###
+
+register user packet sent through tcp to a registration server:
+RegisterAddressRequest <user_key1>,<user_key2>,<user_key3>,... <timestamp> <signature>
+
+reply to a successfully processed RegisterAddressRequest, sent through tcp.
+RegisterAddressRequestComplete <renew registration key> <timestamp> <signature>
+
+
+###UDP Registration Renewal###
+
+registration request sent through UDP witha  renewal key to a registration server:
+RenewAddressRequest <user_key1>,<user_key2>,<user_key3>,... <renew_key>
+
+reply to a successfully processed RenewAddressRequest, sent through UDP
+RenewAddressRequestComplete
+
+reply to a failed RenewAddressRequest due to an invalid renewal key, sent through UDP
+RenewFailedInvalidRenewalKey
+
+##Registration/Renew failure due to incorrect keyrange information##
+reply to an attempt to register in which there is one or more userkeys that do not fall in the loal server's key range
+RegisterFailOutOfKeyRange 
+
+###Requesting full address list for a key###
+
+request the list of addresses for a particular user through UDP from an update server
+GetAddressesForUserRequest <userkey>
+
+reply to a GetAddressesForUserRequest where the user key was not found in control list
+UserKeyNotFound <user key> <public_key> <timestamp> <signature>
+
+reply to a GetAddressesForUserRequest where the user key was found
+GetAddressesReply <user key> <last_update_id> tbl<encoded_str>end <public_key> <timestamp> <signature>
+if there are no addresses, "None" is given instead of the encoded string
+
+
+###Requesting the userkey range table (to allow anyone to determine which servers handle a given key range)###
+
+request the key range table and query_server_table from a registration server. 
+GetUserKeyRangeTables 
+
+reply to a request for a user key range table
+GetUserKeyRangeTablesReply <update_entry1>;<update_entry2>;<update_entry3>... <public key used for signing> <timestamp> <signature>
+where:
+each update entry is of the form:
+lower_bound,upperbound:ip1,port1%ip2,port2%ip3,port3...
+or if there are no entries "None" is used instead. lower_bound and upper_bound are short int hashes. To determine if a userkey falls into a key range, it should first be hashed using cncSignData_get_short_hash, then compared to the bounds
+or if there are no entries "None" is used instead.
+
+###Verifying if an address is valid for a set of user keys###
+
+verify address request, asks server to verify if an ip address (no update port needed) is valid for any of the given keys, sent through udp
+VerifyAddressRequest <ip_address> 
+
+reply to a verify address request, includes the address that was checked and validity = "True" | "False", to indicate if the address was found to be valid
+VerifyAddressReply <ip_address> <address_port> <validity> <public_key> <timestamp> <signature>
+
+
+###Update Packets###
+Update packets are sent to the same port that was used for registration.
+The update packets sent by the format follow the format:
+AddressListUpdate <userkey> <update packet id> <size_add_data> start<address data added><address data deleted>end <update_server_public_key> <timestamp> <signature>
+
+where
+<size_add_data> gives the number of characters that is the length of the <address_data_added> fragment
+<address data added> is an encoded list of ip,port pairs
+<update packet id> gives the id of the current packet. update packet id's are contiguous, and the client can use it to determine whether it has missed a packet. 
+Each userkey has a separate update id sequence.
+If there is no added data, "None" is used for the <address data added> field.
+
+and
+<address data deleted> is an encoded list of ips
+If there is no added data, "None" is used for the <address data deleted> field.
+NOTE: no update port data is specified by the delete portion of the update message
+
+Request a cached update packet from the server specifying a userkey and packet id, server replies with the address list packet requeted if it is available. 
+If the packet is not available, the server does not reply.
+GetUpdatePacketById <userkey> <update packet id>
+
+###Internal CNC packet format###
+
+Registration packets forwarded to update server, this is done through TCP
+CNCRegisterAddressForUser <user_key> <ip_address>:<port> $EOF
+
+Registration packets forwarded to update server, messages are signed with the registration server's key and have timestamps (UDP)
+CNCRegisterAddressForUser <user_key1>,<user_key2>,<user_key3>,... <ip_address>:<port> <public_key> <timestamp> <signature>
+
+Sent by each server to announce their properties to other servers servers (UDP)
+CNCServerToServerAnnounce <lower_key_bound> <upper_key_bound> <public_key> <timestamp> <signature>
+
+Upon receiving a CNCServerToServerAnnounce packet, each server replies with the following (specifying its local key information)
+CNCServerToServerAnnounceReply <lower_key_bound> <upper_key_bound> <public_key> <timestamp> <signature>

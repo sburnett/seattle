@@ -1,0 +1,157 @@
+"""
+<Author>
+  Cosmin Barsan
+  
+<Purpose>
+  Library that provides utility and helper functions for key range related tasks.
+  This library is used for the cnc system.
+"""
+
+include sha.repy
+
+
+#this constant defines how many digits (0-9) the userkey range must cover.
+#for instance, if the KEYRANGELIB_UPDATE_SERVER_KEYRANGE_SPACE variable is set to 3, hashes of user keys will take values between 0 and 999
+KEYRANGELIB_UPDATE_SERVER_KEYRANGE_SPACE = 3 
+
+
+def keyrangelib_publickey_to_cncuserkey(publickey):
+  """
+  <Purpose>
+    convert a public user key from the format used by the node manager, to the format used by the cnc
+    this is done by converting the public key to a string, then taking the hash of it.
+  
+  <Arguments>
+    publickey: the public key to convert. expected in the same format as used by the node manager.
+  
+  <Exceptions>
+    None.
+    
+  <Returns>
+    a string, which is the cnc uses to represent the given public key
+  """
+  
+  string_key = rsa_publickey_to_string(publickey)
+  
+  #hash the string
+  hashed_key = sha_hexhash(string_key)
+  
+  #remove spaces
+  resultkey = hashed_key.replace(' ','#')
+  
+  return resultkey
+  
+
+def keyrangelib_get_short_hash(arg_string, num_digits = KEYRANGELIB_UPDATE_SERVER_KEYRANGE_SPACE):
+  """
+  <Purpose>
+    Hashes the specified arg_string to an integer with a small number of digits. 
+    This hash value is used to find the appropriate server(s) that support the user key
+  
+  <Arguments>
+    arg_string: the userkey to hash. This must be a string, and it must be in cnc userkey format
+    num_digits: the maximum number of digits the returned value can have
+  
+  <Exceptions>
+    None.
+    
+  <Returns>
+    an integer, this value can be used to find which update server(s) support the userkey
+  """
+  long_hex_result = sha_hexhash(arg_string)
+  long_int_result = int(long_hex_result, 16)
+  short_result = long_int_result%(10**num_digits)
+  return short_result
+  
+
+def keyrangelib_get_addresses_for_userkey(userkey, server_key_range_table):
+  """
+  <Purpose>
+    for a specified user key, returns a list of cnc servers whose key ranges cover the key.
+    if one or more query servers are found for the specified userkey, only those addresses and no update servers addresses will be returned for the userkey.
+  
+  <Arguments>
+    userkey: the userkey to search for. Must be in cnc userkey format
+    server_key_range_table: structure that keeps track of cnc servers with 
+      each key range.
+  
+  <Exceptions>
+    None.
+    
+  <Returns>
+     returns list of ip,port pairs. These are the servers that support the given userkey.
+  """
+  
+  #we will add matching addresses to this list
+  result_address_list = []
+  
+
+  #get the hash of the key to check if there are mathcing update servers.
+  key_hash = keyrangelib_get_short_hash(userkey)
+  
+  #for every key range, we check if the hash value is within the range
+  for keyrange in server_key_range_table.keys() :
+    #if there are no entries under this key range skip it
+    if len(server_key_range_table[keyrange])==0:
+      continue
+      
+    lower_bound, upper_bound = keyrange
+    
+    #check if the key hash falls into the range
+    if (lower_bound <= key_hash and key_hash<=upper_bound):
+      result_address_list.extend(server_key_range_table[keyrange])
+  
+  return result_address_list
+  
+  
+
+def keyrangelib_parse_server_key_ranges_string(keyrangestring):
+  """
+  <Purpose>
+    parses the string representation of a sns server key range dict and returns it in dict form.
+    This structure is used to keep track of the key range supported by each cnc server.
+  
+  <Arguments>
+    keyrangestring: obtained from the registration server, as part of the reply from a GetUserKeyRangeTables request
+      See packetformat.txt for specific format of the string representation of the update key range dict (under GetUserKeyRangeTablesReply).
+  
+  <Exceptions>
+    None.
+    
+  <Returns>
+    returns dict structure that keeps track of cnc servers that manage each key range.
+  """
+  
+  #structure that indicates the update servers with each key range
+  #each key is a pair of integers (lower user key, upper user key). Each entry is a list of (ip, port) pairs giving the address of the servers in the respective update unit. 
+  server_key_range_table = dict()
+  
+  #if there are no entries, return empty dict
+  if keyrangestring=="None" :
+    return server_key_range_table
+  
+  #split the string to a list of entries
+  entries = keyrangestring.split(';')
+  
+  for entry in entries:
+    range_str,addresses_str = entry.split(':')
+    lowerboundstr,upperboundstr = range_str.split(',')
+    range_value = (int(lowerboundstr), int(upperboundstr))
+    
+    address_str_list=addresses_str.split('%')
+    address_result_list = []
+    for address_str in address_str_list:
+      ip,port_str = address_str.split(',')
+      port = int(port_str)
+      address = ip,port
+      
+      #append the address to the result list for the current entry
+      address_result_list.append(address)
+      
+    #add the entry to the dict
+    server_key_range_table[range_value] = address_result_list
+    
+  return server_key_range_table
+  
+
+#DEPR: def keyrangelib_parse_query_table_string(querytablestring):

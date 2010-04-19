@@ -1,0 +1,154 @@
+"""
+<Library Name>
+  cncSignData.repy
+
+<Started>
+  March 31, 2009
+
+<Author>
+  Cosmin Barsan
+  
+<Purpose>
+  Similar to signeddata.repy, but it is simpler and easier to use with cnc packets. 
+  Most of this functionality is implemented using signeddata.
+  
+
+"""
+include signeddata.repy
+include sha.repy
+include rsa.repy
+include time.repy
+
+
+def cncSignData_get_message_signature(message, privatekey, publickey):
+  """
+  <Purpose>
+    Given the message, publickey, and private key, returns a signature of the message.
+    The signature uses the symbol '#' instead of 'space'
+
+  <Arguments>
+    message: The message string to create a signature for
+    privatekey: The private key to use for creating the signature
+    publickey: The public key to use for creating the signature
+
+  <Exceptions>
+    ValueError if public or private keys are invalid
+
+  <Side Effects>
+    None.
+
+  <Returns>
+    A string representing the message signature, but using the symbol '#' instead of 'space'
+  """
+  
+  base_signature = signeddata_create_signature(message, privatekey, publickey)
+  signature = str(base_signature).replace(' ','#')
+  return signature
+  
+  
+
+def cncSignData_check_signature(message, signature, publickey):
+  """
+  <Purpose>
+    Check if a given message is signed correctly.
+
+  <Arguments>
+    message: The message string to verify the signature for. This argument should only consist of the message component (and not the signature)
+    signature: The signature that the message should be checked against. This signature should use '#' instead of the 'space' separator.
+    publickey: The public key to use for checking the signature
+
+  <Exceptions>
+    TypeErrors that are raised by rsa_verify, and that do not contain 'RSA' in the message, will be caught and raised after by this function.
+    TypeErrors that are raised by rsa_verify, but contain 'RSA' in the message, indicate bad signature or public key, so these are caught.
+
+  <Side Effects>
+    None.
+
+  <Returns>
+    boolean, True indicates signature is valid. False indicates it is not.
+  """
+  
+  signature = signature.replace('#',' ')
+  try: 
+    # extract the hash from the signature
+    signedhash = rsa_verify(signature, publickey)
+  except TypeError, e:
+    if 'RSA' not in str(e):
+      raise
+    # Bad signature or public key
+    return False
+
+  # Does the hash match the signed data?
+  if signedhash == sha_hash(message):
+    return True
+  else:
+    return False
+    
+    
+def cncSignData_checktimestamp(timestamp, expiration_interval):
+  """
+  <Purpose>
+    Check if a given timestamp is valid
+
+  <Arguments>
+    timestamp: The timestamp to check. May be float, int, or string type.
+    expiration_interval: interval after specified timestamp is considered expired
+    
+  <Exceptions>
+    None.
+
+  <Side Effects>
+    None.
+
+  <Returns>
+    returns a pair of form (bool,string), where the first value is True or False indicating if the timestamp is valid,
+    and the second is a string indicating that explains why the timestamp is invalid in the event it is.
+  """
+
+  #first check that the timestamp is in fact a float
+  float_timestamp = None
+  try:
+    float_timestamp = float(timestamp)
+  except Exception, e:
+    #casting failed
+    return (False,"cncSignData_checktimestamp: timestamp cannot be cast to a float")
+    
+  #check if timestamp is expired.
+  if not(signeddata_iscurrent(float_timestamp+expiration_interval)):
+    return (False,"cncSignData_checktimestamp: timestamp is expired, timestamp="+timestamp + ", expiration_interval="+str(expiration_interval))
+  
+  return (True,None)
+  
+
+def cncSignData_sign_message(message, publickey, privatekey):
+  """
+  <Purpose>
+    Helper method that signs a message. The signed mesage is returned with the following components appended: publickey timestamp signature
+    The signature uses a hash that includes the publickey and timestamp components which are added.
+
+  <Arguments>
+    message: The message string to create a signature for
+    privatekey: The private key to use for creating the signature
+    publickey: The public key to use for creating the signature
+    
+  <Exceptions>
+    ValueError if public or private keys are invalid
+
+  <Side Effects>
+    None.
+
+  <Returns>
+    returns a string containing the following components (space separated): <message> <publickey> <timestamp> <signature>
+  """
+  
+  signed_message = message
+  
+  #add the public key of the current server and the timestamp
+  local_public_key_string = rsa_publickey_to_string(publickey).replace(' ','#')
+  signed_message = signed_message + " " + local_public_key_string + " " + str(time_gettime())
+    
+  #add the signature
+  message_signature = cncSignData_get_message_signature(signed_message, privatekey, publickey)
+  signed_message = signed_message + " " + message_signature
+  return signed_message
+  
