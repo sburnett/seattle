@@ -5,6 +5,7 @@
 <Started>
   November 2008
     Revised May 23, 2009
+    Revised April 6, 2010
 
 <Author>
   Carter Butaud
@@ -16,9 +17,13 @@
 
   Usage: python make_base_installer.py m|l|w|i|a|t path/to/trunk/ pubkey
           privkey output/dir/ [version of seattle]
+          [--wg path/to/Windows/GUI/builder/makensis.exe]
   Flags: m,l,w,i,a,t represent the OS for which the base installer is being
          created.  m = Macintosh, l = Linux, w = Windows, i = Windows Mobile,
          a = all systems. t = include tests in installer.
+  NOTE: The Windows GUI installer will ONLY be built if the 'w' or 'a' options
+        are passed ALONG WITH the '--wg' option.
+
 
   Example of usage on command line:
     python ./Seattle/trunk/dist/make_base_installers.py a ./Seattle/trunk/
@@ -43,6 +48,7 @@ BASE_PROGRAM_FILES_DIR = "seattle/seattle_repy"
 INSTALLER_NAME = "seattle"
 
 # The path to the directory, relative the trunk, of the OS-specific files.
+WINDOWS_GUI_PATH = "/dist/win_gui"
 WINDOWS_PATH = "/dist/win/scripts"
 WINMOB_PATH = "/dist/winmob/scripts"
 LINUX_PATH = "/dist/linux/scripts"
@@ -54,6 +60,8 @@ WINDOWS_SCRIPT_WRAPPERS_PATH = "/dist/script_wrappers/win"
 LINUX_SCRIPT_WRAPPERS_PATH = "/dist/script_wrappers/linux"
 MAC_SCRIPT_WRAPPERS_PATH = "/dist/script_wrappers/mac"
 
+# The path to the Windows GUI builder.
+WINDOWS_GUI_BUILDER_PATH = ""
 
 
 
@@ -84,9 +92,16 @@ def get_inst_name(dist, version):
     A string of the installer name for the specified OS and version.
   """
 
-  base_name = INSTALLER_NAME + version + "_" + dist
+  if version:
+    base_name = INSTALLER_NAME + "_" + version + "_" + dist
+  else:
+    base_name = INSTALLER_NAME + "_" + dist
+
   if "win" in dist or "Win" in dist or "WIN" in dist:
-    base_name += ".zip"
+    if "gui" in dist or "GUI" in dist:
+      base_name += ".exe"
+    else:
+      base_name += ".zip"
   else:    
     base_name += ".tgz"
   return base_name
@@ -269,12 +284,96 @@ def prepare_gen_files(trunk_location,temp_install_dir,include_tests,pubkey,
 
 
 
+def package_win_gui(trunk_location, temp_tarball_dir, zip_inst_name,
+                    gui_inst_name):
+  """
+  <Purpose>
+    Packages the installation files for Windows into a GUI executable file
+    and adds the specific installation scripts for this OS.
+
+    This function extracts the contents of the already-created Windows zipfile
+    installer because the zipfile installer contains special Windows files that
+    are not located anywhere else in the trunk.
+
+  <Arguments>
+    trunk_location:
+      The location of the repository trunk.
+
+    temp_tarball_dir:
+      The path to the directory in which the installer executable will be
+      stored.
+
+    zip_inst_name:
+      The name of the Windows zipfile installer.
+
+    gui_inst_name:
+      The name that the Windows GUI executable file will have.
+
+  <Exceptions>
+    IOError on bad file paths.
+
+  <Side Effects>
+    Puts the final executable in the temporary tarball directory.
+
+  <Returns>
+    None.  
+   """
+
+  # Create a subdirectory where the GUI installer will be created, and copy all
+  # necessary files there.
+  win_gui_location = tempfile.mkdtemp()
+  shutil.copy(trunk_location + os.sep + WINDOWS_GUI_PATH + os.sep \
+                + "seattle_gui_creator.nsi", win_gui_location)
+
+  # Extract the zipfile to the win_gui_location to get all the contents that
+  # will be compressed into the Windows gui installer.
+  installer_zipfile = zipfile.ZipFile(temp_tarball_dir + os.sep + zip_inst_name,
+                                      'r')
+  installer_zipfile.extractall(win_gui_location)
+  shutil.copy(trunk_location + os.sep + "dist" + os.sep \
+                + "extract_custom_info.py",win_gui_location + os.sep \
+                + "seattle" + os.sep + "seattle_repy")
+
+
+  # Change directories to win_gui_location because the Windows gui creator
+  # will not work when full file paths are passed in as arguments for some
+  # reason.
+  original_dir = os.getcwd()
+  os.chdir(win_gui_location)
+
+  # Create the Win GUI executable with the Windows GUI builder (makensis.exe)
+  # via subprocess.
+  gui_creator = subprocess.Popen([WINDOWS_GUI_BUILDER_PATH,
+                                  "seattle_gui_creator.nsi"],
+                                 stdout=subprocess.PIPE)
+  # The communicate() function must be called to prevent the subprocess call
+  # above from deadlocking.
+  gui_creator.communicate()
+  gui_creator.wait()
+
+  # The Windows GUI builder script has a built-in name that it gives to the
+  # installer (seattle_win_gui.exe), so rename this file to gui_inst_name.
+  os.rename("seattle_win_gui.exe",gui_inst_name)
+
+  # Change back to the original directory.
+  os.chdir(original_dir)
+
+  # Put the new GUI installer into the temp_tarball_dir with the other
+  # installers.
+  shutil.copy(win_gui_location + os.sep + gui_inst_name,temp_tarball_dir)
+
+  # Remove the temporary GUI installer directory.
+  shutil.rmtree(win_gui_location)
+
+
+
+
 def package_win_or_winmob(trunk_location, temp_install_dir, temp_tarball_dir,
                           inst_name, gen_files):
   """
   <Purpose>
     Packages the installation files for Windows or Windows Mobile into a zipfile
-    and appends the specific installation scripts for this OS.
+    and adds the specific installation scripts for this OS.
 
   <Arguments>
     trunk_location:
@@ -297,7 +396,7 @@ def package_win_or_winmob(trunk_location, temp_install_dir, temp_tarball_dir,
     IOError on bad file paths.
 
   <Side Effects>
-    Puts the final tarball in the temporary tarball directory.
+    Puts the final zipfile in the temporary tarball directory.
 
   <Returns>
     None.  
@@ -369,7 +468,7 @@ def package_linux_or_mac(trunk_location, temp_install_dir, temp_tarball_dir,
   """
   <Purpose>
     Packages the installation files specific to Linux or Macintosh into a
-    tarball and appends the specific installation scripts for this OS.
+    tarball and adds the specific installation scripts for this OS.
 
   <Arguments>
     trunk_location:
@@ -444,57 +543,7 @@ def package_linux_or_mac(trunk_location, temp_install_dir, temp_tarball_dir,
                             BASE_INSTALL_DIR + os.sep + fname,False)
 
 
-
   installer_tarfile.close()
-
-
-
-
-def build(systems, trunk_location, pubkey, privkey, output_dir, version=""):
-  """
-  <Purpose>
-    This function creates a base installer for each specified OS and deposits
-    them in the specified output directory.
-  
-  <Arguments>
-    systems:
-      A string of the flags (identifying the operating systems for which to
-      create installers) specified by the user on the command line.  This string
-      may also contain the optional character "t" to have tests included in the
-      installer.
-
-    trunk_location:
-      The path to the trunk directory of the repository, used to find all the
-      requisite files that make up the installer.
-
-    pubkey:
-      The path to a public key that should be used to generate the metainfo
-      file.
-
-    privkey:
-      The path to a private key that should be used to generate the metainfo
-      file.
-
-    output_dir:
-      The directory in which the completed installer(s) will be placed.
-
-    version:
-      (Optional) Specifies the version of seattle for which the installer(s) are
-      being created (blank by default) which will be appended to the installer
-      name.
-      For instance, setting version to "0.01a" will produce installers named
-      "seattle0.01a_win.zip", "seattle0.01a_linux.tar", etc.
-
-  <Exceptions>
-    None.
-
-  <Side Effects>
-    Prints status updates and deposits installers into specified output
-    directory.
-
-  <Returns>
-    None.
-  """
 
 
 
@@ -503,8 +552,14 @@ def test_arguments(arguments):
   """
   """
   # Test argument flags
-  if len(arguments) < 6 or len(arguments) > 7:
+  if len(arguments) < 6:
+    print "Too few arguments."
     return False
+  elif len(arguments) > 9:
+    print "Too many arguments."
+    return False
+
+
   flags = arguments[1]
   passed, offenses = check_flags(flags)
   if not passed:
@@ -541,12 +596,14 @@ def test_arguments(arguments):
 
 
 def usage():
-  print "usage: python make_base_installer.py m|l|w|i|a|t path/to/trunk/ " \
-      + "pubkey privkey output/dir/ [version of seattle]"
-  print "flags: m,l,w,i,a,t represent the OS for which the base installer is " \
-      + "being created.  m = Macintosh, l = Linux, w = Windows, " \
+  print "USAGE: python make_base_installer.py m|l|w|i|a|t path/to/trunk/ " \
+      + "pubkey privkey output/dir/ [version of seattle] " \
+      + "[--wg path/to/Windows/GUI/builder/makensis.exe]"
+  print "\tFLAGS: m,l,w,i,a,t represent the OS for which the base installer " \
+      + "is being created.  m = Macintosh, l = Linux, w = Windows, " \
       + "i = Windows Mobile, a = all systems. t = include tests in installer."
-
+  print "\tNOTE: The Windows GUI installer will ONLY be built if the 'w' or " \
+      + "'a' options are passed ALONG WITH the '--wg' option."
 
 
 def main():
@@ -561,14 +618,65 @@ def main():
 
   # Reaching this point means all arguments are valid, so set the variables and
   # get full pathnames when necessary.
+  # NOTE: IF MORE OPTIONS ARE EVER ADDED TO THIS PROGRAM, CONSIDER USING THE
+  #       PYTHON MODULE getopt TO PARSE THE OPTIONS SINCE THE BELOW LOGIC WILL
+  #       START TO GET REALLY COMPLICATED.
   installer_type = sys.argv[1]
   trunk_location = os.path.realpath(sys.argv[2])
   output_dir = os.path.realpath(sys.argv[5])
   pubkey = os.path.realpath(sys.argv[3])
   privkey = os.path.realpath(sys.argv[4])
   version = ""
-  if len(sys.argv) != 6:
-    version = sys.argv[6]
+  # Figure out if the optional version number or the path to the Windows GUI
+  # builder was passed in.
+  if len(sys.argv) > 6:
+    if len(sys.argv) == 7:
+      # Only one extra option was passed, so it must be the version number.
+      version = sys.argv[6]
+      if version == "--wg":
+        print "Windows GUI builder path not specified"
+        usage()
+        return
+
+    else:
+      global WINDOWS_GUI_BUILDER_PATH
+
+      if sys.argv[6] == "--wg":
+        # The path to the Windows GUI builder was passed in.
+        if len(sys.argv) == 7:
+          # The path was not given with the "--wg" option.
+          usage()
+          return
+        elif len(sys.argv) > 8:
+          # The version number was also given.
+          version = sys.argv[8]
+
+        WINDOWS_GUI_BUILDER_PATH = sys.argv[7]
+
+
+      else:
+        # The version must have been given before the path to the Windows GUI
+        # builder if the path was given at all.
+        version = sys.argv[6]
+        if sys.argv[7] != "--wg":
+          # An extraneous option must have been given.
+          usage()
+          return
+        else:
+          WINDOWS_GUI_BUILDER_PATH = sys.argv[8]
+
+  if WINDOWS_GUI_BUILDER_PATH:
+    # Confirm that the path exists.
+    if not os.path.lexists(WINDOWS_GUI_BUILDER_PATH):
+      print "Invalid path to the Windows GUI builder: ",
+      print WINDOWS_GUI_BUILDER_PATH
+      print "Failed to build installers."
+      return
+    else:
+      # Get full file path.
+      WINDOWS_GUI_BUILDER_PATH = os.path.realpath(WINDOWS_GUI_BUILDER_PATH)
+
+
 
 
 
@@ -602,6 +710,13 @@ def main():
     package_win_or_winmob(trunk_location, temp_install_dir, temp_tarball_dir,
                           inst_name, gen_files)
     created_installers.append(inst_name)
+
+    # See if we need to create the Windows GUI installer
+    if WINDOWS_GUI_BUILDER_PATH:
+      inst_name_gui = get_inst_name("win_gui", version)
+      package_win_gui(trunk_location, temp_tarball_dir, inst_name,
+                      inst_name_gui)
+      created_installers.append(inst_name_gui)
 
 
   # Package the Linux installer.

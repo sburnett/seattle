@@ -2000,6 +2000,7 @@ def main():
   if OS not in SUPPORTED_OSES:
     raise UnsupportedOSError("This operating system is not supported.")
 
+
   # Begin pre-installation process.
 
   # Pre-install: parse the passed-in arguments.
@@ -2056,6 +2057,7 @@ def main():
   
   # First, customize any scripts since they may be copied to new locations when
   # configuring seattle to run automatically at boot.
+
 
   # If running on a Windows system, customize the batch files.
   if OS == "Windows" or OS == "WindowsCE":
