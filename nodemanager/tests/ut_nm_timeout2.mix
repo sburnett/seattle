@@ -33,8 +33,8 @@ if callfunc == 'initialize':
   data = "hellodata!"*1000
   try: 
     nmclient_signedsay(nmhandle, "AddFileToVessel", myvessel, "hello",data)
-  except NMClientException:
-    print "Timed out!"
+  except NMClientException, e:
+    print "Unexpected exception",e
     exitall()
   else:
     # we should not have timed out...

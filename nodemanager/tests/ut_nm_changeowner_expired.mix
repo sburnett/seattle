@@ -75,7 +75,6 @@ if callfunc == 'initialize':
       advert_change=True
   except NMClientException:
     test_pass = True
-    pass
   
   if advert_change:
     #change advertise back

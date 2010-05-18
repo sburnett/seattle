@@ -34,7 +34,7 @@ if callfunc == 'initialize':
   try:
     nmclient_signedsay(nmhandle, "ChangeOwnerInformation", myvessel, "\n\/\\\"")
   except NMClientException:
-      pass
+    pass
   else:
     nmclient_signedsay(nmhandle, "ChangeOwnerInformation", myvessel, origstate)
     # update our information...

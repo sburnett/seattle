@@ -43,9 +43,8 @@ if callfunc == 'initialize':
     #retrieve it
     try:
       retrieveddata = nmclient_signedsay(nmhandle, "RetrieveFileFromVessel", myvessel, "")
-    except NMClientException:
-      print "unable to read file from vessel"
-      pass
+    except NMClientException, e:
+      print "unable to read file from vessel (?)",e
     else:
       if data != retrieveddata:
         print "'"+data+"' != '"+retrieveddata+"'"

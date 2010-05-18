@@ -31,8 +31,8 @@ if callfunc == 'initialize':
   # okay, now let's reset!
   try:
     nmclient_signedsay(nmhandle, "ResetVessel", myvessel)
-  except NMClientException:
-    print "warning: vessel reset failed"
+  except NMClientException, e:
+    print "warning: vessel reset failed", e
 
 
   nmclient_signedsay(nmhandle, "AddFileToVessel", myvessel, "hello","hellodata")
