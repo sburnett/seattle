@@ -128,7 +128,7 @@ class advertthread(threading.Thread):
           except AdvertiseError, e:
             servicelogger.log('AdvertiseError occured, continuing: '+str(e))
           except Exception, e:
-            servicelogger.log_last_exception(e)
+            servicelogger.log_last_exception()
             # an unexpected exception occured, exit and restart
             return
            
