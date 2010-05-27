@@ -63,13 +63,13 @@ import experimentlib as explib
 
 # Increase the timeout used by the experiment library, so uploads of program
 # file won't time out
-explib.defaulttimeout = 60
+explib.defaulttimeout = 90
 
-# How often vessel status should be polled, in seconds
-VESSEL_POLLING_TIME = 30
+# How often vessel status should be polled, in seconds (currently 30 min)
+VESSEL_POLLING_TIME = 1800
 
 # Log a liveness message after this many iterations of the main loop
-LOG_AFTER_THIS_MANY_LOOPS = 3
+LOG_AFTER_THIS_MANY_LOOPS = 4
 
 # Dictionary of configuration info
 config = {
@@ -81,7 +81,6 @@ config = {
   'vesseltype': '',
   'program_filename': ''
   }
-
 
 
   
@@ -395,7 +394,7 @@ def run(*args):
     None
 
   <Side Effects>
-    Persistently writes out to a log file.
+    Persistently writes to a log file.
     
   <Returns>
     None
