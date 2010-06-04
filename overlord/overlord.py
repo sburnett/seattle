@@ -463,7 +463,12 @@ def run(*args):
 
   # Main loop
   while True:
-    vesselhandle_list = explib.seattlegeni_get_acquired_vessels(config['identity'])
+    # Acquire vessels 3 times and use the largest batch
+    vesselhandle_list = []
+    for i in range(0,3):
+      temp_vh_list = explib.seattlegeni_get_acquired_vessels(config['identity'])
+      if len(temp_vh_list) > len(vesselhandle_list):
+        vesselhandle_list = temp_vh_list
     
     # Check for vessels not in started state
     stopped_vessel_list = []
