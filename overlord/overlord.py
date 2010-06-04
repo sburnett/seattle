@@ -65,11 +65,11 @@ import experimentlib as explib
 # file won't time out
 explib.defaulttimeout = 90
 
-# How often vessel status should be polled, in seconds (currently 30 min)
-VESSEL_POLLING_TIME = 1800
+# How often vessel status should be polled, in seconds
+VESSEL_POLLING_TIME = 7200
 
 # Log a liveness message after this many iterations of the main loop
-LOG_AFTER_THIS_MANY_LOOPS = 4
+LOG_AFTER_THIS_MANY_LOOPS = 12
 
 # Dictionary of configuration info
 config = {
@@ -466,59 +466,19 @@ def run(*args):
     vesselhandle_list = explib.seattlegeni_get_acquired_vessels(config['identity'])
     
     # Check for vessels not in started state
-    stopped_vessel_list = [vh for vh in vesselhandle_list if (explib.get_vessel_status(vh, config['identity']) != explib.VESSEL_STATUS_STARTED)]
+    stopped_vessel_list = []
+    for vh in vesselhandle_list:
+      if explib.get_vessel_status(vh, config['identity']) != explib.VESSEL_STATUS_STARTED:
+        stopped_vessel_list.append(vh)
 
-    # Attempt to restart any stopped vessels. If unable to do so, abandon them.
+    # Release any stopped vessels
     if stopped_vessel_list:
-      config['logfile'].write(str(time.time()) + ': Failure detected on ' + str(len(stopped_vessel_list)) + ' vessel(s)\n')
-      config['logfile'].flush()
+      # Release any stopped vessels
+      release_vessels(stopped_vessel_list, 'Releasing stopped vessel(s)...')
 
-      # Check for errors and log them
-      for vesselhandle in stopped_vessel_list:
-        # Get details about failed vessel
-        try:
-          vessel_log = explib.get_vessel_log(vesselhandle, config['identity'])
-        except:
-          vessel_log = '[ERROR: vessel log fetch failed]'
-        nodeid, vesselname = explib.get_nodeid_and_vesselname(vesselhandle)
-        nodelocation = explib.get_node_location(nodeid)
+      # Remove releaseed vessels from vesselhandle_list
+      vesselhandle_list = list_difference(vesselhandle_list, stopped_vessel_list)
 
-        # Log the vessel's log contents
-        config['logfile'].write('Log contents of failed vessel at ' + nodelocation + ': ' + vessel_log + '\n')
-        config['logfile'].flush()
-
-      # Attempt to restart failed vessels
-      config['logfile'].write(str(time.time()) + ': Attempting to restart failed vessel(s)\n')
-      config['logfile'].flush()
-      success_list, failed_list = run_on_vessels(stopped_vessel_list,
-                                                 config['program_filename'],
-                                                 *args)
-      
-      # If restarting failed on any vessels, release them.
-      if failed_list:
-        config['logfile'].write(str(time.time()) + ': Running ' + config['program_filename'] + ' failed on ' + str(len(failed_list)) + ' vessels\n')
-
-        # Get details about failed vessel(s) and log them
-        for vh in failed_list:
-          try:
-            vessel_log = explib.get_vessel_log(vh, config['identity'])
-          except:
-            vessel_log = '[ERROR: vessel log fetch failed]'
-            
-          nodeid, vesselname = explib.get_nodeid_and_vesselname(vh)
-          nodelocation = explib.get_node_location(nodeid)
-      
-          # Log the vessel's log contents
-          config['logfile'].write('Log contents of failed vessel at ' + nodelocation + ': ' + vessel_log + '\n')
-          config['logfile'].flush()
-      
-        # Release the failed vessels
-        release_vessels(failed_list, 'Releasing failed vessel(s)...')
-
-        # Remove released vessels from vesselhandle_list
-        vesselhandle_list = list_difference(vesselhandle_list, failed_list)
-
-        
     # Ensure that enough vessels are running
     if len(vesselhandle_list) < config['vesselcount']:
       # If there aren't enough active vessels, acquire some
