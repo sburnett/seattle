@@ -66,10 +66,13 @@ import experimentlib as explib
 explib.defaulttimeout = 90
 
 # How often vessel status should be polled, in seconds
-VESSEL_POLLING_TIME = 7200
+VESSEL_POLLING_TIME = 900
 
 # Log a liveness message after this many iterations of the main loop
-LOG_AFTER_THIS_MANY_LOOPS = 12
+LOG_AFTER_THIS_MANY_LOOPS = 16
+
+# How often to renew vessels, in seconds
+VESSEL_RENEWAL_PERIOD = 518400
 
 # Dictionary of configuration info
 config = {
@@ -209,6 +212,9 @@ def acquire_vessels(number):
   finally:
     config['logfile'].flush()
 
+  # Renew vessels to maximum expiration time
+  explib.seattlegeni_renew_vessels(config['identity'], vesselhandle_list)
+  
   return vesselhandle_list
 
 
@@ -241,22 +247,27 @@ def upload_to_vessels(vesselhandle_list, filename):
   config['logfile'].write(str(time.time()) + ': Uploading ' + filename + ' to '+ str(len(vesselhandle_list)) + ' vessel(s)...\n')
   config['logfile'].flush()
 
+
   # Initially set return list equal to argument vesselhandle list
   success_list = vesselhandle_list
+  failed_list = []
   # For each vesselhandle, attempt an upload
   for vh in vesselhandle_list:
     try:
       explib.upload_file_to_vessel(vh, config['identity'], filename)
     except explib.NodeCommunicationError, e:
-      # If upload failed, remove from list and log the error
+      # If upload failed, remove from vesselhandle_list...
       success_list.remove(vh)
-      # Lookup the nodelocation so it can be logged
+      # ...add to failed_list...
+      failed_list.append(vh)
+      # ...and lookup the nodelocation so it can be logged
       nodeid, vesselname = explib.get_nodeid_and_vesselname(vh)
       nodelocation = explib.get_node_location(nodeid)
       config['logfile'].write('Failure on vessel ' + nodelocation + '\n')
       config['logfile'].write('Error was: ' + str(e) + '\n')
       config['logfile'].flush()
       
+  release_vessels(failed_list, 'Releasing ' + str(len(failed_list)) + ' vessels to which upload failed...')
   return success_list
 
 
@@ -429,7 +440,7 @@ def run(*args):
 
 
   # Run program on vessels
-  success_list, failed_list = run_on_vessels(vesselhandle_list,
+  vesselhandle_list, failed_list = run_on_vessels(vesselhandle_list,
                                              config['program_filename'],
                                              *args)
 
@@ -457,31 +468,23 @@ def run(*args):
 
 
 
-
-  # Initialize counter variable for liveness message triggering
-  loops_since_last_liveness_msg = 0
+  # Initialize counter variable for loop iterations
+  loop_iterations = 0
 
   # Main loop
   while True:
-    # Acquire vessels 3 times and use the largest batch
-    vesselhandle_list = []
-    for i in range(0,3):
-      temp_vh_list = explib.seattlegeni_get_acquired_vessels(config['identity'])
-      if len(temp_vh_list) > len(vesselhandle_list):
-        vesselhandle_list = temp_vh_list
-    
     # Check for vessels not in started state
     stopped_vessel_list = []
     for vh in vesselhandle_list:
       if explib.get_vessel_status(vh, config['identity']) != explib.VESSEL_STATUS_STARTED:
         stopped_vessel_list.append(vh)
 
-    # Release any stopped vessels
+    # Release and replace any stopped vessels
     if stopped_vessel_list:
       # Release any stopped vessels
-      release_vessels(stopped_vessel_list, 'Releasing stopped vessel(s)...')
+      release_vessels(stopped_vessel_list, 'Releasing ' + str(len(stopped_vessel_list)) + ' stopped vessel(s)...')
 
-      # Remove releaseed vessels from vesselhandle_list
+      # Remove released vessels from vesselhandle_list
       vesselhandle_list = list_difference(vesselhandle_list, stopped_vessel_list)
 
     # Ensure that enough vessels are running
@@ -497,8 +500,7 @@ def run(*args):
                                                  config['program_filename'],
                                                  *args)
 
-      # Release any failed vessels, since we'll acquire more on the next pass
-      # through the loop
+      # Release any failed vessels
       if failed_list:
         config['logfile'].write(str(time.time()) + ': Running ' + config['program_filename'] + ' failed on ' + str(len(failed_list)) + ' vessels\n')
 
@@ -530,8 +532,12 @@ def run(*args):
     time.sleep(VESSEL_POLLING_TIME)
     
     # Log a liveness message every certain number of iterations
-    loops_since_last_liveness_msg += 1
-    if loops_since_last_liveness_msg % LOG_AFTER_THIS_MANY_LOOPS == 0:
+    loop_iterations += 1
+    if loop_iterations % LOG_AFTER_THIS_MANY_LOOPS == 0:
       config['logfile'].write(str(time.time()) + ': Still alive...\n')
       config['logfile'].flush()
-      loops_since_last_liveness_msg = 0
+
+    # Renew vessels according to constant period
+    if loop_iterations * VESSEL_POLLING_TIME > VESSEL_RENEWAL_PERIOD:
+      explib.seattlegeni_renew_vessels(config['identity'], vesselhandle_list)
+      loop_iterations = 0
