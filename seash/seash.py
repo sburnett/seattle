@@ -82,7 +82,7 @@ import sys
 # Define prefix as the string from the user input before the user hits TAB.
 #
 # TODO: If the directory or file names contain spaces, tab completion does not
-# work. 
+# work. Also works for only Unix-like systems where slash is "/".
 #
 # Loosely based on http://effbot.org/librarybook/readline.htm
 # Mostly written by Danny Y. Huang
@@ -105,8 +105,8 @@ class TabCompleter:
     
 
   # Returns the path from a given prefix, by extracting the string up to the
-  # forward slash in the prefix. If no forward slash is found, returns an empty
-  # string.
+  # last forward slash in the prefix. If no forward slash is found, returns an
+  # empty string.
   def _getpath(self, prefix):
 
     slashpos = prefix.rfind("/")
@@ -119,18 +119,29 @@ class TabCompleter:
 
 
   # Returns the file name, or a part of the file name, from a given prefix, by
-  # extracting the string after the forward slash in the prefix. If no forward
-  # slash is found, returns an empty string.
+  # extracting the string after the last forward slash in the prefix. If no
+  # forward slash is found, returns an empty string.
   def _getfilename(self, prefix):
 
+    # Find the last occurrence of the slash (if any), as it separates the path
+    # and the file name.
     slashpos = prefix.rfind("/")
-    fn = ""
-    if slashpos > -1 and slashpos+1 <= len(prefix)-1:
-      fn = prefix[slashpos+1:]
-    elif slashpos == -1:
-      fn = prefix
+    filename = ""
 
-    return fn
+    # If slash exists and there are characters after the last slash, then the
+    # file name is whatever that follows the last slash.
+    if slashpos > -1 and slashpos+1 <= len(prefix)-1:
+      filename = prefix[slashpos+1:]
+
+    # If no slash is found, then we assume that the entire user input is the
+    # prefix of a file name because it does not contain a directory
+    elif slashpos == -1:
+      filename = prefix
+
+    # If both cases fail, then the entire user input is the name of a
+    # directory. Thus, we return the file name as an empty string.
+
+    return filename
 
 
 
