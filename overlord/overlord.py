@@ -69,7 +69,7 @@ explib.defaulttimeout = 90
 VESSEL_POLLING_TIME = 900
 
 # Log a liveness message after this many iterations of the main loop
-LOG_AFTER_THIS_MANY_LOOPS = 16
+LOG_AFTER_THIS_MANY_LOOPS = 96
 
 # How often to renew vessels, in seconds
 VESSEL_RENEWAL_PERIOD = 518400
@@ -87,7 +87,7 @@ config = {
 
 
   
-def init(geni_username, vesselcount, vesseltype, program_filename, *args):
+def init(geni_username, vesselcount, vesseltype, program_filename):
   """
   <Purpose>
     Initializes the deployment of an arbitrary service. Populates a global
@@ -114,9 +114,6 @@ def init(geni_username, vesselcount, vesseltype, program_filename, *args):
       constants within experimentlib.py
     program_filename
       The filename of the program to deploy and monitor on vessels.
-    *args
-      [Optional] Any additional arguments will be passed to the program
-      deployed on vessels.
 
   <Exceptions>
     ValueError
@@ -476,7 +473,14 @@ def run(*args):
     # Check for vessels not in started state
     stopped_vessel_list = []
     for vh in vesselhandle_list:
-      if explib.get_vessel_status(vh, config['identity']) != explib.VESSEL_STATUS_STARTED:
+      try:
+        vessel_status = explib.get_vessel_status(vh, config['identity'])
+      except:
+        # Node lookup failed, so remove vessel from vesselhandle_list
+        # TODO: proper way to handle failed advertisements?
+        vesselhandle_list.append(vh)
+
+      if vessel_status != explib.VESSEL_STATUS_STARTED:
         stopped_vessel_list.append(vh)
 
     # Release and replace any stopped vessels
