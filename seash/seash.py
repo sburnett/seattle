@@ -37,11 +37,16 @@ warnings.simplefilter("ignore")
 ### Integration fix here...
 from repyportability import *
 
+
+tabcompletion = True
 try:
-  # Add smarter history / command substitution if possible
+  # Required for the tab completer. It works on Linux and Mac. It does not work
+  # on Windows. See http://docs.python.org/library/readline.html for details. 
   import readline
 except ImportError:
-  pass
+  print "Auto tab completion is off, because it is not available on your operating system."
+  tabcompletion = False
+  
 
 import repyhelper
 
@@ -61,11 +66,124 @@ repyhelper.translate_and_import("advertise.repy")   #  used to do OpenDHT lookup
 
 repyhelper.translate_and_import("geoip_client.repy") # used for `show location`
 
+repyhelper.translate_and_import("serialize.repy") # used for loadstate and savestate
+
 import traceback
 
 import os.path    # fix path names when doing upload, loadkeys, etc.
 
 import sys
+
+#
+# Provides tab completion of file names for the CLI, especially when running
+# experiments. Able to automatically list file names upon pressing tab, offering
+# functionalities similar to thoese of the Unix bash shell. 
+#
+# Define prefix as the string from the user input before the user hits TAB.
+#
+# TODO: If the directory or file names contain spaces, tab completion does not
+# work. 
+#
+# Loosely based on http://effbot.org/librarybook/readline.htm
+# Mostly written by Danny Y. Huang
+#
+class TabCompleter:
+
+
+
+  # Constructor that initializes all the private variables
+  def __init__(self):
+
+    # list of files that match the directory of the given prefix
+    self._words = []
+
+    # list of files that match the given prefix
+    self._matching_words = []
+
+    self._prefix = None
+
+    
+
+  # Returns the path from a given prefix, by extracting the string up to the
+  # forward slash in the prefix. If no forward slash is found, returns an empty
+  # string.
+  def _getpath(self, prefix):
+
+    slashpos = prefix.rfind("/")
+    currentpath = ""
+    if slashpos > -1:
+      currentpath = prefix[0 : slashpos+1]
+
+    return currentpath
+
+
+
+  # Returns the file name, or a part of the file name, from a given prefix, by
+  # extracting the string after the forward slash in the prefix. If no forward
+  # slash is found, returns an empty string.
+  def _getfilename(self, prefix):
+
+    slashpos = prefix.rfind("/")
+    fn = ""
+    if slashpos > -1 and slashpos+1 <= len(prefix)-1:
+      fn = prefix[slashpos+1:]
+    elif slashpos == -1:
+      fn = prefix
+
+    return fn
+
+
+
+  # Returns a list of file names that start with the given prefix.
+  def _listfiles(self, prefix):
+
+    # Find the directory specified by the prefix
+    currentpath = self._getpath(prefix)
+    if not currentpath:
+      currentpath = "./"
+    filelist = []
+
+    # Attempt to list files from the directory
+    try:
+      currentpath = os.path.expanduser(currentpath)
+      filelist = os.listdir(currentpath)
+
+    except:
+      # We are silently dropping all exceptions because the directory specified
+      # by the prefix may be incorrect. In this case, we're returning an empty
+      # list, similar to what you would get when you TAB a wrong name in the
+      # Unix shell.
+      pass
+
+    finally:
+      return filelist
+
+
+
+  # The completer function required as a callback by the readline module. See
+  # also http://docs.python.org/library/readline.html#readline.set_completer
+  def complete(self, prefix, index):
+
+    # If the user updates the prefix, then we list files that start with the
+    # prefix.
+    if prefix != self._prefix:
+
+      self._words = self._listfiles(prefix)
+      fn = self._getfilename(prefix)
+
+      # Find the files that match the prefix
+      self._matching_words = []
+      for word in self._words:
+        if word.startswith(fn):
+          self._matching_words.append(word)
+
+      self._prefix = prefix
+
+    try:
+      return self._getpath(prefix) + self._matching_words[index]
+
+    except IndexError:
+      return None
 
 
 
@@ -86,6 +204,46 @@ class UserError(Exception):
 
 
 
+# Saves the current state to file. Helper method for the savestate
+# command. (Added by Danny Y. Huang)
+def savestate(statefn, handleinfo, host, port, expnum, filename, cmdargs, 
+              defaulttarget, defaultkeyname, autosave, currentkeyname):
+
+  # obtain the handle info dictionary
+  for longname in vesselinfo.keys():
+    vessel_handle = vesselinfo[longname]['handle']
+    handleinfo[longname] = nmclient_get_handle_info(vessel_handle)
+
+  state = {}
+  state['targets'] = targets
+  state['keys'] = keys
+  state['vesselinfo'] = vesselinfo
+  state['nextid'] = nextid
+  state['handleinfo'] = handleinfo
+  state['host'] = host
+  state['port'] = port
+  state['expnum'] = expnum
+  state['filename'] = filename
+  state['cmdargs'] = cmdargs
+  state['defaulttarget'] = defaulttarget
+  state['defaultkeyname'] = defaultkeyname
+  state['autosave'] = autosave
+  state['globalseashtimeout'] = globalseashtimeout
+
+  # serialize states and encrypt
+  if keys.has_key(defaultkeyname):
+    cypher = rsa_encrypt(serialize_serializedata(state), keys[currentkeyname]['publickey'])
+  else:
+    raise Exception("The keyname '" + defaultkeyname + "' is not loaded.")
+
+  # writing encrypted serialized states to file
+  try:
+    state_obj = open(statefn, 'w')
+    state_obj.write(cypher)
+  except:
+    raise Exception("Error writing to state file '" + statefn + "'.")
+  finally:
+    state_obj.close()
 
 
 
@@ -575,6 +733,51 @@ def check_key_pair_compatibility(name):
     return match
 
 
+# Reload the handles of a node. Used when "loadstate" is invoked. Returns a
+# tuple (success, e), where success is a boolean and e is a string of error
+# messages. Added by Danny Y. Huang.
+def reload_target(longname, handleinfo):
+  host, portstring, vesselname = longname.split(':')
+  port = int(portstring)
+
+  try:
+    priKey = handleinfo[longname]['privatekey']
+    pubKey = handleinfo[longname]['publickey']
+  except KeyError:
+    error = ("Vessel is absent in the handleinfo dictionary.")
+    return (False, error)
+
+  # find the user who has these keys
+  thiskeyname = ""
+  for keyname in keys.keys():
+    if (keys[keyname]['publickey'] == pubKey and
+        keys[keyname]['privatekey'] == priKey):
+      thiskeyname = keyname
+      break
+  if not thiskeyname:
+    return (False, "User with keyname '" + keyname + "' is not found.")
+
+  # create new handle for the vessel
+  try:
+    vessel_handle = nmclient_createhandle(host, port, privatekey = priKey, publickey = pubKey, timeout=globalseashtimeout)
+  except NMClientException, error:
+    return (False, str(error))
+
+  try:
+    nmclient_set_handle_info(vessel_handle, handleinfo[longname])
+    vesselinfo[longname]['handle'] = vessel_handle
+
+    # hello test to see if the vessel is available
+    (ownervessels, uservessels) = nmclient_listaccessiblevessels(vessel_handle, pubKey)
+    if not (ownervessels + uservessels):
+      return (False, "Vessel is not available for keyname " + keyname + ".")
+
+  except Exception, error:
+    # Catching unexpected exceptions
+    return (False, "General exception: " + str(error) + ".")
+
+  return (True, "")
+
 #################### main loop and variables.
   
 # a dict that contains all of the targets (vessels and groups) we know about.
@@ -608,6 +811,10 @@ def command_loop():
   # we will set this if they call set timeout
   global globalseashtimeout
 
+  global targets
+  global vesselinfo
+  global nextid
+  global keys
 
   # things that may be set herein and used in later commands
   host = None
@@ -617,6 +824,18 @@ def command_loop():
   cmdargs = None
   defaulttarget = None
   defaultkeyname = None
+  handleinfo = {}
+
+  # whether to save the last state after every command
+  autosave = False
+
+
+  # Set up the tab completion environment (Added by Danny Y. Huang)
+  if tabcompletion:
+    completer = TabCompleter()
+    readline.parse_and_bind("tab: complete")
+    readline.set_completer_delims(" ")
+    readline.set_completer(completer.complete)
 
 
   # exit via a return
@@ -625,6 +844,18 @@ def command_loop():
     try:
       
       
+      # Saving state after each command? (Added by Danny Y. Huang)
+      if autosave and defaultkeyname:
+        try:
+          # State is saved in file "autosave_username", so that user knows which
+          # RSA private key to use to reload the state.
+          autosavefn = "autosave_" + str(defaultkeyname)
+          savestate(autosavefn, handleinfo, host, port, expnum, filename, 
+                    cmdargs, defaulttarget, defaultkeyname, autosave, defaultkeyname)
+        except Exception, error:
+          raise UserError("There is an error in autosave: '" + str(error) + "'. You can turn off autosave using the command 'set autosave off'.")
+
+
       prompt = ''
       if defaultkeyname:
         prompt = fit_string(defaultkeyname,20)+"@"
@@ -712,6 +943,11 @@ split resourcefn            -- Split another vessel off of each vessel
 join                        -- Join vessels on the same node
 help [help | set | show ]    -- help information 
 exit                         -- exits the shell
+loadstate fn -- Load saved states from a local file. One must call 'loadkeys 
+                 username' and 'as username' first before loading the states,
+                 so seash knows whose RSA keys to use in deciphering the state
+                 file.
+savestate fn -- Save the current state information to a local file.
 """
 #!resourcedata                -- List resource information about the vessel
 
@@ -723,6 +959,10 @@ set ownerinfo [ data ... ]    -- Change owner information for the vessels
 set advertise [ on | off ] -- Change advertisement of vessels
 set owner identity        -- Change a vessel's owner
 set timeout count  -- Sets the time that seash is willing to wait on a node
+set autosave [ on | off ] -- Sets whether to save the state after every command.
+                             Set to 'off' by default. The state is saved to a
+                             file called 'autosave_keyname', where keyname is 
+                             the name of the current key you're using.
 """
 
 
@@ -1822,6 +2062,96 @@ update             -- Update information about the vessels
   
 
 
+# savestate localfile -- Save current states to file (Added by Danny Y. Huang)
+      elif userinputlist[0] == 'savestate':
+        if len(userinputlist) == 2:
+          # expand ~
+          fileandpath = os.path.expanduser(userinputlist[1]) 
+        else:
+          raise UserError("Usage: savestate localfile")
+
+        try:
+          savestate(fileandpath, handleinfo, host, port, expnum, filename, 
+                    cmdargs, defaulttarget, defaultkeyname, autosave, currentkeyname)
+        except Exception, error:
+          raise UserError("Error saving state: '" + str(error) + "'.")
+
+        continue
+
+
+
+
+# loadstate localfile -- Load states from file (Added by Danny Y. Huang)
+      elif userinputlist[0] == 'loadstate':
+        if len(userinputlist) == 2:
+          # expand ~
+          fileandpath = os.path.expanduser(userinputlist[1]) 
+        else:
+          raise UserError("Usage: loadstate localfile")
+
+        if not currentkeyname:
+          raise UserError("Specify the key name by first typing 'as [username]'.")
+        
+        # reading encrypted serialized states from file
+        state_obj = open(fileandpath, 'r')
+        cypher = state_obj.read()
+        state_obj.close()
+
+        try:
+          # decrypt states
+          statestr = rsa_decrypt(cypher, keys[currentkeyname]['privatekey'])
+
+          # deserialize
+          state = serialize_deserializedata(statestr)
+        except Exception, error:
+          error_msg = "Unable to correctly parse state file. Your private "
+          error_msg += "key may be incorrect."
+          raise UserError(error_msg)
+
+        # restore variables
+        targets = state['targets']
+        keys = state['keys']
+        vesselinfo = state['vesselinfo']
+        handleinfo = state['handleinfo']
+        nextid = state['nextid']
+        host = state['host']
+        port = state['port']
+        expnum = state['expnum']
+        filename = state['filename']
+        cmdargs = state['cmdargs'] 
+        defaulttarget = state['defaulttarget']
+        defaultkeyname = state['defaultkeyname']
+        autosave = state['autosave']
+        globalseashtimeout = state['globalseashtimeout']
+        
+        # Reload node handles. Rogue nodes are deleted from the original targets
+        # and vesselinfo dictionaries.
+        retdict = contact_targets(targets['%all'], reload_target, handleinfo)
+        
+        reloadgood = []
+        reloadfail = []
+
+        for longname in retdict:
+          if not retdict[longname][0]:
+            print "Failure '" + retdict[longname][1] + "' on " + longname + "."
+            reloadfail.append(longname)
+          else:
+            reloadgood.append(longname)
+
+        # update the groups
+        if reloadfail and reloadgood:
+          targets['reloadgood'] = reloadgood
+          targets['reloadfail'] = reloadfail
+          print("Added group 'reloadgood' with " +str(len(targets['reloadgood'])) + \
+                  " targets and 'reloadfail' with " + str(len(targets['reloadfail'])) + " targets")
+
+        if autosave:
+          print "Autosave is on."
+
+        continue
+
+
+
 
 
 # upload localfn (remotefn)   -- Upload a file 
@@ -2237,6 +2567,22 @@ update             -- Update information about the vessels
     
           continue
   
+
+
+# set autosave [ on | off ] -- Set whether SeaSH automatically saves the last state.
+        elif userinputlist[1] == 'autosave':
+          if len(userinputlist) == 3:
+            if userinputlist[2] == 'on':
+              autosave = True
+            elif userinputlist[2] == 'off':
+              autosave = False
+            else:
+              raise UserError("Usage: set autosave [ on | off (default)]")
+          else:
+            raise UserError("Usage: set autosave [ on | off (default)]")
+          
+          continue
+
 
 
 # set advertise [ on | off ] -- Change advertisement of vessels
