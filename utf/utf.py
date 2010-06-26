@@ -349,6 +349,8 @@ def testing_monitor(file_path):
 
   (module, descriptor) = parse_file_name(head)
   print "\tRunning: %-50s" % head,
+  # flush output in case the test hangs...
+  sys.stdout.flush()
 
   # Parse all pragma directives for that file.
   try: 
