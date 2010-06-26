@@ -29,7 +29,7 @@ def time_server_announce(ipPortstring):
   announced = False
   while announced != True:
     try:
-      announced = advertise_announce("time_server",ipPortstring,300)
+      announced = advertise_announce("time_server",ipPortstring,150)
     except Exception,e:
       print e, " trying again to announce presence to the central server"
       sleep(60)            # Announce failed, retry in 60 seconds
