@@ -32,13 +32,13 @@ def time_server_announce(ipPortstring):
       announced = advertise_announce("time_server",ipPortstring,150)
     except Exception,e:
       print e, " trying again to announce presence to the central server"
-      sleep(60)            # Announce failed, retry in 60 seconds
+      sleep(5)            # Announce failed, retry in 5 seconds
     else:
       announced = True     # Announce succeeded, exit while loop
 
 
-  # Re-announce to central server sometime after 240 seconds has passed
-  timerhandle = settimer(240,time_server_announce,(ipPortstring,))
+  # Re-announce to central server sometime after 60 seconds has passed
+  timerhandle = settimer(60,time_server_announce,(ipPortstring,))
 
 
 
