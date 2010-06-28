@@ -40,6 +40,13 @@ from repyportability import *
 
 tabcompletion = True
 try:
+
+  # Even we can import the readline module successfully, we still disable tab
+  # completion in Windows, in response to Ticket #891.
+  import os
+  if os.name == 'nt':
+    raise ImportError
+
   # Required for the tab completer. It works on Linux and Mac. It does not work
   # on Windows. See http://docs.python.org/library/readline.html for details. 
   import readline
