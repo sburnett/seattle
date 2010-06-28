@@ -1,0 +1,189 @@
+
+# Base class for all shims that simply calls the next shim in the stack.
+class BaseShim:
+
+
+  # this allows shims to implement only that portion of the network
+  # API that they want to interpose on.
+
+  name = 'BaseShim'
+
+  do_not_advertise = False
+
+
+
+  # ===========================================================================
+  # Public methods that directly interface with the application. 
+  #
+  # Do not modify any of these methods.
+  # ===========================================================================
+
+  def openconn(self, host, port, localhost=None, localport=None, timeout=5):
+    socket = self._shim_openconn(host, port, localhost, localport, timeout)
+    newsocket = ShimSocketWrapper(socket, self)
+    return newsocket
+
+  # Helper method for waitforconn
+  def _waitforconn_shim_callback_wrapper(self, remoteip, remoteport, socket, thiscommhandle, listencommhandle):
+    newsocket = ShimSocketWrapper(socket, self)
+    self._waitforconn_shim_callback(remoteip, remoteport, newsocket, thiscommhandle, listencommhandle)
+
+
+  def waitforconn(self, host, port, callback):
+    self._waitforconn_shim_callback = callback
+    return self._shim_waitforconn(host, port, self._waitforconn_shim_callback_wrapper)
+
+
+
+  def recvmess(self, host, port, callback):
+    return self._shim_recvmess(host, port, callback)
+
+
+  def sendmess(self, host, port, msg, localhost=None, localport=None):
+    return self._shim_sendmess(host, port, msg, localhost, localport)
+
+
+  def stopcomm(self, handle):
+    return self._shim_stopcomm(handle)
+
+
+  def socket_close(self, socket):
+    return self._shim_socket_close(socket)
+
+
+  def socket_send(self, socket, msg):
+    return self._shim_socket_send(socket, msg)
+
+
+
+  def socket_recv(self, socket, bytes): 
+    return self._shim_socket_recv(socket, bytes)
+  
+
+
+
+  # ===========================================================================
+  # Protected methods that the shim creator may want to override.
+  #
+  # Note that there are no protected attributes in Python. All attributes are
+  # either public or private. The protected methods below (except the
+  # constructor) are still public to the application that uses the shim.
+  # ===========================================================================
+
+  # Always call the BaseShim's constructor somewhere in the constructor of your
+  # subclass
+  def __init__(self, next_shim=None, optional_args=None):
+    self.shim_stack = ShimStack(next_shim)
+    self._optional_args = optional_args
+
+    # If "NO_NOT_ADVERTISE" is a part of the shim's optional arguments, then we
+    # won't include this shim when advertising the shim stack.
+    if optional_args:
+      self.do_not_advertise = "DO_NOT_ADVERTISE" in optional_args
+
+  def _shim_waitforconn(self, host, port, callback):
+    return self.shim_stack.waitforconn(host, port, callback)
+
+  def _shim_openconn(self, host, port, localhost=None, localport=None, timeout=5):
+    return self.shim_stack.openconn(host, port, localhost, localport, timeout)
+
+  def _shim_recvmess(self, host, port, callback):
+    return self.shim_stack.recvmess(host, port, callback)
+
+
+  def _shim_sendmess(self, host, port, msg, localhost=None, localport=None):
+    return self.shim_stack.sendmess(host, port, msg, localhost, localport)
+
+
+  def _shim_stopcomm(self, handle):
+    return self.shim_stack.stopcomm(handle)
+
+
+
+  def _shim_socket_close(self, socket):
+    return self.shim_stack.socket_close(socket)
+
+
+
+  def _shim_socket_send(self, socket, msg):
+    return self.shim_stack.socket_send(socket, msg)
+
+
+
+  def _shim_socket_recv(self, socket, bytes): 
+    return self.shim_stack.socket_recv(socket, bytes)
+  
+
+
+  
+
+  # ===========================================================================
+  # Methods that should not be overridden by the derived classes
+  # ===========================================================================
+
+  # Return only names that are compatible (i.e. required for balancing two
+  # shim stacks)
+  def get_shims(self, get_all_shims=False):
+    # convert the arguments to this shim as a list of strings
+    args = []
+    if self._optional_args:
+      for arg in self._optional_args:
+        args.append(str(arg))
+
+    myname = ""
+
+    # If this shim needs to be advertised, then myname is the name of this
+    # string followed by a list of the optional arguments, separated by commas.
+    if (not self.do_not_advertise) or get_all_shims:
+      myname = "(" + self.name 
+      
+      # append the shim arguments, if any
+      if args:
+        myname += ","
+        myname += ",".join(args)
+
+      myname += ")"
+
+    # recursive calls to subsequent shims
+    if self.shim_stack.top_shim is None:
+      return myname
+    else:
+      return myname + self.shim_stack.top_shim.get_shims()
+
+
+  # Preserved for backward compatibility
+  def get_names(self):
+    
+    # Each shim implements this method
+    # by adding its name, and optional arguments to 
+    # each item in the list provided by the shim below.
+    # Branches result in more items in the list.
+
+    # the strings in the list created are of the form required
+    # to be used with the Shim Stack constructor so calling
+    # new_stack = ShimStack(old_stack.get_names[index]) would create
+    # a compatiable stack
+
+    if self.shim_stack.top_shim is None:
+      name_list = ['']
+    else:
+      name_list = self.shim_stack.get_names()
+    
+    new_name_list = []
+    for name in name_list:
+      name = '('+self.name+')'+name
+      new_name_list.append(name)
+    return new_name_list
+
+
+
+
+# Provides backward compatibility
+class EmptyShim(BaseShim):
+
+  name = "EmptyShim"
+
+
+
+shimstack_reg_layer('BaseShim',{'class':BaseShim})
+shimstack_reg_layer('EmptyShim',{'class':EmptyShim})

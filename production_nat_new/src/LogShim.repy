@@ -1,0 +1,116 @@
+
+class LogShim(EmptyShim):
+  name = 'LogShim'
+
+  def __init__(self, next_shim=None, optional_args=None):
+    EmptyShim.__init__(self, next_shim, optional_args)
+
+    self._lock = getlock()
+
+    # A list that contains all the log entries. Each entry is a dictionary with
+    # the following fields: sourceip, sourceport, destip, destport, operation,
+    # and time. Fields that are not applicable are denoted by None. Log entries
+    # are added in the chronological order.
+    self._loglist = []
+
+    self._addlog('__init__')
+
+
+
+  # Private method that adds a valid entry to the loglist
+  def _addlog(self, operation, sourceip=None, sourceport=None, destip=None, destport=None):
+
+    logentry = {}
+    logentry['operation'] = operation
+    logentry['time'] = getruntime()
+    logentry['sourceip'] = sourceip
+    logentry['sourceport'] = sourceport
+    logentry['destip'] = destip
+    logentry['destport'] = destport
+
+    self._lock.acquire()
+    self._loglist.append(logentry)
+    # TODO remove debug prints
+    print (" "*50 + "%s, %s:%s, %s:%s" % (operation, sourceip, sourceport, destip, destport))
+    self._lock.release()
+
+
+
+  # Wrapper for the callback function in waitforconn()
+  def _log_waitforconn_callback(self, remoteip, remoteport, sock, th, lh):
+    self._addlog('waitforconn_callback', 
+                 sourceip=self._waitforconn_sourceip,
+                 sourceport=self._waitforconn_sourceport,
+                 destip=remoteip, destport=remoteport)
+
+    self._waitforconn_callback(remoteip, remoteport, sock, th, lh)
+
+
+
+  def _shim_waitforconn(self,host,port,callback):
+    self._waitforconn_callback = callback
+    self._addlog('waitforconn', sourceip=host, sourceport=port)
+
+    self._waitforconn_sourceip = host
+    self._waitforconn_sourceport = port
+
+    return self.shim_stack.waitforconn(host,port,self._log_waitforconn_callback)
+
+
+
+  def _shim_openconn(self,host,port,localhost=None,localport=None,timeout=5):
+    self._addlog('openconn', sourceip=localhost, sourceport=localport, destip=host, destport=port)
+    return self.shim_stack.openconn(host,port,localhost,localport,timeout)
+
+
+
+  # Wrapper for the callback function in recvmess()
+  def _log_recvmess_callback(self, remoteip, remoteport, msg, handle):
+    self._addlog('recvmess_callback', 
+                 sourceip = self._recvmess_sourceip,
+                 sourceport = self._recvmess_sourceport,
+                 destip=remoteip, destport=remoteport)
+
+    self._recvmess_callback(remoteip, remoteport, msg, handle)
+
+
+
+  def _shim_recvmess(self,host,port,callback):
+    self._recvmess_callback = callback
+    # This is not logged, because this method is usually placed within a loop.
+    #self._addlog('recvmess', sourceip=host, sourceport=port)
+
+    self._recvmess_sourceip = host
+    self._recvmess_sourceport = port
+
+    return self.shim_stack.recvmess(host, port, self._log_recvmess_callback)
+
+
+
+  def _shim_sendmess(self,host,port,msg,localhost=None,localport=None):
+    self._addlog('sendmess', sourceip=localhost, sourceport=localport, destip=host, destport=port)
+    return self.shim_stack.sendmess(host,port,msg,localhost,localport)
+
+
+
+  def _shim_stopcomm(self,handle):
+    self._addlog('stopcomm')
+    return self.shim_stack.stopcomm(handle)
+
+
+  def _shim_socket_send(self, socket, msg):
+    self._addlog('socket_send')
+    return self.shim_stack.socket_send(socket, msg)
+
+  def _shim_socket_recv(self, socket, bytes):
+    self._addlog('socket_recv')
+    return self.shim_stack.socket_recv(socket, bytes)
+
+  def _shim_socket_close(self, socket):
+    self._addlog('socket_close')
+    return self.shim_stack.socket_close(socket)
+
+
+
+shimstack_reg_layer('LogShim' ,{'class':LogShim})
+ 

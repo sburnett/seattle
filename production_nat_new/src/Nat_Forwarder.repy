@@ -32,6 +32,7 @@ include session.repy
 include NAT_CONSTANTS.repy
 include advertise.repy
 include LegacyForwarderLib.repy
+include ShimStack.repy
 
 
 
@@ -464,7 +465,9 @@ if callfunc == 'initialize':
   mycontext['myip'] = ip
   mycontext['myport']= str(wait_port)
 
-  waitforconn(ip,wait_port,common_entry)
+  print "NAT Forwarder started on " + ip + ":" + str(wait_port)
+  shim_stack = ShimStack('(CoordinationShim)(SimpleEncryptionShim,8)')
+  shim_stack.waitforconn(ip,wait_port,common_entry)
   
   
   # advertise the forwarder

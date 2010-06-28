@@ -1,0 +1,116 @@
+include local_lookup_methods.repy
+
+
+# TODO For TCP-based connections only. Coordinating for UDP won't be that hard
+# once this is done.
+class CoordinationShim(BaseShim):
+
+
+  name = 'CoordinationShim'
+  _advertise_wait_interval = 60
+
+
+  def __init__(self, next_shim=None, optional_args=None):
+    BaseShim.__init__(self, next_shim, optional_args)
+
+    # Never advertise the coordination shim
+    self.do_not_advertise = True
+
+
+  # ===========================================================================
+  # SERVER METHODS
+  # ===========================================================================
+
+
+  def _shim_waitforconn(self, hostkey, port, callback):
+    # Traverse through the stack and build the stack
+    handle = self.shim_stack.waitforconn(hostkey, port, callback)
+
+    # Now that the stack has been built, we can advrtise its shims.
+    advertise_key = str(hostkey) + "," + str(port) + ",TCP"
+    self._listener_active = True
+    settimer(0,self._listener_advertise_thread,[advertise_key])
+    return handle
+
+  # Helper method for _shim_waitforconn
+  def _listener_advertise_thread(self, advertise_key):
+    while self._listener_active:
+      external_advertise(advertise_key, self.shim_stack.get_shims())
+      sleep(self._advertise_wait_interval)
+
+
+
+
+
+
+
+
+
+
+  # ===========================================================================
+  # NON-SERVER METHODS
+  # ===========================================================================
+
+
+  def _shim_openconn(self, hostkey, port, localhost=None, localport=None, timeout=5):
+    # use a lookup service to coordinate the shim stack
+    lookup_results = external_lookup(str(hostkey)+','+str(port)+',TCP')
+    if len(lookup_results) < 1:
+      raise Exception("host could not be found by coordiantion layer")
+
+    # TODO something smarter with branches, for now iterate through until we get
+    # a connection
+
+    exception_list = ''
+    sock = None
+    shim_stack = None
+
+    # Get all shims in the current stack (below the coordintor), including those
+    # marked as do_not_advertise. We want to preserve the original shim stack,
+    # and adding new ones to the bottom.
+    existing_shim_stack = "" #self.get_shims(True)
+    print "\nzzzz Coordinator"
+    print "zzzz existing stack: " + self.get_shims(True)
+
+    for result in lookup_results:
+      
+      print "zzzz trying stack: " + result
+
+      # Append the new shims to the back of the existing stack
+      shim_stack = ShimStack(existing_shim_stack + result)
+
+      try:
+        sock = shim_stack.openconn(hostkey,port,localhost,localport,timeout)
+      except Exception,e:
+        exception_list +=' Exception: '+str(e)+' for stack '+result
+      else:
+        break
+
+    if sock is None:
+      # TODO raise correct type of exception
+      raise Exception(exception_list)
+    else:
+      # TODO stick my personal stack to the server stack? below we're completely
+      # erasing the client's original stack. and we're not using the coordinator
+      # the second time we call openconn on client. is this good?? also exchange
+      # stack with the server too?
+      self.shim_stack = shim_stack
+      print "zzzz final stack: %s \n\n" % shim_stack.get_shims(True)
+      return sock
+
+
+
+
+
+  def _shim_stopcomm(self, handle):
+    self._listener_active = False
+    return self.shim_stack.stopcomm(handle)
+
+
+
+    
+
+
+
+
+shimstack_reg_layer('CoordinationShim', {'class':CoordinationShim})

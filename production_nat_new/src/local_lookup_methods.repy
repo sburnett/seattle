@@ -1,0 +1,129 @@
+"""
+<Program Name>
+  lookup_methods.py
+
+<Started>
+  Jun 25, 2009
+
+<Author>
+  Eric Kimbrel
+
+<Purpose>
+   Provide an interface to the mock lookup serive in lookup_service.py
+
+   This lookup_service / interface is being used as a tool to design
+   and prototype a dynamic connection frame work and is NOT MEANT FOR
+   DISTRIBUTION OR PRODUCTION USE
+
+
+"""
+
+include session.repy
+
+# suffle returned results
+include random.repy 
+
+LOOKUP_IP = '127.0.0.8'
+#LOOKUP_IP = '128.208.1.139'
+LOOKUP_PORT = 19999
+
+
+LOCAL_CACHE = {}
+
+
+STR_SEP = '&'
+
+def external_lookup(key):
+# returns the value stored at a key
+# OR throws an exception if an error occurs  
+  # send request
+  sock = openconn(LOOKUP_IP,LOOKUP_PORT)
+  session_sendmessage(sock,key)
+  
+  # read response
+  response = session_recvmessage(sock)
+  sock.close()
+  response_list = response.split('$')
+  if response_list[0] == 'OKAY':
+    ret_list = []
+    for item in response_list[1].split(STR_SEP):
+      ret_list.append(item)
+    return random_sample(ret_list,len(ret_list))
+  else:
+    raise Exception, 'Error occured during lookup'
+
+  
+
+def external_advertise(key,value):
+# advertises a value at the specified key
+# OR an exception if an error occurs
+
+  sock = openconn(LOOKUP_IP,LOOKUP_PORT)
+  session_sendmessage(sock,key+'$'+str(value))
+
+  response = session_recvmessage(sock)
+  
+  if response != 'OKAY':
+    raise Exception, 'failed to advertise key: '+key
+
+
+
+def forwarder_advertise(key,port,prefix):
+# advertise the location of a forwarder (a hop) of a certain type
+  ad_value = key+','+str(port)
+  external_advertise(prefix,ad_value)
+
+def forwarder_lookup(prefix):
+# returns a list of tuples (key,port)
+  response_list = external_lookup(prefix)
+  tuple_list = []
+  for item in response_list:
+    try:
+      (k,p) = item.split(',')
+      p = int(p)
+    except:
+      raise Exception, 'malformed string returned to hop_lookup'
+    tuple_list.append((k,p))
+  return tuple_list
+
+
+def hop_advertise(key,port,layer,hop_key,hop_port,t_layers = ''):
+#advertise a hop
+# this means to reach key,port a client will connect to hop_key,hop_port
+# and use the layter protocol to establish a logical connection to you
+  ad_key = key+','+str(port)
+  ad_value = layer+','+hop_key+','+str(hop_port)+','+t_layers
+  external_advertise(ad_key,ad_value)
+
+
+def hop_lookup(key,port):
+# lookup a key and a port, expect to get a [(layer,key,port),..] back  
+  port = str(port)
+  if key+','+port in LOCAL_CACHE:
+    return LOCAL_CACHE[key+','+port]
+  else:
+    response_list = external_lookup(key+','+port)
+    tuple_list = []
+    for item in response_list:
+      try:
+        (l,k,p,t) = item.split(',')
+        p = int(p)
+      except:
+        raise Exception, 'malformed string returned to hop_lookup'
+      tuple_list.append((l,k,p,t))
+    LOCAL_CACHE[key+','+port] = tuple_list
+    return tuple_list
+
+
+def next_hop_lookup(key,port,layer):
+# used from within a layer to get the next key and port
+# returns a list of possible next keys
+  tuple_list = hop_lookup(key,port)
+  ret_list = []
+  for (nlayer,nkey,nport) in tuple_list:
+    if layer == nlayer: ret_list.append((nkey,nport))
+  return ret_list
+
+
+def clear_cache():
+  LOCAL_CACHE.clear()

@@ -1,5 +1,38 @@
+# Base class for all sockets that a shim wishes to modify. This provides a
+# wrapper for the socket obtained from the callback function of waitforconn, as
+# well as from the return value of openconn. The socket wrapper behaves like a
+# shim, because the socket that we pass into the constructor may not be a true
+# repy socket. It can potentially be another wrapper socket from the shim layer
+# below.
+class ShimSocket:
 
 
+  # We are passing the original socket to wrap around, along with the shim
+  # instance that uses our wrapper socket. This facilitates the exchange of
+  # information between the socket and the caller shim.
+  def __init__(self, socket, shim):
+    self._socket = socket
+    self._shim = shim
+
+
+  def close(self):
+    return self._socket.close()
+
+
+  # In your subclass of ShimSocket, always invoke self._socket.recv/send when
+  # you want to call the two methods. This calls the their counterparts in the
+  # shim layer below. Do not call ShimSocket.recv/send(self, ...) or else you
+  # would skip the shim layer below.
+  def recv(self, bytes):
+    return self._socket.recv(bytes)
+
+
+  def send(self, message):
+    return self._socket.send(message)
+
+
+
+# Base class for all shims
 class EmptyShim:
 
   # default class for all shims
@@ -10,24 +43,36 @@ class EmptyShim:
 
   name = 'EmptyShim'
 
+  # Determines if the same shim is needed for an application that connects to
+  # the current shim.
+  server_shim = False
 
-  def __init__(self,next_shim=None,optional_args=None):
+  def __init__(self, next_shim=None, optional_args=None):
     self.shim_stack = ShimStack(next_shim)
 
-  def waitforconn(self,host,port,callback):
-    return self.shim_stack.waitforconn(host,port,callback)
 
-  def recvmess(self,host,port,callback):
-    return self.shim_stack.recvmess(host,port,callback)
+  def _waitforconn_callback_wrapper(self,remoteip, remoteport, socketlikeobj, thiscommhandle, listencommhandle):
+    newsocket =
+    self._waitforconn_callback(remoteip, remoteport, socketlikeobj, thiscommhandle, listencommhandle)
 
-  def openconn(self,host,port,localhost=None,localport=None,timeout=5):
-    return self.shim_stack.openconn(host,port,localhost,localport,timeout)
+  def waitforconn(self, host, port, callback):
+    self._waitforconn_callback = callback
+    return self.shim_stack.waitforconn(host, port, self._waitforconn_callback_wrapper)
 
-  def sendmess(self,host,port,msg,localhost=None,localport=None):
-    return self.shim_stack.sendmess(host,port,msg,localhost,localport)
+  def recvmess(self, host, port, callback):
+    return self.shim_stack.recvmess(host, port, callback)
 
-  def stopcomm(self,handle):
+  def openconn(self, host, port, localhost=None, localport=None, timeout=5):
+    return self.shim_stack.openconn(host, port, localhost, localport, timeout)
+
+  def sendmess(self, host, port, msg, localhost=None, localport=None):
+    return self.shim_stack.sendmess(host, port, msg, localhost, localport)
+
+  def stopcomm(self, handle):
     return self.shim_stack.stopcomm(handle)
+
+
+
 
   
   def get_names(self):

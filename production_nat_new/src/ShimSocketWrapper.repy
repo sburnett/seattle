@@ -1,0 +1,33 @@
+
+# Wrapper class of the socket object we're redefining within EmptyShim. This
+# class should never be referenced, redefined or overridden by the shim
+# programmer. If he wishes to redefine the three socket operations, he
+# should do so within the socket_* methods in the subclasses of EmptyShim.
+class ShimSocketWrapper:
+
+  # We are passing the original socket to wrap around, along with the shim
+  # instance that uses our wrapper socket. This facilitates the exchange of
+  # information between the socket and the caller shim.
+  def __init__(self, socket, shim):
+    if shim is None:
+      raise Exception("Null reference to shim provided at constructor of ShimSocketWrapper.")
+
+    self._socket = socket
+    self._shim = shim
+
+
+  def close(self):
+    return self._shim.socket_close(self._socket)
+
+
+  def recv(self, bytes):
+    return self._shim.socket_recv(self._socket, bytes)
+
+
+  def send(self, message):
+    return self._shim.socket_send(self._socket, message)
+
+
+  def __str__(self):
+    #TODO debug only
+    return "(@ %s)" % str(self._socket)

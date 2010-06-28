@@ -92,14 +92,18 @@ def _natforwardinglib_do_check(host_str,forwarder_ip,forwarder_port):
    
     (ip,port) = host_str.split(':')
     port = int(port)
-    handle = waitforconn(ip,port,_natforwardinglib_listen)
+    try:
+      handle = waitforconn(ip,port,_natforwardinglib_listen)
+    except Exception, e:
+      print str(e)
+      raise Exception
 
     # tell the forwarder we are ready for a connection
     session_sendmessage(sock,NAT_YES)
 
     # check the connection
     msg = session_recvmessage(sock)
-           
+
     sock.close()
     stopcomm(handle)
 

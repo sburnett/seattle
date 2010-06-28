@@ -1,0 +1,57 @@
+include NatForwardingLib.repy
+
+# Decider shim for NatFowardingShim. Determines if a server needs the nat
+# fowarding shim in the shim stack. If true, then inserts the shim into the shim stack
+class NatDeciderShim(EmptyShim):
+
+  name = 'NatDeciderShim'
+
+
+
+  def __init__(self, next_shim=None, optional_args=None):
+
+    # Indicates whether we've run a nat-check. If true, we don't need to run the
+    # check again because it is expensive.
+    self._done_nat_check = False
+
+    self._behind_nat = False
+
+    EmptyShim.__init__(self, next_shim)
+
+
+
+  def _is_behind_nat(self, hostip, hostport):
+
+
+    return self._behind_nat
+
+
+
+  def waitforconn(self, host, port, callback):
+
+    if not self._done_nat_check:
+
+      # TODO The naming of the function below is very confusing. It returns true
+      # if forwarding is needed, i.e. we're behind a NAT.
+      self._behind_nat = natforwardinglib_isBidirectional(host, port)
+
+      # Construct the nat forwarding shim for the first time
+      if self._behind_nat:
+        natshim = NatForwardingShim()
+        self.shim_stack.push(natshim)
+
+        
+    if self._behind_nat:
+      # TODO If we're behind a NAT, then our IP is not unique. We need to
+      # translate it into a unique key for the nat shim. But then again, how
+      # would the client know about this? We can add a shim to a client.
+      pass
+    
+    print "zzzz behind_nat = %s" % self._behind_nat
+    raise Exception("Halt")
+
+    return self.shim_stack.waitforconn(host, port, callback)
+
+
+
+shimstack_reg_layer('NatDeciderShim',{'class':NatDeciderShim})

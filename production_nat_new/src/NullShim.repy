@@ -12,36 +12,56 @@
 
 """
 
-include ShimStack.repy
-include EmptyShim.repy
 
-class NullShim(EmptyShim):
+class NullShim(BaseShim):
 
   name = 'NullShim'
 
   def __init__(self,next_shim=None,optional_args=None):
     
-    EmptyShim.__init__(self,next_shim,optional_args)
+    BaseShim.__init__(self,next_shim,optional_args)
 
     # Place holder arguemnts are to conform with standards only
     # these arguments should never be used
     if next_shim is not None or optional_args is not None:
       raise Exception('Arguments passed into NullShim by error')
 
-  def waitforconn(self,host,port,callback):
-    return waitforconn(host,port,callback)
 
-  def openconn(self,host,port,localhost=None,localport=None,timeout=5):
-    return openconn(host,port,localhost,localport,timeout)
 
-  def recvmess(self,host,port,callback):
-    return recvmess(host,port,callback)
 
-  def sendmess(self,host,port,msg,localhost=None,localport=None):
-    sendmess(host,port,msg,localhost,localport)
+  def _shim_waitforconn(self, host, port, callback):
+    return waitforconn(host, port, callback)
 
-  def stopcomm(self,handle):
-    stopcomm(handle)
+  def _shim_openconn(self, host, port, localhost=None, localport=None, timeout=5):
+    return openconn(host, port, localhost, localport, timeout)
+
+  def _shim_recvmess(self, host, port, callback):
+    return recvmess(host, port, callback)
+
+
+  def _shim_sendmess(self, host, port, msg, localhost=None, localport=None):
+    return sendmess(host, port, msg, localhost, localport)
+
+
+  def _shim_stopcomm(self, handle):
+    return stopcomm(handle)
+
+
+
+  def _shim_socket_close(self, socket):
+    return socket.close()
+
+
+
+  def _shim_socket_send(self, socket, msg):
+    return socket.send(msg)
+
+
+
+  def _shim_socket_recv(self, socket, bytes): 
+    return socket.recv(bytes)
+
+
 
 
 # register with the shim stack framework
