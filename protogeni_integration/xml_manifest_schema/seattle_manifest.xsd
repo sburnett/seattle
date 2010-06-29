@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified" targetNamespace="https://blackbox.cs.washington.edu/xmlrpc/" xmlns:rspec="https://blackbox.cs.washington.edu/xmlrpc">
+  <xs:include schemaLocation="any-extension-schema.xsd"/>
+  <!--
+      This is the xml schema for the return of the manifest by CreateSliver
+      by SeattleGENI xmlrpc server for integration purposes.
+  -->
+  <xs:element name="rspec" type="rspec:RSpecContents"/>
+  <xs:complexType name="RSpecContents">
+    <xs:choice minOccurs="0" maxOccurs="unbounded">
+      <xs:group ref="rspec:AnyExtension"/>
+      <xs:element ref="rspec:node"/>
+      <xs:element ref="rspec:link"/>
+    </xs:choice>
+    <xs:attributeGroup ref="rspec:AnyExtension"/>
+    <xs:attribute name="generated" type="xs:dateTime"/>
+    <xs:attribute name="generated_by"/>
+    <xs:attribute name="valid_until" type="xs:dateTime"/>
+    <xs:attribute name="type" use="required">
+      <xs:simpleType>
+        <xs:restriction base="xs:token">
+          <xs:enumeration value="request"/>
+          <xs:enumeration value="response"/>
+        </xs:restriction>
+      </xs:simpleType>
+    </xs:attribute>
+  </xs:complexType>
+  <xs:element name="node" type="rspec:NodeContents"/>
+  <xs:complexType name="NodeContents">
+    <xs:attribute name="api_key" type="xs:string"/>
+    <xs:attribute name="publickey_string" type="xs:string"/>
+    <xs:element name="vesselhandle_list" type="rspec:VesselHandleContents"/>
+  </xs:complexType>
+  <xs:complexType name="VesselHandleContents">
+    <xs:element name="vesselhandle" minOccurs="0" maxOccurs="unbounded" type="xs:string">
+  </xs:complexType>
+</xs:schema>
