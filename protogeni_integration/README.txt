@@ -88,4 +88,5 @@ Testing the XMLRPC server:
 
 We have provided the a test file that tests the two api calls. In order to run
 it successfully, you will need a valid emulab certificate (emulab.pem) and must
-have it in the same folder as the test file.
+have it in the same folder as the test file. The test file must also be modified
+slightly to include the right certificate and the right filepath for certificate.

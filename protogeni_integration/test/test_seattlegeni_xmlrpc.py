@@ -18,8 +18,8 @@ from urllib import splitport
 
 
 server_address = "https://blackbox.cs.washington.edu:443/xmlrpc/"
-certificate_file = "/home/monzum/temp/emulab.pem"
-certificate_key = "/home/monzum/temp/emulab.pem"
+certificate_file = "/path/to/certificate/emulab.pem"
+certificate_key = "/path/to/certificate/emulab.pem"
 slice_urn = "urn:publicid:IDN+SeattleGENI+slice+mytestslice"
 
 CREATE_SLIVER = False
@@ -111,24 +111,7 @@ def main():
      </privileges>
     </credential>
     <signatures>-----BEGIN CERTIFICATE-----
-MIIDRTCCAq4CAloQMA0GCSqGSIb3DQEBBAUAMIG4MQswCQYDVQQGEwJVUzENMAsG
-A1UECBMEVXRhaDEXMBUGA1UEBxMOU2FsdCBMYWtlIENpdHkxHTAbBgNVBAoTFFV0
-YWggTmV0d29yayBUZXN0YmVkMR4wHAYDVQQLExVDZXJ0aWZpY2F0ZSBBdXRob3Jp
-dHkxGDAWBgNVBAMTD2Jvc3MuZW11bGFiLm5ldDEoMCYGCSqGSIb3DQEJARYZdGVz
-dGJlZC1vcHNAZmx1eC51dGFoLmVkdTAeFw0xMDA2MDMxODIxMTJaFw0xMzAyMjcx
-ODIxMTJaMIGgMQswCQYDVQQGEwJVUzENMAsGA1UECBMEVXRhaDEdMBsGA1UEChMU
-VXRhaCBOZXR3b3JrIFRlc3RiZWQxEjAQBgNVBAsTCXNzbHhtbHJwYzEtMCsGA1UE
-AxMkYWE2NDNkM2ItNmYzYi0xMWRmLWFkODMtMDAxMTQzZTQ1M2ZlMSAwHgYJKoZI
-hvcNAQkBFhFtb256dW1AZW11bGFiLm5ldDCBnzANBgkqhkiG9w0BAQEFAAOBjQAw
-gYkCgYEAw2SkbRcdOLawqp76+R9FgUE4FlVi7mVd2FTxuYBqsDsE+ALT5uAhYSyd
-bgHKdhfP8DDau2+PD1K0iRckzNUCLiVo9Lwx+7gLasP/R7Yriq0UfGCxWQqkGHUd
-kKJ8NVbN+yFo/HqQOsVYeQ1kdOyAcQpDdz81CGnkSYAX/LOBQlUCAwEAAaN5MHcw
-DwYDVR0TAQH/BAUwAwEB/zAdBgNVHQ4EFgQUI5kJWJaukxRKbSeZqhBbvngJeSYw
-RQYDVR0RBD4wPIYndXJuOnB1YmxpY2lkOklETitlbXVsYWIubmV0K3VzZXIrbW9u
-enVtgRFtb256dW1AZW11bGFiLm5ldDANBgkqhkiG9w0BAQQFAAOBgQASWi7CbSl9
-Zw0A83XFEaeKLcUvugSZawPKL0dRbp0pAfWYsMe99wYO0TPay8iPDWIXxkzwPcEX
-e9zv1ROqcQalbK1Ej/LkoA437WfxKufjM7rOXFEMePUpNHR+OFQRbIcDvit9/UTi
-svR3URQ1J91IPasDJRD2lDGWXV+A5gKY7Q==
+The emulab certificate for a user.
 -----END CERTIFICATE-----</signatures>
 </signed-credential>"""
     #  print protogeni_credential
