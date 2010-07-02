@@ -23,18 +23,15 @@ class BaseShim:
 
   def openconn(self, host, port, localhost=None, localport=None, timeout=5):
     socket = self._shim_openconn(host, port, localhost, localport, timeout)
+
     newsocket = ShimSocketWrapper(socket, self)
+
     return newsocket
 
   # Helper method for waitforconn
   def _waitforconn_shim_callback_wrapper(self, remoteip, remoteport, socket, thiscommhandle, listencommhandle):
-    if self.name=='CoordinationShim':
-      print '\nzzzz finalcb before: sock: %s' % socket
-      print '\nzzzz finalcb before: sock.stack: %s' % socket._shim.get_shims(True,True)
+
     newsocket = ShimSocketWrapper(socket, self)
-    if self.name=='CoordinationShim':
-      print '\nzzzz finalcb after: sock: %s' % newsocket
-      print '\nzzzz finalcb after: sock.stack: %s' % newsocket._shim.get_shims(True,True)
 
     self._waitforconn_shim_callback(remoteip, remoteport, newsocket, thiscommhandle, listencommhandle)
 

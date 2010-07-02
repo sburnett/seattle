@@ -29,13 +29,13 @@ class CoordinationShim(BaseShim):
   # ===========================================================================
 
   def _coord_waitforconn_callback_wrapper(self, remoteip, remoteport, socket, thiscommhandle, listencommhandle):
-    # TODO comment on this crucial concept
-    print ("zzzz BEFORE coord waitforconn callback: socket = '%s', socket.shimstack = '%s'" % (socket, socket._shim.get_shims(True, True)))
-    
-    socket._shim = ShimStack(self.shim_stack.get_shims(True)).top_shim
-
-    print ("zzzz AFTER  coord waitforconn callback: socket = '%s', socket.shimstack = '%s'" %
-           (socket, socket._shim.get_shims(True, True)))
+    # TODO Comment. Crucial.
+    shimstack = ShimStack(self.shim_stack.get_shims(True))
+    socketptr = socket
+    while shimstack.top_shim is not None:
+      socketptr._shim = shimstack.top_shim
+      socketptr = socketptr._socket
+      shimstack = shimstack.top_shim.shim_stack
 
     self._coord_waitforconn_callback(remoteip, remoteport, socket, thiscommhandle, listencommhandle)
 

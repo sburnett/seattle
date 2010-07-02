@@ -30,8 +30,6 @@ class ShimSocketWrapper:
 
 
   def recv(self, bytes):
-    print '\nzzzz $$$$$$$$$$$$$$$$$$$$$ ',
-    print 'stack: %s; socket: %s $$$$$$$$$$$\n\n' % (self._shim.get_shims(True, True), self)
     return self._shim.socket_recv(self._socket, bytes)
 
 

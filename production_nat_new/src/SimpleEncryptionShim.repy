@@ -14,7 +14,7 @@ class SimpleEncryptionShim(BaseShim):
   def _encrypt(self, string):
     cypher = ""
     for char in string:
-      cypher += chr(ord(char) + self._ascii_shift)
+      cypher += chr((ord(char) + self._ascii_shift) % 256)
     #print "ENCRYPT - %s - from '%s' to '%s'" % (self.name, string, cypher)
     return cypher
 
@@ -23,7 +23,7 @@ class SimpleEncryptionShim(BaseShim):
   def _decrypt(self, cypher):
     string = ""
     for char in cypher:
-      string += chr(ord(char) - self._ascii_shift)
+      string += chr((ord(char) - self._ascii_shift) % 256)
     #print "DECRYPT - %s - from '%s' to '%s'" % (self.name, cypher, string)
     return string
 

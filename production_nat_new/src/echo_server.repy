@@ -6,8 +6,6 @@ include ShimStack.repy
 def echo(rip, rport, sock, th, lh):
     # #msg = session_recvmessage(sock)
     # #msg = shim.socket_recv(sock, 1024)
-    print "zzzz echo_server sock: " + str(sock)
-    print "zzzz echo_server sock stack: " + str(sock._shim.get_shims(True,True))
     msg = session_recvmessage(sock)
     print("From %s:%s - '%s'" % (rip, rport, msg))
  

@@ -67,8 +67,6 @@ class RSAShim(BaseShim):
     (pubKey, privKey) = self._get_RSA_keys()
 
     # send public key
-    print "zzzz RSAShim - callback sock stack: " + socket._shim.get_shims(True)
-    print "zzzz RSAShim - callback sock wrapper: " + str(socket)
     session_sendmessage(socket, "pubKey@@@" + pubKey)
     print "zzzz RSAShim - Sent public key string: " + pubKey
 
@@ -98,8 +96,6 @@ class RSAShim(BaseShim):
   # Client connect()
   def _shim_openconn(self, host, port, localhost=None, localport=None, timeout=5):
     sock = self.shim_stack.openconn(host, port, localhost, localport, timeout)
-    print "zzzz RSAShim - openconn sock stack: " + sock._shim.get_shims(True)
-    print "zzzz RSAShim - openconn sock wrap: " + str(sock)
     handshakestr = session_recvmessage(sock)
     try:
       (greeting, pubKey) = handshakestr.split("@@@")
@@ -128,11 +124,6 @@ class RSAShim(BaseShim):
 
 
   def _shim_socket_recv(self, socket, bytes): 
-    print("zzzz socket_recv: this shim: %s[%d]; socket: %s" % 
-           (self, self.getid(), socket))
-    print("zzzz socket_recv: socket stack: %s" % 
-          (socket._shim.get_shims(True,True)))
-    print "\n\n%s\n\n" % mycontext['ShimInstanceCountDict']
     return self._RN_decrypt(self._sharedKey, 
                             self.shim_stack.socket_recv(socket, bytes))
   
