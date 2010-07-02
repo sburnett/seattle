@@ -37,7 +37,7 @@ include ShimStack.repy
 
 
 MAX_SERVERS = 5
-MAX_CLIENTS = 4 # for a total of 20 across all 5 clients
+MAX_CLIENTS = 40 # for a total of 20 across all 5 clients
 
 
 SRV_DICT = {}  # keep track of registered servers
@@ -467,7 +467,7 @@ if callfunc == 'initialize':
   mycontext['myport']= str(wait_port)
 
   print "NAT Forwarder started on " + ip + ":" + str(wait_port)
-  shim_stack = ShimStack('(CoordinationShim)(SimpleEncryptionShim,8)')
+  shim_stack = ShimStack('(CoordinationShim)(RSAShim)(SimpleEncryptionShim,8)')
   shim_stack.waitforconn(ip,wait_port,common_entry)
   
   

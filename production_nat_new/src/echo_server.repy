@@ -6,6 +6,7 @@ include ShimStack.repy
 def echo(rip, rport, sock, th, lh):
     # #msg = session_recvmessage(sock)
     # #msg = shim.socket_recv(sock, 1024)
+    print "sock: %s" % sock
     msg = session_recvmessage(sock)
     print("From %s:%s - '%s'" % (rip, rport, msg))
  
@@ -26,7 +27,7 @@ if callfunc == 'initialize':
     #shim = ShimStack('(RSALayer)(LogShim)(SimpleEncryptionShim,3)(NullShim)')
     #shim = ShimStack('(SimpleEncryptionShim)' * 12 + '(SimpleEncryptionShim,18)(NullShim)')
     #shim = ShimStack('(CoordinationShim)(SimpleEncryptionShim,3)(SimpleEncryptionShim,5)')
-    shim = ShimStack('(CoordinationShim)(SimpleEncryptionShim,3)(RSAShim)(LogShim,DO_NOT_ADVERTISE,server)(SimpleEncryptionShim,5)')
+    shim = ShimStack('(CoordinationShim)(SimpleEncryptionShim,3)(RSAShim)(LogShim,DO_NOT_ADVERTISE,server)(SimpleEncryptionShim,5)(NatDeciderShim)')
     print "my shim stack is %s" % shim.top_shim.get_shims(True, True)
     print "Listening on %s:%s..." % (myip, myport)
     shim.waitforconn(myip, myport, echo)
