@@ -7,7 +7,12 @@ class CoordinationShim(BaseShim):
 
 
   name = 'CoordinationShim'
-  _advertise_wait_interval = 60
+
+  # We will do a lookup on the DHT for at most the following number of times.
+  _lookup_attempts = 4
+
+  # Number of seconds to re-advertise the shim stack to refresh DHT
+  _advertise_wait_interval = 600
 
 
   def __init__(self, next_shim=None, optional_args=None):
@@ -16,30 +21,78 @@ class CoordinationShim(BaseShim):
     # Never advertise the coordination shim
     self.do_not_advertise = True
 
+ 
+
 
   # ===========================================================================
   # SERVER METHODS
   # ===========================================================================
 
+  def _coord_waitforconn_callback_wrapper(self, remoteip, remoteport, socket, thiscommhandle, listencommhandle):
+    # TODO comment on this crucial concept
+    print ("zzzz BEFORE coord waitforconn callback: socket = '%s', socket.shimstack = '%s'" % (socket, socket._shim.get_shims(True, True)))
+    
+    socket._shim = ShimStack(self.shim_stack.get_shims(True)).top_shim
+
+    print ("zzzz AFTER  coord waitforconn callback: socket = '%s', socket.shimstack = '%s'" %
+           (socket, socket._shim.get_shims(True, True)))
+
+    self._coord_waitforconn_callback(remoteip, remoteport, socket, thiscommhandle, listencommhandle)
+
+
 
   def _shim_waitforconn(self, hostkey, port, callback):
-    # Traverse through the stack and build the stack
-    handle = self.shim_stack.waitforconn(hostkey, port, callback)
 
-    # Now that the stack has been built, we can advrtise its shims.
+    # Save the callback for later use
+    self._coord_waitforconn_callback = callback
+
+    # Traverse through the stack and build the general stack, which is shared
+    # for all incoming connections.
+    handle = self.shim_stack.waitforconn(hostkey, port, self._coord_waitforconn_callback_wrapper)
+
+    # Now that the stack has been built, we can advertise its content.
     advertise_key = str(hostkey) + "," + str(port) + ",TCP"
+    advertise_value = self.shim_stack.get_shims()
     self._listener_active = True
-    settimer(0,self._listener_advertise_thread,[advertise_key])
+    
+    # We advertise the contents of the shim stack at its first creation.
+    # Subsequent changes are on a per-connection basis (using negotiation) and
+    # are irrelevant for coordination.
+    settimer(0, self._advertise_thread, [advertise_key, advertise_value])
+
     return handle
 
-  # Helper method for _shim_waitforconn
-  def _listener_advertise_thread(self, advertise_key):
+
+  def _advertise_thread(self, advertise_key, advertise_value):
     while self._listener_active:
-      external_advertise(advertise_key, self.shim_stack.get_shims())
+      try:
+        external_advertise(advertise_key, advertise_value)
+      except Exception, e:
+        print "CoordinationShim: Advertise error."
+
       sleep(self._advertise_wait_interval)
 
 
 
+
+  # ===========================================================================
+  # SOCKET-BASED METHODS. Each implements its own shim stack.
+  # ===========================================================================
+
+
+  def _shim_socket_close(self, socket):
+    return self.shim_stack.socket_close(socket)
+
+
+
+  def _shim_socket_send(self, socket, msg):
+    return self.shim_stack.socket_send(socket, msg)
+
+
+
+  def _shim_socket_recv(self, socket, bytes): 
+    return self.shim_stack.socket_recv(socket, bytes)
+  
 
 
 
@@ -53,13 +106,17 @@ class CoordinationShim(BaseShim):
 
 
   def _shim_openconn(self, hostkey, port, localhost=None, localport=None, timeout=5):
+
     # use a lookup service to coordinate the shim stack
-    lookup_results = external_lookup(str(hostkey)+','+str(port)+',TCP')
+    lookup_results = []
+    for count in range(self._lookup_attempts):
+      lookup_results = external_lookup(str(hostkey)+','+str(port)+',TCP')
+      if len(lookup_results) > 0:
+        break
+      sleep(1)
+
     if len(lookup_results) < 1:
       raise Exception("host could not be found by coordiantion layer")
-
-    # TODO something smarter with branches, for now iterate through until we get
-    # a connection
 
     exception_list = ''
     sock = None
@@ -67,15 +124,16 @@ class CoordinationShim(BaseShim):
 
     # Get all shims in the current stack (below the coordintor), including those
     # marked as do_not_advertise. We want to preserve the original shim stack,
-    # and adding new ones to the bottom.
-    existing_shim_stack = "" #self.get_shims(True)
-    print "\nzzzz Coordinator"
-    print "zzzz existing stack: " + self.get_shims(True)
+    # and adding new ones to the bottom. 
+    existing_shim_stack = self.shim_stack.get_shims(True) 
 
+    # TODO The first lookup_result is always the latest. What if the latest
+    # result is not really the latest? For each key in the DHT, the values are
+    # added sequentially and there may be duplicates. Should we assign a session
+    # id to avoid such duplicates? Right now there is no need in our ideal
+    # experimental environment.
     for result in lookup_results:
       
-      print "zzzz trying stack: " + result
-
       # Append the new shims to the back of the existing stack
       shim_stack = ShimStack(existing_shim_stack + result)
 
@@ -90,12 +148,7 @@ class CoordinationShim(BaseShim):
       # TODO raise correct type of exception
       raise Exception(exception_list)
     else:
-      # TODO stick my personal stack to the server stack? below we're completely
-      # erasing the client's original stack. and we're not using the coordinator
-      # the second time we call openconn on client. is this good?? also exchange
-      # stack with the server too?
       self.shim_stack = shim_stack
-      print "zzzz final stack: %s \n\n" % shim_stack.get_shims(True)
       return sock
 
 

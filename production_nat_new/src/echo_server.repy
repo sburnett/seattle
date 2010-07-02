@@ -6,16 +6,12 @@ include ShimStack.repy
 def echo(rip, rport, sock, th, lh):
     # #msg = session_recvmessage(sock)
     # #msg = shim.socket_recv(sock, 1024)
+    print "zzzz echo_server sock: " + str(sock)
+    print "zzzz echo_server sock stack: " + str(sock._shim.get_shims(True,True))
     msg = session_recvmessage(sock)
     print("From %s:%s - '%s'" % (rip, rport, msg))
-    exitall() 
-
-    sock.send(msg)
-
-    # confirmation
-    if sock.recv(1024) == 'cool':
-        sock.send('good')
-    
+ 
+    session_sendmessage(sock, "good")
 
 
 if callfunc == 'initialize':
@@ -27,13 +23,13 @@ if callfunc == 'initialize':
         exitall()
 
     myip = getmyip()
-    #myip = "127.0.0.1"    
-    myip = "orca"
+    myip = "127.0.0.1"    
 
     #shim = ShimStack('(RSALayer)(LogShim)(SimpleEncryptionShim,3)(NullShim)')
     #shim = ShimStack('(SimpleEncryptionShim)' * 12 + '(SimpleEncryptionShim,18)(NullShim)')
     #shim = ShimStack('(CoordinationShim)(SimpleEncryptionShim,3)(SimpleEncryptionShim,5)')
-    shim = ShimStack('(CoordinationShim)(SimpleEncryptionShim,3)(LogShim,DO_NOT_ADVERTISE,server)(SimpleEncryptionShim,5)(NatForwardingShim,128.208.4.179,12345)')
-
+    shim = ShimStack('(CoordinationShim)(SimpleEncryptionShim,3)(RSAShim)(LogShim,DO_NOT_ADVERTISE,server)(SimpleEncryptionShim,5)')
+    print "my shim stack is %s" % shim.top_shim.get_shims(True, True)
     print "Listening on %s:%s..." % (myip, myport)
     shim.waitforconn(myip, myport, echo)
+    print "my shim stack is %s" % shim.top_shim.get_shims(True, True)

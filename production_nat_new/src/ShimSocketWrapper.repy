@@ -5,6 +5,9 @@
 # should do so within the socket_* methods in the subclasses of EmptyShim.
 class ShimSocketWrapper:
 
+  mycontext['ShimSocketWrapperLock'] = getlock()
+  mycontext['ShimSocketWrapperInstanceCounter'] = 0
+
   # We are passing the original socket to wrap around, along with the shim
   # instance that uses our wrapper socket. This facilitates the exchange of
   # information between the socket and the caller shim.
@@ -15,12 +18,20 @@ class ShimSocketWrapper:
     self._socket = socket
     self._shim = shim
 
+    # Obtain the id this this instance
+    mycontext['ShimSocketWrapperLock'].acquire()
+    self._id = mycontext['ShimSocketWrapperInstanceCounter']
+    mycontext['ShimSocketWrapperInstanceCounter'] += 1
+    mycontext['ShimSocketWrapperLock'].release()
+
 
   def close(self):
     return self._shim.socket_close(self._socket)
 
 
   def recv(self, bytes):
+    print '\nzzzz $$$$$$$$$$$$$$$$$$$$$ ',
+    print 'stack: %s; socket: %s $$$$$$$$$$$\n\n' % (self._shim.get_shims(True, True), self)
     return self._shim.socket_recv(self._socket, bytes)
 
 
@@ -28,6 +39,17 @@ class ShimSocketWrapper:
     return self._shim.socket_send(self._socket, message)
 
 
+  def getid(self):
+    return self._id
+
+  
+  # # Used if we ever set an instance of this class as the key of a dictionary. In
+  # # this case, we simply set the instance id as the hash value.
+  # def __hash__(self):
+  #   return self.getid()
+
+
   def __str__(self):
     #TODO debug only
-    return "(@ %s)" % str(self._socket)
+    return ("(@ %d Shim: %s[%d]. Socket: %s)" % 
+            (self.getid(), self._shim, self._shim.getid(), self._socket))

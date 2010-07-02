@@ -387,6 +387,7 @@ def exchange_streams(from_sock,to_sock,do_print):
   while True:
     try:
       msg = from_sock.recv(1024)
+      print "zzzz: eavesdropping '%s'" % msg
       sent = to_sock.send(msg)
       if sent != len(msg):
         # this is a subtle error that can occur and will violate

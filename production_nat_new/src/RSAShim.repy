@@ -1,0 +1,140 @@
+include session.repy
+
+class RSAShim(BaseShim):
+
+  name = 'RSAShim'
+
+
+  def __init__(self, next_shim=None, optional_args=None):
+    BaseShim.__init__(self, next_shim, optional_args)
+    
+    self._sharedKey = None
+
+
+    # The following is true in new instances of this shim, when new incoming
+    # connections are accepted and a new stack is cloned in the server.
+    if optional_args:
+      self._sharedKey = optional_args[0]
+
+  # ===========================================================================
+  # Fake encryption methods for better performance during debug
+  #
+
+  def _get_RSA_keys(self):
+    randi = int(randomfloat()*999999)
+    return (str(randi), str(1+randi))
+
+  # Fake key matcher for performance in testing
+  def _match_keys(self, pubKey, privKey):
+    return int(pubKey)+1 == int(privKey)
+
+  # Encrypt with pub key
+  def _RSA_encrypt(self, pubKey, msg):
+    return pubKey + "@#$#@" + msg
+
+  # Decrypt with priv key
+  def _RSA_decrypt(self, privKey, cypher):
+    try:
+      (pubKey, msg) = cypher.split("@#$#@")
+    except:
+      raise Exception("Corrupt cypher text: %s" % cypher)
+
+    if not self._match_keys(pubKey, privKey):
+      raise Exception("Wrong keys in _RSA_decrypt. cyper: %s. privKey: %s." % (cypher, privKey))
+
+    return msg
+
+  # Encrypt with shared random key RN
+  def _RN_encrypt(self, RN, msg):
+    cypher = ''
+    for char in msg:
+      cypher += chr((ord(char) + int(RN)) % 256)
+    return cypher
+
+  # Decrypt with shared random key RN
+  def _RN_decrypt(self, RN, cypher):
+    msg = ''
+    for char in cypher:
+      msg += chr((ord(char) - int(RN)) % 256)
+    return msg
+
+  #
+  # ===========================================================================
+
+
+  # Server accept()
+  def _callback_wrapper(self, remoteip, remoteport, socket, thiscommhandle, listencommhandle):
+    (pubKey, privKey) = self._get_RSA_keys()
+
+    # send public key
+    print "zzzz RSAShim - callback sock stack: " + socket._shim.get_shims(True)
+    print "zzzz RSAShim - callback sock wrapper: " + str(socket)
+    session_sendmessage(socket, "pubKey@@@" + pubKey)
+    print "zzzz RSAShim - Sent public key string: " + pubKey
+
+    # Receive shared random key, encrypted with public key
+    handshakestr = self._RSA_decrypt(privKey, session_recvmessage(socket))
+
+    try:
+      (greeting, sharedKey) = handshakestr.split("***")
+    except:
+      raise Exception("Corrupt handshake: %s" % handshakestr)
+
+    if greeting == "sharedKey":
+      print "zzzz RSAShim - Got shared key: " + sharedKey
+    else:
+      raise Exception("Wrong greeting: %s" % greeting)
+
+    self._optional_args = [sharedKey]
+    self._callback(remoteip, remoteport, socket, thiscommhandle, listencommhandle)
+
+
+
+  def _shim_waitforconn(self, host, port, callback):
+    self._callback = callback
+    return self.shim_stack.waitforconn(host, port, self._callback_wrapper)
+
+
+  # Client connect()
+  def _shim_openconn(self, host, port, localhost=None, localport=None, timeout=5):
+    sock = self.shim_stack.openconn(host, port, localhost, localport, timeout)
+    print "zzzz RSAShim - openconn sock stack: " + sock._shim.get_shims(True)
+    print "zzzz RSAShim - openconn sock wrap: " + str(sock)
+    handshakestr = session_recvmessage(sock)
+    try:
+      (greeting, pubKey) = handshakestr.split("@@@")
+    except:
+      raise Exception("Corrupt handshake: %s" % handshakstr)
+
+    if greeting == "pubKey":
+      self._pubKey = pubKey
+      print "zzzz RSAShim - Got public key string: " + pubKey
+    else:
+      raise Exception("Wrong greeting: %s" % greeting)
+
+    # Send shared random key to server, encrypted with public key
+    self._sharedKey = str(int(randomfloat()*999999) % 256)
+    session_sendmessage(sock, 
+                        self._RSA_encrypt(pubKey, "sharedKey***" + self._sharedKey))
+    print "zzzz RSAShim - sent shared random key: " + self._sharedKey
+
+    return sock
+
+
+
+  def _shim_socket_send(self, socket, msg):
+    return self.shim_stack.socket_send(socket, 
+                                       self._RN_encrypt(self._sharedKey, msg))
+
+
+  def _shim_socket_recv(self, socket, bytes): 
+    print("zzzz socket_recv: this shim: %s[%d]; socket: %s" % 
+           (self, self.getid(), socket))
+    print("zzzz socket_recv: socket stack: %s" % 
+          (socket._shim.get_shims(True,True)))
+    print "\n\n%s\n\n" % mycontext['ShimInstanceCountDict']
+    return self._RN_decrypt(self._sharedKey, 
+                            self.shim_stack.socket_recv(socket, bytes))
+  
+
+shimstack_reg_layer('RSAShim', {'class':RSAShim})

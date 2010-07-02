@@ -16,7 +16,7 @@ class NatDeciderShim(EmptyShim):
 
     self._behind_nat = False
 
-    EmptyShim.__init__(self, next_shim)
+    EmptyShim.__init__(self, next_shim, optional_args)
 
 
 
@@ -29,16 +29,26 @@ class NatDeciderShim(EmptyShim):
 
   def waitforconn(self, host, port, callback):
 
+
+
     if not self._done_nat_check:
 
       # TODO The naming of the function below is very confusing. It returns true
       # if forwarding is needed, i.e. we're behind a NAT.
-      self._behind_nat = natforwardinglib_isBidirectional(host, port)
+      #self._behind_nat = natforwardinglib_isBidirectional(host, port)
+
+      # TODO Debug only
+      if not self._behind_nat:
+        self._behind_nat = True
+        self._done_nat_check = True
+        print "zzzz NatDeciderShim: We pretend to be behind NAT, though it is not the case."
 
       # Construct the nat forwarding shim for the first time
       if self._behind_nat:
         natshim = NatForwardingShim()
         self.shim_stack.push(natshim)
+
+
 
         
     if self._behind_nat:
@@ -47,8 +57,7 @@ class NatDeciderShim(EmptyShim):
       # would the client know about this? We can add a shim to a client.
       pass
     
-    print "zzzz behind_nat = %s" % self._behind_nat
-    raise Exception("Halt")
+    print "zzzz %s:%s is behind_nat = %s" % (host, port, self._behind_nat)
 
     return self.shim_stack.waitforconn(host, port, callback)
 

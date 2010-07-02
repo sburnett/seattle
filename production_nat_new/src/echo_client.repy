@@ -11,6 +11,16 @@ def number_to_words(number):
 
     return text + "(" + str(number) + ")"
 
+def sendstuff(msg):
+    shim = ShimStack('(CoordinationShim)(LogShim,DO_NOT_ADVERTISE,client)')
+    sock = shim.openconn(destip, destport)
+    print "zzzz echo_client sock: " + str(sock)
+    session_sendmessage(sock, msg)
+    if session_recvmessage(sock) != 'good':
+        raise Exception("Cannot send '%s'." % msg)
+    print "sent - '%s'" % msg
+    
+
 
 if callfunc == 'initialize':
 
@@ -22,19 +32,19 @@ if callfunc == 'initialize':
         exitall()
 
 
+    for i in range(1):
+        settimer(0, sendstuff, [number_to_words(i)])
 
 
 
     #shim = ShimStack('(RSALayer)(SimpleEncryptionShim,3)(LogShim)(NullShim)')
     #shim = ShimStack('(CoordinationShim)')
-    shim = ShimStack('(CoordinationShim)(LogShim,DO_NOT_ADVERTISE,client)')
-    sock = shim.openconn(destip, destport)
-    session_sendmessage(sock, "Hello")
-    print "my shim: " + shim.get_shims()
+
+        
 
     # #shim.socket_send(sock, "Hello")
     # sock.send("Hello")
-    exitall()
+
 
     # shim = ShimStack('(SimpleEncryptionShim,1)(SimpleEncryptionShim,2)(SimpleEncryptionShim,3)(SimpleEncryptionShim,4)(LogShim,DO_NOT_ADVERTISE)(SimpleEncryptionShim,5)')
     # print shim.get_names()
@@ -42,28 +52,28 @@ if callfunc == 'initialize':
     # print shim.get_shims()
     # exitall()
 
-    good = True
-    for i in range(100):
-        sock = shim.openconn(destip, destport)
-        msg = number_to_words(i)
-        sock.send(msg)
-        try:
-            if sock.recv(1024) != msg:
-                raise Exception("crap")
+    # good = True
+    # for i in range(100):
+    #     sock = shim.openconn(destip, destport)
+    #     msg = number_to_words(i)
+    #     sock.send(msg)
+    #     try:
+    #         if sock.recv(1024) != msg:
+    #             raise Exception("crap")
             
-            # confirmation
-            sock.send('cool')
-            if sock.recv(1024) != 'good':
-                raise Exception('shit')
-        except Exception, e:
-            print "WTF! Error: " + str(e)
-        finally:
-            sock.close()
+    #         # confirmation
+    #         sock.send('cool')
+    #         if sock.recv(1024) != 'good':
+    #             raise Exception('shit')
+    #     except Exception, e:
+    #         print "WTF! Error: " + str(e)
+    #     finally:
+    #         sock.close()
 
-    if good:
-        print "Passed."
-    else:
-        print "Failed."
+    # if good:
+    #     print "Passed."
+    # else:
+    #     print "Failed."
     
-    exitall()
+    # exitall()
     

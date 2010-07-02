@@ -99,7 +99,18 @@ class ShimStack:
 
 
   def get_shims(self, get_all_shims=False):
-    return self.top_shim.get_shims(get_all_shims)
+    if self.top_shim is None:
+      return ""
+    else:
+      return self.top_shim.get_shims(get_all_shims)
+
+
+  def __repr__(self):
+    return self.__str__()
+
+
+  def __str__(self):
+    return self.get_shims(True)
 
 
   def make_stack(self,shim_stack_str):
@@ -230,8 +241,9 @@ class ShimStack:
 #include EmptyShim.repy
 include BaseShim.repy
 include CoordinationShim.repy
-#include NatForwardingShim.repy
-#include NatDeciderShim.repy
+include NatForwardingShim.repy
+include NatDeciderShim.repy
 include SimpleEncryptionShim.repy
 include NatForwardingShim.repy
 include LogShim.repy
+include RSAShim.repy
