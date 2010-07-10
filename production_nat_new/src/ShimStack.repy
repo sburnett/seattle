@@ -16,7 +16,7 @@
 
 """
 
-include ShimSocketWrapper.repy
+
 
 
 # a dictionary to store refrences to each layers class
@@ -25,7 +25,16 @@ _SHIMSTACK_LAYER_DICT = {}
 
 ### REGISTRATION USED FOR LAYERS TO REGISTER WITH THE FRAMEWORK  ###
 
+# Provides a wrapper for the legacy shimstack_reg_layer method
+def register_shim(shim_name, shim_class, is_private_shim=False):
+  if shim_name in _SHIMSTACK_LAYER_DICT.keys():
+    raise Exception('You cannot register an existing shim "%s" more than once.' % shim_name)
+  _SHIMSTACK_LAYER_DICT[shim_name] = {'class': shim_class, 
+                                      'is_private_shim': is_private_shim}
 
+                      
+
+# TODO Legacy. Used for debugging and backward compatibility.
 def shimstack_reg_layer(layer_name,layer_info_dict):
   """
   <Purpose>
@@ -67,6 +76,9 @@ class ShimStack:
 # each following item is convered to a list of strings and passed to
 # the Shim constructor as optional_args
 
+  mycontext['ShimStackInstanceCount'] = 0
+  mycontext['ShimStackInstanceCountLock'] = getlock()
+
 
   def __init__(self,shim_stack_string=None):
     # create a new shim stack
@@ -74,6 +86,15 @@ class ShimStack:
       self.top_shim = self.make_stack(shim_stack_string)
     else:
       self.top_shim = None
+
+    mycontext['ShimStackInstanceCountLock'].acquire()
+    self._instance_id = mycontext['ShimStackInstanceCount']
+    mycontext['ShimStackInstanceCount'] += 1
+    mycontext['ShimStackInstanceCountLock'].release()
+
+
+  def getid(self):
+    return self._instance_id
 
   
   def push(self,shim):
@@ -83,6 +104,7 @@ class ShimStack:
     
     # change this shim stack to include the new shim
     self.top_shim = shim
+    
       
 
   def pop(self):
@@ -92,12 +114,30 @@ class ShimStack:
     shim.shim_stack = None 
     return shim
 
+
+  # TODO Legacy. Used for debugging only.
   def get_names(self):
     # return a list of names that can be used to create compatible 
     # shim stacks
     return self.top_shim.get_names()
 
 
+  def copy(self):
+    if self.top_shim is None:
+      return ShimStack()
+
+    stackcopy = self.top_shim.shim_stack.copy()
+    stackcopy.push(self.top_shim.copy())
+    return stackcopy
+
+  def get_advertisement_string(self):
+    if self.top_shim is None:
+      return ""
+    else:
+      return self.top_shim.get_advertisement_string()
+
+
+  # TODO Legacy. Used for debugging only.
   def get_shims(self, get_all_shims=False):
     if self.top_shim is None:
       return ""
@@ -145,6 +185,7 @@ class ShimStack:
     
       # first arguemnt is always for the next shim, second argument is optional args
       new_shim = _SHIMSTACK_LAYER_DICT[shim_name]['class'](None,shim_args)
+
     
       if top == None: top = new_shim
     
@@ -229,21 +270,3 @@ class ShimStack:
 
 
 
-
-
-# =============================================================================
-# You should include all the shims in the world here, so that you don't need to
-# include them individually in the user application.
-#
-# TODO For purpose of development only. Not to be used in production.
-# =============================================================================
-
-#include EmptyShim.repy
-include BaseShim.repy
-include CoordinationShim.repy
-include NatForwardingShim.repy
-include NatDeciderShim.repy
-include SimpleEncryptionShim.repy
-include NatForwardingShim.repy
-include LogShim.repy
-include RSAShim.repy

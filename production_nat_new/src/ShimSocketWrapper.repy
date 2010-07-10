@@ -49,5 +49,5 @@ class ShimSocketWrapper:
 
   def __str__(self):
     #TODO debug only
-    return ("(@ %d Shim: %s[%d]. Socket: %s)" % 
-            (self.getid(), self._shim, self._shim.getid(), self._socket))
+    return ("(@ %d Shim: %s. Socket: %s)" % 
+            (self.getid(), self._shim, self._socket))

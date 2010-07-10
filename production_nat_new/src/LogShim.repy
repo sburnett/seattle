@@ -1,5 +1,6 @@
 
 class LogShim(EmptyShim):
+
   name = 'LogShim'
 
   def __init__(self, next_shim=None, optional_args=None):
@@ -16,6 +17,14 @@ class LogShim(EmptyShim):
     self._addlog('__init__')
 
 
+  def copy(self):
+    return LogShim()
+
+
+  def get_advertisement_string(self):
+    # We don't want to advertise this shim
+    return self.shim_stack.get_advertisement_string()
+
 
   # Private method that adds a valid entry to the loglist
   def _addlog(self, operation, sourceip=None, sourceport=None, destip=None, destport=None):
@@ -31,7 +40,7 @@ class LogShim(EmptyShim):
     self._lock.acquire()
     self._loglist.append(logentry)
     # TODO remove debug prints
-    print (" "*50 + "%s, %s:%s, %s:%s" % (operation, sourceip, sourceport, destip, destport))
+    #print (" "*50 + "%s, %s:%s, %s:%s" % (operation, sourceip, sourceport, destip, destport))
     self._lock.release()
 
 
@@ -110,7 +119,3 @@ class LogShim(EmptyShim):
     self._addlog('socket_close')
     return self.shim_stack.socket_close(socket)
 
-
-
-shimstack_reg_layer('LogShim' ,{'class':LogShim})
- 

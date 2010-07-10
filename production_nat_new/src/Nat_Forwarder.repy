@@ -32,7 +32,7 @@ include session.repy
 include NAT_CONSTANTS.repy
 include advertise.repy
 include LegacyForwarderLib.repy
-include ShimStack.repy
+include ShimStackInterface.repy
 
 
 
@@ -290,6 +290,20 @@ def new_clt(rip,rport,clt_sock,th,lh):
   # begin the client/server handshake, 
   srv_lock.acquire()
 
+  # # Added by Danny Y. Huang.
+  # if not SRV_DICT.has_key(server):
+  #   print 'ERROR Server has already been removed.'
+  #   try:
+  #     session_sendmessage(clt_sock,NAT_SERVER_ERROR)
+  #   except:
+  #     pass #todo log this?
+  #   finally:
+  #     clt_sock.close()
+  #     srv_lock.release()
+  #     del CLT_DICT[rip+','+str(rport)]
+  #     return 
+
+
   # don't allow if MAX_CLIENTS are allready connected
   if SRV_DICT[server]['clts'] >= MAX_CLIENTS:
     print 'INFO: maxclients recieved for '+key+':'+port+' not allowing new client'
@@ -367,6 +381,7 @@ def new_clt(rip,rport,clt_sock,th,lh):
   except:
     # remove the server 
     srv_lock.release()
+    print "zzzz !!!! REMOVING SERVER BECAUSE I CANNOT SEND SERVER RESPONSE HERE LAH!!"
     safely_remove_server(server)
   else:
     #increment the number of clients for the server
@@ -387,7 +402,7 @@ def exchange_streams(from_sock,to_sock,do_print):
   while True:
     try:
       msg = from_sock.recv(1024)
-      print "zzzz: eavesdropping '%s'" % msg
+      print "zzzz: exchanging message '%s'" % msg
       sent = to_sock.send(msg)
       if sent != len(msg):
         # this is a subtle error that can occur and will violate
@@ -467,7 +482,7 @@ if callfunc == 'initialize':
   mycontext['myport']= str(wait_port)
 
   print "NAT Forwarder started on " + ip + ":" + str(wait_port)
-  shim_stack = ShimStack('(CoordinationShim)(RSAShim)(SimpleEncryptionShim,8)')
+  shim_stack = ShimStackInterface('(RSAShim)(SimpleEncryptionShim,8)')
   shim_stack.waitforconn(ip,wait_port,common_entry)
   
   

@@ -4,7 +4,6 @@ class RSAShim(BaseShim):
 
   name = 'RSAShim'
 
-
   def __init__(self, next_shim=None, optional_args=None):
     BaseShim.__init__(self, next_shim, optional_args)
     
@@ -15,6 +14,14 @@ class RSAShim(BaseShim):
     # connections are accepted and a new stack is cloned in the server.
     if optional_args:
       self._sharedKey = optional_args[0]
+
+  def copy(self):
+    newshim = RSAShim(optional_args=[self._sharedKey])
+    return newshim
+
+
+  def get_advertisement_string(self):
+    return '(RSAShim)' + self.shim_stack.get_advertisement_string()
 
   # ===========================================================================
   # Fake encryption methods for better performance during debug
@@ -68,7 +75,6 @@ class RSAShim(BaseShim):
 
     # send public key
     session_sendmessage(socket, "pubKey@@@" + pubKey)
-    print "zzzz RSAShim - Sent public key string: " + pubKey
 
     # Receive shared random key, encrypted with public key
     handshakestr = self._RSA_decrypt(privKey, session_recvmessage(socket))
@@ -79,11 +85,12 @@ class RSAShim(BaseShim):
       raise Exception("Corrupt handshake: %s" % handshakestr)
 
     if greeting == "sharedKey":
-      print "zzzz RSAShim - Got shared key: " + sharedKey
+      #print "zzzz RSAShim - Got shared key: " + sharedKey
+      pass
     else:
       raise Exception("Wrong greeting: %s" % greeting)
 
-    self._optional_args = [sharedKey]
+    self._sharedKey = sharedKey
     self._callback(remoteip, remoteport, socket, thiscommhandle, listencommhandle)
 
 
@@ -104,7 +111,6 @@ class RSAShim(BaseShim):
 
     if greeting == "pubKey":
       self._pubKey = pubKey
-      print "zzzz RSAShim - Got public key string: " + pubKey
     else:
       raise Exception("Wrong greeting: %s" % greeting)
 
@@ -112,7 +118,6 @@ class RSAShim(BaseShim):
     self._sharedKey = str(int(randomfloat()*999999) % 256)
     session_sendmessage(sock, 
                         self._RSA_encrypt(pubKey, "sharedKey***" + self._sharedKey))
-    print "zzzz RSAShim - sent shared random key: " + self._sharedKey
 
     return sock
 
@@ -127,5 +132,3 @@ class RSAShim(BaseShim):
     return self._RN_decrypt(self._sharedKey, 
                             self.shim_stack.socket_recv(socket, bytes))
   
-
-shimstack_reg_layer('RSAShim', {'class':RSAShim})

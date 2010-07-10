@@ -1,16 +1,19 @@
 include session.repy
-include ShimStack.repy
+include ShimStackInterface.repy
 
-
+shim = ShimStackInterface('(SimpleEncryptionShim,3)(RSAShim)(SimpleEncryptionShim,5)(NatBranchingShim)')
+mycontext['count'] = 0
+mycontext['handle'] = None
+lock = getlock()
 
 def echo(rip, rport, sock, th, lh):
-    # #msg = session_recvmessage(sock)
-    # #msg = shim.socket_recv(sock, 1024)
-    print "sock: %s" % sock
+    print("zzzz echo top: from %s:%s: sock: %s" % (rip,rport,sock))
     msg = session_recvmessage(sock)
-    print("From %s:%s - '%s'" % (rip, rport, msg))
- 
+
     session_sendmessage(sock, "good")
+
+    print("\nFrom %s:%s - '%s'" % (rip, rport, msg))
+
 
 
 if callfunc == 'initialize':
@@ -21,14 +24,9 @@ if callfunc == 'initialize':
         print "usage: myport"
         exitall()
 
-    myip = getmyip()
-    myip = "127.0.0.1"    
+    myip = '127.0.0.1'
 
-    #shim = ShimStack('(RSALayer)(LogShim)(SimpleEncryptionShim,3)(NullShim)')
-    #shim = ShimStack('(SimpleEncryptionShim)' * 12 + '(SimpleEncryptionShim,18)(NullShim)')
-    #shim = ShimStack('(CoordinationShim)(SimpleEncryptionShim,3)(SimpleEncryptionShim,5)')
-    shim = ShimStack('(CoordinationShim)(SimpleEncryptionShim,3)(RSAShim)(LogShim,DO_NOT_ADVERTISE,server)(SimpleEncryptionShim,5)(NatDeciderShim)')
-    print "my shim stack is %s" % shim.top_shim.get_shims(True, True)
+
     print "Listening on %s:%s..." % (myip, myport)
-    shim.waitforconn(myip, myport, echo)
-    print "my shim stack is %s" % shim.top_shim.get_shims(True, True)
+    mycontext['handle'] = shim.waitforconn(myip, myport, echo)
+    print "Ready."

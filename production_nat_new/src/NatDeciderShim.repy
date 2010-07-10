@@ -2,11 +2,9 @@ include NatForwardingLib.repy
 
 # Decider shim for NatFowardingShim. Determines if a server needs the nat
 # fowarding shim in the shim stack. If true, then inserts the shim into the shim stack
-class NatDeciderShim(EmptyShim):
+class NatDeciderShim(BaseShim):
 
   name = 'NatDeciderShim'
-
-
 
   def __init__(self, next_shim=None, optional_args=None):
 
@@ -16,21 +14,24 @@ class NatDeciderShim(EmptyShim):
 
     self._behind_nat = False
 
-    EmptyShim.__init__(self, next_shim, optional_args)
+    BaseShim.__init__(self, next_shim, optional_args)
 
+
+  def copy(self):
+    return NatDeciderShim()
+
+
+  def get_advertisement_string(self):
+    # We don't want to advertise this shim
+    return self.shim_stack.get_advertisement_string()
 
 
   def _is_behind_nat(self, hostip, hostport):
-
-
     return self._behind_nat
 
 
 
   def waitforconn(self, host, port, callback):
-
-
-
     if not self._done_nat_check:
 
       # TODO The naming of the function below is very confusing. It returns true
@@ -61,6 +62,3 @@ class NatDeciderShim(EmptyShim):
 
     return self.shim_stack.waitforconn(host, port, callback)
 
-
-
-shimstack_reg_layer('NatDeciderShim',{'class':NatDeciderShim})

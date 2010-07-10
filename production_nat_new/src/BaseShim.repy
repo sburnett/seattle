@@ -3,15 +3,15 @@
 class BaseShim:
 
 
-  # this allows shims to implement only that portion of the network
-  # API that they want to interpose on.
-
-  name = 'BaseShim'
-
-  do_not_advertise = False
-
+  # Private static variables that subclass should not override or modify.
   mycontext['ShimInstanceCountDict'] = {}
   mycontext['ShimInstanceCountLock'] = getlock()
+
+  # TODO Legacy. For debugging and backward compatibility only.
+  name = 'BaseShim'
+  do_not_advertise = False
+
+
 
 
 
@@ -30,9 +30,7 @@ class BaseShim:
 
   # Helper method for waitforconn
   def _waitforconn_shim_callback_wrapper(self, remoteip, remoteport, socket, thiscommhandle, listencommhandle):
-
     newsocket = ShimSocketWrapper(socket, self)
-
     self._waitforconn_shim_callback(remoteip, remoteport, newsocket, thiscommhandle, listencommhandle)
 
 
@@ -136,8 +134,45 @@ class BaseShim:
     return self.shim_stack.socket_recv(socket, bytes)
   
 
+  # ===========================================================================
+  # Public methods that the shim creator must override.
+  #
+  # Note that there are no protected attributes in Python. All attributes are
+  # either public or private. The protected methods below (except the
+  # constructor) are still public to the application that uses the shim.
+  # ===========================================================================
 
-  
+  # Returns a copy of the current instance. Be sure to set internal states to be
+  # copied in the new object. An example would be:
+  # 
+  # class MyShim(BaseShim):
+  #   def copy(self):
+  #     mycopy = MyShim()
+  #     mycopy._internalstate = self._internalstate
+  #     return mycopy
+  def copy(self):
+    raise Exception("Subclass of BaseShim must implement the copy() method.")
+
+
+  # Returns the string used for advertisement of this shim and the shim stack
+  # below. An example would be:
+  #
+  # class MyShim(BaseShim):
+  #   def get_advertisement_string(self):
+  #     return '(MyShim,' + self._some_shared_str + ')' + \
+  #             self.shim_stack.get_advertisement_string()
+  #
+  # If the subclass shim is not meant to be public, then simply return an empyt
+  # string concatenated with the advertisemnt string of the rest of the stack.
+  def get_advertisement_string(self):
+    raise Exception("Subclass of BaseShim must implement the get_advertisement_string() method.")
+
+
+
+
+
+
+
 
   # ===========================================================================
   # Methods that should not be overridden by the derived classes
@@ -146,6 +181,8 @@ class BaseShim:
   def getid(self):
     return self._instance_id
 
+
+  # TODO Legacy. Used for debugging and backward compatibility..
   # Return only names that are compatible (i.e. required for balancing two
   # shim stacks)
   def get_shims(self, get_all_shims=False, debug=False):
@@ -165,19 +202,10 @@ class BaseShim:
       return myname + self.shim_stack.top_shim.get_shims(get_all_shims, debug)
 
 
+  # TODO Legacy. Used for debugging and backward compatibility..
   # Preserved for backward compatibility
   def get_names(self):
     
-    # Each shim implements this method
-    # by adding its name, and optional arguments to 
-    # each item in the list provided by the shim below.
-    # Branches result in more items in the list.
-
-    # the strings in the list created are of the form required
-    # to be used with the Shim Stack constructor so calling
-    # new_stack = ShimStack(old_stack.get_names[index]) would create
-    # a compatiable stack
-
     if self.shim_stack.top_shim is None:
       name_list = ['']
     else:
@@ -206,7 +234,7 @@ class BaseShim:
 
     myname += ")"
 
-    return myname
+    return "%s[%d]" % (myname, self.getid())
 
 
   def __repr__(self):
@@ -216,10 +244,5 @@ class BaseShim:
 
 # Provides backward compatibility
 class EmptyShim(BaseShim):
+  pass
 
-  name = "EmptyShim"
-
-
-
-shimstack_reg_layer('BaseShim',{'class':BaseShim})
-shimstack_reg_layer('EmptyShim',{'class':EmptyShim})

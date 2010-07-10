@@ -1,6 +1,7 @@
  
 
 class SimpleEncryptionShim(BaseShim):
+
   name = 'SimpleEncryptionShim'
 
   def __init__(self, next_shim=None, optional_args=None):
@@ -8,6 +9,16 @@ class SimpleEncryptionShim(BaseShim):
     self._ascii_shift = 1
     if optional_args:
       self._ascii_shift = int(optional_args[0])
+
+  # override
+  def copy(self):
+    newshim = SimpleEncryptionShim(optional_args=[self._ascii_shift])
+    return newshim
+
+  # override
+  def get_advertisement_string(self):
+    return '(SimpleEncryptionShim,' + str(self._ascii_shift) + ')' + \
+        self.shim_stack.get_advertisement_string()
 
   # Increases the ascii value of every character of the input string by
   # _ascii_shift.
@@ -45,6 +56,3 @@ class SimpleEncryptionShim(BaseShim):
   
 
 
-
-
-shimstack_reg_layer('SimpleEncryptionShim', {'class':SimpleEncryptionShim})

@@ -1,0 +1,6 @@
+class ShimException(Exception):
+  pass
+
+
+class ShimExceptionStackRejected(ShimException):
+  pass

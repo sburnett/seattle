@@ -1,0 +1,87 @@
+"""
+
+Main entry point for all applications that use shim. Provides a wrapper for the
+shim stack object for easy instantiation.
+
+
+"""
+
+include ShimSocketWrapper.repy
+include ShimStack.repy
+include ShimException.repy
+
+
+# Include all shims in the world
+
+include BaseShim.repy
+include CoordinationShim.repy
+include NatForwardingShim.repy
+include NatDeciderShim.repy
+include SimpleEncryptionShim.repy
+include LogShim.repy
+include RSAShim.repy
+include NatBranchingShim.repy
+
+
+
+# Register all shims in the world
+
+register_shim('BaseShim', BaseShim)
+register_shim('CoordinationShim', CoordinationShim)
+register_shim('NatForwardingShim', NatForwardingShim)
+register_shim('NatDeciderShim', NatDeciderShim)
+register_shim('SimpleEncryptionShim', SimpleEncryptionShim)
+register_shim('LogShim', LogShim)
+register_shim('RSAShim', RSAShim)
+register_shim('NatBranchingShim', NatBranchingShim)
+
+
+class ShimStackInterface:
+
+  def __init__(self, stack_str=''):
+    self._stack_str = stack_str
+    if stack_str.find('CoordinationShim') < 0:
+      self._stack_str = '(CoordinationShim)' + self._stack_str
+
+    # Maps handle to stack. Although handle does not have a hash function
+    # defined, it is in fact hashed by its memory address. Thus, the keys in our
+    # map always reference to unique handles in the memory.
+    self._handle_dict = {}
+
+
+
+
+  def waitforconn(self, host, port, callback):
+    shimstack = ShimStack(self._stack_str)
+    handle = shimstack.waitforconn(host, port, callback)
+    self._handle_dict[handle] = shimstack
+    return handle
+
+
+  def recvmess(self, host, port, callback):
+    shimstack = ShimStack(self._stack_str)
+    handle = shimstack.recvmess(host, port, callback)
+    self._handle_dict[handle] = shimstack
+    return handle
+
+
+  def stopcomm(self, handle):
+    try:
+      shimstack = self._handle_dict[handle]
+    except KeyError:
+      return False
+    print "zzzz ShimStackInterface: stopcomm on handle '%s' and stack '%s'" % (handle, shimstack)
+    return shimstack.stopcomm(handle)
+ 
+
+  def openconn(self,host,port,localhost=None,localport=None,timeout=5):
+    shimstack = ShimStack(self._stack_str)
+    return shimstack.openconn(host,port,localhost,localport,timeout)
+
+
+  def sendmess(self,host,port,msg,localhost=None,localport=None):
+    shimstack = ShimStack(self._stack_str)
+    return shimstack.sendmess(host,port,msg,localhost,localport)
+
+ 
+

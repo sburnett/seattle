@@ -5,7 +5,6 @@ include local_lookup_methods.repy
 # once this is done.
 class CoordinationShim(BaseShim):
 
-
   name = 'CoordinationShim'
 
   # We will do a lookup on the DHT for at most the following number of times.
@@ -14,14 +13,15 @@ class CoordinationShim(BaseShim):
   # Number of seconds to re-advertise the shim stack to refresh DHT
   _advertise_wait_interval = 600
 
+  # Override
+  def copy(self):
+    return CoordinationShim()
 
   def __init__(self, next_shim=None, optional_args=None):
     BaseShim.__init__(self, next_shim, optional_args)
 
-    # Never advertise the coordination shim
-    self.do_not_advertise = True
-
- 
+  def get_advertisement_string(self):
+    return '(CoordinationShim)' + self.shim_stack.get_advertisement_string()
 
 
   # ===========================================================================
@@ -29,11 +29,11 @@ class CoordinationShim(BaseShim):
   # ===========================================================================
 
   def _coord_waitforconn_callback_wrapper(self, remoteip, remoteport, socket, thiscommhandle, listencommhandle):
-    # TODO Comment. Crucial.
-    shimstack = ShimStack(self.shim_stack.get_shims(True))
+    # Copy the current shim stack
+    shimstack = self.shim_stack
     socketptr = socket
     while shimstack.top_shim is not None:
-      socketptr._shim = shimstack.top_shim
+      socketptr._shim = shimstack.top_shim.copy()
       socketptr = socketptr._socket
       shimstack = shimstack.top_shim.shim_stack
 
@@ -52,7 +52,7 @@ class CoordinationShim(BaseShim):
 
     # Now that the stack has been built, we can advertise its content.
     advertise_key = str(hostkey) + "," + str(port) + ",TCP"
-    advertise_value = self.shim_stack.get_shims()
+    advertise_value = self.shim_stack.get_advertisement_string()
     self._listener_active = True
     
     # We advertise the contents of the shim stack at its first creation.
@@ -66,35 +66,37 @@ class CoordinationShim(BaseShim):
   def _advertise_thread(self, advertise_key, advertise_value):
     while self._listener_active:
       try:
-        external_advertise(advertise_key, advertise_value)
+        for shim_stack_str in self._expand_shim_stack_str(advertise_value):
+          external_advertise(advertise_key, shim_stack_str)
       except Exception, e:
         print "CoordinationShim: Advertise error."
 
       sleep(self._advertise_wait_interval)
 
 
+  def _expand_shim_stack_str(self, stack_str):
+    retlist = []
 
+    # Find the branch statement, which is enclosed in a pair of square
+    # brackets. The statement consists of a series of shim names separated by
+    # the or-operator "||". An example of a brach statement is
+    # "[(ShimA)||(ShimB)||]". It means that the shim can be ShimA, ShimB, or
+    # no-op.
+    left_bracket_pos = stack_str.find('[')
+    right_bracket_pos = stack_str.find(']')
 
-  # ===========================================================================
-  # SOCKET-BASED METHODS. Each implements its own shim stack.
-  # ===========================================================================
+    if right_bracket_pos > left_bracket_pos > 0:
+      branch_statement = stack_str[left_bracket_pos + 1 : right_bracket_pos]
+      shim_list = branch_statement.split('||')
 
+      for shim in shim_list:
+        new_stack_str = stack_str.replace('[%s]' % branch_statement, shim)
+        retlist.append(new_stack_str)
 
-  def _shim_socket_close(self, socket):
-    return self.shim_stack.socket_close(socket)
+    else:
+      retlist.append(stack_str)
 
-
-
-  def _shim_socket_send(self, socket, msg):
-    return self.shim_stack.socket_send(socket, msg)
-
-
-
-  def _shim_socket_recv(self, socket, bytes): 
-    return self.shim_stack.socket_recv(socket, bytes)
-  
-
-
+    return retlist
 
 
 
@@ -122,10 +124,10 @@ class CoordinationShim(BaseShim):
     sock = None
     shim_stack = None
 
-    # Get all shims in the current stack (below the coordintor), including those
+    # TODO Get all shims in the current stack (below the coordintor), including those
     # marked as do_not_advertise. We want to preserve the original shim stack,
     # and adding new ones to the bottom. 
-    existing_shim_stack = self.shim_stack.get_shims(True) 
+    existing_shim_stack = "" # TODO
 
     # TODO The first lookup_result is always the latest. What if the latest
     # result is not really the latest? For each key in the DHT, the values are
@@ -133,12 +135,23 @@ class CoordinationShim(BaseShim):
     # id to avoid such duplicates? Right now there is no need in our ideal
     # experimental environment.
     for result in lookup_results:
+
+      port_num = port
+
+     # Extract the port number if the stack string contains "{port_num}"
+      left_curly_braces = result.find('{')
+      right_curly_braces = result.find('}')
+      if right_curly_braces > left_curly_braces > 0:
+        port_num = int(result[left_curly_braces+1 : right_curly_braces])
+        result = result[:left_curly_braces] + result[right_curly_braces+1:]
       
       # Append the new shims to the back of the existing stack
       shim_stack = ShimStack(existing_shim_stack + result)
 
       try:
-        sock = shim_stack.openconn(hostkey,port,localhost,localport,timeout)
+        sock = shim_stack.openconn(hostkey,port_num,localhost,localport,timeout)
+      except ShimExceptionStackRejected, e:
+        continue
       except Exception,e:
         exception_list +=' Exception: '+str(e)+' for stack '+result
       else:
@@ -162,8 +175,3 @@ class CoordinationShim(BaseShim):
 
 
     
-
-
-
-
-shimstack_reg_layer('CoordinationShim', {'class':CoordinationShim})

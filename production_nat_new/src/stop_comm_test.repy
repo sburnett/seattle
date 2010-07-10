@@ -1,0 +1,82 @@
+include ShimStackInterface.repy
+include session.repy
+
+server = ShimStackInterface('(RSAShim)(NatDeciderShim)')
+client = ShimStackInterface()
+clientcount = 2
+extra_client = 0
+ip = '127.0.0.1'
+port = 12345
+lock = getlock()
+
+mycontext['clientcount'] = 0
+mycontext['stopped'] = False
+
+def server_func(rip, rport, sock, th, lh):
+  print 'Communication starts for (%s:%s).' % (rip, rport)
+  print 'sock = %s' % sock
+
+  lock.acquire()
+  mycontext['clientcount'] += 1
+  if mycontext['clientcount'] >= clientcount and (not mycontext['stopped']):
+    print "GOING TO YELL STOP!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+    stopped = server.stopcomm(lh)
+    print "YELLED STOP = %s on stack = %s!!!!!!!!!!!!!!!!!!!!!!!!!!!!" % (stopped, server)
+    mycontext['stopped'] = True
+  lock.release()
+
+  msg = ''
+  while True:
+    msg = session_recvmessage(sock)
+    if msg == 'end':
+      break
+    session_sendmessage(sock, msg)
+    #print 'Received and confirmed msg: %s.' % msg
+
+  print 'Communication stops for (%s:%s).' % (rip, rport)
+
+
+
+def client_func():
+  myid = str(int(randomfloat() * 100))
+
+  try:
+    sock = client.openconn(ip, port)
+    print "Client %s started with sock %s" % (myid, sock)
+  except Exception, e:
+    print 'Unable to start #%s because "%s".' % (myid, e)
+    return
+
+  for i in range(30):
+    msg = 'Client #%s [%d]' % (myid, i)
+    try:
+      session_sendmessage(sock, msg)
+      if session_recvmessage(sock) != msg:
+        print 'Wrong reply confirmation.'
+        break
+      else:
+        #print 'Sent and confirmed msg: %s.' % msg
+        pass
+    except:
+      print "Exceptions when sending message %d in Client #%s" % (i, myid)
+      return
+
+  session_sendmessage(sock, 'end')
+  sock.close()
+  print 'Client #%s done.' % myid
+  
+
+if callfunc == 'initialize':
+
+  isserver = False
+  try:
+    isserver = (callargs[0] == 'server')
+  except:
+    pass
+
+  if isserver:
+    mycontext['handle'] = server.waitforconn(ip, port, server_func)
+    print 'server registered at %s:%s.' % (ip, port)
+  else:
+    for i in range(clientcount + extra_client):
+      settimer(0, client_func, [])

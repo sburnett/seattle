@@ -1,0 +1,16 @@
+
+class BaseShim:
+  
+  randomfloat()
+
+
+class HahaShim(BaseShim):
+
+  pass
+
+if callfunc == 'initialize':
+
+  print BaseShim.id
+  print HahaShim.id
+  print BaseShim.id
+  print HahaShim.id

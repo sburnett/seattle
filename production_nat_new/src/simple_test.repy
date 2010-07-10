@@ -1,0 +1,16 @@
+def onecall(rip, rport, sock, th, lh): 
+  print 'one sock %s' % sock
+
+def twocall(rip, rport, sock, th, lh): 
+  print 'two sock %s' % sock
+
+
+if callfunc == 'initialize':
+  ip = '127.0.0.4'
+  port = 12345
+
+  one = waitforconn(ip, port, onecall)
+  two = waitforconn(ip, port, twocall)
+
+  sock = openconn(ip, port)
+  sock.close()

@@ -33,7 +33,6 @@
 
 
 include session.repy
-include ShimStack.repy
 include NAT_CONSTANTS.repy
 include AdvertiseObjects.repy
 include NatForwardingLib.repy
@@ -57,10 +56,10 @@ class NatStateObj:
 class NatForwardingShim(BaseShim):
   
   
-  name ='NatForwardingShim'
-
   advertise_obj = AdvertisePipe()
   lookup_obj = LookupCache()
+
+  name = 'NatForwardingShim'
 
  
   ######    CONSTRUCTOR
@@ -74,7 +73,7 @@ class NatForwardingShim(BaseShim):
     # shim and the forwarder. This stack is on the client side of the
     # communication, as we always call openconn on this stack. Thus, we maintain
     # individual instances of the stacks.
-    self._forwarder_shim_stack_str = "(CoordinationShim)"
+    self._forwarder_shim_stack = ShimStackInterface()
 
     self.state_objs = {}
 
@@ -93,6 +92,16 @@ class NatForwardingShim(BaseShim):
         raise Exception("Improper optional args passed into NatForwardingShim")
     
     
+  # Override
+  def copy(self):
+    return NatForwardingShim(optional_args=self._optional_args)
+
+
+  def get_advertisement_string(self):
+    args = ""
+    if (self.hop_key is not None) and (self.hop_port is not None):
+      args = "," + str(self.hop_key) + "," + str(self.hop_port)
+    return '(NatForwardingShim' + args + ')' + self.shim_stack.get_advertisement_string()
 
   #######  SERVER METHODS  
 
@@ -124,7 +133,6 @@ class NatForwardingShim(BaseShim):
       every call to waitforconn will use 2 threads, until stopcomm is called
 
     """
-    print "zzzz _shim_waitforconn"
     if port in self.state_objs:
       # if this port alreayd has an active listener just replace the callback
       state_obj = self.state_objs[port]
@@ -152,10 +160,8 @@ class NatForwardingShim(BaseShim):
     # connect to a forwarder and establish a control socket
     # this control socket is used to listen for connection requests
 
-    forwarder_shim_stack = ShimStack(self._forwarder_shim_stack_str)
- 
     if self.hop_key is not None and self.hop_port is not None:
-      control_sock = forwarder_shim_stack.openconn(self.hop_key,int(self.hop_port))  
+      control_sock = self._forwarder_shim_stack.openconn(self.hop_key,int(self.hop_port))  
       for_ip = self.hop_key
       for_port = int(self.hop_port)
     
@@ -168,7 +174,7 @@ class NatForwardingShim(BaseShim):
       ex_str =''
       for (for_ip,for_port) in forwarder_list:
         try:
-          control_sock = forwarder_shim_stack.openconn(for_ip,for_port)
+          control_sock = self._forwarder_shim_stack.openconn(for_ip,for_port)
 
         except Exception,e:
           ex_str = ex_str+' '+str(e)
@@ -180,8 +186,6 @@ class NatForwardingShim(BaseShim):
         raise NatConnError("Could not establish control socket with any of "
                      +str(len(forwarder_list))+" forwarders: "+ex_str)   
 
-    print "zzzz control_sock - my int stack, after: " + forwarder_shim_stack.get_shims() 
-    print "zzzz control_sock - socket has stack: " + control_sock._shim.get_shims(True)
     #register the with the forwarder
     control_sock.send(NAT_SERVER) 
     session_sendmessage(control_sock,NAT_INIT)
@@ -225,10 +229,7 @@ class NatForwardingShim(BaseShim):
     
 
     # create the new connection
-    forwarder_shim_stack = ShimStack(self._forwarder_shim_stack_str)
-    print "zzzz NatForwardingShim - openconn stack - before: " + forwarder_shim_stack.get_shims() 
-    new_sock = forwarder_shim_stack.openconn(forwarder_ip,int(forwarder_port))
-    print "zzzz NatForwardingShim - openconn stack - after: " + forwarder_shim_stack.get_shims()  
+    new_sock = self._forwarder_shim_stack.openconn(forwarder_ip,int(forwarder_port))
     new_sock.send(NAT_SERVER)
     session_sendmessage(new_sock,NAT_NEW_CONN)
     session_sendmessage(new_sock,remote_key)
@@ -351,11 +352,9 @@ class NatForwardingShim(BaseShim):
 
     """  
 
-    forwarder_shim_stack = ShimStack(self._forwarder_shim_stack_str)
-    
     if self.hop_key is not None and self.hop_port is not None:
       # if a hop key and port have been specified, use em.
-      base_sock = forwarder_shim_stack.openconn(self.hop_key,self.hop_port,localip,localport,timeout)
+      base_sock = self._forwarder_shim_stack.openconn(self.hop_key,self.hop_port,localip,localport,timeout)
       self.establish_client_server_conn(base_sock,id,port)
       return base_sock
 
@@ -367,14 +366,13 @@ class NatForwardingShim(BaseShim):
       exception_str = ''
       for (forip,forport) in host_list:
         try:
-          base_sock = forwarder_shim_stack.openconn(forip,forport,localip,
-                                                 localport,timeout)
+          base_sock = self._forwarder_shim_stack.openconn(forip,forport,localip,
+                                                          localport,timeout)
           self.establish_client_server_conn(base_sock,id,port)
         except Exception,e:
           exception_str = exception_str+',  '+str(e)
         else:
-          print "zzzz NatForwardingShim - openconn stack - after: " + forwarder_shim_stack.get_shims() 
-          return base_sock
+           return base_sock
 
       raise NatConnError("Failed to get connection: "+exception_str)
       
@@ -440,8 +438,3 @@ class NatForwardingShim(BaseShim):
 
 
 
-
-
-
-# register with the shimstack framework
-shimstack_reg_layer('NatForwardingShim',{'class':NatForwardingShim})

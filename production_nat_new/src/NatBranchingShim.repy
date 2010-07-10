@@ -1,0 +1,128 @@
+debugging = True
+
+
+mycontext['debug_free_ports'] = [12346, 12347]
+# For the purpose of debugging only
+def getFreePort():
+  try:
+    return mycontext['debug_free_ports'].pop()
+  except IndexError:
+    raise Exception('No more free ports')
+
+def debugprint(string):
+  if debugging:
+    print "zzzz NatBranchingShim: " + str(string)
+
+
+
+class NatBranchingShimHandle:
+  def __init__(self, handle_stack_map):
+    # A map of handle to shim stack. We use the object's built-in hash function,
+    # which calculates the hash value based on its memory address.
+    self.handle_stack_map = handle_stack_map
+
+  def get_map(self):
+    return self.handle_stack_map
+
+  def get_stack(self, handle):
+    try:
+      return self.handle_stack_map[handle]
+    except KeyError:
+      raise Exception('NatBranchShimHandle.getstack: invalid handle "%s"' % handle)
+
+
+
+class NatBranchingShim(BaseShim):
+
+  # TODO Legacy. For debugging purposes.
+  name = 'NatBranchingShim'
+
+  def __init__(self, next_shim=None, optional_args=None):
+    self._listen_handle = None
+    BaseShim.__init__(self, next_shim, optional_args)
+
+
+
+
+  def copy(self):
+    mycopy = NatBranchingShim()
+    return mycopy
+
+
+  def get_advertisement_string(self):
+    return '(NatBranchingShim)[(NatForwardingShim,128.208.4.90,12345){' + \
+        str(self._natport) + '}||]' + self.shim_stack.get_advertisement_string()
+
+  def _branch_waitforconn_cb_wrapper(self, rip, rport, sock, th, lh):
+    # busy-waiting until handle is ready
+    while not self._listen_handle:
+      sleep(0.5)
+
+    # rebuild stack below this shim
+    shimstack = self._listen_handle.get_stack(lh)
+    socketptr = sock
+    while shimstack.top_shim is not None:
+      socketptr._shim = shimstack.top_shim.copy()
+      socketptr = socketptr._socket
+      shimstack = shimstack.top_shim.shim_stack
+
+    # Now that the socket contains a copy of the shim stack below, we can pass
+    # the socket to the callback.
+    self._branch_waitforconn_cb(rip, rport, sock, th, self._listen_handle)
+
+
+  # Create two separate shim stacks. Return a tuple of both handles when both
+  # shim stacks return.
+  def _shim_waitforconn(self, host, port, callback):
+
+    # Build both shims
+    noopstack = self.shim_stack.copy()
+    natstack = self.shim_stack.copy()
+    natstack.push(NatForwardingShim())
+
+    # Create callback wrapper so that the callback function receives our
+    # customized listen handle
+    self._branch_waitforconn_cb = callback
+
+    # create handle
+    noophandle = noopstack.waitforconn(host, port, self._branch_waitforconn_cb_wrapper)
+    debugprint("Built noopstack: '%s'" % noopstack)
+    self._natport = getFreePort()
+    nathandle = natstack.waitforconn(host, self._natport, self._branch_waitforconn_cb_wrapper)
+    debugprint("Built natstack: '%s'" % natstack)
+    handle_stack_map = {noophandle: noopstack, nathandle: natstack}
+    self._listen_handle = NatBranchingShimHandle(handle_stack_map)
+
+    return self._listen_handle
+
+
+
+  # Stop both listeners.
+  def _shim_stopcomm(self, listen_handle):
+    # check handle
+    if not isinstance(listen_handle, NatBranchingShimHandle):
+      # TODO Should return false here
+      raise Exception('Incorrect listen_handle type.') 
+
+    result = True
+    for handle in listen_handle.get_map().keys():
+      stack = listen_handle.get_map()[handle]
+      ret = stack.stopcomm(handle)
+      result = result and ret
+
+    return result
+    
+ 
+    
+
+  def _shim_openconn(self, host, port, localhost=None, localport=None, timeout=5):
+    client_wants_nat = mycontext['client_wants_nat']
+
+    has_nat = isinstance(self.shim_stack.top_shim, NatForwardingShim)
+    if (client_wants_nat and (not has_nat)) or ((not client_wants_nat) and has_nat):
+      raise ShimExceptionStackRejected
+
+    sock = self.shim_stack.openconn(host, port, localhost, localport, timeout)
+    return sock
+
+
