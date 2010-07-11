@@ -1,18 +1,3 @@
-debugging = True
-
-
-mycontext['debug_free_ports'] = [12346, 12347]
-# For the purpose of debugging only
-def getFreePort():
-  try:
-    return mycontext['debug_free_ports'].pop()
-  except IndexError:
-    raise Exception('No more free ports')
-
-def debugprint(string):
-  if debugging:
-    print "zzzz NatBranchingShim: " + str(string)
-
 
 
 class NatBranchingShimHandle:

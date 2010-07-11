@@ -11,6 +11,7 @@ include ShimStack.repy
 include ShimException.repy
 
 
+
 # Include all shims in the world
 
 include BaseShim.repy
@@ -21,6 +22,7 @@ include SimpleEncryptionShim.repy
 include LogShim.repy
 include RSAShim.repy
 include NatBranchingShim.repy
+include ReverseShim.repy
 
 
 
@@ -34,6 +36,40 @@ register_shim('SimpleEncryptionShim', SimpleEncryptionShim)
 register_shim('LogShim', LogShim)
 register_shim('RSAShim', RSAShim)
 register_shim('NatBranchingShim', NatBranchingShim)
+register_shim('ReverseShim', ReverseShim)
+
+
+# =============================================================================
+# TODO for debugging
+#
+
+include random.repy 
+debugging = True
+
+
+mycontext['debug_free_ports'] = [12346, 12347]
+# For the purpose of debugging only
+def getFreePort():
+  try:
+    return mycontext['debug_free_ports'].pop()
+  except IndexError:
+    raise Exception('No more free ports')
+
+def debugprint(string):
+  if debugging:
+    print "zzzz ReverseShim: " + str(string)
+
+
+def getRandomIP():
+  ip = '127'
+  for section in range(3):
+    randint = random_int_below(256)
+    ip += '.' + str(randint)
+  return ip
+  
+
+#
+# =============================================================================
 
 
 class ShimStackInterface:

@@ -32,7 +32,7 @@ class CoordinationShim(BaseShim):
     # Copy the current shim stack
     shimstack = self.shim_stack
     socketptr = socket
-    while shimstack.top_shim is not None:
+    while (shimstack.top_shim is not None) and isinstance(socketptr, ShimSocketWrapper):
       socketptr._shim = shimstack.top_shim.copy()
       socketptr = socketptr._socket
       shimstack = shimstack.top_shim.shim_stack

@@ -110,7 +110,9 @@ class ShimStack:
   def pop(self):
     # remove and return the top shim
     shim = self.top_shim
-    self.top_shim = self.top.shim_stack.top
+    if shim is None:
+      raise Exception('You cannot pop an empty shim stack.')
+    self.top_shim = self.top_shim.shim_stack.top_shim
     shim.shim_stack = None 
     return shim
 

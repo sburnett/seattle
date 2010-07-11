@@ -71,6 +71,8 @@ class RSAShim(BaseShim):
 
   # Server accept()
   def _callback_wrapper(self, remoteip, remoteport, socket, thiscommhandle, listencommhandle):
+    print 'zzzz RSAShim: callback: sock: %s' % socket
+
     (pubKey, privKey) = self._get_RSA_keys()
 
     # send public key
