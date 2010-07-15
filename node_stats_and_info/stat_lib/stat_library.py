@@ -28,7 +28,7 @@ import datetime
 import pickle
 import gzip
 
-#--*Insert Your Path Here (experimentlib location)*--
+#--*Insert Your Path Here (experimentlib location)*----
 PATH_TO_EXP_LIB = '/home/jeffra45/' 
 PRODUCTION_KEY_PATH = PATH_TO_EXP_LIB + 'stat_lib/production_keys/'
 BETA_KEY_PATH = PATH_TO_EXP_LIB + 'stat_lib/beta_keys/'
@@ -274,6 +274,7 @@ def production_beta_key_split(node_dicts):
     Where each node_dict now has a new key of production, 
     beta or other and its contents being the name of the key.
   """
+
   prod_keys_dict = _production_keys()
   beta_keys_dict = _beta_keys()
   
@@ -285,12 +286,12 @@ def production_beta_key_split(node_dicts):
   return_dict = {}
   
   for nodeid, single_node_dict in node_dicts.items():
-    #checks to see if the given node is a production or beta node
+    # Checks to see if the given node is a production or beta node.
     node_is_production = _key_check(single_node_dict['vessels'], prod_keys_dict)
     node_is_beta = _key_check(single_node_dict['vessels'], beta_keys_dict)
     
-    #if the type returned by _key_check() is a tuple, there was at
-    # least one node that had duplicate keys
+    # If the type returned by _key_check() is a tuple, there was at
+    # least one node that had duplicate keys.
     if node_is_production is not None  and node_is_beta is not None:
       raise ProductionAndBetaKeyError("Node with nodelocation of " +
                                      str(single_node_dict['nodelocation']) +
@@ -302,14 +303,15 @@ def production_beta_key_split(node_dicts):
       multi_match['prod_key'] = node_is_production
       multi_match['beta_key'] = node_is_beta
     elif node_is_production is not None:
-      #node_is_production is the name of the key found
+      # Where node_is_production is the name of the key found.
       single_node_dict['production'] = node_is_production
       production_node_dicts[str(nodeid)] = single_node_dict
     elif node_is_beta is not None:
       single_node_dict['beta'] = node_is_beta
       beta_node_dicts[str(nodeid)] = single_node_dict      
     else:
-      #wasn't found to be production or beta
+      # This shouldn't happen, but if it gets here the node is
+      # neither production or beta.
       single_node_dict['unknown'] = "unknown"
       other_node_dicts[str(nodeid)] = single_node_dict
   
@@ -331,6 +333,7 @@ def split_lan_nodes(node_dicts):
     addresses (adding NAT nodes in one special category).  If 'node a' and 
     'node b' are both part of the '10.8.10.X' network they will be grouped 
     together so you can tell how many nodes are part of the same local network.
+    In this implementation it is possible for a LAN to only have one node. 
   <Argument>
     node_dicts
       A dictionary {nodeid:node_dict} of node dictionaries.
@@ -377,7 +380,7 @@ def _key_check(vessels_list, key_name_dict):
   <Purpose>
     This is a helper method for 'production_beta_key_split',
     it checks to see if a given dictionary of keys
-  <Argument>
+  <Arguments>
     vessels_list
       A list of vessel dictionaries associated with a given node.
     key_name_dict
@@ -399,7 +402,8 @@ def _key_check(vessels_list, key_name_dict):
     for key_name, pubkey_dict in key_name_dict.items():
       for userkey in single_vessel['userkeys']:
         if userkey == pubkey_dict:  
-          #if a duplicate key is found, we want to catch the excpetion for now
+          # If a duplicate key is found an error should be raised, for now we
+          # will catch this error until ticket #853 is resolved.
           try:
             if found_match is not None:
               raise MoreThanOneProdBetaKeyError("Found multiple key matches: " +
@@ -434,6 +438,7 @@ def _production_keys():
     Returns a dictionary of production keys in the form
     of {'key_name':publickey_dict}.
   """
+
   prod_keys_dict = {}
 
   prod_key_names = ['acceptdonation', 'canonical', 'movingtogenilookup',
@@ -468,6 +473,7 @@ def _beta_keys():
     Returns a dictionary of beta keys in the form
     of {'key_name':publickey_dict}.
   """
+
   beta_keys_dict = {}
   
   beta_key_names = ['acceptdonation', 'canonical', 'movingtoonepercent_manyevents',
