@@ -1,6 +1,6 @@
 
 # A wrapper for listener handles with their corresponding shim stacks.
-class NatBranchingShimHandle:
+class RSABranchingShimHandle:
   def __init__(self, handle_stack_map):
     # A dict that maps handle to shim stack. We use the object's built-in hash
     # function, which calculates the hash value based on its memory address.
@@ -13,23 +13,22 @@ class NatBranchingShimHandle:
     try:
       return self.handle_stack_map[handle]
     except KeyError:
-      raise Exception('NatBranchShimHandle.getstack: invalid handle "%s"' % handle)
+      raise Exception('RSABranchShimHandle.getstack: invalid handle "%s"' % handle)
 
 
 
-class NatBranchingShim(BaseShim):
+class RSABranchingShim(BaseShim):
 
-  name = 'NatBranchingShim'
+  name = 'RSABranchingShim'
 
   def __init__(self, next_shim=None, optional_args=None):
-    self._listen_handle = None
     BaseShim.__init__(self, next_shim, optional_args)
-
+    self._listen_handle = None
 
 
 
   def copy(self):
-    mycopy = NatBranchingShim()
+    mycopy = RSABranchingShim()
     return mycopy
 
 
@@ -37,8 +36,8 @@ class NatBranchingShim(BaseShim):
   # will automatically expand it appropriately. The alternative port number is
   # enclosed in curly braces.
   def get_advertisement_string(self):
-    return '(NatBranchingShim)[(NatForwardingShim,128.208.4.90,12345){' + \
-        str(self._natport) + '}||]' + self.shim_stack.get_advertisement_string()
+    return '(RSABranchingShim)[(RSAShim){' + \
+        str(self._rsaport) + '}||]' + self.shim_stack.get_advertisement_string()
 
   
   # Server listener callback
@@ -66,8 +65,8 @@ class NatBranchingShim(BaseShim):
 
     # Build both shims
     noopstack = self.shim_stack.copy()
-    natstack = self.shim_stack.copy()
-    natstack.push(NatForwardingShim())
+    rsastack = self.shim_stack.copy()
+    rsastack.push(RSAShim())
 
     # Create callback wrapper so that the callback function receives our
     # customized listen handle
@@ -76,11 +75,11 @@ class NatBranchingShim(BaseShim):
     # create handle
     noophandle = noopstack.waitforconn(host, port, self._branch_waitforconn_cb_wrapper)
     debugprint("Built noopstack: '%s'" % noopstack)
-    self._natport = getFreePort()
-    nathandle = natstack.waitforconn(host, self._natport, self._branch_waitforconn_cb_wrapper)
-    debugprint("Built natstack: '%s'" % natstack)
-    handle_stack_map = {noophandle: noopstack, nathandle: natstack}
-    self._listen_handle = NatBranchingShimHandle(handle_stack_map)
+    self._rsaport = getFreePort()
+    rsahandle = rsastack.waitforconn(host, self._rsaport, self._branch_waitforconn_cb_wrapper)
+    debugprint("Built rsastack: '%s'" % rsastack)
+    handle_stack_map = {noophandle: noopstack, rsahandle: rsastack}
+    self._listen_handle = RSABranchingShimHandle(handle_stack_map)
 
     return self._listen_handle
 
@@ -89,7 +88,7 @@ class NatBranchingShim(BaseShim):
   # Stop both listeners.
   def _shim_stopcomm(self, listen_handle):
     # check handle
-    if not isinstance(listen_handle, NatBranchingShimHandle):
+    if not isinstance(listen_handle, RSABranchingShimHandle):
       # TODO Should return false here
       raise Exception('Incorrect listen_handle type.') 
 
@@ -106,32 +105,32 @@ class NatBranchingShim(BaseShim):
 
   def _shim_openconn(self, host, port, localhost=None, localport=None, timeout=5):
 
-    has_nat = isinstance(self.shim_stack.top_shim, NatForwardingShim)
+    has_rsa = isinstance(self.shim_stack.top_shim, RSAShim)
 
-    if localhost is None:
-      debug_want_nat = True
-
-
-    # TODO debug only. This determines whether this client uses the nat shim
+    # TODO debug only. This determines whether this client uses the rsa shim
     # begin
-    else:
-      # if my local ip ends with an even number, then use nat
-      if int(localhost[len(localhost)-1]) % 2 == 0:
-        debug_want_nat = True
-      else:
-        debug_want_nat = False
 
-    if ((debug_want_nat and (not has_nat)) or 
-        ((not debug_want_nat) and has_nat)):
+    # if my local ip ends with an even number, then use rsa
+    if localhost is None:
+      raise Exception('Must specify local IP for debug')
+
+    if int(localhost[len(localhost)-1]) % 2 == 0:
+      debug_want_rsa = True
+    else:
+      debug_want_rsa = False
+
+    if ((debug_want_rsa and (not has_rsa)) or 
+        ((not debug_want_rsa) and has_rsa)):
       raise ShimExceptionStackRejected
 
-    if debug_want_nat:
-      debugprint("openconn: Using Nat.")
+    if debug_want_rsa:
+      debugprint("openconn: Using RSA.")
     else:
-      debugprint("openconn: NOT using Nat.")
+      debugprint("openconn: NOT using RSA.")
 
     # end
 
     sock = self.shim_stack.openconn(host, port, localhost, localport, timeout)
     return sock
+
 

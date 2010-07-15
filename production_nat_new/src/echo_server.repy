@@ -1,7 +1,7 @@
 include session.repy
 include ShimStackInterface.repy
 
-shim = ShimStackInterface('(SimpleEncryptionShim,3)(RSAShim)(SimpleEncryptionShim,5)(NatBranchingShim)')
+shim = ShimStackInterface('(NatBranchingShim)')
 mycontext['count'] = 0
 mycontext['handle'] = None
 lock = getlock()

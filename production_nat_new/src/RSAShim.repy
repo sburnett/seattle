@@ -71,8 +71,6 @@ class RSAShim(BaseShim):
 
   # Server accept()
   def _callback_wrapper(self, remoteip, remoteport, socket, thiscommhandle, listencommhandle):
-    print 'zzzz RSAShim: callback: sock: %s' % socket
-
     (pubKey, privKey) = self._get_RSA_keys()
 
     # send public key
@@ -120,6 +118,10 @@ class RSAShim(BaseShim):
     self._sharedKey = str(int(randomfloat()*999999) % 256)
     session_sendmessage(sock, 
                         self._RSA_encrypt(pubKey, "sharedKey***" + self._sharedKey))
+
+    # TODO for debug only. This displays the shared key in the string
+    # representation of the shim when used in client.
+    self._optional_args = [self._sharedKey]
 
     return sock
 

@@ -230,7 +230,8 @@ def new_srv(rip,rport,sock,th,lh):
       clt = key+','+port
 
       #del the clt dict entry when the connection is finished
-      del CLT_DICT[clt]
+      if CLT_DICT.has_key(clt):
+        del CLT_DICT[clt]
       
       # decrement the number of clients
       try:
@@ -242,7 +243,8 @@ def new_srv(rip,rport,sock,th,lh):
         pass # the server may have been deleted if it had an error
       
       # remove the entry from the clt server dict
-      del CLT_SERVER_DICT[clt]
+      if CLT_SERVER_DICT.has_key(clt):
+        del CLT_SERVER_DICT[clt]
 
   # unknown action
   else:
@@ -265,22 +267,31 @@ def new_clt(rip,rport,clt_sock,th,lh):
     print 'ERROR initially reading from new clt'
     return 
 
-
   server = key+','+port
 
-  
   try:
     # lookup the server in the registration
     control_sock = SRV_DICT[server]['sock']
     srv_lock = SRV_DICT[server]['lock']
-  except:
+
+    # Start the lock here to prevent a keyerror later when we try to look up the
+    # server in the dictionary after it has been removed. (Danny Y. Huang)
+    srv_lock.acquire()
+
+    # Now chek again for key errors in case the server should be removed as the lock
+    # is waiting to be acquired. (Danny Y. Huang)
+    if not SRV_DICT.has_key(server):
+      srv_lock.release()
+      raise KeyError
+
+  except KeyError:
     print 'ERROR: clt: '+rip+':'+str(rport)+' requested unknown server:'+server
     try:
       session_sendmessage(clt_sock,NAT_SERVER_NOT_FOUND)
       clt_sock.close()
     except: pass #TODO log this?
     finally: return
-  
+
 
   #add the clt to the clt dict
   CLT_DICT[rip+','+str(rport)] = clt_sock
@@ -288,20 +299,9 @@ def new_clt(rip,rport,clt_sock,th,lh):
 
   
   # begin the client/server handshake, 
-  srv_lock.acquire()
+  #srv_lock.acquire() -- I'm mvoing the lock up (Danny)
 
-  # # Added by Danny Y. Huang.
-  # if not SRV_DICT.has_key(server):
-  #   print 'ERROR Server has already been removed.'
-  #   try:
-  #     session_sendmessage(clt_sock,NAT_SERVER_ERROR)
-  #   except:
-  #     pass #todo log this?
-  #   finally:
-  #     clt_sock.close()
-  #     srv_lock.release()
-  #     del CLT_DICT[rip+','+str(rport)]
-  #     return 
+
 
 
   # don't allow if MAX_CLIENTS are allready connected

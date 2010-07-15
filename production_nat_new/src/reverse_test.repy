@@ -1,0 +1,49 @@
+include ShimStackInterface.repy
+include session.repy
+
+server = ShimStackInterface('(RSAShim)(ReverseShim)(NatForwardingShim)')
+client = ShimStackInterface()
+clientcount = 5
+ip = '127.0.0.1'
+port = 12345
+
+mycontext['clientcount'] = 0
+lock = getlock()
+
+
+def server_func(rip, rport, sock, th, lh):
+  print 'server_func: sock: %s' % sock
+  msg = session_recvmessage(sock)
+  session_sendmessage(sock, msg)
+  print msg
+
+
+def client_func():
+  lock.acquire()
+  myid = mycontext['clientcount']
+  mycontext['clientcount'] += 1
+  lock.release()
+
+  sock = client.openconn(ip, port)
+  print 'client_func %d: sock: %s' % (myid, sock)
+  session_sendmessage(sock, 'Client %d.' % myid)
+  print session_recvmessage(sock)
+  sock.close()
+
+  
+  
+
+if callfunc == 'initialize':
+
+  isserver = False
+  try:
+    isserver = (callargs[0] == 'server')
+  except:
+    pass
+
+  if isserver:
+    mycontext['handle'] = server.waitforconn(ip, port, server_func)
+    print 'server registered at %s:%s.' % (ip, port)
+  else:
+    for i in range(clientcount):
+      settimer(0, client_func, [])

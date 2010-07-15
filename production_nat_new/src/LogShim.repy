@@ -7,13 +7,8 @@ class LogShim(EmptyShim):
     EmptyShim.__init__(self, next_shim, optional_args)
 
     self._lock = getlock()
-
-    # A list that contains all the log entries. Each entry is a dictionary with
-    # the following fields: sourceip, sourceport, destip, destport, operation,
-    # and time. Fields that are not applicable are denoted by None. Log entries
-    # are added in the chronological order.
-    self._loglist = []
-
+    self._logfile = 'temp_log_%s.txt' % str(randomfloat())[2:]
+    self._sockdict = {}
     self._addlog('__init__')
 
 
@@ -27,20 +22,21 @@ class LogShim(EmptyShim):
 
 
   # Private method that adds a valid entry to the loglist
-  def _addlog(self, operation, sourceip=None, sourceport=None, destip=None, destport=None):
+  def _addlog(self, operation, sourceip=None, sourceport=None, destip=None, destport=None, socket=None):
 
-    logentry = {}
-    logentry['operation'] = operation
-    logentry['time'] = getruntime()
-    logentry['sourceip'] = sourceip
-    logentry['sourceport'] = sourceport
-    logentry['destip'] = destip
-    logentry['destport'] = destport
+    logentry = ' * '
+    logentry += '%s at %s ' % (operation, getruntime())
+    logentry += 'from %s:%s to %s:%s ' % (sourceip, sourceport, destip, destport)
+    logentry += 'stack: %s ' % (self.shim_stack)
+    if sock:
+      logentry += 'socket: %s' % socket
+    logentry += '\n\n'
 
+    # append to logfile
     self._lock.acquire()
-    self._loglist.append(logentry)
-    # TODO remove debug prints
-    #print (" "*50 + "%s, %s:%s, %s:%s" % (operation, sourceip, sourceport, destip, destport))
+    fileobj = open(self._logfile, 'a')
+    fileobj.write(logentry)
+    fileobj.close()
     self._lock.release()
 
 
@@ -50,7 +46,14 @@ class LogShim(EmptyShim):
     self._addlog('waitforconn_callback', 
                  sourceip=self._waitforconn_sourceip,
                  sourceport=self._waitforconn_sourceport,
-                 destip=remoteip, destport=remoteport)
+                 destip=remoteip, destport=remoteport,
+                 socket=sock)
+
+    self._lock.acquire()
+    self._sockdict[sock] = [self._waitforconn_sourceip,
+                            self._waitforconn_sourceport,
+                            remoteip, remoteport]
+    self._lock.release()
 
     self._waitforconn_callback(remoteip, remoteport, sock, th, lh)
 

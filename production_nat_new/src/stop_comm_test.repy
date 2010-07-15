@@ -1,10 +1,14 @@
 include ShimStackInterface.repy
 include session.repy
 
-server = ShimStackInterface('(RSAShim)(NatDeciderShim)')
+# customized parameters
+clientcount = 5
+extra_client = 10
+random_client_ip = True
+
+
+server = ShimStackInterface('(RSAShim)(NatBranchingShim)')
 client = ShimStackInterface()
-clientcount = 2
-extra_client = 0
 ip = '127.0.0.1'
 port = 12345
 lock = getlock()
@@ -14,7 +18,7 @@ mycontext['stopped'] = False
 
 def server_func(rip, rport, sock, th, lh):
   print 'Communication starts for (%s:%s).' % (rip, rport)
-  print 'sock = %s' % sock
+  #print 'sock = %s' % sock
 
   lock.acquire()
   mycontext['clientcount'] += 1
@@ -26,8 +30,14 @@ def server_func(rip, rport, sock, th, lh):
   lock.release()
 
   msg = ''
+  printmsg = True
   while True:
     msg = session_recvmessage(sock)
+
+    if printmsg:
+      print msg
+      printmsg = False
+
     if msg == 'end':
       break
     session_sendmessage(sock, msg)
@@ -41,8 +51,13 @@ def client_func():
   myid = str(int(randomfloat() * 100))
 
   try:
-    sock = client.openconn(ip, port)
-    print "Client %s started with sock %s" % (myid, sock)
+    if random_client_ip:
+      (localip, localport) = (getRandomIP(), 12345)
+    else:
+      (localip, localport) = (None, None)
+    sock = client.openconn(ip, port, localip, localport)
+    #print "Client %s started with sock %s" % (myid, sock)
+    print "Client %s started" % myid
   except Exception, e:
     print 'Unable to start #%s because "%s".' % (myid, e)
     return

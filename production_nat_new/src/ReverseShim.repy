@@ -1,0 +1,86 @@
+# A 'subtractive' shim!
+
+include session.repy
+
+class ReverseShim(BaseShim):
+
+
+  def __init__(self, next_shim=None, optional_args=None):
+    BaseShim.__init__(self, next_shim, optional_args)
+
+  def copy(self):
+    return ReverseShim()
+
+  def get_advertisement_string(self):
+    return '(ReverseShim)' + self.shim_stack.get_advertisement_string()
+
+
+  # Server's listen
+  def _shim_waitforconn(self, hostkey, port, callback):
+    self._server_cb = callback
+    return self.shim_stack.waitforconn(hostkey, port, self._server_cb_wrapper)
+
+
+  # Server's listener callback
+  def _server_cb_wrapper(self, rip, rport, sock, th, lh):
+    debugprint('callback: sock: %s' % sock)
+
+    # obtain client's listener details
+    clientip = session_recvmessage(sock)
+    clientport = int(session_recvmessage(sock))
+
+    # Pop the nat shim from the copy of the current stack. Important: We do not
+    # want to mess with the contents of the current stack!
+    shim_stack = self.shim_stack.copy()
+    popped = shim_stack.pop()
+
+    # Wait for the client's listener to be ready
+    control_msg = session_recvmessage(sock)
+    if control_msg == 'client is listening':
+      debugprint('Attempt to connect to client %s:%s' % (clientip, clientport))
+      callback_sock = shim_stack.openconn(clientip, clientport)
+      debugprint('callback: connected, returning sock %s' % callback_sock)
+
+    else:
+      raise Exception("Invalid control_msg: '%s'." % control_msg)
+
+    # return new socket to callback
+    self._server_cb(rip, rport, callback_sock, th, lh)
+
+
+
+  # Client's openconn.
+  #
+  # Upon connection, send server my ip and port, pop the stack and then I start
+  # listening.
+  def _shim_openconn(self, hostkey, port, localhost=None, localport=None, timeout=5):
+    sock = self.shim_stack.openconn(hostkey, port, localhost, localport, timeout)
+
+    # TODO send my public ip and port, randomly assigned for now
+    mylistenip = getRandomIP() # Returns 127.x.x.x
+    mylistenport = 12345
+    session_sendmessage(sock, mylistenip)
+    session_sendmessage(sock, str(mylistenport))
+
+    # Remove the nat shim below me. Again, always make a copy of the stack!
+    shim_stack = self.shim_stack.copy()
+    shim_stack.pop()
+
+    # start listening!
+    self._comm_socket = None
+    self._client_listener = shim_stack.waitforconn(mylistenip, mylistenport, self._client_cb_wrapper)
+    debugprint('openconn: start listening')
+
+    session_sendmessage(sock, 'client is listening')
+
+    # wait for the server to callback so we have a socket!
+    while not self._comm_socket:
+      sleep(1)
+
+    debugprint('openconn: got server response, sock = %s' % self._comm_socket)
+    return self._comm_socket
+
+
+  # Client's listener callback
+  def _client_cb_wrapper(self, rip, rport, sock, th, lh):
+    self._comm_socket = sock

@@ -1,10 +1,10 @@
 include session.repy
 include ShimStackInterface.repy
 
-shim = ShimStackInterface('(LogShim,client)')
+shim = ShimStackInterface()
 thelock = getlock() 
-client_count = 10
-mycontext['ccount'] = client_count
+client_count = 20
+
 
 def number_to_words(number):
     text = ""
@@ -16,6 +16,7 @@ def number_to_words(number):
     return text + "(" + str(number) + ")"
 
 def sendstuff(msg):
+    
     sock = shim.openconn(destip, destport)
     session_sendmessage(sock, msg)
     if session_recvmessage(sock) != 'good':
@@ -23,9 +24,8 @@ def sendstuff(msg):
     sock.close()
 
     thelock.acquire()
-    print "\nsent - '%s'\n" % msg
-    print "socket %s\n" % sock
-    mycontext['ccount'] -= 1
+    print "\nsent - '%s'" % msg
+    print "    socket %s\n" % sock
     thelock.release()
 
  
@@ -41,17 +41,6 @@ if callfunc == 'initialize':
         print "usage: destip destport"
         exitall()
 
-    mycontext['client_wants_nat'] = True
 
-    for exp in range(4):
-
-        print "\n\n\nusing nat = %s" % mycontext['client_wants_nat']
-
-        for i in range(client_count):
-            settimer(0, sendstuff, [number_to_words(i)])
-
-        while mycontext['ccount'] > 0:
-            sleep(1)
-
-        mycontext['ccount'] = client_count
-        mycontext['client_wants_nat'] = not mycontext['client_wants_nat']
+    for i in range(client_count):
+        settimer(0, sendstuff, [number_to_words(i)])
