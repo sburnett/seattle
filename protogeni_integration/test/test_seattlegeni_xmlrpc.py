@@ -99,7 +99,7 @@ def main():
     <credential xml:id="ref1">
      <type>privilege</type>
      <serial>12345</serial>
-     <owner_urn>urn:publicid:IDN+emulab.net+user+monzum</owner_urn>
+     <owner_urn>urn:publicid:IDN+emulab.net+user+test_user</owner_urn>
      <target_urn>urn:publicid:IDN+SeattleGENI+slice+mytestslice"""
   protogeni_credential_part2 = """</target_urn>
      <expires>2010-01-01T00:00:00</expires>
@@ -111,10 +111,10 @@ def main():
      </privileges>
     </credential>
     <signatures>-----BEGIN CERTIFICATE-----
-The emulab certificate for a user.
+########The emulab certificate for a user.#########
 -----END CERTIFICATE-----</signatures>
 </signed-credential>"""
-    #  print protogeni_credential
+
     
   for i in range(3):
     test_create_sliver(server, protogeni_credential_part1+str(i)+protogeni_credential_part2, str(i))

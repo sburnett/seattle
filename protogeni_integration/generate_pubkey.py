@@ -1,5 +1,8 @@
 import sys
-sys.path.append("/home/monzum/monitor_nodes_scripts/seattle")
+
+# Edit the next line to put the correct path where the seattle library
+# files are located.
+sys.path.append("/path/to/seattle/library")
 
 import repyhelper
 repyhelper.translate_and_import('rsa.repy')

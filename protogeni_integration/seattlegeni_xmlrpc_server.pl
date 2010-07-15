@@ -9,8 +9,8 @@ use Time::HiRes qw ( sleep );
 use warnings;
 use strict;
 
-use lib '/home/monzum/protogeni/reference-cm-2.0/xmlrpc';
-use lib '/home/monzum/protogeni/reference-cm-2.0/lib';
+use lib '/path/to/protogeni/reference-cm-2.0/xmlrpc';
+use lib '/path/to/protogeni/reference-cm-2.0/lib';
 use GeniResponse;
 use GeniHRN;
 use GeniCredential;
@@ -33,7 +33,7 @@ BEGIN {
 my $debug = 0;
 
 
-my $directory_prefix = "/home/monzum/temp/";
+my $directory_prefix = "/path/to/xmlrpc/server/location/";
 my $generate_pubkey_path = $directory_prefix . "generate_pubkey.py";
 
 # Url for the seattlegeni xmlrpc server.
