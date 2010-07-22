@@ -1,5 +1,8 @@
-include local_lookup_methods.repy
+#include local_lookup_methods.repy
+include advertise.repy
 
+# Caches the lookup results from the DHT. For use in openconn.
+local_lookup_cache = {}
 
 # TODO For TCP-based connections only. Coordinating for UDP won't be that hard
 # once this is done.
@@ -11,7 +14,7 @@ class CoordinationShim(BaseShim):
   _lookup_attempts = 4
 
   # Number of seconds to re-advertise the shim stack to refresh DHT
-  _advertise_wait_interval = 600
+  _advertise_wait_interval = 60
 
   # Override
   def copy(self):
@@ -67,9 +70,11 @@ class CoordinationShim(BaseShim):
     while self._listener_active:
       try:
         for shim_stack_str in self._expand_shim_stack_str(advertise_value):
-          external_advertise(advertise_key, shim_stack_str)
+          advertise_announce(advertise_key, shim_stack_str, 120)
       except Exception, e:
-        print "CoordinationShim: Advertise error."
+        # Silently drops all errors because the advertisement service can be
+        # flaky at times
+        pass
 
       sleep(self._advertise_wait_interval)
 
@@ -107,56 +112,112 @@ class CoordinationShim(BaseShim):
   # ===========================================================================
 
 
-  def _shim_openconn(self, hostkey, port, localhost=None, localport=None, timeout=5):
-
-    # use a lookup service to coordinate the shim stack
+  # Uses a lookup service to coordinate the construction of the client shim
+  # stack. Returns a list of available shim stack string representations. If
+  # use_cache is set to True, then we are only doing a lookup on a local
+  # cache. Otherwise, we will do a lookup remotely and any local cache
+  # associated with the same key will be overwritten.
+  def _get_shimstack_strings(self, hostkey, port, use_cache=True):
     lookup_results = []
+    lookup_key = str(hostkey)+','+str(port)+',TCP'
+
+    # Search the cache if use_cache is True. If cache returns empty, use the
+    # remote lookup service.
+    if use_cache and local_lookup_cache.has_key(lookup_key):
+      lookup_results = local_lookup_cache[lookup_key]
+      if lookup_results:
+        return lookup_results[:]
+
+    # Contact the remote lookup service
     for count in range(self._lookup_attempts):
-      lookup_results = external_lookup(str(hostkey)+','+str(port)+',TCP')
+      lookup_results = advertise_lookup(lookup_key)
       if len(lookup_results) > 0:
         break
       sleep(1)
 
-    if len(lookup_results) < 1:
-      raise Exception("host could not be found by coordiantion layer")
+    # Remove duplicates or else we would be trying the same non-working shim
+    # stacks multiple times.
+    self._remove_duplicates(lookup_results)
+
+    # Add to local cache.
+    local_lookup_cache[lookup_key] = lookup_results
+    return lookup_results[:]
+
+
+  def _shim_openconn(self, hostkey, port, localhost=None, localport=None, timeout=5):
 
     exception_list = ''
     sock = None
-    shim_stack = None
 
     # TODO Get all shims in the current stack (below the coordintor), including those
     # marked as do_not_advertise. We want to preserve the original shim stack,
     # and adding new ones to the bottom. 
     existing_shim_stack = "" # TODO
 
-    # TODO The first lookup_result is always the latest. What if the latest
-    # result is not really the latest? For each key in the DHT, the values are
-    # added sequentially and there may be duplicates. Should we assign a session
-    # id to avoid such duplicates? Right now there is no need in our ideal
-    # experimental environment.
-    for result in lookup_results:
+    # Indicates whether we have tried using the remote lookup services
+    # (e.g. DHT) to locate the shim stack strings of the server.
+    tried_using_remote_lookup = False
 
+    # First, obtain the shim stack string from cache, or if not, from the DHT.
+    shimstackstr_list = self._get_shimstack_strings(hostkey, port)
+
+    # Try to do openconn for every possible shim stack string
+    while len(shimstackstr_list) > 0:
+
+      shimstackstr = shimstackstr_list.pop()
       port_num = port
 
-     # Extract the port number if the stack string contains "{port_num}"
-      left_curly_braces = result.find('{')
-      right_curly_braces = result.find('}')
+      # Extract the port number if the stack string contains "{port_num}"
+      left_curly_braces = shimstackstr.find('{')
+      right_curly_braces = shimstackstr.find('}')
       if right_curly_braces > left_curly_braces > 0:
-        port_num = int(result[left_curly_braces+1 : right_curly_braces])
-        result = result[:left_curly_braces] + result[right_curly_braces+1:]
-      
+        port_num = int(shimstackstr[left_curly_braces+1 : right_curly_braces])
+        shimstackstr = shimstackstr[:left_curly_braces]+shimstackstr[right_curly_braces+1:]
+
       # Append the new shims to the back of the existing stack
-      shim_stack = ShimStack(existing_shim_stack + result)
+      shim_stack = ShimStack(existing_shim_stack + shimstackstr)
 
       try:
         sock = shim_stack.openconn(hostkey,port_num,localhost,localport,timeout)
+
       except ShimExceptionStackRejected, e:
-        continue
+        # It is possible that some of my shims below me don't like this stack,
+        # so they raise this exception. We drop the exception and keep trying
+        # other shim stacks.
+        pass
+
       except Exception,e:
-        exception_list +=' Exception: '+str(e)+' for stack '+result
+        exception_list +=' Exception: '+str(e)+' for stack '+shimstackstr
+
       else:
+        # Success in openconn. We won't try the rest of the shimstack strings.
         break
 
+      if len(shimstackstr_list) == 0 and not tried_using_remote_lookup:
+        # All possible shim stack strings are consumed and we still haven't
+        # found a workable one. We want to lookup the shim stack strings using
+        # the remote services, instead of the local cache.
+        shimstackstr_list = self._get_shimstack_strings(hostkey, port, use_cache=False)
+        tried_using_remote_lookup = True
+
+      if len(shimstackstr_list) == 0 and tried_using_remote_lookup:      
+        # All possible shim stack strings are consumed. We haven't found a
+        # workable one after lookups on both the local cache and the remote
+        # services. We raise our arms and shall surrender.
+        break
+
+    # end while
+
+    # If all things fail, we will connect without the shim interface. This
+    # provides backward compatibility for older servers.
+    if sock is None:
+      print "DEBUG: Trying to connect without using the shim interface."
+      try:
+        sock = openconn(hostkey,port_num,localhost,localport,timeout)
+      except Exception,e:
+        exception_list +=' Exception: '+str(e)+' for stack '+result
+
+    # At this point, we've exhausted all our means.
     if sock is None:
       # TODO raise correct type of exception
       raise Exception(exception_list)
@@ -168,10 +229,23 @@ class CoordinationShim(BaseShim):
 
 
 
+
   def _shim_stopcomm(self, handle):
     self._listener_active = False
     return self.shim_stack.stopcomm(handle)
 
 
+  # Remove the duplicates in the input list. The input list is modified.
+  def _remove_duplicates(self, inlist):
+    listindex = 0
 
-    
+    while listindex < len(inlist):
+      # If the current item appears in the rest of the list, remove it.
+      currentitem = inlist[listindex]
+      if currentitem in inlist[listindex+1:]:
+        del inlist[listindex]
+      else:
+        listindex += 1
+
+
+      

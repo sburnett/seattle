@@ -2,7 +2,7 @@
 # Wrapper class of the socket object we're redefining within EmptyShim. This
 # class should never be referenced, redefined or overridden by the shim
 # programmer. If he wishes to redefine the three socket operations, he
-# should do so within the socket_* methods in the subclasses of EmptyShim.
+# should do so within the socket_* methods in the subclasses of BaseShim.
 class ShimSocketWrapper:
 
   mycontext['ShimSocketWrapperLock'] = getlock()
@@ -37,6 +37,13 @@ class ShimSocketWrapper:
     return self._shim.socket_send(self._socket, message)
 
 
+  # Provides compatibility to the counterpart in the repy socket. Shim creators
+  # cannot override this method.
+  def willblock(self):
+    return self._socket.willblock()
+
+
+  # Returns the instance id.
   def getid(self):
     return self._id
 

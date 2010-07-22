@@ -37,7 +37,7 @@ include ShimStackInterface.repy
 
 
 MAX_SERVERS = 5
-MAX_CLIENTS = 40 # for a total of 20 across all 5 clients
+MAX_CLIENTS = 4
 
 
 SRV_DICT = {}  # keep track of registered servers
@@ -57,6 +57,8 @@ def check_behind_nat(rip,rport,sock,th,lh):
   # used by remote machines to deterimine if they have
   # bi-directional connectivity
   
+  print "INFO: nat-check request from %s:%s" % (rip, rport)
+
   try:
     (server_ip,server_port) = session_recvmessage(sock).split(':')
     server_port = int(server_port)
@@ -482,7 +484,7 @@ if callfunc == 'initialize':
   mycontext['myport']= str(wait_port)
 
   print "NAT Forwarder started on " + ip + ":" + str(wait_port)
-  shim_stack = ShimStackInterface('(RSAShim)(SimpleEncryptionShim,8)')
+  shim_stack = ShimStackInterface()
   shim_stack.waitforconn(ip,wait_port,common_entry)
   
   

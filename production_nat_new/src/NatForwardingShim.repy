@@ -32,6 +32,7 @@
 """
 
 
+
 include session.repy
 include NAT_CONSTANTS.repy
 include AdvertiseObjects.repy
@@ -61,7 +62,7 @@ class NatForwardingShim(BaseShim):
 
   name = 'NatForwardingShim'
 
- 
+
   ######    CONSTRUCTOR
 
   def __init__(self,next_shim=None,optional_args=None):

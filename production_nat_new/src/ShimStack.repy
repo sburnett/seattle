@@ -242,25 +242,16 @@ class ShimStack:
       return self.top_shim.stopcomm(handle)
 
   def socket_close(self, socket):
-    # print "shim_stack.socket_close socket: " + str(socket)
-    # print "shim_stack.top_shim: " + self.top_shim.name
-
     return socket.close()
-    #return self.top_shim.socket_close(socket)
+
 
   def socket_send(self, socket, msg):
-    # print "shim_stack.socket_send socket: " + str(socket)
-    # print "shim_stack.top_shim: " + self.top_shim.name
-    #print ">>>> socket_send: " + str(socket)
     return socket.send(msg)
-    #return self.top_shim.socket_send(socket, msg)
+
 
   def socket_recv(self, socket, bytes):
-    # print "shim_stack.socket_recv socket: " + str(socket)
-    # print "shim_stack.top_shim: " + self.top_shim.name
-    #print ">>>> socket_recv: " + str(socket)
     return socket.recv(bytes)
-    #return self.top_shim.socket_recv(socket, bytes)
+
 
 
 

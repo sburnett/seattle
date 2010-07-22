@@ -1,64 +1,96 @@
+"""
+
+<Program Name>
+  NatDeciderShim.repy
+
+<Author>
+ Danny Yuxing Huang (yh1@williams.edu)
+
+<Purpose> 
+
+  Decider shim for the Nat Forwarding Shim. When run in a server, it determines
+  if the server is behind a NAT. If it is, then the decider pushes the
+  NatForwardingShim onto the shim stack. If not, the decider advertises the
+  server's public. When run in a client, the decider looks up the advertised
+  value of the server and makes a connection depending on whether the server is
+  behind a NAT or not.
+
+"""
+
 include NatForwardingLib.repy
 
-# Decider shim for NatFowardingShim. Determines if a server needs the nat
-# fowarding shim in the shim stack. If true, then inserts the shim into the shim stack
 class NatDeciderShim(BaseShim):
-
+  
+  # TODO Retained for debug
   name = 'NatDeciderShim'
 
   def __init__(self, next_shim=None, optional_args=None):
-
-    # Indicates whether we've run a nat-check. If true, we don't need to run the
-    # check again because it is expensive.
-    self._done_nat_check = False
-
-    self._behind_nat = False
-
     BaseShim.__init__(self, next_shim, optional_args)
+
+    if optional_args:
+      self._server_ip = optional_args[0]
+    else:
+      self._server_ip = None
 
 
   def copy(self):
-    return NatDeciderShim()
+    return NatDeciderShim(optional_args=[self._server_ip])
 
 
   def get_advertisement_string(self):
-    # We don't want to advertise this shim
-    return self.shim_stack.get_advertisement_string()
+    myname = '(NatDeciderShim'
+    if self._server_ip:
+      # Advertise the server's IP if it is not behind a NAT. When the client
+      # subscribes, it can directly talk to the server without the forwarder.
+      myname += ',' + self._server_ip
+    myname += ')'
 
+    return myname + self.shim_stack.get_advertisement_string()
 
-  def _is_behind_nat(self, hostip, hostport):
-    return self._behind_nat
 
 
 
   def waitforconn(self, host, port, callback):
-    if not self._done_nat_check:
+    myip = getmyip()
 
-      # TODO The naming of the function below is very confusing. It returns true
-      # if forwarding is needed, i.e. we're behind a NAT.
-      #self._behind_nat = natforwardinglib_isBidirectional(host, port)
-
-      # TODO Debug only
-      if not self._behind_nat:
-        self._behind_nat = True
-        self._done_nat_check = True
-        print "zzzz NatDeciderShim: We pretend to be behind NAT, though it is not the case."
-
-      # Construct the nat forwarding shim for the first time
-      if self._behind_nat:
-        natshim = NatForwardingShim()
-        self.shim_stack.push(natshim)
-
-
-
-        
-    if self._behind_nat:
-      # TODO If we're behind a NAT, then our IP is not unique. We need to
-      # translate it into a unique key for the nat shim. But then again, how
-      # would the client know about this? We can add a shim to a client.
+    # TODO For debug only: Force server to pretend to be behind NAT
+    try:
+      if (host + str(port)) in mycontext['nat_cheat']:
+        myip = getRandomIP()
+        print "DEBUG: Pretend that %s:%s has a private IP %s." % (host, port, myip)
+    except:
+      # Silently drops all errors if this backdoor is not set.
       pass
-    
-    print "zzzz %s:%s is behind_nat = %s" % (host, port, self._behind_nat)
 
-    return self.shim_stack.waitforconn(host, port, callback)
+    # If server is behind the NAT, then behind_nat = True.
+    behind_nat = natforwardinglib_isBidirectional(myip, port)
 
+    if behind_nat:
+      self.shim_stack.push(NatForwardingShim())
+      hostkey = host
+    else:
+      # Server is not behind NAT. We include its IP in the advertisement
+      # string, so that the client can directly talk to the server.
+      self._server_ip = myip
+      hostkey = myip
+
+    return self.shim_stack.waitforconn(hostkey, port, callback)
+  
+
+
+  def openconn(self, hostkey, hostport, localip=None, localport=None, timeout=5):
+    # Extra time given to openconn if we're using the forwarder.
+    extratime = 0
+
+    # If the server is behind NAT, we will see a NatForwarding shim in the layer
+    # below. Otherwise, we are talking directly with the server. Before we can
+    # proceed, we need to translate the hostkey into a valid IP address.
+    if self._server_ip:
+      # Since the server advertises its IP, it is not behind a NAT.
+      serverkey = self._server_ip
+    else:
+      # Server is behind a NAT.
+      serverkey = hostkey
+      extratime = 7
+      
+    return self.shim_stack.openconn(serverkey, hostport, localip, localport, timeout+extratime)

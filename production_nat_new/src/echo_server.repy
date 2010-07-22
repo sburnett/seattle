@@ -1,13 +1,13 @@
 include session.repy
 include ShimStackInterface.repy
 
-shim = ShimStackInterface('(NatBranchingShim)')
+shim = ShimStackInterface('(NatDeciderShim)')
 mycontext['count'] = 0
 mycontext['handle'] = None
 lock = getlock()
 
 def echo(rip, rport, sock, th, lh):
-    print("zzzz echo top: from %s:%s: sock: %s" % (rip,rport,sock))
+    print("zzzz callback: from %s:%s: sock: %s" % (rip,rport,sock))
     msg = session_recvmessage(sock)
 
     session_sendmessage(sock, "good")
@@ -19,14 +19,13 @@ def echo(rip, rport, sock, th, lh):
 if callfunc == 'initialize':
 
     try:
-        myport = int(callargs[0])
+        myip = callargs[0]
+        myport = int(callargs[1])
     except:
-        print "usage: myport"
+        print "usage: myhostkey myport"
         exitall()
 
-    myip = '127.0.0.1'
+    pretendToHaveNat(myip, myport)
 
-
-    print "Listening on %s:%s..." % (myip, myport)
     mycontext['handle'] = shim.waitforconn(myip, myport, echo)
-    print "Ready."
+    print "Ready. Listening on %s:%s..." % (myip, myport)

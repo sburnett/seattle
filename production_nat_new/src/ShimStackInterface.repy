@@ -27,6 +27,7 @@ include ReverseShim.repy
 
 
 
+
 # Register all shims in the world
 
 register_shim('BaseShim', BaseShim)
@@ -45,16 +46,21 @@ register_shim('ReverseShim', ReverseShim)
 # TODO for debugging
 #
 
-include random.repy 
+#begin include random.repy 
+#already included random.repy 
+#end include random.repy 
 debugging = True
-
-
-
 
 def debugprint(string):
   if debugging:
     print "zzzz NatBranchingShim: " + str(string)
 
+
+# Pretend that some host is behind the nat
+def pretendToHaveNat(hostkey, hostport):
+  if not mycontext.has_key('nat_cheat'):
+    mycontext['nat_cheat'] = []
+  mycontext['nat_cheat'].append(hostkey + str(hostport))
 
 
 
@@ -126,4 +132,5 @@ class ShimStackInterface:
     return shimstack.sendmess(host,port,msg,localhost,localport)
 
  
+
 

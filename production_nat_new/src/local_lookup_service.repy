@@ -30,22 +30,25 @@ STR_SEP = '&'
 
 # handle connections
 def new_conn(rip,rport,sock,th,lh):
-  
-  # read the request
-  msg = session_recvmessage(sock)
-    
-  # parse the request
-  request = msg.split('$')
+  try:
+    # read the request
+    msg = session_recvmessage(sock)
 
-  # ? request = key
-  # do a lookup
-  if len(request) == 1:
-    lookup(sock,request[0])
-  
-  # ? request = key,value,ENDTRANSMIT
-  # do an advertisement
-  elif len(request) == 2:
-    advertise(sock,request[0],request[1])
+    # parse the request
+    request = msg.split('$')
+
+    # ? request = key
+    # do a lookup
+    if len(request) == 1:
+      lookup(sock,request[0])
+
+    # ? request = key,value,ENDTRANSMIT
+    # do an advertisement
+    elif len(request) == 2:
+      advertise(sock,request[0],request[1])
+
+  except Exception, e:
+      print "ERROR: %s:%s has exception: %s" % (rip, rport, e)
 
 
 # lookup a value and return it
