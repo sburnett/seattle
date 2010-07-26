@@ -1,7 +1,8 @@
 """
 
 Main entry point for all applications that use shim. Provides a wrapper for the
-shim stack object for easy instantiation.
+shim stack object for easy instantiation. Also catches any exceptions that are
+not consistant with the API semantics. Provides logging capabilities.
 
 
 """
@@ -97,18 +98,20 @@ class ShimStackInterface:
     self._handle_dict = {}
 
 
+  def _interface_listener_cb_wrapper(self, sock, rip, rport, th, lh):
+    try:
+      self._interface_listener_cb(sock, rip, rport, th, lh)
+    except Exception, e:
+      # TODO log
+      print "ShimStackInterface: Exception at acceptance of connection: '%s'." % e
 
 
   def waitforconn(self, host, port, callback):
     shimstack = ShimStack(self._stack_str)
-    handle = shimstack.waitforconn(host, port, callback)
-    self._handle_dict[handle] = shimstack
-    return handle
 
+    self._interface_listener_cb = callback
+    handle = shimstack.waitforconn(host, port, self._interface_listener_cb_wrapper)
 
-  def recvmess(self, host, port, callback):
-    shimstack = ShimStack(self._stack_str)
-    handle = shimstack.recvmess(host, port, callback)
     self._handle_dict[handle] = shimstack
     return handle
 
@@ -118,13 +121,14 @@ class ShimStackInterface:
       shimstack = self._handle_dict[handle]
     except KeyError:
       return False
-    print "zzzz ShimStackInterface: stopcomm on handle '%s' and stack '%s'" % (handle, shimstack)
+
     return shimstack.stopcomm(handle)
  
 
   def openconn(self,host,port,localhost=None,localport=None,timeout=5):
     shimstack = ShimStack(self._stack_str)
-    return shimstack.openconn(host,port,localhost,localport,timeout)
+    socket = shimstack.openconn(host,port,localhost,localport,timeout)
+    return socket
 
 
   def sendmess(self,host,port,msg,localhost=None,localport=None):
@@ -132,5 +136,12 @@ class ShimStackInterface:
     return shimstack.sendmess(host,port,msg,localhost,localport)
 
  
+
+  def recvmess(self, host, port, callback):
+    shimstack = ShimStack(self._stack_str)
+    handle = shimstack.recvmess(host, port, callback)
+    self._handle_dict[handle] = shimstack
+    return handle
+
 
 
