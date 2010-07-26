@@ -213,9 +213,46 @@ class ShimStack:
 
   def waitforconn(self,host,port,callback):
     if self.top_shim is None:
-      return waitforconn(host, port, callback)
+
+      # Make sure that the host we're passing into the system's waitforconn call
+      # is a valid IP address. 
+      if is_ip_address(host):
+        hostip = host
+
+      # Turn the host key into the server's IP address. Save the hostkey-IP
+      # association.
+      else:
+        hostip = getmyip()
+        set_ip_to_hostkey(host, hostip)
+
+      return waitforconn(hostip, port, callback)
+
     else:
       return self.top_shim.waitforconn(host,port,callback)
+
+
+  def openconn(self,host,port,localhost=None,localport=None,timeout=5):
+    if self.top_shim is None:
+
+      # Make sure that the host we're passing into the system's openconn call
+      # is a valid IP address. 
+      if is_ip_address(host):
+        hostip = host
+
+      # Turn the host key into the server's IP address. Save the hostkey-IP
+      # association.
+      else:
+
+        # We've already locked in CoordinationShim, so we don't need to lock
+        # again below.
+        hostip = get_ip_from_hostkey(host, tolock=False)
+
+      return openconn(hostip,port,localhost,localport,timeout)
+
+    else:
+      return self.top_shim.openconn(host,port,localhost,localport,timeout)
+
+
 
   def recvmess(self,host,port,callback):
     if self.top_shim is None:
@@ -223,11 +260,6 @@ class ShimStack:
     else:
       return self.top_shim.recvmess(host,port,callback)
 
-  def openconn(self,host,port,localhost=None,localport=None,timeout=5):
-    if self.top_shim is None:
-      return openconn(host,port,localhost,localport,timeout)
-    else:
-      return self.top_shim.openconn(host,port,localhost,localport,timeout)
 
   def sendmess(self,host,port,msg,localhost=None,localport=None):
     if self.top_shim is None:

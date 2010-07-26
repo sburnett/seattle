@@ -10,7 +10,7 @@ not consistant with the API semantics. Provides logging capabilities.
 include ShimSocketWrapper.repy
 include ShimStack.repy
 include ShimException.repy
-
+include NameTranslation.repy
 
 
 # Include all shims in the world
@@ -85,6 +85,8 @@ def getRandomIP():
 # =============================================================================
 
 
+
+
 class ShimStackInterface:
 
   def __init__(self, stack_str=''):
@@ -98,19 +100,9 @@ class ShimStackInterface:
     self._handle_dict = {}
 
 
-  def _interface_listener_cb_wrapper(self, sock, rip, rport, th, lh):
-    try:
-      self._interface_listener_cb(sock, rip, rport, th, lh)
-    except Exception, e:
-      # TODO log
-      print "ShimStackInterface: Exception at acceptance of connection: '%s'." % e
-
-
   def waitforconn(self, host, port, callback):
     shimstack = ShimStack(self._stack_str)
-
-    self._interface_listener_cb = callback
-    handle = shimstack.waitforconn(host, port, self._interface_listener_cb_wrapper)
+    handle = shimstack.waitforconn(host, port, callback)
 
     self._handle_dict[handle] = shimstack
     return handle

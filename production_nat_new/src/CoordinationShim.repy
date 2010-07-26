@@ -1,8 +1,6 @@
 #include local_lookup_methods.repy
 include advertise.repy
 
-# Caches the lookup results from the DHT. For use in openconn.
-local_lookup_cache = {}
 
 # TODO For TCP-based connections only. Coordinating for UDP won't be that hard
 # once this is done.
@@ -23,8 +21,9 @@ class CoordinationShim(BaseShim):
   def __init__(self, next_shim=None, optional_args=None):
     BaseShim.__init__(self, next_shim, optional_args)
 
+  # Also advertises the IP of the server
   def get_advertisement_string(self):
-    return '(CoordinationShim)' + self.shim_stack.get_advertisement_string()
+    return '(CoordinationShim,' + self._server_ip + ')' + self.shim_stack.get_advertisement_string()
 
 
   # ===========================================================================
@@ -53,14 +52,28 @@ class CoordinationShim(BaseShim):
     # for all incoming connections.
     handle = self.shim_stack.waitforconn(hostkey, port, self._coord_waitforconn_callback_wrapper)
 
+    self._server_ip = getmyip()
+
     # Now that the stack has been built, we can advertise its content.
     advertise_key = str(hostkey) + "," + str(port) + ",TCP"
     advertise_value = self.shim_stack.get_advertisement_string()
-    self._listener_active = True
+
+    # Prepend my IP to the advertised shim stack string
+    try:
+      serverip = get_ip_from_hostkey(hostkey)
+    except NameTranslationError, error:
+      # An exception here implies that we never reached the bottom of the shim
+      # stack where the system's waitforconn was invoked. In this case, we don't
+      # need to prepend the IP to the shim stack string since the IP is not
+      # actually meaningful.
+      pass
+    else:
+      advertise_value = serverip + '@' + advertise_value
     
     # We advertise the contents of the shim stack at its first creation.
     # Subsequent changes are on a per-connection basis (using negotiation) and
     # are irrelevant for coordination.
+    self._listener_active = True
     settimer(0, self._advertise_thread, [advertise_key, advertise_value])
 
     return handle
@@ -69,8 +82,7 @@ class CoordinationShim(BaseShim):
   def _advertise_thread(self, advertise_key, advertise_value):
     while self._listener_active:
       try:
-        for shim_stack_str in self._expand_shim_stack_str(advertise_value):
-          advertise_announce(advertise_key, shim_stack_str, 120)
+        advertise_announce(advertise_key, advertise_value, 120)
       except Exception, e:
         # Silently drops all errors because the advertisement service can be
         # flaky at times
@@ -78,30 +90,6 @@ class CoordinationShim(BaseShim):
 
       sleep(self._advertise_wait_interval)
 
-
-  def _expand_shim_stack_str(self, stack_str):
-    retlist = []
-
-    # Find the branch statement, which is enclosed in a pair of square
-    # brackets. The statement consists of a series of shim names separated by
-    # the or-operator "||". An example of a brach statement is
-    # "[(ShimA)||(ShimB)||]". It means that the shim can be ShimA, ShimB, or
-    # no-op.
-    left_bracket_pos = stack_str.find('[')
-    right_bracket_pos = stack_str.find(']')
-
-    if right_bracket_pos > left_bracket_pos > 0:
-      branch_statement = stack_str[left_bracket_pos + 1 : right_bracket_pos]
-      shim_list = branch_statement.split('||')
-
-      for shim in shim_list:
-        new_stack_str = stack_str.replace('[%s]' % branch_statement, shim)
-        retlist.append(new_stack_str)
-
-    else:
-      retlist.append(stack_str)
-
-    return retlist
 
 
 
@@ -115,18 +103,29 @@ class CoordinationShim(BaseShim):
   # Uses a lookup service to coordinate the construction of the client shim
   # stack. Returns a list of available shim stack string representations. If
   # use_cache is set to True, then we are only doing a lookup on a local
-  # cache. Otherwise, we will do a lookup remotely and any local cache
-  # associated with the same key will be overwritten.
+  # cache. Otherwise, we will do a lookup remotely. Helper for the openconn
+  # operation.
   def _get_shimstack_strings(self, hostkey, port, use_cache=True):
+    # Initializes the local cache so we don't have to contact the remote
+    # services all the time.
+    if mycontext.has_key('shim_stack_string_cache_lock'):
+      mycontext['shim_stack_string_cache_lock'].acquire()
+    else:
+      mycontext['shim_stack_string_cache_lock'] = getlock() 
+      mycontext['shim_stack_string_cache_lock'].acquire()
+      mycontext['shim_stack_string_cache'] = {}
+
     lookup_results = []
     lookup_key = str(hostkey)+','+str(port)+',TCP'
+    local_lookup_cache = mycontext['shim_stack_string_cache']
 
     # Search the cache if use_cache is True. If cache returns empty, use the
     # remote lookup service.
     if use_cache and local_lookup_cache.has_key(lookup_key):
-      lookup_results = local_lookup_cache[lookup_key]
+      lookup_results = local_lookup_cache[lookup_key][:]
       if lookup_results:
-        return lookup_results[:]
+        mycontext['shim_stack_string_cache_lock'].release()
+        return lookup_results
 
     # Contact the remote lookup service
     for count in range(self._lookup_attempts):
@@ -135,18 +134,28 @@ class CoordinationShim(BaseShim):
         break
       sleep(1)
 
+    # Add to local cache.
+    if local_lookup_cache.has_key(lookup_key):
+      local_lookup_cache[lookup_key] += lookup_results
+    else:
+      local_lookup_cache[lookup_key] = lookup_results
+
     # Remove duplicates or else we would be trying the same non-working shim
     # stacks multiple times.
-    self._remove_duplicates(lookup_results)
+    self._remove_duplicates(local_lookup_cache[lookup_key])
 
-    # Add to local cache.
-    local_lookup_cache[lookup_key] = lookup_results
-    return lookup_results[:]
+    # Return a copy so that others won't be able to mess with our internal
+    # cache.
+    lookup_results = local_lookup_cache[lookup_key][:]
+
+    mycontext['shim_stack_string_cache_lock'].release()
+
+    return lookup_results
 
 
   def _shim_openconn(self, hostkey, port, localhost=None, localport=None, timeout=5):
 
-    exception_list = ''
+    exception_str = ''
     sock = None
 
     # TODO Get all shims in the current stack (below the coordintor), including those
@@ -174,24 +183,32 @@ class CoordinationShim(BaseShim):
         port_num = int(shimstackstr[left_curly_braces+1 : right_curly_braces])
         shimstackstr = shimstackstr[:left_curly_braces]+shimstackstr[right_curly_braces+1:]
 
+      # Extract the IP address associated with this stack
+      if is_ip_address(hostkey):
+        hostip = hostkey
+      else:
+        try: 
+          (hostip, shimstackstr) = shimstackstr.split('@')
+          set_ip_to_hostkey(hostkey, hostip, tolock=False)
+        except ValueError:
+          # Looks like the server has not advertised its IP address. Fine. We'll
+          # just trust that whatever shims below may somehow translate the
+          # hostkey. It is probable that the hostkey needs no translation at
+          # all. 
+          hostip = hostkey
+
       # Append the new shims to the back of the existing stack
       shim_stack = ShimStack(existing_shim_stack + shimstackstr)
 
       try:
         sock = shim_stack.openconn(hostkey,port_num,localhost,localport,timeout)
-
-      except ShimExceptionStackRejected, e:
-        # It is possible that some of my shims below me don't like this stack,
-        # so they raise this exception. We drop the exception and keep trying
-        # other shim stacks.
-        pass
-
       except Exception,e:
-        exception_list +=' Exception: '+str(e)+' for stack '+shimstackstr
-
+        exception_str +=' Exception: '+str(e)+' for stack '+shimstackstr
       else:
         # Success in openconn. We won't try the rest of the shimstack strings.
         break
+
+
 
       if len(shimstackstr_list) == 0 and not tried_using_remote_lookup:
         # All possible shim stack strings are consumed and we still haven't
@@ -215,16 +232,15 @@ class CoordinationShim(BaseShim):
       try:
         sock = openconn(hostkey,port_num,localhost,localport,timeout)
       except Exception,e:
-        exception_list +=' Exception: '+str(e)+' for stack '+result
+        exception_str +=' Unable to connect without using shims.'
 
     # At this point, we've exhausted all our means.
     if sock is None:
-      # TODO raise correct type of exception
-      raise Exception(exception_list)
+      exception_str = 'CoordinationShim error: ' + exception_str
+      raise Exception(exception_str)
     else:
       self.shim_stack = shim_stack
       return sock
-
 
 
 
@@ -235,7 +251,8 @@ class CoordinationShim(BaseShim):
     return self.shim_stack.stopcomm(handle)
 
 
-  # Remove the duplicates in the input list. The input list is modified.
+  # Remove the duplicates in the input list. The input list is modified. Helper
+  # method for self._get_shimstack_strings.
   def _remove_duplicates(self, inlist):
     listindex = 0
 
@@ -247,5 +264,3 @@ class CoordinationShim(BaseShim):
       else:
         listindex += 1
 
-
-      

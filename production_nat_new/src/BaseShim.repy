@@ -31,11 +31,10 @@ class BaseShim:
 
   # Helper method for waitforconn
   def _waitforconn_shim_callback_wrapper(self, remoteip, remoteport, socket, thiscommhandle, listencommhandle):
+
     newsocket = ShimSocketWrapper(socket, self)
-    try:
-      self._waitforconn_shim_callback(remoteip, remoteport, newsocket, thiscommhandle, listencommhandle)
-    except Exception, e:
-      print "waitforconn callback exception: " + str(e)
+    self._waitforconn_shim_callback(remoteip, remoteport, newsocket, thiscommhandle, listencommhandle)
+ 
 
 
   def waitforconn(self, host, port, callback):

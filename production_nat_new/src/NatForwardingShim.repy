@@ -354,21 +354,21 @@ class NatForwardingShim(BaseShim):
     """  
 
     if self.hop_key is not None and self.hop_port is not None:
-      # if a hop key and port have been specified, use em.
-      base_sock = self._forwarder_shim_stack.openconn(self.hop_key,self.hop_port,localip,localport,timeout)
+      # If a hop key and port have been specified, use them.
+      base_sock = self._forwarder_shim_stack.openconn(self.hop_key,self.hop_port,localip,localport,timeout+5)
       self.establish_client_server_conn(base_sock,id,port)
       return base_sock
 
     else:
+
       #find the host with a lookup
-      
       host_list = self.lookup_host(id,port)
 
       exception_str = ''
       for (forip,forport) in host_list:
         try:
           base_sock = self._forwarder_shim_stack.openconn(forip,forport,localip,
-                                                          localport,timeout)
+                                                          localport,timeout+9)
           self.establish_client_server_conn(base_sock,id,port)
         except Exception,e:
           exception_str = exception_str+',  '+str(e)

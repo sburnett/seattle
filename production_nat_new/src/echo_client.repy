@@ -3,7 +3,7 @@ include ShimStackInterface.repy
 
 shim = ShimStackInterface()
 thelock = getlock() 
-client_count = 3
+client_count = 20
 
 
 def number_to_words(number):

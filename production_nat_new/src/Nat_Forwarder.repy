@@ -37,7 +37,7 @@ include ShimStackInterface.repy
 
 
 MAX_SERVERS = 5
-MAX_CLIENTS = 4
+MAX_CLIENTS = 6
 
 
 SRV_DICT = {}  # keep track of registered servers

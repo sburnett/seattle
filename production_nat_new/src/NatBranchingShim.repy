@@ -38,8 +38,7 @@ class NatBranchingShim(BaseShim):
   # will automatically expand it appropriately. The alternative port number is
   # enclosed in curly braces.
   def get_advertisement_string(self):
-    return '(NatBranchingShim)[(NatForwardingShim,128.208.4.90,12345){' + \
-        str(self._natport) + '}||]' + self.shim_stack.get_advertisement_string()
+    return '(NatBranchingShim)' + self.shim_stack.get_advertisement_string()
 
   
   # Server listener callback
@@ -75,11 +74,10 @@ class NatBranchingShim(BaseShim):
     self._branch_waitforconn_cb = callback
 
     # create handle
+    print 'zzzz NatBranchingShim: Constructing noop shim stack.'
     noophandle = noopstack.waitforconn(host, port, self._branch_waitforconn_cb_wrapper)
-    debugprint("Built noopstack: '%s'" % noopstack)
-    self._natport = getFreePort()
-    nathandle = natstack.waitforconn(host, self._natport, self._branch_waitforconn_cb_wrapper)
-    debugprint("Built natstack: '%s'" % natstack)
+    print 'zzzz NatBranchingShim: Constructing nat shim stack.'
+    nathandle = natstack.waitforconn(host, port, self._branch_waitforconn_cb_wrapper)
     handle_stack_map = {noophandle: noopstack, nathandle: natstack}
     self._listen_handle = NatBranchingShimHandle(handle_stack_map)
 
@@ -106,33 +104,22 @@ class NatBranchingShim(BaseShim):
     
 
   def _shim_openconn(self, host, port, localhost=None, localport=None, timeout=5):
+    # Let us try direct connection first
+    try:
+      print "zzzz NatBranchingShim: Trying direct connection."
+      sock = self.shim_stack.openconn(host, port, localhost, localport, timeout)
 
-    has_nat = isinstance(self.shim_stack.top_shim, NatForwardingShim)
-
-    if localhost is None:
-      debug_want_nat = True
+      if randomfloat() < 0.5:
+        raise Exception('Testing: Try using Nat with 0.5 probability.')
 
 
-    # TODO debug only. This determines whether this client uses the nat shim
-    # begin
-    else:
-      # if my local ip ends with an even number, then use nat
-      if int(localhost[len(localhost)-1]) % 2 == 0:
-        debug_want_nat = True
-      else:
-        debug_want_nat = False
+      print "zzzz NatBranchingShim: Direct connection works."
+      return sock
 
-    if ((debug_want_nat and (not has_nat)) or 
-        ((not debug_want_nat) and has_nat)):
-      raise ShimExceptionStackRejected
-
-    if debug_want_nat:
-      debugprint("openconn: Using Nat.")
-    else:
-      debugprint("openconn: NOT using Nat.")
-
-    # end
-
-    sock = self.shim_stack.openconn(host, port, localhost, localport, timeout)
-    return sock
-
+    except Exception, e:
+      print "zzzz NatBranchingShim: Direct connection failed because '%s'." % e
+      print "zzzz NatBranchingShim: Trying Nat."
+      self.shim_stack.push(NatForwardingShim())
+      sock = self.shim_stack.openconn(host, port, localhost, localport, timeout)
+      print "zzzz NatBranchingShim: Nat works."
+      return sock

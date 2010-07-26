@@ -17,6 +17,7 @@ class RSAShim(BaseShim):
 
   def copy(self):
     newshim = RSAShim(optional_args=[self._sharedKey])
+    mycontext['rsa_shim_lock'].release()
     return newshim
 
 
@@ -90,6 +91,11 @@ class RSAShim(BaseShim):
     else:
       raise Exception("Wrong greeting: %s" % greeting)
 
+
+    if not mycontext.has_key('rsa_shim_lock'):
+      mycontext['rsa_shim_lock'] = getlock()
+
+    mycontext['rsa_shim_lock'].acquire()
     self._sharedKey = sharedKey
     self._callback(remoteip, remoteport, socket, thiscommhandle, listencommhandle)
 
