@@ -152,7 +152,7 @@ class ShimStack:
 
 
   def __str__(self):
-    return self.get_shims(True)
+    return "Stack #%d: %s" % (self.getid(), self.get_shims(True))
 
 
   def make_stack(self,shim_stack_str):
@@ -211,7 +211,15 @@ class ShimStack:
   # Public methods that interface with the application
   # ===========================================================================
 
+
+  def _shim_stack_waitforconn_callback_wrapper(self,sock,rip,rport,th,lh):
+    print "zzzz ShimStack CB: Stack='%s'" % self
+    self._shim_stack_waitforconn_callback(sock,rip,rport,th,lh)
+
+
   def waitforconn(self,host,port,callback):
+    self._shim_stack_waitforconn_callback = callback
+
     if self.top_shim is None:
 
       # Make sure that the host we're passing into the system's waitforconn call
@@ -225,10 +233,11 @@ class ShimStack:
         hostip = getmyip()
         set_ip_to_hostkey(host, hostip)
 
-      return waitforconn(hostip, port, callback)
+      self._shim_stack_waitforconn_callback = callback
+      return waitforconn(hostip, port, self._shim_stack_waitforconn_callback_wrapper)
 
     else:
-      return self.top_shim.waitforconn(host,port,callback)
+      return self.top_shim.waitforconn(host,port,self._shim_stack_waitforconn_callback_wrapper)
 
 
   def openconn(self,host,port,localhost=None,localport=None,timeout=5):

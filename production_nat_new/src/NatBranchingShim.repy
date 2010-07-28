@@ -16,6 +16,12 @@ class NatBranchingShimHandle:
     except KeyError:
       raise Exception('NatBranchShimHandle.getstack: invalid handle "%s"' % handle)
 
+  def copy(self):
+    newmap = {}
+    for handle in self.handle_stack_map.keys():
+      newmap[handle] = self.get_stack(handle).copy()
+    return NatBranchingShimHandle(newmap)
+
 
 
 class NatBranchingShim(BaseShim):
@@ -31,6 +37,7 @@ class NatBranchingShim(BaseShim):
 
   def copy(self):
     mycopy = NatBranchingShim()
+    mycopy._listen_handle = self._listen_handle.copy()
     return mycopy
 
 
@@ -42,22 +49,24 @@ class NatBranchingShim(BaseShim):
 
   
   # Server listener callback
-  def _branch_waitforconn_cb_wrapper(self, rip, rport, sock, th, lh):
+  def _shim_listener_callback(self, rip, rport, sock, th, lh):
     # busy-waiting until handle is ready
     while not self._listen_handle:
       sleep(0.5)
 
-    # rebuild stack below this shim
-    shimstack = self._listen_handle.get_stack(lh)
-    socketptr = sock
-    while shimstack.top_shim is not None:
-      socketptr._shim = shimstack.top_shim.copy()
-      socketptr = socketptr._socket
-      shimstack = shimstack.top_shim.shim_stack
 
-    # Now that the socket contains a copy of the shim stack below, we can pass
-    # the socket to the callback.
-    self._branch_waitforconn_cb(rip, rport, sock, th, self._listen_handle)
+    stackinuse = self._listen_handle.get_stack(lh)
+    for handle in self._listen_handle.get_map().keys():
+      # free up memory by deleting the other unused shimstack
+      shimstack = self._listen_handle.get_stack(lh)
+      if stackinuse != shimstack:
+        del shimstack
+
+    print "zzzz NatBranchingShim: callback: map: '%s'" % self._listen_handle.get_map()
+    print "zzzz NatBranchingShim: callback: stack: '%s'" % shimstack
+    print "zzzz NatBranchingShim: callback: sock: '%s'" % sock
+
+    return (rip, rport, sock, th, self._listen_handle)
 
 
   # Create two separate shim stacks. Return a wrapper of both handles when both
@@ -75,10 +84,11 @@ class NatBranchingShim(BaseShim):
 
     # create handle
     print 'zzzz NatBranchingShim: Constructing noop shim stack.'
-    noophandle = noopstack.waitforconn(host, port, self._branch_waitforconn_cb_wrapper)
+    noophandle = noopstack.waitforconn(host, port, callback)
     print 'zzzz NatBranchingShim: Constructing nat shim stack.'
-    nathandle = natstack.waitforconn(host, port, self._branch_waitforconn_cb_wrapper)
+    nathandle = natstack.waitforconn(host, port, callback)
     handle_stack_map = {noophandle: noopstack, nathandle: natstack}
+    print 'zzzz NatBranchingShim: handledict=%s' % handle_stack_map
     self._listen_handle = NatBranchingShimHandle(handle_stack_map)
 
     return self._listen_handle
@@ -106,11 +116,13 @@ class NatBranchingShim(BaseShim):
   def _shim_openconn(self, host, port, localhost=None, localport=None, timeout=5):
     # Let us try direct connection first
     try:
+ 
+      if randomfloat() < 0.5:
+        raise Exception('Testing: Try using Nat with 0.5 probability.')
+
       print "zzzz NatBranchingShim: Trying direct connection."
       sock = self.shim_stack.openconn(host, port, localhost, localport, timeout)
 
-      if randomfloat() < 0.5:
-        raise Exception('Testing: Try using Nat with 0.5 probability.')
 
 
       print "zzzz NatBranchingShim: Direct connection works."

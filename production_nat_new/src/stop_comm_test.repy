@@ -2,15 +2,15 @@ include ShimStackInterface.repy
 include session.repy
 
 # customized parameters
-clientcount = 5
-extra_client = 5
+clientcount = 9
+extra_client = 2
 random_client_ip = True
 
 
-server = ShimStackInterface('(RSAShim)')
+server = ShimStackInterface('(RSAShim)(NatBranchingShim)')
 client = ShimStackInterface()
-ip = 'burrito'
-port = 12347
+ip = '127.0.1.2'
+port = 12345
 lock = getlock()
 
 mycontext['clientcount'] = 0

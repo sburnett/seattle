@@ -30,27 +30,17 @@ class CoordinationShim(BaseShim):
   # SERVER METHODS
   # ===========================================================================
 
-  def _coord_waitforconn_callback_wrapper(self, remoteip, remoteport, socket, thiscommhandle, listencommhandle):
-    # Copy the current shim stack
-    shimstack = self.shim_stack
-    socketptr = socket
-    while (shimstack.top_shim is not None) and isinstance(socketptr, ShimSocketWrapper):
-      socketptr._shim = shimstack.top_shim.copy()
-      socketptr = socketptr._socket
-      shimstack = shimstack.top_shim.shim_stack
-
-    self._coord_waitforconn_callback(remoteip, remoteport, socket, thiscommhandle, listencommhandle)
+  def _shim_listener_callback(self, remoteip, remoteport, socket, thiscommhandle, listencommhandle):
+    print "zzzz CoordinationShim[%d] CB" % self.getid()
+    return (remoteip, remoteport, socket, thiscommhandle, listencommhandle)
 
 
 
   def _shim_waitforconn(self, hostkey, port, callback):
 
-    # Save the callback for later use
-    self._coord_waitforconn_callback = callback
-
     # Traverse through the stack and build the general stack, which is shared
     # for all incoming connections.
-    handle = self.shim_stack.waitforconn(hostkey, port, self._coord_waitforconn_callback_wrapper)
+    handle = self.shim_stack.waitforconn(hostkey, port, callback)
 
     self._server_ip = getmyip()
 

@@ -24,16 +24,20 @@ class BaseShim:
 
   def openconn(self, host, port, localhost=None, localport=None, timeout=5):
     socket = self._shim_openconn(host, port, localhost, localport, timeout)
-
     newsocket = ShimSocketWrapper(socket, self)
-
     return newsocket
+
+
 
   # Helper method for waitforconn
   def _waitforconn_shim_callback_wrapper(self, remoteip, remoteport, socket, thiscommhandle, listencommhandle):
+    selfcopy = self.copy()
+    (rip, rport, sock, th, lh) = selfcopy._shim_listener_callback(remoteip, remoteport, socket, thiscommhandle, listencommhandle)
+    print "zzzz BaseShim[%d](%s) CB for oldsock %s" % (self.getid(), self.name, sock)
+    newsocket = ShimSocketWrapper(sock, selfcopy)
+    print "zzzz BaseShim[%d](%s) CB for newsocket %s" % (self.getid(), self.name,newsocket)
 
-    newsocket = ShimSocketWrapper(socket, self)
-    self._waitforconn_shim_callback(remoteip, remoteport, newsocket, thiscommhandle, listencommhandle)
+    self._waitforconn_shim_callback(rip, rport, newsocket, th, lh)
  
 
 
@@ -102,6 +106,10 @@ class BaseShim:
     mycontext['ShimInstanceCountLock'].release()
 
  
+  def _shim_listener_callback(self, remoteip, remoteport, socket, thiscommhandle, listencommhandle):
+    print 'zzzz BaseShim::_shim_listener_callback: Not implemented.'
+    return (remoteip, remoteport, socket, thiscommhandle, listencommhandle)
+
 
 
   def _shim_waitforconn(self, host, port, callback):

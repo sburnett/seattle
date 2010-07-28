@@ -484,7 +484,7 @@ if callfunc == 'initialize':
   mycontext['myport']= str(wait_port)
 
   print "NAT Forwarder started on " + ip + ":" + str(wait_port)
-  shim_stack = ShimStackInterface() 
+  shim_stack = ShimStackInterface('(RSAShim)')  #TODO
   shim_stack.waitforconn(ip,wait_port,common_entry)
   
   
