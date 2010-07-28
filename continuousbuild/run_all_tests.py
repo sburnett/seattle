@@ -246,7 +246,7 @@ def _create_rss_file(resultslist):
          link=config.TESTLOG_URL,
          description="\n".join(resulttext),
          # Spaces aren't valid in a guid.
-         guid=PyRSS2Gen.Guid(config.TESTLOG_URL + datestr.replace(' ', '_')),
+         guid=PyRSS2Gen.Guid(config.TESTLOG_URL + str(runnumber)),
          pubDate=dateobj)
       failureitems.append(item)
   
