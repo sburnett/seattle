@@ -16,12 +16,6 @@ class NatBranchingShimHandle:
     except KeyError:
       raise Exception('NatBranchShimHandle.getstack: invalid handle "%s"' % handle)
 
-  def copy(self):
-    newmap = {}
-    for handle in self.handle_stack_map.keys():
-      newmap[handle] = self.get_stack(handle).copy()
-    return NatBranchingShimHandle(newmap)
-
 
 
 class NatBranchingShim(BaseShim):
@@ -37,7 +31,7 @@ class NatBranchingShim(BaseShim):
 
   def copy(self):
     mycopy = NatBranchingShim()
-    mycopy._listen_handle = self._listen_handle.copy()
+    mycopy._listen_handle = self._listen_handle
     return mycopy
 
 
@@ -53,18 +47,6 @@ class NatBranchingShim(BaseShim):
     # busy-waiting until handle is ready
     while not self._listen_handle:
       sleep(0.5)
-
-
-    stackinuse = self._listen_handle.get_stack(lh)
-    for handle in self._listen_handle.get_map().keys():
-      # free up memory by deleting the other unused shimstack
-      shimstack = self._listen_handle.get_stack(lh)
-      if stackinuse != shimstack:
-        del shimstack
-
-    print "zzzz NatBranchingShim: callback: map: '%s'" % self._listen_handle.get_map()
-    print "zzzz NatBranchingShim: callback: stack: '%s'" % shimstack
-    print "zzzz NatBranchingShim: callback: sock: '%s'" % sock
 
     return (rip, rport, sock, th, self._listen_handle)
 
@@ -103,9 +85,11 @@ class NatBranchingShim(BaseShim):
       raise Exception('Incorrect listen_handle type.') 
 
     result = True
+    print "zzzz STOPPING map=%s" % listen_handle.get_map()
     for handle in listen_handle.get_map().keys():
       stack = listen_handle.get_map()[handle]
       ret = stack.stopcomm(handle)
+      print "zzzz STOPPING RESULT = %s for STACK %s" % (ret, stack)
       result = result and ret
 
     return result
@@ -117,8 +101,11 @@ class NatBranchingShim(BaseShim):
     # Let us try direct connection first
     try:
  
-      if randomfloat() < 0.5:
-        raise Exception('Testing: Try using Nat with 0.5 probability.')
+      if not mycontext.has_key('branch_client_count'):
+        mycontext['branch_client_count'] = 0
+      mycontext['branch_client_count'] += 1
+      if mycontext['branch_client_count'] % 2 == 0 and True:
+        raise Exception('Testing: Try using Nat.')
 
       print "zzzz NatBranchingShim: Trying direct connection."
       sock = self.shim_stack.openconn(host, port, localhost, localport, timeout)

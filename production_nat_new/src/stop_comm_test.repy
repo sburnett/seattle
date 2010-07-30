@@ -2,12 +2,12 @@ include ShimStackInterface.repy
 include session.repy
 
 # customized parameters
-clientcount = 9
-extra_client = 2
+clientcount = 4
+extra_client = 3
 random_client_ip = True
 
 
-server = ShimStackInterface('(RSAShim)(NatBranchingShim)')
+server = ShimStackInterface('(NatBranchingShim)')
 client = ShimStackInterface()
 ip = '127.0.1.2'
 port = 12345

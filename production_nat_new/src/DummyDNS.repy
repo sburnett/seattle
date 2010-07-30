@@ -1,0 +1,122 @@
+include advertise.repy
+
+class DummyDNSException(Exception):
+  pass
+
+def _DummyDNSInitialize():
+  if not mycontext.has_key('dummy_dns_lock'):
+    mycontext['dummy_dns_lock'] = getlock()
+    mycontext['dummy_dns_lock'].acquire()
+    mycontext['dummy_dns_cache'] = {}
+    mycontext['dummy_dns_log_lock'] = getlock()
+    mycontext['dummy_dns_lock'].release()
+    settimer(0, _DummyDNSAdvertiseThread, [])
+
+
+def _DummyDNSAdvertiseThread():
+  if mycontext.has_key('dummy_dns_advertise_thread_started'):
+    return
+  else:
+    mycontext['dummy_dns_advertise_thread_started'] = True
+  
+  prevCacheStr = ''
+
+  while True:
+    mycontext['dummy_dns_lock'].acquire()
+    cache = mycontext['dummy_dns_cache'].copy()
+    mycontext['dummy_dns_lock'].release()
+    
+    for name in cache.keys():
+      try:
+        advertise_announce(str(name), str(cache[name]), 100)
+      except Exception, e:
+        # Excuse the flaky adv service
+        pass
+      
+    if str(cache) == prevCacheStr:
+      _DummyDNSLog('')
+    else:
+      _DummyDNSLog('advertised local cache = %s' % cache)
+      prevCacheStr = str(cache)
+
+    for i in range(50):
+      sleep(1)
+
+      try:
+        if mycontext['wakeup'] == True:
+          mycontext['wakeup'] = False
+          break
+      except:
+        pass
+
+  # end while
+
+
+
+def _DummyDNSLog(logstr):
+  _DummyDNSInitialize()
+  mycontext['dummy_dns_log_lock'].acquire()
+  try:
+    logfile = open("DummyDNSLog.txt", "a")
+    logfile.write("%s\n" % logstr)
+  except Exception, e:
+    print "DummyDNS: Unable to log: '%s'" % e
+  finally:
+    logfile.close()
+    mycontext['dummy_dns_log_lock'].release()
+
+
+def is_ip_address(ipstr):
+  ip_segment_list = ipstr.split('.')
+  if len(ip_segment_list) != 4:
+    return False
+
+  for ip_segment_str in ip_segment_list:
+    try:
+      ip_segment_int = int(ip_segment_str)
+    except ValueError, e:
+      return False
+    if not (0 <= ip_segment_int < 256):
+      return False
+
+  return True
+
+  
+
+
+def DummyDNSLookup(name, create=False):
+  if is_ip_address(name):
+    return name
+
+  _DummyDNSInitialize()
+  mycontext['dummy_dns_lock'].acquire()
+  
+  # find in cache
+  cache = mycontext['dummy_dns_cache']
+  try:
+    retip = cache[name]
+    _DummyDNSLog("Lookup: %s -> %s (cached)" % (name, retip))
+    mycontext['dummy_dns_lock'].release()
+    return retip
+  except KeyError, e:
+    pass
+
+  # find in DHT
+  lookup_results = advertise_lookup(name)
+  if (not lookup_results) or (lookup_results and lookup_results[0] == ''):
+    if create:
+      myip = getmyip()
+      lookup_results = [myip]
+    else:
+      _DummyDNSLog("Error: Unable to resolve '%s'." % name)
+      mycontext['dummy_dns_lock'].release()
+      raise DummyDNSException("DummyDNS: Unable to resolve '%s'." % name)
+
+  # add to cache
+  retip = lookup_results[0]
+  cache[name] = retip
+  mycontext['wakeup'] = create
+  mycontext['dummy_dns_lock'].release()
+
+  _DummyDNSLog("Lookup: %s -> %s" % (name, retip))
+  return retip

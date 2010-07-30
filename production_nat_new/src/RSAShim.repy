@@ -28,7 +28,6 @@ class RSAShim(BaseShim):
 
   # Server accept()
   def _shim_listener_callback(self, remoteip, remoteport, socket, thiscommhandle, listencommhandle):
-    print "DEBUG: _shim_listener_callback. self.getid()=" + str(self.getid())
     print "zzzz RSAShim[%d] CB" % self.getid()
     (pubKey, privKey) = self._get_RSA_keys()
 
@@ -59,12 +58,10 @@ class RSAShim(BaseShim):
 
 
   def _zzcallback_wrapper(self, rip, rport, sock, th, lh):
-    print "DEBUG: _shim_waitforconn's own callback. self.getid()=" + str(self.getid())
     self._zzcallback(rip, rport, sock, th, lh)
 
 
   def _shim_waitforconn(self, host, port, callback):
-    print "DEBUG: _shim_waitforconn. self.getid()=" + str(self.getid())
     self._zzcallback = callback
     return self.shim_stack.waitforconn(host, port, self._zzcallback_wrapper)
 
@@ -97,13 +94,11 @@ class RSAShim(BaseShim):
 
 
   def _shim_socket_send(self, socket, msg):
-    print "DEBUG: _shim_socket_send. self.getid()=" + str(self.getid())
     return self.shim_stack.socket_send(socket, 
                                        self._RN_encrypt(self._sharedKey, msg))
 
 
   def _shim_socket_recv(self, socket, bytes): 
-    print "DEBUG: _shim_socket_recv. self.getid()=" + str(self.getid())
     return self._RN_decrypt(self._sharedKey, 
                             self.shim_stack.socket_recv(socket, bytes))
   

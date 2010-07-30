@@ -10,7 +10,7 @@ not consistant with the API semantics. Provides logging capabilities.
 include ShimSocketWrapper.repy
 include ShimStack.repy
 include ShimException.repy
-include NameTranslation.repy
+include DummyDNS.repy
 
 
 # Include all shims in the world
@@ -111,7 +111,8 @@ class ShimStackInterface:
   def stopcomm(self, handle):
     try:
       shimstack = self._handle_dict[handle]
-    except KeyError:
+    except KeyError,e:
+      raise KeyError(e)
       return False
 
     return shimstack.stopcomm(handle)

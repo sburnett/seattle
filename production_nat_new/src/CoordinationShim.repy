@@ -21,9 +21,8 @@ class CoordinationShim(BaseShim):
   def __init__(self, next_shim=None, optional_args=None):
     BaseShim.__init__(self, next_shim, optional_args)
 
-  # Also advertises the IP of the server
   def get_advertisement_string(self):
-    return '(CoordinationShim,' + self._server_ip + ')' + self.shim_stack.get_advertisement_string()
+    return '(CoordinationShim)' + self.shim_stack.get_advertisement_string()
 
 
   # ===========================================================================
@@ -42,24 +41,10 @@ class CoordinationShim(BaseShim):
     # for all incoming connections.
     handle = self.shim_stack.waitforconn(hostkey, port, callback)
 
-    self._server_ip = getmyip()
-
     # Now that the stack has been built, we can advertise its content.
     advertise_key = str(hostkey) + "," + str(port) + ",TCP"
     advertise_value = self.shim_stack.get_advertisement_string()
 
-    # Prepend my IP to the advertised shim stack string
-    try:
-      serverip = get_ip_from_hostkey(hostkey)
-    except NameTranslationError, error:
-      # An exception here implies that we never reached the bottom of the shim
-      # stack where the system's waitforconn was invoked. In this case, we don't
-      # need to prepend the IP to the shim stack string since the IP is not
-      # actually meaningful.
-      pass
-    else:
-      advertise_value = serverip + '@' + advertise_value
-    
     # We advertise the contents of the shim stack at its first creation.
     # Subsequent changes are on a per-connection basis (using negotiation) and
     # are irrelevant for coordination.
@@ -69,10 +54,15 @@ class CoordinationShim(BaseShim):
     return handle
 
 
+  
   def _advertise_thread(self, advertise_key, advertise_value):
     while self._listener_active:
       try:
-        advertise_announce(advertise_key, advertise_value, 120)
+        # We're prepending an '@' sign to the shim stack string because of a
+        # flaw in the advertisement service, which returns a list of an empty
+        # string upon unsuccessful lookup. We want to distinguish that case with
+        # an empyt stack string.
+        advertise_announce(advertise_key, "@" + advertise_value, 120)
       except Exception, e:
         # Silently drops all errors because the advertisement service can be
         # flaky at times
@@ -120,15 +110,15 @@ class CoordinationShim(BaseShim):
     # Contact the remote lookup service
     for count in range(self._lookup_attempts):
       lookup_results = advertise_lookup(lookup_key)
-      if len(lookup_results) > 0:
+      if len(lookup_results) > 0 and lookup_results[0]:
         break
       sleep(1)
 
     # Add to local cache.
     if local_lookup_cache.has_key(lookup_key):
-      local_lookup_cache[lookup_key] += lookup_results
+      local_lookup_cache[lookup_key] += lookup_results[:]
     else:
-      local_lookup_cache[lookup_key] = lookup_results
+      local_lookup_cache[lookup_key] = lookup_results[:]
 
     # Remove duplicates or else we would be trying the same non-working shim
     # stacks multiple times.
@@ -148,57 +138,30 @@ class CoordinationShim(BaseShim):
     exception_str = ''
     sock = None
 
-    # TODO Get all shims in the current stack (below the coordintor), including those
-    # marked as do_not_advertise. We want to preserve the original shim stack,
-    # and adding new ones to the bottom. 
-    existing_shim_stack = "" # TODO
-
     # Indicates whether we have tried using the remote lookup services
     # (e.g. DHT) to locate the shim stack strings of the server.
     tried_using_remote_lookup = False
 
     # First, obtain the shim stack string from cache, or if not, from the DHT.
-    shimstackstr_list = self._get_shimstack_strings(hostkey, port)
+    shimstackstr_list = self._get_shimstack_strings(hostkey, port, use_cache=True)
 
     # Try to do openconn for every possible shim stack string
     while len(shimstackstr_list) > 0:
 
-      shimstackstr = shimstackstr_list.pop()
-      port_num = port
-
-      # Extract the port number if the stack string contains "{port_num}"
-      left_curly_braces = shimstackstr.find('{')
-      right_curly_braces = shimstackstr.find('}')
-      if right_curly_braces > left_curly_braces > 0:
-        port_num = int(shimstackstr[left_curly_braces+1 : right_curly_braces])
-        shimstackstr = shimstackstr[:left_curly_braces]+shimstackstr[right_curly_braces+1:]
-
-      # Extract the IP address associated with this stack
-      if is_ip_address(hostkey):
-        hostip = hostkey
-      else:
-        try: 
-          (hostip, shimstackstr) = shimstackstr.split('@')
-          set_ip_to_hostkey(hostkey, hostip, tolock=False)
-        except ValueError:
-          # Looks like the server has not advertised its IP address. Fine. We'll
-          # just trust that whatever shims below may somehow translate the
-          # hostkey. It is probable that the hostkey needs no translation at
-          # all. 
-          hostip = hostkey
-
-      # Append the new shims to the back of the existing stack
-      shim_stack = ShimStack(existing_shim_stack + shimstackstr)
+      try:
+        # Remove the preceding @ sign in the shim stack string
+        shimstackstr = shimstackstr_list.pop()[1:]
+        shim_stack = ShimStack(shimstackstr)
+      except Exception, e:
+        raise Exception("Unable to parse shim stack string '%s' because '%s'." % (shimstackstr, e))
 
       try:
-        sock = shim_stack.openconn(hostkey,port_num,localhost,localport,timeout)
+        sock = shim_stack.openconn(hostkey,port,localhost,localport,timeout)
       except Exception,e:
-        exception_str +=' Exception: '+str(e)+' for stack '+shimstackstr
+        exception_str +=' || Exception: '+str(e)+' for stack '+shimstackstr
       else:
         # Success in openconn. We won't try the rest of the shimstack strings.
         break
-
-
 
       if len(shimstackstr_list) == 0 and not tried_using_remote_lookup:
         # All possible shim stack strings are consumed and we still haven't
@@ -220,9 +183,9 @@ class CoordinationShim(BaseShim):
     if sock is None:
       print "DEBUG: Trying to connect without using the shim interface."
       try:
-        sock = openconn(hostkey,port_num,localhost,localport,timeout)
+        sock = openconn(DummyDNSLookup(hostkey),port,localhost,localport,timeout)
       except Exception,e:
-        exception_str +=' Unable to connect without using shims.'
+        exception_str +=' || Unable to connect without using shims.'
 
     # At this point, we've exhausted all our means.
     if sock is None:

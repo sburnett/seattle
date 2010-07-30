@@ -213,7 +213,7 @@ class ShimStack:
 
 
   def _shim_stack_waitforconn_callback_wrapper(self,sock,rip,rport,th,lh):
-    print "zzzz ShimStack CB: Stack='%s'" % self
+    #print "zzzz ShimStack CB: Stack='%s'" % self
     self._shim_stack_waitforconn_callback(sock,rip,rport,th,lh)
 
 
@@ -221,20 +221,8 @@ class ShimStack:
     self._shim_stack_waitforconn_callback = callback
 
     if self.top_shim is None:
-
-      # Make sure that the host we're passing into the system's waitforconn call
-      # is a valid IP address. 
-      if is_ip_address(host):
-        hostip = host
-
-      # Turn the host key into the server's IP address. Save the hostkey-IP
-      # association.
-      else:
-        hostip = getmyip()
-        set_ip_to_hostkey(host, hostip)
-
       self._shim_stack_waitforconn_callback = callback
-      return waitforconn(hostip, port, self._shim_stack_waitforconn_callback_wrapper)
+      return waitforconn(DummyDNSLookup(host,True), port, self._shim_stack_waitforconn_callback_wrapper)
 
     else:
       return self.top_shim.waitforconn(host,port,self._shim_stack_waitforconn_callback_wrapper)
@@ -242,21 +230,7 @@ class ShimStack:
 
   def openconn(self,host,port,localhost=None,localport=None,timeout=5):
     if self.top_shim is None:
-
-      # Make sure that the host we're passing into the system's openconn call
-      # is a valid IP address. 
-      if is_ip_address(host):
-        hostip = host
-
-      # Turn the host key into the server's IP address. Save the hostkey-IP
-      # association.
-      else:
-
-        # We've already locked in CoordinationShim, so we don't need to lock
-        # again below.
-        hostip = get_ip_from_hostkey(host, tolock=False)
-
-      return openconn(hostip,port,localhost,localport,timeout)
+      return openconn(DummyDNSLookup(host),port,localhost,localport,timeout)
 
     else:
       return self.top_shim.openconn(host,port,localhost,localport,timeout)
