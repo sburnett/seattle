@@ -57,13 +57,6 @@ def debugprint(string):
     print "zzzz NatBranchingShim: " + str(string)
 
 
-# Pretend that some host is behind the nat
-def pretendToHaveNat(hostkey, hostport):
-  if not mycontext.has_key('nat_cheat'):
-    mycontext['nat_cheat'] = []
-  mycontext['nat_cheat'].append(hostkey + str(hostport))
-
-
 
 mycontext['debug_free_ports'] = [12346, 12347]
 # For the purpose of debugging only

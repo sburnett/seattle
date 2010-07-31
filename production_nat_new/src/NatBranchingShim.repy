@@ -35,9 +35,6 @@ class NatBranchingShim(BaseShim):
     return mycopy
 
 
-  # The coordinator recognizes '[(ShimA)||(ShimB)]' as a branch statement and
-  # will automatically expand it appropriately. The alternative port number is
-  # enclosed in curly braces.
   def get_advertisement_string(self):
     return '(NatBranchingShim)' + self.shim_stack.get_advertisement_string()
 

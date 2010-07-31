@@ -1,5 +1,11 @@
 include advertise.repy
 
+"""
+Temporary naming service to emulate the behaviors of a real DNS server.
+
+"""
+
+
 class DummyDNSException(Exception):
   pass
 
@@ -9,6 +15,7 @@ def _DummyDNSInitialize():
     mycontext['dummy_dns_lock'].acquire()
     mycontext['dummy_dns_cache'] = {}
     mycontext['dummy_dns_log_lock'] = getlock()
+    mycontext['dummy_dns_active'] = True
     mycontext['dummy_dns_lock'].release()
     settimer(0, _DummyDNSAdvertiseThread, [])
 
@@ -25,6 +32,9 @@ def _DummyDNSAdvertiseThread():
     mycontext['dummy_dns_lock'].acquire()
     cache = mycontext['dummy_dns_cache'].copy()
     mycontext['dummy_dns_lock'].release()
+
+    if not mycontext['dummy_dns_active']:
+      break
     
     for name in cache.keys():
       try:
@@ -42,12 +52,15 @@ def _DummyDNSAdvertiseThread():
     for i in range(50):
       sleep(1)
 
+      if not mycontext['dummy_dns_active']:
+        break
+
       try:
         if mycontext['wakeup'] == True:
           mycontext['wakeup'] = False
           break
-      except:
-        pass
+      except KeyError, e:
+        mycontext['wakeup'] = False
 
   # end while
 
@@ -57,7 +70,7 @@ def _DummyDNSLog(logstr):
   _DummyDNSInitialize()
   mycontext['dummy_dns_log_lock'].acquire()
   try:
-    logfile = open("DummyDNSLog.txt", "a")
+    logfile = open("DummyDNS.log", "a")
     logfile.write("%s\n" % logstr)
   except Exception, e:
     print "DummyDNS: Unable to log: '%s'" % e
@@ -83,10 +96,32 @@ def is_ip_address(ipstr):
 
   
 
+def DummyDNSStop():
+  mycontext['dummy_dns_active'] = False
+
+
 
 def DummyDNSLookup(name, create=False):
+  """
+  Looks up a name and returns the IP address. If 'create' is True, then my
+  current IP will be added to the host record if the corresponding name cannot
+  be resolved.
+
+  """
+  useRealDNS = True
+
+  # No need to resolve if it is already an IP address
   if is_ip_address(name):
     return name
+
+  # Try using real DNS first if the name looks like a real host name
+  if len(name.split('.')) > 1 and useRealDNS:
+    try:
+      return gethostbyname_ex(name)[2][0]
+    except Exception, e:
+      _DummyDNSLog("Error: Failed to resolve '%s' using real DNS because '%s'."
+                   % (name, e))
+      useRealDNS = False
 
   _DummyDNSInitialize()
   mycontext['dummy_dns_lock'].acquire()
@@ -104,13 +139,23 @@ def DummyDNSLookup(name, create=False):
   # find in DHT
   lookup_results = advertise_lookup(name)
   if (not lookup_results) or (lookup_results and lookup_results[0] == ''):
+    # not found in DHT
     if create:
+      # create a record (esp used in waitforconn)
       myip = getmyip()
       lookup_results = [myip]
     else:
-      _DummyDNSLog("Error: Unable to resolve '%s'." % name)
-      mycontext['dummy_dns_lock'].release()
-      raise DummyDNSException("DummyDNS: Unable to resolve '%s'." % name)
+      # use the real DNS 
+      _DummyDNSLog("Error: Unable to resolve '%s' with DummyDNS. Now try real DNS." % name)
+      try:
+        if useRealDNS:
+          lookup_results = [gethostbyname_ex(name)[2][0]]
+        else:
+          raise Exception('Not using real DNS')
+      except Exception, e:
+        mycontext['dummy_dns_lock'].release()
+        raise DummyDNSException("DummyDNS: Unable to resolve '%s' because '%s'." 
+                                % (name, e))
 
   # add to cache
   retip = lookup_results[0]
