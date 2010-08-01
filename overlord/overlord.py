@@ -478,10 +478,10 @@ def run(*args):
       except:
         # Node lookup failed, so remove vessel from vesselhandle_list
         # TODO: proper way to handle failed advertisements?
-        vesselhandle_list.append(vh)
-
-      if vessel_status != explib.VESSEL_STATUS_STARTED:
         stopped_vessel_list.append(vh)
+      else:
+        if vessel_status != explib.VESSEL_STATUS_STARTED:
+          stopped_vessel_list.append(vh)
 
     # Release and replace any stopped vessels
     if stopped_vessel_list:
