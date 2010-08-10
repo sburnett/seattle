@@ -53,7 +53,7 @@ import sys
 import time
 
 import utfutil
-
+import harshexit
 
 # Valid prefix and suffix.
 SYNTAX_PREFIX = 'ut_'
@@ -281,7 +281,9 @@ def test_module(module_name, module_file_list):
   if sub:
     print "Now killing subprocess: " + subprocess_file    
     if sys.version_info < (2, 6):
-      os.kill(sub.pid, signal.SIGTERM)
+      # Using portablekill instead of os.kill as it is more uniform across os.
+      harshexit.portablekill(sub.pid)
+
     else: 
       sub.kill()
 

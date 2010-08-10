@@ -24,8 +24,7 @@ if [ "$?" != "0" ]; then
   exit 1
 fi
 
-echo $tmpdir
-#rm -rf $tmpdir
+rm -rf $tmpdir
 
 #We fail if UTF log contains FAIL or ERROR.
 FAILURE_WORDS="FAIL ERROR"
