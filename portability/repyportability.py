@@ -17,7 +17,7 @@ oldrestrictioncalls['nanny.tattle_add_item'] = nanny.tattle_add_item
 oldrestrictioncalls['nanny.tattle_remove_item'] = nanny.tattle_remove_item
 oldrestrictioncalls['nanny.tattle_check'] = nanny.tattle_check
 oldrestrictioncalls['restrictions.assertisallowed'] = restrictions.assertisallowed
-oldrestrictioncalls['emulfile.assert_is_allowed_filename'] = emulfile.assert_is_allowed_filename
+oldrestrictioncalls['emulfile.assert_is_allowed_filename'] = emulfile._assert_is_allowed_filename
 
 
 def _do_nothing(*args):
