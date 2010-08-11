@@ -25,6 +25,7 @@ include RSAShim.repy
 include NatBranchingShim.repy
 include RSABranchingShim.repy
 include ReverseShim.repy
+include NoopShim.repy
 
 
 
@@ -41,6 +42,7 @@ register_shim('RSAShim', RSAShim)
 register_shim('NatBranchingShim', NatBranchingShim)
 register_shim('RSABranchingShim', RSABranchingShim)
 register_shim('ReverseShim', ReverseShim)
+register_shim('NoopShim', NoopShim)
 
 
 # =============================================================================
@@ -82,10 +84,12 @@ def getRandomIP():
 
 class ShimStackInterface:
 
-  def __init__(self, stack_str=''):
+  def __init__(self, stack_str='', autoCoordinationShim=True):
     self._stack_str = stack_str
-    if stack_str.find('CoordinationShim') < 0:
-      self._stack_str = '(CoordinationShim)' + self._stack_str
+
+    if autoCoordinationShim:
+      if stack_str.find('CoordinationShim') < 0:
+        self._stack_str = '(CoordinationShim)' + self._stack_str
 
     # Maps handle to stack. Although handle does not have a hash function
     # defined, it is in fact hashed by its memory address. Thus, the keys in our

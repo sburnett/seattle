@@ -33,9 +33,7 @@ class BaseShim:
   def _waitforconn_shim_callback_wrapper(self, remoteip, remoteport, socket, thiscommhandle, listencommhandle):
     selfcopy = self.copy()
     (rip, rport, sock, th, lh) = selfcopy._shim_listener_callback(remoteip, remoteport, socket, thiscommhandle, listencommhandle)
-    print "zzzz BaseShim[%d](%s) CB for oldsock %s" % (self.getid(), self.name, sock)
     newsocket = ShimSocketWrapper(sock, selfcopy)
-    print "zzzz BaseShim[%d](%s) CB for newsocket %s" % (self.getid(), self.name,newsocket)
 
     self._waitforconn_shim_callback(rip, rport, newsocket, th, lh)
  
@@ -107,7 +105,6 @@ class BaseShim:
 
  
   def _shim_listener_callback(self, remoteip, remoteport, socket, thiscommhandle, listencommhandle):
-    print 'zzzz BaseShim::_shim_listener_callback: Not implemented.'
     return (remoteip, remoteport, socket, thiscommhandle, listencommhandle)
 
 

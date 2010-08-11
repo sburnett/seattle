@@ -27,12 +27,17 @@ def response(remote_ip,remote_port,sock,th,listenhandle):
 
 if callfunc == 'initialize':
   
-  mykey = 'BASICNATTESTSERVER'
+  try:
+    port = int(callargs[0])
+  except:
+    print "usage: port"
+    exitall()
 
+  mykey = 'BASICNATTESTSERVER'
 
   shim = ShimStack('(NatForwardingShim)(NullShim)')
 
-  shim.waitforconn(mykey,12347,response)
+  shim.waitforconn(mykey,port,response)
 
   
 

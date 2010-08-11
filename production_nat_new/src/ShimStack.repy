@@ -213,7 +213,6 @@ class ShimStack:
 
 
   def _shim_stack_waitforconn_callback_wrapper(self,sock,rip,rport,th,lh):
-    #print "zzzz ShimStack CB: Stack='%s'" % self
     self._shim_stack_waitforconn_callback(sock,rip,rport,th,lh)
 
 

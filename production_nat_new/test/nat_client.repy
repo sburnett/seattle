@@ -11,6 +11,14 @@ include NatForwardingShim.repy
 
 if callfunc == 'initialize':
   
+  
+  try:
+    port = int(callargs[0])
+  except:
+    print "usage: port"
+    exitall()
+
+
   serverkey = 'BASICNATTESTSERVER'
   
   
@@ -19,7 +27,7 @@ if callfunc == 'initialize':
   # do it ten times
   for j in range(10): 
     try:
-      sock = shim.openconn(serverkey,12347)
+      sock = shim.openconn(serverkey,port)
     except Exception,e:
       print 'ERROR, got exception: '+str(e)
     else:

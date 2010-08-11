@@ -21,9 +21,10 @@ def nothing(rip,rport,sock,th,lh):
 
 if callfunc == 'initialize':
 
-  fip = '127.0.0.1'
-  fport = 12345
+  fip = "198.133.224.147"
+  fport = 63169
 
+  myip = "128.208.4.224"
 
   # PART 1, check answer when ips don't match
 
@@ -41,14 +42,13 @@ if callfunc == 'initialize':
 
   sock.close()
   
-
   # PART 2, ips match but no connection can be made
 
   sock = openconn(fip,fport)
   sock.send(NAT_CHECK_CONN) # tells the forwrader we want to check behind nat
  
   #send my ip, this should be what the other end sees
-  session_sendmessage(sock,'127.0.0.1:12347')
+  session_sendmessage(sock, myip + ':12347')
 
   
   msg = session_recvmessage(sock)
@@ -73,13 +73,13 @@ if callfunc == 'initialize':
   sock.send(NAT_CHECK_CONN) # tells the forwrader we want to check behind nat
  
   #send my ip, this should be what the other end sees
-  session_sendmessage(sock,'127.0.0.1:12347')
+  session_sendmessage(sock, myip+':12347')
   
   msg = session_recvmessage(sock)
   if msg != NAT_CHECK_CONN:
     raise Exception('not asked to check conn in part 3 '+msg)
 
-  handle = waitforconn('127.0.0.1',12347,nothing)
+  handle = waitforconn(myip,12347,nothing)
 
   # tell the server we are ready
   session_sendmessage(sock,NAT_YES)
@@ -93,4 +93,4 @@ if callfunc == 'initialize':
 
   sock.close()
   
-  
+  print "Passed"
