@@ -25,7 +25,5 @@ if callfunc == 'initialize':
         print "usage: myhostkey myport"
         exitall()
 
-    pretendToHaveNat(myip, myport)
-
     mycontext['handle'] = shim.waitforconn(myip, myport, echo)
     print "Ready. Listening on %s:%s..." % (myip, myport)

@@ -457,7 +457,7 @@ def forwarder_advertise_thread(ip,waitport):
   while True:
     value = base_value+str(len(SRV_DICT))
     try:
-      advertise_announce(NAT_FORWARDER,value,120)
+      advertise_announce(str(NAT_FORWARDER),str(value),120)
     except Exception,e:
        print 'ADVERTISE ERROR: '+str(e)
        sleep(10)
@@ -485,8 +485,10 @@ if callfunc == 'initialize':
 
   print "NAT Forwarder started on " + ip + ":" + str(wait_port)
   shim_stack = ShimStackInterface()
-  shim_stack.waitforconn(ip,wait_port,common_entry)
-  
+  forwarder_listener = shim_stack.waitforconn(ip,wait_port,common_entry)
   
   # advertise the forwarder
-  forwarder_advertise_thread(ip,wait_port)
+  hostname = 'crazyideas21.vicp.net'
+  print "NAT Forwarder advertised on %s:%s" % (hostname, wait_port)
+  forwarder_advertise_thread(hostname,wait_port)
+

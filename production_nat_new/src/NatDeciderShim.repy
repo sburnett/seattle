@@ -23,7 +23,7 @@ class NatDeciderShim(BaseShim):
 
   def __init__(self, next_shim=None, optional_args=None):
     BaseShim.__init__(self, next_shim, optional_args)
-
+    self._logger = ShimLogger('NatDeciderShim')
 
 
   def copy(self):
@@ -38,11 +38,13 @@ class NatDeciderShim(BaseShim):
 
 
   def waitforconn(self, host, port, callback):
+    self._logger.log("waitforconn: Check if we're behind NAT")
     # If server is behind the NAT, then behind_nat = True.
     behind_nat = natforwardinglib_isBidirectional(getmyip(), port)
 
     if behind_nat:
       self.shim_stack.push(NatBranchingShim())
+      self._logger.log("waitforconn: We are behind NAT.")
 
     return self.shim_stack.waitforconn(host, port, callback)
   

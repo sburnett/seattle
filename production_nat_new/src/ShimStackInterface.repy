@@ -11,6 +11,7 @@ include ShimSocketWrapper.repy
 include ShimStack.repy
 include ShimException.repy
 include DummyDNS.repy
+include ShimLogger.repy
 
 
 # Include all shims in the world
@@ -96,11 +97,19 @@ class ShimStackInterface:
     # map always reference to unique handles in the memory.
     self._handle_dict = {}
 
+    self._logger = ShimLogger('')
+
 
   def waitforconn(self, host, port, callback):
     shimstack = ShimStack(self._stack_str)
-    handle = shimstack.waitforconn(host, port, callback)
 
+    try:
+      handle = shimstack.waitforconn(host, port, callback)
+    except Exception, err:
+      self._logger.log('waitforconn: Uncaught exception: ' + str(err))
+      raise Exception(err)
+
+    self._logger.log('waitforconn on %s:%s' % (host, port))
     self._handle_dict[handle] = shimstack
     return handle
 
@@ -112,12 +121,26 @@ class ShimStackInterface:
       raise KeyError(e)
       return False
 
-    return shimstack.stopcomm(handle)
+    try:
+      ret = shimstack.stopcomm(handle)
+    except Exception, err:
+      self._logger.log('stopcomm: Uncaught exception: ' + str(err))
+      raise Exception(err)
+
+    return ret
  
 
   def openconn(self,host,port,localhost=None,localport=None,timeout=5):
     shimstack = ShimStack(self._stack_str)
-    socket = shimstack.openconn(host,port,localhost,localport,timeout)
+
+    try:
+      socket = shimstack.openconn(host,port,localhost,localport,timeout)
+    except Exception, err:
+      self._logger.log('openconn: on %s:%s uncaught exception: %s' % (host, port, err))
+      raise Exception(err)
+
+    self._logger.log('openconn: success on %s:%s' % (host, port))
+
     return socket
 
 

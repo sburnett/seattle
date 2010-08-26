@@ -6,14 +6,14 @@ class RSAShim(BaseShim):
 
   def __init__(self, next_shim=None, optional_args=None):
     BaseShim.__init__(self, next_shim, optional_args)
-    
+    self._logger = ShimLogger('RSAShim')
     self._sharedKey = None
-
 
     # The following is true in new instances of this shim, when new incoming
     # connections are accepted and a new stack is cloned in the server.
     if optional_args:
       self._sharedKey = optional_args[0]
+
 
   def copy(self):
     #newshim = RSAShim(optional_args=[self._sharedKey])
@@ -28,11 +28,12 @@ class RSAShim(BaseShim):
 
   # Server accept()
   def _shim_listener_callback(self, remoteip, remoteport, socket, thiscommhandle, listencommhandle):
-    print "zzzz RSAShim[%d] CB" % self.getid()
+    self._logger.log("listener callback: instance id = [%d]" % self.getid())
     (pubKey, privKey) = self._get_RSA_keys()
 
     # send public key
     session_sendmessage(socket, "pubKey@@@" + pubKey)
+    self._logger.log("listener callback: sent public key " + pubKey)
 
     # Receive shared random key, encrypted with public key
     handshakestr = self._RSA_decrypt(privKey, session_recvmessage(socket))
@@ -43,12 +44,12 @@ class RSAShim(BaseShim):
       raise Exception("Corrupt handshake: %s" % handshakestr)
 
     if greeting == "sharedKey":
-      #print "zzzz RSAShim - Got shared key: " + sharedKey
       pass
     else:
       raise Exception("Wrong greeting: %s" % greeting)
 
     self._sharedKey = sharedKey
+    self._logger.log("listener callback: received shared key " + str(sharedKey))
 
     # TODO for debug only. This displays the shared key in the string
     # representation of the shim when used in client.
@@ -69,6 +70,8 @@ class RSAShim(BaseShim):
   # Client connect()
   def _shim_openconn(self, host, port, localhost=None, localport=None, timeout=5):
     sock = self.shim_stack.openconn(host, port, localhost, localport, timeout)
+    self._logger.log('openconn: connection established with %s:%s' % (host, port))
+
     handshakestr = session_recvmessage(sock)
     try:
       (greeting, pubKey) = handshakestr.split("@@@")
@@ -80,10 +83,14 @@ class RSAShim(BaseShim):
     else:
       raise Exception("Wrong greeting: %s" % greeting)
 
+    self._logger.log('openconn: received public key ' + str(pubKey))
+
     # Send shared random key to server, encrypted with public key
     self._sharedKey = str(int(randomfloat()*999999) % 256)
     session_sendmessage(sock, 
                         self._RSA_encrypt(pubKey, "sharedKey***" + self._sharedKey))
+
+    self._logger.log('openconn: sent shared key ' + str(self._sharedKey))
 
     # TODO for debug only. This displays the shared key in the string
     # representation of the shim when used in client.

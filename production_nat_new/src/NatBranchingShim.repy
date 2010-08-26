@@ -24,6 +24,7 @@ class NatBranchingShim(BaseShim):
 
   def __init__(self, next_shim=None, optional_args=None):
     self._listen_handle = None
+    self._logger = ShimLogger('NatBranchingShim')
     BaseShim.__init__(self, next_shim, optional_args)
 
 
@@ -62,12 +63,11 @@ class NatBranchingShim(BaseShim):
     self._branch_waitforconn_cb = callback
 
     # create handle
-    print 'zzzz NatBranchingShim: Constructing noop shim stack.'
+    self._logger.log('waitforconn: Constructing noop shim stack.')
     noophandle = noopstack.waitforconn(host, port, callback)
-    print 'zzzz NatBranchingShim: Constructing nat shim stack.'
+    self._logger.log('waitforconn: Constructing NAT shim stack.')
     nathandle = natstack.waitforconn(host, port, callback)
     handle_stack_map = {noophandle: noopstack, nathandle: natstack}
-    print 'zzzz NatBranchingShim: handledict=%s' % handle_stack_map
     self._listen_handle = NatBranchingShimHandle(handle_stack_map)
 
     return self._listen_handle
@@ -82,11 +82,9 @@ class NatBranchingShim(BaseShim):
       raise Exception('Incorrect listen_handle type.') 
 
     result = True
-    print "zzzz STOPPING map=%s" % listen_handle.get_map()
     for handle in listen_handle.get_map().keys():
       stack = listen_handle.get_map()[handle]
       ret = stack.stopcomm(handle)
-      print "zzzz STOPPING RESULT = %s for STACK %s" % (ret, stack)
       result = result and ret
 
     return result
@@ -98,24 +96,22 @@ class NatBranchingShim(BaseShim):
     # Let us try direct connection first
     try:
  
-      if not mycontext.has_key('branch_client_count'):
-        mycontext['branch_client_count'] = 0
-      mycontext['branch_client_count'] += 1
-      if mycontext['branch_client_count'] % 2 == 0 and True:
-        raise Exception('Testing: Try using Nat.')
+      # debug only
+      # if not mycontext.has_key('branch_client_count'):
+      #   mycontext['branch_client_count'] = 0
+      # mycontext['branch_client_count'] += 1
+      # if mycontext['branch_client_count'] % 2 == 0 and True:
+      #   raise Exception('Testing: Try using Nat.')
 
-      print "zzzz NatBranchingShim: Trying direct connection."
+      self._logger.log("openconn: Trying direct connection.")
       sock = self.shim_stack.openconn(host, port, localhost, localport, timeout)
-
-
-
-      print "zzzz NatBranchingShim: Direct connection works."
+      self._logger.log("openconn: Direct connection works.")
       return sock
 
     except Exception, e:
-      print "zzzz NatBranchingShim: Direct connection failed because '%s'." % e
-      print "zzzz NatBranchingShim: Trying Nat."
+      self._logger.log("openconn: Direct connection failed because '%s'." % e)
+      self._logger.log("openconn: Trying Nat.")
       self.shim_stack.push(NatForwardingShim())
       sock = self.shim_stack.openconn(host, port, localhost, localport, timeout)
-      print "zzzz NatBranchingShim: Nat works."
+      self._logger.log("openconn: NAT works.")
       return sock

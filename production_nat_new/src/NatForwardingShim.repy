@@ -99,9 +99,7 @@ class NatForwardingShim(BaseShim):
 
 
   def get_advertisement_string(self):
-    args = ""
-    if (self.hop_key is not None) and (self.hop_port is not None):
-      args = "," + str(self.hop_key) + "," + str(self.hop_port)
+    args = "," + str(self.hop_key) + "," + str(self.hop_port)
     return '(NatForwardingShim' + args + ')' + self.shim_stack.get_advertisement_string()
 
   #######  SERVER METHODS  
@@ -145,7 +143,7 @@ class NatForwardingShim(BaseShim):
     state_obj = NatStateObj(key,port,callback)
 
     # establish a control socket with a forwarder
-    self.establish_control_sock(state_obj)
+    self.establish_control_sock(state_obj) 
     self.state_objs[port] = state_obj
 
     # start a thread to listen for new requests
@@ -186,6 +184,11 @@ class NatForwardingShim(BaseShim):
       if not connected:
         raise NatConnError("Could not establish control socket with any of "
                      +str(len(forwarder_list))+" forwarders: "+ex_str)   
+
+
+      # remember the forwarder info for advertisement later
+      self.hop_key = for_ip
+      self.hop_port = int(for_port)
 
     #register the with the forwarder
     control_sock.send(NAT_SERVER) 

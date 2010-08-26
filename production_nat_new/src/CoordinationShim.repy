@@ -20,6 +20,8 @@ class CoordinationShim(BaseShim):
 
   def __init__(self, next_shim=None, optional_args=None):
     BaseShim.__init__(self, next_shim, optional_args)
+    self._logger = ShimLogger('CoordinationShim')
+
 
   def get_advertisement_string(self):
     return '(CoordinationShim)' + self.shim_stack.get_advertisement_string()
@@ -30,7 +32,7 @@ class CoordinationShim(BaseShim):
   # ===========================================================================
 
   def _shim_listener_callback(self, remoteip, remoteport, socket, thiscommhandle, listencommhandle):
-    print "zzzz CoordinationShim[%d] CB" % self.getid()
+    self._logger.log('listener_callback: new client from %s:%s' % (remoteip, remoteport))
     return (remoteip, remoteport, socket, thiscommhandle, listencommhandle)
 
 
@@ -50,6 +52,7 @@ class CoordinationShim(BaseShim):
     # are irrelevant for coordination.
     self._listener_active = True
     settimer(0, self._advertise_thread, [advertise_key, advertise_value])
+    self._logger.log('waitforconn: Listening. About to advertise <"%s","%s">' % (advertise_key, advertise_value))
 
     return handle
 
@@ -62,7 +65,7 @@ class CoordinationShim(BaseShim):
         # flaw in the advertisement service, which returns a list of an empty
         # string upon unsuccessful lookup. We want to distinguish that case with
         # an empyt stack string.
-        advertise_announce(advertise_key, "@" + advertise_value, 120)
+        advertise_announce(str(advertise_key), "@" + str(advertise_value), 120)
       except Exception, e:
         # Silently drops all errors because the advertisement service can be
         # flaky at times
@@ -153,7 +156,9 @@ class CoordinationShim(BaseShim):
         shimstackstr = shimstackstr_list.pop()[1:]
         shim_stack = ShimStack(shimstackstr)
       except Exception, e:
-        raise Exception("Unable to parse shim stack string '%s' because '%s'." % (shimstackstr, e))
+        errmsg = "Unable to parse shim stack string '%s' because '%s'." % (shimstackstr, e)
+        self._logger.log("openconn: " + errmsg)
+        raise Exception(errmsg)
 
       try:
         sock = shim_stack.openconn(hostkey,port,localhost,localport,timeout)
@@ -181,15 +186,16 @@ class CoordinationShim(BaseShim):
     # If all things fail, we will connect without the shim interface. This
     # provides backward compatibility for older servers.
     if sock is None:
-      print "DEBUG: Trying to connect without using the shim interface."
+      self._logger.log("openconn: Trying to connect to %s:%s without using the shim interface." % (hostkey, port))
       try:
         sock = openconn(DummyDNSLookup(hostkey),port,localhost,localport,timeout)
       except Exception,e:
-        exception_str +=' || Unable to connect without using shims.'
+        exception_str +=' || Unable to connect without using shims becase %s.' % e
 
     # At this point, we've exhausted all our means.
     if sock is None:
       exception_str = 'CoordinationShim error: ' + exception_str
+      self._logger.log("CoordinationShim: " + exception_str)
       raise Exception(exception_str)
     else:
       self.shim_stack = shim_stack
