@@ -1,0 +1,62 @@
+### This data file is used by 'analyzer.py' to import a custom set of log
+### entry categories.  The major data structure used here is a dictionary
+### with two keys.  The first key is used to categorize any log file and
+### second is used specifically to help categorize node manager advertise
+### errors.
+###
+### The general category dictionary uses its keys as the string it attempts
+### to match in a specific log entry and it uses the corresponding value as
+### a category descriptor so that common categories can be lumped together in
+### printing the results.
+###
+{'General Categories':{
+'Downloading file': 'info-harmless',
+'The metainfo indicates no update is needed': 'info-harmless',
+'Updating files': 'info-harmless',
+'[INFO]: node manager is alive...': 'info-harmless',
+'[INFO]:Loading config': 'info-harmless',
+'[INFO]:Started': 'info-harmless',
+'myname =': 'info-harmless',
+'[software_updater_start]': 'info-harmless',
+'Exception occurred trying to contact': 'Exception occurred in detecting nat, no valid forwarder',
+'Exception: Socket closed': 'Exception: Socket closed',
+'in read\ttimeout: timed out': 'Traceback, time out',
+'ValueError: Bad message size': 'Traceback, ValueError: Bad message size',
+'ValueError: need more than 1 value to unpack': 'Traceback, ValueError: need more than 1 value to unpack',
+'EnvironmentError: The socket has been closed': 'Traceback, socket related',
+'Exception: ERROR: failed to update ntp time, Time Server update failed.  Perhaps retry later...': 'Traceback, time server',
+'IOError: [Errno 2] No such file or directory': 'Traceback, IOError (No such file|dir)',
+"IOError: [Errno socket error] (-2, 'Name or service not known')": 'Traceback, IOError (socket error) -2',
+"IOError: [Errno socket error] (-3, 'Temporary failure in name resolution')": 'Traceback, IOError (socket error) -3',
+"IOError: [Errno socket error] (113, 'No route to host')": 'Traceback, IOError (socket error) 113',
+'IOError: [Errno socket error] timed out': 'Traceback, IOError (socket error) timeout',
+"IOError: [Errno socket error] (111, 'Connection refused')": "Traceback, IOError (socket error) 111",
+"error: (99, 'Cannot assign requested address')": "Traceback, real_socket error 99, cannot assign requested address",
+"[ERROR]: when calling waitforconn for the connection_handler: (99, 'Cannot assign requested address')": "[ERROR]: waitforconn, cannont assign requested address",
+'[ERROR]:Another node manager process': '[ERROR]:Another node manager process is running',
+'[ERROR]: cannot find a port for recvmess': '[ERROR]: cannot find a port for recvmess',
+'[INFO]: Trying NAT wait': 'Trying NAT wait',
+'[do_rsync] New metainfo not signed correctly. Not updating.': 'metainfo error',
+'[do_rsync] Something is wrong with the metainfo:': 'metainfo error',
+'[safe_download] Failed to download': '[safe_download] Failed to download',
+'fresh_software_updater': 'fresh software updater',
+'restart_client': 'restart info',
+'[restart_software_updater]': 'restart info'
+}, 
+### The categories below are in list form and used to categorize errors that 
+### include the keyword: 'AdvertiseError', which are typically seen in node-
+### manager logs.
+'AdvertiseError Categories':#
+[
+"Socket closed",
+"(-2, 'Name or service not known')",
+"filedescriptor out of range in select()",
+"(113, 'No route to host')",
+"Unexpected tag 'details' while parsing response.",
+"recv() timed out!",
+"Socket timed out connecting to host/port",
+"(111, 'Connection refused')",
+"(101, 'Network is unreachable')",
+"list index out of range",
+"Timed out"
+]}
