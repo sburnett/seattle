@@ -105,16 +105,12 @@ def poll_data():
   # The format of the timestamp is of the form:
   # YYYYMMDD_HHMM, with single digits zero padded (5 -> 05).
   curr_time = datetime.datetime.now()
-  year = '%02d' % curr_time.year
-  month = '%02d' % curr_time.month
-  day = '%02d' % curr_time.day
-  hour = '%02d' % curr_time.hour
-  minute = '%02d' % curr_time.minute
-
-  folder_name = year + month + day + "_" + hour + minute
+  
+  # Converts datetime object to a formated string.
+  folder_name = datetime.datetime.strftime(curr_time, "%Y%m%d_%H%M")
+  month_folder = datetime.datetime.strftime(curr_time, "%Y_%m")
 
   # If a folder does not exist for the month of the poll, it is created.
-  month_folder = year + "_" + month
   if not os.path.isdir(PATH_TO_EXP_LIB + "seattle_node_data/" + month_folder):
     os.mkdir(PATH_TO_EXP_LIB + "seattle_node_data/" + month_folder)
   
@@ -169,6 +165,10 @@ def poll_data():
   # Finally stores the data structures in two separate gzip pickles.
   pickle.dump(total_node_dicts, nodes_file)
   pickle.dump(fail_dict, fail_file)
+  
+  # Close files.
+  nodes_file.close()
+  fail_file.close()
 
 
 
@@ -194,8 +194,10 @@ def import_data(absolute_path_to_file):
   """
 
   file_pickle = gzip.open(absolute_path_to_file,'r')
+  node_dict = pickle.load(file_pickle)
+  file_pickle.close()
 
-  return pickle.load(file_pickle)
+  return node_dict
 
 
 
