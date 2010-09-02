@@ -214,6 +214,10 @@ class TabCompleter:
 # this is how long we wait for a node to timeout
 globalseashtimeout = 10
 
+
+# This is the upload rate that we will use to estimate how long it takes for a file to upload.
+# Default is left at 10240 bytes/sec (10 kB/sec)
+globaluploadrate = 10240
   
 # Use this to signal an error we want to print...
 class UserError(Exception):
@@ -247,6 +251,7 @@ def savestate(statefn, handleinfo, host, port, expnum, filename, cmdargs,
   state['defaultkeyname'] = defaultkeyname
   state['autosave'] = autosave
   state['globalseashtimeout'] = globalseashtimeout
+  state['globaluploadrate'] = globaluploadrate
 
   # serialize states and encrypt
   if keys.has_key(defaultkeyname):
@@ -368,7 +373,32 @@ def find_handle_for_node(nodename):
   raise IndexError("Cannot find handle for '"+nodename+"'")
 
 
+# determines if there's a need to temporarily change the vessel timeout
+# to avoid timing out on bad connection speeds when uploading file.
+def set_upload_timeout(filedata):
 
+  filesize = len(filedata)
+  est_upload_time = filesize / globaluploadrate
+
+  # sets the new timeout if necessary
+  if est_upload_time > globalseashtimeout:
+
+    for longname in vesselinfo:
+      thisvesselhandle = vesselinfo[longname]['handle']
+      thisvesselhandledict = nmclient_get_handle_info(thisvesselhandle)
+      thisvesselhandledict['timeout'] = est_upload_time
+      nmclient_set_handle_info(thisvesselhandle,thisvesselhandledict)
+
+
+# Resets each vessel's timeout to globalseashtimeout
+def reset_vessel_timeout():
+
+  # resets each vessel's timeout to the original values before file upload
+  for longname in vesselinfo:
+    thisvesselhandle = vesselinfo[longname]['handle']
+    thisvesselhandledict = nmclient_get_handle_info(thisvesselhandle)
+    thisvesselhandledict['timeout'] = globalseashtimeout
+    nmclient_set_handle_info(thisvesselhandle,thisvesselhandledict)
 
 
 #################### functions that operate on a target
@@ -828,6 +858,7 @@ keys = {}
 def command_loop():
   # we will set this if they call set timeout
   global globalseashtimeout
+  global globaluploadrate
 
   global targets
   global vesselinfo
@@ -977,6 +1008,11 @@ set ownerinfo [ data ... ]    -- Change owner information for the vessels
 set advertise [ on | off ] -- Change advertisement of vessels
 set owner identity        -- Change a vessel's owner
 set timeout count  -- Sets the time that seash is willing to wait on a node
+set uploadrate speed -- Sets the upload rate which seash will use to estimate
+                        the time needed for a file to be uploaded to a vessel.
+                        The estimated time would be set as the temporary 
+                        timeout count during actual process. Speed should be 
+                        in bytes/sec.
 set autosave [ on | off ] -- Sets whether to save the state after every command.
                              Set to 'off' by default. The state is saved to a
                              file called 'autosave_keyname', where keyname is 
@@ -1004,6 +1040,8 @@ show files      -- Display a list of files in the vessel (*)
 show resources  -- Display the resources / restrictions for the vessel (*)
 show offcut     -- Display the offcut resource for the node (*)
 show timeout    -- Display the timeout for nodes
+show uploadrate -- Display the upload rate which seash uses to estimate
+                   the required time for a file upload
 
 (*) No need to update prior, the command contacts the nodes anew
 """
@@ -1444,6 +1482,14 @@ update             -- Update information about the vessels
           
           continue
 
+
+
+# show uploadrate -- Display the upload rate for file transfers to nodes
+        elif userinputlist[1] == 'uploadrate':
+
+          print globaluploadrate
+
+          continue
 
 
 
@@ -2141,6 +2187,7 @@ update             -- Update information about the vessels
         defaultkeyname = state['defaultkeyname']
         autosave = state['autosave']
         globalseashtimeout = state['globalseashtimeout']
+        globaluploadrate = state['globaluploadrate']
         
         # Reload node handles. Rogue nodes are deleted from the original targets
         # and vesselinfo dictionaries.
@@ -2189,12 +2236,17 @@ update             -- Update information about the vessels
 
         if not currenttarget:
           raise UserError("Must specify a target")
-  
+
 
         # read the local file...
         fileobj = open(localfn,"r")
         filedata = fileobj.read()
         fileobj.close()
+
+        # to prevent timeouts during file uploads on slow connections,
+        # temporarily sets the timeout count on all vessels to be the 
+        # time needed to upload the file with the current globaluploadrate
+        set_upload_timeout(filedata)
 
         # add the file to the vessels...
         faillist = []
@@ -2215,6 +2267,8 @@ update             -- Update information about the vessels
           targets['uploadfail'] = faillist
           print "Added group 'uploadgood' with "+str(len(targets['uploadgood']))+" targets and 'uploadfail' with "+str(len(targets['uploadfail']))+" targets"
 
+        # resets the timeout count on all vessels to globalseashtimeout
+        reset_vessel_timeout()
   
         continue
   
@@ -2385,6 +2439,11 @@ update             -- Update information about the vessels
         filedata = fileobj.read()
         fileobj.close()
 
+        # to prevent timeouts during file uploads on slow connections,
+        # temporarily sets the timeout count on all vessels to be the 
+        # time needed upload the file with the current globaluploadrate
+        set_upload_timeout(filedata)
+
         faillist = []
         goodlist = []
 
@@ -2404,6 +2463,8 @@ update             -- Update information about the vessels
           targets['runfail'] = faillist
           print "Added group 'rungood' with "+str(len(targets['rungood']))+" targets and 'runfail' with "+str(len(targets['runfail']))+" targets"
 
+        # resets the timeout count on all vessels to globalseashtimeout
+        reset_vessel_timeout()
   
         continue
   
@@ -2732,7 +2793,17 @@ update             -- Update information about the vessels
           continue
 
 
+        # set uploadrate speed     -- Sets the speed seash will modify the
+        #                             timeout count with when uploading files
+        elif userinputlist[1] == 'uploadrate':
 
+          if len(userinputlist) != 3:
+            raise UserError("set uploadrate takes exactly one positive integer")
+          try:
+            globaluploadrate = int(userinputlist[2])
+          except ValueError:
+            raise UserError("The speed value must be a number (in bytes per second)")
+        
 
 
 
