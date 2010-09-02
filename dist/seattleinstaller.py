@@ -2018,60 +2018,13 @@ def main():
     return
 
 
-  # Derek Cheng: if the user is running a Nokia N800 tablet, we require them
-  # to be on root first in order to have files created in the /etc/init.d and
-  # /etc/rc2.d directories. 
-  if platform.machine().startswith('armv'):
-    _output('Seattle is being installed on a Nokia N800/900 Internet Tablet.')
-    # JAC: I can't import this on Windows, so will do it here...
-    import pwd
-    # if the current user name is not 'root'
-    if pwd.getpwuid(os.getuid())[0] != 'root':
-      _output('Please run the installer as root. This can be done by ' \
-                + 'installing/using the rootsh or openssh package.')
-      return
+  #######################################################################################
+  ## We are going to try and setup the startup as the first thing. If we find out that ##
+  ## We have already added a crontab on the linux machine, then there is a good chance ##
+  ## that we have already installed Seattle on this machine. Therefore we are going to ##
+  ## stop with this installation and quit.                                             ##
+  #######################################################################################
 
-
-  # Pre-install: process the passed-in arguments, and set up the configuration
-  #   dictionary.
-  continue_install = prepare_installation(opts,args)
-  if not continue_install:
-    return
-
-  # Pre-install: run all tests and benchmarking.
-  #   test_urandom_implemented() MUST be performed before
-  #   perform_system_benchmarking() to get relevant results from the
-  #   benchmarking.
-  urandom_test_succeeded = test_urandom_implemented()
-  if not urandom_test_succeeded:
-    return
-  benchmarking_succeeded = perform_system_benchmarking()
-  if not benchmarking_succeeded:
-    return
-
-
-
-  # Begin installation.
-  if DISABLE_INSTALL:
-    return
-  
-  # First, customize any scripts since they may be copied to new locations when
-  # configuring seattle to run automatically at boot.
-
-
-  # If running on a Windows system, customize the batch files.
-  if OS == "Windows" or OS == "WindowsCE":
-    customize_win_batch_files()
-    _output("Done!")
-
-  # If running on WindowsCE, setup the sitecustomize.py file.
-  if OS == "WindowsCE":
-    _output("Configuring python for WindowsCE...")
-    setup_sitecustomize()
-    _output("Done!")
-
-    
-   
 
   # Configure seattle to run at startup.
   if not DISABLE_STARTUP_SCRIPT:
@@ -2131,6 +2084,63 @@ def main():
 
 
 
+
+
+
+  # Derek Cheng: if the user is running a Nokia N800 tablet, we require them
+  # to be on root first in order to have files created in the /etc/init.d and
+  # /etc/rc2.d directories. 
+  if platform.machine().startswith('armv'):
+    _output('Seattle is being installed on a Nokia N800/900 Internet Tablet.')
+    # JAC: I can't import this on Windows, so will do it here...
+    import pwd
+    # if the current user name is not 'root'
+    if pwd.getpwuid(os.getuid())[0] != 'root':
+      _output('Please run the installer as root. This can be done by ' \
+                + 'installing/using the rootsh or openssh package.')
+      return
+
+
+  # Pre-install: process the passed-in arguments, and set up the configuration
+  #   dictionary.
+  continue_install = prepare_installation(opts,args)
+  if not continue_install:
+    return
+
+  # Pre-install: run all tests and benchmarking.
+  #   test_urandom_implemented() MUST be performed before
+  #   perform_system_benchmarking() to get relevant results from the
+  #   benchmarking.
+  urandom_test_succeeded = test_urandom_implemented()
+  if not urandom_test_succeeded:
+    return
+  benchmarking_succeeded = perform_system_benchmarking()
+  if not benchmarking_succeeded:
+    return
+
+
+
+  # Begin installation.
+  if DISABLE_INSTALL:
+    return
+  
+  # First, customize any scripts since they may be copied to new locations when
+  # configuring seattle to run automatically at boot.
+
+
+  # If running on a Windows system, customize the batch files.
+  if OS == "Windows" or OS == "WindowsCE":
+    customize_win_batch_files()
+    _output("Done!")
+
+  # If running on WindowsCE, setup the sitecustomize.py file.
+  if OS == "WindowsCE":
+    _output("Configuring python for WindowsCE...")
+    setup_sitecustomize()
+    _output("Done!")
+
+    
+   
 
   # Generate the Node Manager keys even if configuring seattle to run
   # automatically at boot fails because Node Manager keys are needed for the
