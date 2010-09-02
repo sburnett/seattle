@@ -36,11 +36,11 @@
     tokens.
     
     <Example>
-      #pragma repy [RESTRITIONS]
+      #pragma repy [RESTRICTIONS]
       #pragma out [TEXT]
       #pragma error [TEXT]
 
-    The parser throws on unrecognized pragmas. 
+    The parser throws an exception on unrecognized pragmas. 
 """
 
 
