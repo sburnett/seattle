@@ -228,7 +228,7 @@ def startvessel(vesselname, argstring):
     # First element should be the script (repy)
     command[0] = "\"" + repy_constants.PATH_SEATTLE_INSTALL + "repy.py"  + "\""
     # Second element should be the parameters
-    command[1] = ip_iface_preference_str + "--logfile \"" + vesseldict[vesselname]['logfilename'] + "\" --stop \""+ vesseldict[vesselname]['stopfilename'] + "\" --status \"" + vesseldict[vesselname]['statusfilename'] + "\" --cwd \"" + updir + "\" --servicelog \"" + vesseldict[vesselname]['resourcefilename']+"\" "+argstring
+    command[1] = ip_iface_preference_str + "--logfile \"" + vesseldict[vesselname]['logfilename'] + "\" --stop \""+ vesseldict[vesselname]['stopfilename'] + "\" --status \"" + vesseldict[vesselname]['statusfilename'] + "\" --cwd \"" + updir + "\" --norestrictions --servicelog \"" + vesseldict[vesselname]['resourcefilename']+"\" "+argstring
     raise Exception, "This will need to be changed to use absolute paths"
     
   else:  
@@ -242,6 +242,7 @@ def startvessel(vesselname, argstring):
         "--stop",    os.path.abspath(vesseldict[vesselname]['stopfilename']),
         "--status",  os.path.abspath(vesseldict[vesselname]['statusfilename']),
         "--cwd",     os.path.abspath(vesselname),
+        "--norestrictions",  # Fix for #919
         "--servicelog", os.path.abspath(vesseldict[vesselname]['resourcefilename'])] + argstring.split()
 
     start_task(command)
