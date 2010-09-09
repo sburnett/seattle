@@ -32,11 +32,20 @@ class RSAShim(BaseShim):
     (pubKey, privKey) = self._get_RSA_keys()
 
     # send public key
-    session_sendmessage(socket, "pubKey@@@" + pubKey)
+    try:
+      session_sendmessage(socket, "pubKey@@@" + pubKey)
+    except Exception, err:
+      self._logger.log("listener callback: Unable to send public key because " + str(err))
+      raise Exception(err)
+
     self._logger.log("listener callback: sent public key " + pubKey)
 
     # Receive shared random key, encrypted with public key
-    handshakestr = self._RSA_decrypt(privKey, session_recvmessage(socket))
+    try:
+      handshakestr = self._RSA_decrypt(privKey, session_recvmessage(socket))
+    except Exception, err:
+      self._logger.log("listener callback: Unable to receive shared key because " + str(err))
+      raise Exception(err)
 
     try:
       (greeting, sharedKey) = handshakestr.split("***")
@@ -72,7 +81,12 @@ class RSAShim(BaseShim):
     sock = self.shim_stack.openconn(host, port, localhost, localport, timeout)
     self._logger.log('openconn: connection established with %s:%s' % (host, port))
 
-    handshakestr = session_recvmessage(sock)
+    try:
+      handshakestr = session_recvmessage(sock)
+    except Exception, err:
+      self._logger.log("openconn: Unable to receive public key because " + str(err))
+      raise Exception(err)
+
     try:
       (greeting, pubKey) = handshakestr.split("@@@")
     except:
@@ -87,8 +101,13 @@ class RSAShim(BaseShim):
 
     # Send shared random key to server, encrypted with public key
     self._sharedKey = str(int(randomfloat()*999999) % 256)
-    session_sendmessage(sock, 
-                        self._RSA_encrypt(pubKey, "sharedKey***" + self._sharedKey))
+
+    try:
+      session_sendmessage(sock, 
+                          self._RSA_encrypt(pubKey, "sharedKey***" + self._sharedKey))
+    except Exception, err:
+      self._logger.log("openconn: Unable to send shared key because " + str(err))
+      raise Exception(err)
 
     self._logger.log('openconn: sent shared key ' + str(self._sharedKey))
 

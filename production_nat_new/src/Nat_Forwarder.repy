@@ -487,8 +487,8 @@ if callfunc == 'initialize':
   shim_stack = ShimStackInterface()
   forwarder_listener = shim_stack.waitforconn(ip,wait_port,common_entry)
   
-  # advertise the forwarder
-  hostname = 'crazyideas21.vicp.net'
-  print "NAT Forwarder advertised on %s:%s" % (hostname, wait_port)
-  forwarder_advertise_thread(hostname,wait_port)
+  # # advertise the forwarder
+  # hostname = 'crazyideas21.vicp.net'
+  # print "NAT Forwarder advertised on %s:%s" % (hostname, wait_port)
+  forwarder_advertise_thread(ip,wait_port)
 

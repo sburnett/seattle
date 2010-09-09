@@ -43,7 +43,7 @@ class NatDeciderShim(BaseShim):
     behind_nat = natforwardinglib_isBidirectional(getmyip(), port)
 
     if behind_nat:
-      self.shim_stack.push(NatBranchingShim())
+      self.shim_stack.push(NatForwardingShim())
       self._logger.log("waitforconn: We are behind NAT.")
 
     return self.shim_stack.waitforconn(host, port, callback)

@@ -12,9 +12,9 @@ import subprocess
 LOCAL = True
 
 if LOCAL:
-  USERNAME = "cynthia"
-  DEFAULT_XMLRPC_URL = "http://crazyideas21.vicp.net:8000/xmlrpc/"
-  API_KEY = "2F0184M3ZH6DN59WYELU7PTSRKIAJBXV"
+  USERNAME = "emma"
+  DEFAULT_XMLRPC_URL = "http://blackbox.cs.washington.edu:8000/xmlrpc/"
+  API_KEY = "B71IHKVSYCWTQMNFU0ZGL38JE2D5AR49"
 else:
   USERNAME = "danny"
   DEFAULT_XMLRPC_URL = "https://seattlegeni.cs.washington.edu/xmlrpc/"
