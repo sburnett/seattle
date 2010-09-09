@@ -142,3 +142,4 @@ req stop_all_seattle_processes.py
 req geoip_client.repy
 req priority_queue.repy
 req AdvertiseObjects.repy
+req ShimStackInterface.repy
