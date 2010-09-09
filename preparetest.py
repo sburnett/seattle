@@ -164,11 +164,12 @@ def main():
   # The license must be included in anything we distribute.
   copy_to_target("LICENSE.TXT", target_dir)
 
+  # Uncomment this when its ready to be in production.
   # Copy over the files needed for using shim.
-  copy_to_target("production_nat_new/src/nmpatch/nmmain.py", target_dir)
-  copy_to_target("production_nat_new/src/nmpatch/nmclient.repy", target_dir)
-  copy_to_target("production_nat_new/src/nmpatch/sockettimeout.repy", target_dir)
-  copy_to_target("production_nat_new/src/nmpatch/ShimStackInterface.repy", target_dir)  
+  # copy_to_target("production_nat_new/src/nmpatch/nmmain.py", target_dir)
+  # copy_to_target("production_nat_new/src/nmpatch/nmclient.repy", target_dir)
+  # copy_to_target("production_nat_new/src/nmpatch/sockettimeout.repy", target_dir)
+  # copy_to_target("production_nat_new/src/nmpatch/ShimStackInterface.repy", target_dir)  
   
   # Only copy the tests if they were requested.
   if repytest:
