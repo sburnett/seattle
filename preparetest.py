@@ -165,10 +165,10 @@ def main():
   copy_to_target("LICENSE.TXT", target_dir)
 
   # Copy over the files needed for using shim.
-  copy_to_target("production_nat_new/src/nmpatch/nmmain.py")
-  copy_to_target("production_nat_new/src/nmpatch/nmclient.repy")
-  copy_to_target("production_nat_new/src/nmpatch/sockettimeout.repy")
-  copy_to_target("production_nat_new/src/nmpatch/ShimStackInterface.repy")  
+  copy_to_target("production_nat_new/src/nmpatch/nmmain.py", target_dir)
+  copy_to_target("production_nat_new/src/nmpatch/nmclient.repy", target_dir)
+  copy_to_target("production_nat_new/src/nmpatch/sockettimeout.repy", target_dir)
+  copy_to_target("production_nat_new/src/ShimStackInterface.repy", target_dir)  
   
   # Only copy the tests if they were requested.
   if repytest:
