@@ -10,12 +10,12 @@ Module: Node Manager main program.   It initializes the other modules and
 Start date: September 3rd, 2008
 
 This is the node manager for Seattle.   It ensures that sandboxes are correctly
-assigned to users and users can manipulate those sandboxes safely.   
+assigned to users and users can manipulate those sandboxes safely.
 
 The design goals of this version are to be secure, simple, and reliable (in 
-that order).   
+that order).
 
-The node manager has several different threads.   
+The node manager has several different threads.
 
    An advertisement thread (nmadverise) that inserts entries into OpenDHT so 
 that users and owners can locate their vessels.
@@ -138,16 +138,25 @@ LOG_AFTER_THIS_MANY_ITERATIONS = 600  # every 10 minutes
 # BUG: what if the data on disk is corrupt?   How do I recover?   What is the
 # "right thing"?   I could run nminit again...   Is this the "right thing"?
 
-version = "0.1r"
+version = "0.1s"
 
 # Our settings
 configuration = {}
 
-# Lock and condition to determine if the acceptor thread has started
-acceptor_state = {'lock':getlock(),'started':False}
+# Lock and condition to determine if the accepter thread has started
+accepter_state = {'lock':getlock(),'started':False}
 
-FOREGROUND = True # TODO for debug only (Danny)
+FOREGROUND = False
 
+# Dict to hold up-to-date nodename and boolean flags to track when to reset
+# advertisement and accepter threads (IP mobility)
+#   If not behind NAT, name is node's IP:port
+#   If behind a NAT, name is a string of the form NAT$UNIQUE_ID:port
+node_reset_config = {
+  'name': None,
+  'reset_advert': False,
+  'reset_accepter': False
+  }
 
 # Initializes emulcomm with all of the network restriction information
 # Takes configuration, which the the dictionary stored in nodeman.cfg
@@ -169,6 +178,13 @@ def should_start_waitable_thread(threadid, threadname):
     thread_waittime[threadid] = minwaittime
     thread_starttime[threadid] = 0.0
 
+  # If asking about advert thread and node_reset_config specifies to reset it,
+  # then return True
+  if threadid == 'advert' and node_reset_config['reset_advert']:
+    # Before returning, turn off the reset flag
+    node_reset_config['reset_advert'] = False
+    return True
+  
   # If it has been started, and the elapsed time is too short, always return
   # False to say it shouldn't be restarted
   if thread_starttime[threadid] and nonportable.getruntime() - thread_starttime[threadid] < thread_waittime[threadid]:
@@ -194,9 +210,9 @@ def started_waitable_thread(threadid):
 
 # has the thread started?
 def is_accepter_started():
-  acceptor_state['lock'].acquire()
-  result = acceptor_state['started']
-  acceptor_state['lock'].release()
+  accepter_state['lock'].acquire()
+  result = accepter_state['started']
+  accepter_state['lock'].release()
   return result
 
 
@@ -210,10 +226,10 @@ def start_accepter():
   # do this until we get the accepter started...
   while True:
 
-    if is_accepter_started():
+    if not node_reset_config['reset_accepter'] and is_accepter_started():
       # we're done, return the name!
       return myname
-
+    
     else:
       for possibleport in configuration['ports']:
         try:
@@ -225,10 +241,10 @@ def start_accepter():
           servicelogger.log("[ERROR]: when calling waitforconn for the connection_handler: " + str(e))
           servicelogger.log_last_exception()
         else:
-          # the waitforconn was completed so the acceptor is started
-          acceptor_state['lock'].acquire()
-          acceptor_state['started']= True
-          acceptor_state['lock'].release()
+          # the waitforconn was completed so the accepter is started
+          accepter_state['lock'].acquire()
+          accepter_state['started']= True
+          accepter_state['lock'].release()
 
           # assign the nodemanager name
           myname = unique_id + ":" + str(possibleport)
@@ -371,7 +387,6 @@ def main():
 
 
   # get the external IP address...
-  # BUG: What if my external IP changes?   (A problem throughout)
   myip = None
   while True:
     try:
@@ -394,6 +409,8 @@ def main():
 
   # Start accepter...
   myname = start_accepter()
+  # Initialize the global node name inside node reset configuration dict
+  node_reset_config['name'] = myname
   
   #send our advertised name to the log
   servicelogger.log('myname = '+str(myname))
@@ -419,10 +436,11 @@ def main():
   # BUG: Need to exit all when we're being upgraded
   while True:
 
-    # E.K Previous there was a check to ensure that the acceptor
+    # E.K Previous there was a check to ensure that the accepter
     # thread was started.  There is no way to actually check this
     # and this code was never executed, so i removed it completely
 
+    myname = node_reset_config['name']
         
     if not is_worker_thread_started():
       servicelogger.log("[WARN]:At " + str(time.time()) + " restarting worker...")
@@ -439,6 +457,41 @@ def main():
     if not runonce.stillhaveprocesslock("seattlenodemanager"):
       servicelogger.log("[ERROR]:The node manager lost the process lock...")
       harshexit.harshexit(55)
+
+
+    # Check for ip change.
+    current_ip = None
+    while True:
+      try:
+        current_ip = emulcomm.getmyip()
+      except Exception, e:
+        # If we aren't connected to the internet, emulcomm.getmyip() raises this:
+        if len(e.args) >= 1 and e.args[0] == "Cannot detect a connection to the Internet.":
+          # So we try again.
+          pass
+        else:
+          # It wasn't emulcomm.getmyip()'s exception. re-raise.
+          raise
+      else:
+        # We succeeded in getting our external IP. Leave the loop.
+        break
+    time.sleep(0.1)
+
+    # If ip has changed, then restart the advertisement and accepter threads.
+    if current_ip != myip:
+      servicelogger.log('[WARN]:At ' + str(time.time()) + ' node ip changed...')
+      myip = current_ip
+
+      # Restart the accepter thread and update nodename in node_reset_config
+      node_reset_config['reset_accepter'] = True
+      myname = start_accepter()
+      node_reset_config['name'] = myname
+
+      # Restart the advertisement thread
+      node_reset_config['reset_advert'] = True
+      start_advert_thread(vesseldict, myname, configuration['publickey'])
+
+
 
     time.sleep(configuration['pollfrequency'])
 
