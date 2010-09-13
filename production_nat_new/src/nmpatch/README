@@ -6,7 +6,7 @@ Danny Y. Huang (yh1@williams.edu)
 This directory contains the files that the Seattle needs to use shims. In
 particular, the following modules are required:
 
-ShimStackInterface.repy - The main library for shims.
+ShimStackInterface.repy - The standalone main library for shims.
 nmmain.py               - The modified node manager that runs on shims.
 nmclient.repy           - The modified client.
 sockettimeout.repy      - The modified timeout socket object.
