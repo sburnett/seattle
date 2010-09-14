@@ -373,8 +373,10 @@ def testing_monitor(file_path):
     print_dashes()
     
     for key, value in report.items():
-      print 'Standard', key, ': (Produced, Expected):'
-      print value
+      print 'Standard', key, ':'
+      produced_val, expected_val = value
+      print "."*30 + "Produced" + "."*30 + "\n" + str(produced_val)
+      print "."*30 + "Expected" + "."*30 + "\n" + str(expected_val)
       print_dashes()
     
   else:
