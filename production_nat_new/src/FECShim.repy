@@ -1,0 +1,190 @@
+include random.repy
+
+class FECShim(BaseShim):
+
+  name = 'FECShim'
+
+  ip = getmyip()
+  send_lock = getlock()
+  recv_lock = getlock()
+  send_dict = {'package_id':random_nbit_int(10)}
+
+
+  def __init__(self, next_shim=None, optional_args=None):
+    BaseShim.__init__(self, next_shim, optional_args)
+    self._logger = ShimLogger('FECShim')
+
+    self.prev_callback = None
+    # dict to store incomming packets until they are put together
+    # {(remote_ip,remote_port,package_id):package_fragment_list
+    self.recv_dict = {}
+
+
+
+  def copy(self):
+    return FECShim()
+
+
+  def get_advertisement_string(self):
+    return '(FECShim)' + self.shim_stack.get_advertisement_string()
+
+
+
+  def recvmess(self,host,port,callback):
+    self.prev_callback = callback
+    handle = self.shim_stack.recvmess(host,port,self.fec_callback)
+    return ('FEC',handle)
+
+
+
+  def fec_callback(self,rip,rport,message,handle):
+    # collect package framents until the original message
+    # can be put back together
+      
+    try:
+      (rip,id,count,message) = message.split(':',3)
+    except Exception, e:
+      raise Exception('Bad message header in FECShim: '+str(e))
+    
+    if count not in ['0','1','2']: 
+      raise Exception('Bad message header in FESCHim: '+count)    
+
+    package_header = rip+':'+id
+    
+    # grab a lock to prevent concurrent access to shared state
+    self.recv_lock.acquire()
+    
+    # if this is the first packet of a set create a new entry
+    if package_header not in self.recv_dict:
+      self.recv_dict[package_header] = {'0':None,'1':None,'2':None,'recv':0} 
+    
+    package_dict = self.recv_dict[package_header]
+
+    # throw away duplicates which would mess up fec logic
+    if package_dict[count] is not None:
+      self.recv_lock.release()
+      return
+    
+    package_dict[count] = message
+    package_dict['recv'] += 1
+    
+    
+    # if this is the first packet in we can pass it up
+    if package_dict['recv'] == 1 and count != '2':
+      self.recv_lock.release()     
+      self.prev_callback(rip,rport,message,handle)
+
+    # if we've got two packets we can make the extra one
+    elif package_dict['recv'] == 2:
+      
+      # if we havent recieved the xor packet the we know this
+      # packet and just be passed up the stack
+      if package_dict['2'] is None:
+        self.recv_lock.release()
+        self.prev_callback(rip,rport,message,handle)
+      
+      else:
+
+        # if we recieved the xor then we need to 
+        # pass up this packet and the exclusive or packet
+        self.recv_lock.release()
+        
+
+        if count != '2':
+          recovered_packet = self.str_xor(package_dict['2'],message)
+          
+        if count == '2':
+          if package_dict['1'] is None:
+            recovered_packet = self.str_xor(package_dict['0'],message)
+          elif package_dict['0'] is None:
+            recovered_packet = self.str_xor(package_dict['1'],message)
+          else:
+            raise Exception("ERROR in FECShim")
+          self.prev_callback(rip,rport,recovered_packet,handle)    
+          return
+        
+        # set a timer to return the first packet so we can also return
+        # the second
+        while True:
+          try:
+            self.prev_callback(rip,rport,recovered_packet,handle)    
+          except Exception,e:
+            if 'events' in str(e): 
+              sleep(1) #wait and try
+              print 'caught events exception in FECShim'
+            else: raise
+          else:
+            break        
+      
+        self.prev_callback(rip,rport,message,handle)
+
+
+    elif package_dict['recv'] == 3:
+      # we've now gotten all three of these messages and can delete
+      # the entry
+      del self.recv_dict[package_header]
+      self.recv_lock.release()
+      return
+
+    elif package_dict['recv'] > 3:
+      raise Exception("ERROR IN FECSHIM, recvied: "+str(package_dict['recv'])) 
+    
+
+
+
+  def sendmess(self,host,port,msg,localhost=None,localport=None):
+    # splits a message into redundate packages and sends
+    # the packages to a server to be re-assembeled
+    
+    self.send_lock.acquire()
+    
+
+    target = host+':'+str(port)
+    if target not in self.send_dict:
+      self.send_dict[target] = {'id':self.send_dict['package_id'],'str':None}
+      self.send_dict['package_id'] += 1
+
+    if self.send_dict[target]['str'] == None:
+      self.send_dict[target]['str'] = msg
+      self.send_lock.release()
+      
+      new_msg = self.ip+':'+str(self.send_dict[target]['id'])+':0:'+msg
+      self.shim_stack.sendmess(host,port,new_msg,localhost,localport)
+ 
+    else:
+      
+      xor = self.str_xor(self.send_dict[target]['str'],msg)
+      new_msg = self.ip+':'+str(self.send_dict[target]['id'])+':1:'+msg
+      xor = self.ip+':'+str(self.send_dict[target]['id'])+':2:'+xor
+      del self.send_dict[target]
+      
+      self.send_lock.release()
+      
+      self.shim_stack.sendmess(host,port,new_msg,localhost,localport)
+      self.shim_stack.sendmess(host,port,xor,localhost,localport)
+      
+    return len(msg) 
+    
+    
+  def stopcomm(self,handle):
+    try:
+      (name,handle) = handle
+      if name != 'FEC':  raise Excetpion('Bad name'+str(name))
+    except Exception, e:
+      raise Exception('Bad handle in FECShim: '+str(e))
+    else:
+      # remove all state
+      self.recv_dict = None
+      self.shim_stack.stopcomm(handle)
+
+  def str_xor(self,a,b):
+    if len(a) > len(b):
+      (a,b) = (b,a)
+    outstr = ''
+    for pos in range(len(a)):
+      outstr = outstr + chr( ord(a[pos]) ^ ord(b[pos]))
+    outstr = outstr + b[pos+1:]
+    return outstr
+
+
+

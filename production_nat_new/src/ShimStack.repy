@@ -27,8 +27,8 @@ _SHIMSTACK_LAYER_DICT = {}
 
 # Provides a wrapper for the legacy shimstack_reg_layer method
 def register_shim(shim_name, shim_class, is_private_shim=False):
-  if shim_name in _SHIMSTACK_LAYER_DICT.keys():
-    raise Exception('You cannot register an existing shim "%s" more than once.' % shim_name)
+  # if shim_name in _SHIMSTACK_LAYER_DICT.keys():
+  #   raise Exception('You cannot register an existing shim "%s" more than once.' % shim_name)
   _SHIMSTACK_LAYER_DICT[shim_name] = {'class': shim_class, 
                                       'is_private_shim': is_private_shim}
 

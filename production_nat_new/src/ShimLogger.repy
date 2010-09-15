@@ -1,0 +1,27 @@
+
+SHIM_LOGGER_FILE = 'shims.log'
+
+class ShimLogger:
+
+  def __init__(self, shimname=''):
+    self._shimname = shimname
+    self._initialize_logger()
+
+
+  def _initialize_logger(self):
+    if not mycontext.has_key('shim_logger_lock'):
+      mycontext['shim_logger_lock'] = getlock()
+      self.log("\n" * 3)
+
+
+  def log(self, logstr):
+    mycontext['shim_logger_lock'].acquire()
+    try:
+      logfile = open(SHIM_LOGGER_FILE, 'a')
+      logfile.write(str(self._shimname) + ': ' + logstr + '\n')
+      logfile.close()
+    except Exception, e:
+      # Silently drops all exceptions
+      pass
+    finally:
+      mycontext['shim_logger_lock'].release()

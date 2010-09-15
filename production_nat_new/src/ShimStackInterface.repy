@@ -27,7 +27,8 @@ include NatBranchingShim.repy
 include RSABranchingShim.repy
 include ReverseShim.repy
 include NoopShim.repy
-
+include FECShim.repy
+include LZWShim.repy
 
 
 
@@ -44,6 +45,8 @@ register_shim('NatBranchingShim', NatBranchingShim)
 register_shim('RSABranchingShim', RSABranchingShim)
 register_shim('ReverseShim', ReverseShim)
 register_shim('NoopShim', NoopShim)
+register_shim('FECShim', FECShim)
+register_shim('LZWShim', LZWShim)
 
 
 # =============================================================================

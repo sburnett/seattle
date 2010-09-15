@@ -1,0 +1,71 @@
+include ShimStackInterface.repy
+
+shimstr = ''
+sendshim = ShimStackInterface(shimstr)
+recvshim = ShimStackInterface(shimstr)
+
+
+def main():
+
+  # read from command line
+  try:
+    port = int(callargs[0])
+    packetcount = int(callargs[1])
+  except:
+    print 'Argument: [GENIPort] [number of packets]'
+    return
+
+  # get peer ip
+  try:
+    f = open('config.txt')
+  except Exception, err:
+    print 'Cannot open config file:', str(err)
+    return
+
+  peerlist = []
+  myip = getmyip()
+
+  for line in f:
+    peerip = line.strip()
+    #if myip != peerip: 
+    peerlist.append(peerip)
+
+  f.close()
+  
+  # get sample contents
+  f = open('sendstuff.repy')
+  msg = f.read()
+  f.close()
+
+  # start listening
+  mycontext['packets_received'] = 0
+  recvshim.recvmess(myip, port, recv_callback)
+  sleep(7)
+
+  # start sending
+  for peerip in peerlist:
+    settimer(0, sendpackets, [peerip, port, packetcount, msg])
+
+  # display packets received every 7 seconds
+  while True:
+    print mycontext['packets_received'] ,
+    sleep(7)
+
+
+
+def recv_callback(rip, rport, msg, handle):
+  mycontext['packets_received'] += 1
+
+
+
+def sendpackets(ip, port, packetcount, msg):
+  while packetcount > 0:
+    sentbytes = sendshim.sendmess(ip, port, msg)
+    if sentbytes == len(msg):
+    # successful sent
+      packetcount -= 1
+
+
+
+if callfunc == 'initialize':
+  main()
