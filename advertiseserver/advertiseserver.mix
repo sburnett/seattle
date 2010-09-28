@@ -14,7 +14,8 @@ include sockettimeout.repy
 include time.repy
 include uniqueid.repy
 
-serverport = 10101
+legacyserverport = 10101
+serverport = 10102
 
 
 hashtable = {}
@@ -94,7 +95,11 @@ def read_hashtable(key, maxkeys):
 
 
 
-def handlerequest(remoteIP, remoteport, sockobj, ch, mainch):
+
+
+# This is the legacy handler for outdated clients...   
+# Hopefully, we will be able to obsolete it at some point
+def handlelegacyrequest(remoteIP, remoteport, sockobj, ch, mainch):
   expire_hashtable_items()
   try:
     try:
@@ -203,6 +208,132 @@ def handlerequest(remoteIP, remoteport, sockobj, ch, mainch):
 
 
 
+
+
+
+# This will receive requests that look like this:
+# ('PUT', 'key', 'value', 100)    # put 'value' under 'key' for 100 seconds
+# ('GET', 'key', 10)              # get at most 10 values stored under 'key'
+#
+# The responses returned for a PUT look like the following:
+# 'OK' (in response to put)
+# 'An error foobar occurred when performing a PUT' (in response to put)
+#
+# The responses returned for a GET look like the following:
+# ('OK',[]) (no items under key)
+# ('OK',['abc','123']) ('abc' and '123' are under the key)
+# ('An error foobar occurred when performing a PUT',) 
+
+# I know it's a little wonky to return data of different types.   I also know
+# I could have used dicts instead of tuples.   After consideration I decided 
+# not to do either because I'm not sure this would have added much clarity.
+
+# This is the new handler.   This works on serialized requests...
+def handlerequest(remoteIP, remoteport, sockobj, ch, mainch):
+  expire_hashtable_items()
+  try:
+    try:
+      rawrequestdata = session_recvmessage(sockobj)
+    except Exception,e:
+      print 'session_recvmessage error:',e
+      return
+
+    try:
+      requesttuple = serialize_deserializedata(rawrequestdata)
+    except ValueError, e:
+      print 'serialize_deserializedata:',e,' with string "'+rawrequestdata+'"'
+      return
+
+    if not type(requesttuple) is tuple:
+      print 'Request is '+str(type(requesttuple))+' not tuple.'
+      return
+    
+    if requesttuple[0] == 'PUT':
+
+      ############# START Tons of type checking
+      try:
+        (key, value, ttlval) = requesttuple[1:]
+      except ValueError, e:
+        print 'Incorrect format for request tuple: ',str(requesttuple)
+        return
+
+      if type(key) is not str:
+        print 'Key type for PUT must be str, not',type(key)
+        return
+
+      if type(value) is not str:
+        print 'Value type must be str, not',type(value)
+        return
+    
+      if type(ttlval) is not int and type(ttlval) is not long:
+        print 'TTL type must be int or long, not',type(ttlval)
+        return
+
+      if ttlval <=0:
+        print 'TTL must be positive, not ',ttlval
+        return
+
+      ############# END Tons of type checking
+
+      now = time_gettime()
+
+      # insert the items...
+      insert_hashtable(key, value, ttlval+now)
+      insert_hashtable('%all', value, ttlval+now)
+      
+      senddata = serialize_serializedata("OK")
+
+      # all is well...
+      session_sendmessage(sockobj, senddata)
+      return
+
+
+
+    elif requesttuple[0] == 'GET':
+
+      
+      ############# START Tons of type checking (similar to above
+      try:
+        (key, maxvals) = requesttuple[1:]
+      except ValueError, e:
+        print 'Incorrect format for request tuple: ',str(requesttuple)
+        return
+
+      if type(key) is not str:
+        print 'Key type for GET must be str, not',type(key)
+        return
+
+      if type(maxvals) is not int and type(maxvals) is not long:
+        print 'Maximum value type must be int or long, not',type(maxvals)
+        return
+
+      if maxvals <=0:
+        print 'Value type must be positive, not ',maxvals
+        return
+
+      ############# END Tons of type checking
+
+      # do the actual work...   read the value and send the response...
+      readlist = read_hashtable(key, maxvals)
+        
+      senddata = serialize_serializedata(("OK",readlist))
+      session_sendmessage(sockobj, senddata)
+      
+      return
+
+    else:
+    
+      print 'Unknown request:',str(requesttuple)
+      return
+
+  except Exception,e:
+    print "While handling request, received: ",e
+  
+  finally:
+    sockobj.close()
+
+
+
 if callfunc=='initialize':
   print "Started"
   time_updatetime(34612)
@@ -212,4 +343,5 @@ if callfunc=='initialize':
   logfiledata["expanded_log"] = open("log.expanded",'a')
   print "Detailed logging has been disabled, see write_to_log to enable it"
   
+  timeout_waitforconn(getmyip(),legacyserverport,handlelegacyrequest)
   timeout_waitforconn(getmyip(),serverport,handlerequest)
