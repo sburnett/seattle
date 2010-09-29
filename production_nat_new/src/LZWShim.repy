@@ -50,6 +50,7 @@ class LZWShim(BaseShim):
     """
     Returns an LZW compressed list of the input character sequence.
     """
+    timeStart = getruntime()
     output = []
     table = dict(self._str_to_code)
 
@@ -64,7 +65,11 @@ class LZWShim(BaseShim):
         s = ch
 
     output.append(table[s])
-    return self._serialize(output)
+    serialized = self._serialize(output)
+    timeEnd = getruntime()
+    if len(longstr) == 50000:
+      print '[%f]'%(timeEnd - timeStart) ,
+    return serialized
 
   def _decompress(self, seq):
     """

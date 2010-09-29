@@ -2,21 +2,28 @@ include ShimStackInterface.repy
 
 
 
-msgsizes = [50, 100, 200, 500, 1000, 2000, 5000, 10000]
+msgsizes = [50, 80, 100, 200, 500, 1000, 1500]
 
 
-def main(shimstr):
-
-  mycontext['sendshim'] = ShimStackInterface(shimstr)
-  mycontext['recvshim'] = ShimStackInterface(shimstr)
+def main():
 
   # read from command line
   try:
-    port = int(callargs[0])
-    packetcount = int(callargs[1])
+    shimstr = callargs[0]
+    port = int(callargs[1])
+    packetcount = int(callargs[2])
   except:
-    print 'Argument: [GENIPort] [number of packets]'
+    print 'Argument: [shimstr (x for none)] [GENIPort] [number of packets per size per peer]'
     return
+
+  # construct shim stack
+  if shimstr == 'x':
+    shimstr == ''
+  else:
+    shimstr = '(%s)' % shimstr
+  mycontext['sendshim'] = ShimStackInterface(shimstr)
+  mycontext['recvshim'] = ShimStackInterface(shimstr)
+
 
   # get peer ip
   try:
@@ -58,23 +65,26 @@ def main(shimstr):
   f.close()
   print 'Original message size:', len(msg), '; Peers:', len(peerlist),
   print '; Total messages to send per msg size:', packetcount ,
-  print '; Shim Stack:', shimstr
-  print 'Message size list:',
+  print '; Shim Stack:', shimstr ,
+  print '; Message size list:',
   for msgsize in msgsizes:
     print msgsize,
   print ''
 
   sleep(2)
 
+  mycontext['sendtime'] = {}
+  for msgsize in msgsizes:
+    mycontext['sendtime'][msgsize] = 0
+  
   # start sending
-  for peerip in peerlist:
-    settimer(0, sendpackets, [peerip, port, packetcount, msg])
+  settimer(0, sendpackets, [peerlist[:], port, packetcount, msg])
 
-  # display results when they haven't changed for 2 times (one minute)
+  # display results when they haven't changed for 4 times (two minutes)
   prevresult = ''
   nochangecount = 0
-  print " > Percent packets received per 30 seconds:",
-  while nochangecount < 2:
+  print "Percent packets received per 30 seconds:",
+  while nochangecount < 4:
     resultdict = mycontext['packets_received']
 
     if str(resultdict) == prevresult:
@@ -90,14 +100,21 @@ def main(shimstr):
       sleep(5)
     else:
       sleep(30)
+  recvtimeEnd = getruntime()
 
   # stop listening
   mycontext['recvshim'].stopcomm(handle)
 
   # present result
-  resultstr = '\n > Packets received: '
+  resultstr = '\n* Packets received: '
   for msgsize in msgsizes:
     resultstr += '%d ' % resultdict[msgsize]
+  resultstr += '\n* Total send time: %d. Total recv time: %d. ' % (sum(mycontext['sendtime'].values()), 
+                                                                recvtimeEnd - mycontext['recvtimeBegin'])
+  resultstr += 'Individual send time: '
+  for msgsize in msgsizes:
+    resultstr += '%.1f ' % mycontext['sendtime'][msgsize]
+
   print resultstr
 
 
@@ -109,27 +126,51 @@ def recv_callback(rip, rport, msg, handle):
   else:
     print 'Invalid msgsize', msgsize
 
+  # start timing
+  if not 'recvtimeBegin' in mycontext.keys():
+    mycontext['recvtimeBegin'] = getruntime()
 
 
-def sendpackets(ip, port, packetcount, msg):
+
+def sendpackets(iplist, port, totalpacketcount, msg):
   packetleft = {}
-  for msgsize in msgsizes:
-    packetleft[msgsize] = packetcount
+  for ip in iplist:
+    packetleft[ip] = {}
+    for msgsize in msgsizes:
+      packetleft[ip][msgsize] = totalpacketcount
 
-  while sum(packetleft) > 0:
-    # pick a msg size to send
-    thismsgsize = msgsizes[random_int_below(len(msgsizes))]
-    if packetleft[thismsgsize] == 0:
-      continue
+  def getsum(dic):
+    ret = 0
+    for key in dic.keys():
+      ret += sum(dic[key].values())
+    return ret
+      
+  # while there is still some packets to send, go through all peers
+  while getsum(packetleft) > 0:
+    for ip in iplist:
 
-    thismsg = msg[0:thismsgsize]
-    sentbytes = mycontext['sendshim'].sendmess(ip, port, thismsg)
-    if sentbytes == len(thismsg):
-      # successful sent
-      packetleft[thismsgsize] -= 1
+      # ensures there is some msg size to randomly pick within this peer
+      if sum(packetleft[ip].values()) == 0:
+        continue
+
+      # pick a msg size to send
+      while True:
+        thismsgsize = msgsizes[random_int_below(len(msgsizes))]
+        if packetleft[ip][thismsgsize] > 0:
+          # found a msg size
+          break
+
+      thismsg = msg[0:thismsgsize]
+
+      beginTime = getruntime()
+      mycontext['sendshim'].sendmess(ip, port, thismsg)
+      endTime = getruntime()
+
+      mycontext['sendtime'][thismsgsize] += endTime - beginTime
+      packetleft[ip][thismsgsize] -= 1
+
 
 
 
 if callfunc == 'initialize':
-  for shimstr in ['', '(FECShim)', '(LZWShim)', '(LZWShim)(FECShim)']:
-    main(shimstr)
+  main()
