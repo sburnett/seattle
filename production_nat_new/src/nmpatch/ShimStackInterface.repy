@@ -7,20 +7,12 @@ not consistant with the API semantics. Provides logging capabilities.
 
 """
 
-#begin include ShimSocketWrapper.repy
 
-# Wrapper class of the socket object we're redefining within EmptyShim. This
-# class should never be referenced, redefined or overridden by the shim
-# programmer. If he wishes to redefine the three socket operations, he
-# should do so within the socket_* methods in the subclasses of BaseShim.
 class ShimSocketWrapper:
 
   mycontext['ShimSocketWrapperLock'] = getlock()
   mycontext['ShimSocketWrapperInstanceCounter'] = 0
 
-  # We are passing the original socket to wrap around, along with the shim
-  # instance that uses our wrapper socket. This facilitates the exchange of
-  # information between the socket and the caller shim.
   def __init__(self, socket, shim):
     if shim is None:
       raise Exception("Null reference to shim provided at constructor of ShimSocketWrapper.")
@@ -28,7 +20,6 @@ class ShimSocketWrapper:
     self._socket = socket
     self._shim = shim
 
-    # Obtain the id this this instance
     mycontext['ShimSocketWrapperLock'].acquire()
     self._id = mycontext['ShimSocketWrapperInstanceCounter']
     mycontext['ShimSocketWrapperInstanceCounter'] += 1
@@ -47,30 +38,20 @@ class ShimSocketWrapper:
     return self._shim.socket_send(self._socket, message)
 
 
-  # Provides compatibility to the counterpart in the repy socket. Shim creators
-  # cannot override this method.
   def willblock(self):
     return self._socket.willblock()
 
 
-  # Returns the instance id.
   def getid(self):
     return self._id
 
   
-  # # Used if we ever set an instance of this class as the key of a dictionary. In
-  # # this case, we simply set the instance id as the hash value.
-  # def __hash__(self):
-  #   return self.getid()
 
 
   def __str__(self):
-    #TODO debug only
     return ("(@ %d Shim: %s. Socket: %s)" % 
             (self.getid(), self._shim, self._socket))
 
-#end include ShimSocketWrapper.repy
-#begin include ShimStack.repy
 """
 
 <Program Name>
@@ -92,22 +73,16 @@ class ShimSocketWrapper:
 
 
 
-# a dictionary to store refrences to each layers class
 _SHIMSTACK_LAYER_DICT = {}
 
 
-### REGISTRATION USED FOR LAYERS TO REGISTER WITH THE FRAMEWORK  ###
 
-# Provides a wrapper for the legacy shimstack_reg_layer method
 def register_shim(shim_name, shim_class, is_private_shim=False):
-  # if shim_name in _SHIMSTACK_LAYER_DICT.keys():
-  #   raise Exception('You cannot register an existing shim "%s" more than once.' % shim_name)
   _SHIMSTACK_LAYER_DICT[shim_name] = {'class': shim_class, 
                                       'is_private_shim': is_private_shim}
 
                       
 
-# TODO Legacy. Used for debugging and backward compatibility.
 def shimstack_reg_layer(layer_name,layer_info_dict):
   """
   <Purpose>
@@ -131,7 +106,6 @@ def shimstack_reg_layer(layer_name,layer_info_dict):
     None
   """
 
-  # provides a way for T_layers to register themselves with the framework
   if layer_name in _SHIMSTACK_LAYER_DICT:
     raise Exception('Attempt to register previously existing h-layer' +str(layer_name_))
   _SHIMSTACK_LAYER_DICT[layer_name] = layer_info_dict
@@ -140,21 +114,13 @@ def shimstack_reg_layer(layer_name,layer_info_dict):
 
 
 class ShimStack:
-# Each Shim stack implements the networking API
-# Each shim has a reference to the ShimStack beneath it
 
-# a Shim stack string (for the constructor) is of the form
-# (LayerName,arg1,arg2,arg3,...)(..)....
-# The first item in a () is the name of the Shim to be instantiated,
-# each following item is convered to a list of strings and passed to
-# the Shim constructor as optional_args
 
   mycontext['ShimStackInstanceCount'] = 0
   mycontext['ShimStackInstanceCountLock'] = getlock()
 
 
   def __init__(self,shim_stack_string=None):
-    # create a new shim stack
     if shim_stack_string is not None: 
       self.top_shim = self.make_stack(shim_stack_string)
     else:
@@ -171,17 +137,14 @@ class ShimStack:
 
   
   def push(self,shim):
-    # give the new shim a shim stack that is the same as this one
     shim.shim_stack = ShimStack()
     shim.shim_stack.top_shim = self.top_shim
     
-    # change this shim stack to include the new shim
     self.top_shim = shim
     
       
 
   def pop(self):
-    # remove and return the top shim
     shim = self.top_shim
     if shim is None:
       raise Exception('You cannot pop an empty shim stack.')
@@ -190,10 +153,7 @@ class ShimStack:
     return shim
 
 
-  # TODO Legacy. Used for debugging only.
   def get_names(self):
-    # return a list of names that can be used to create compatible 
-    # shim stacks
     return self.top_shim.get_names()
 
 
@@ -212,7 +172,6 @@ class ShimStack:
       return self.top_shim.get_advertisement_string()
 
 
-  # TODO Legacy. Used for debugging only.
   def get_shims(self, get_all_shims=False):
     if self.top_shim is None:
       return ""
@@ -229,12 +188,7 @@ class ShimStack:
 
 
   def make_stack(self,shim_stack_str):
-    # private method used only by the ShimStack constructor
 
-    # takes a string of the form '(a)(b,c,d)'
-    # the first item in each (..) is the name of the shim
-    # following items are optional args that will be understood
-    # by the shims constructor  
 
 
     temp_str = shim_stack_str.replace('(','')
@@ -242,7 +196,6 @@ class ShimStack:
     del stack_list[len(stack_list)-1]
 
   
-    # make objects for each layer in the list
     top = None # the top of this stack
     previous = None
     for comma_seperated_str in stack_list:
@@ -258,17 +211,12 @@ class ShimStack:
 
     
     
-      # first arguemnt is always for the next shim, second argument is optional args
       new_shim = _SHIMSTACK_LAYER_DICT[shim_name]['class'](None,shim_args)
 
     
       if top == None: top = new_shim
     
       if previous !=None:
-        # link in the shim stack to the above shim
-        # traverse to the bottom of the previous shim stack
-        # you would expect there to only be one shim, but a shim
-        # constructor might have called push()
         while previous.shim_stack.top_shim is not None:
           previous = previous.shim_stack.top_shim
         previous.shim_stack.top_shim = new_shim
@@ -280,9 +228,6 @@ class ShimStack:
   
 
 
-  # ===========================================================================
-  # Public methods that interface with the application
-  # ===========================================================================
 
 
   def _shim_stack_waitforconn_callback_wrapper(self,sock,rip,rport,th,lh):
@@ -351,8 +296,6 @@ class ShimStack:
 
 
 
-#end include ShimStack.repy
-#begin include ShimException.repy
 class ShimException(Exception):
   pass
 
@@ -360,9 +303,6 @@ class ShimException(Exception):
 class ShimExceptionStackRejected(ShimException):
   pass
 
-#end include ShimException.repy
-#begin include DummyDNS.repy
-#begin include advertise.repy
 """
 Author: Justin Cappos
 
@@ -377,7 +317,6 @@ Raises an AdvertiseError exception if there is a problem advertising with either
 
 """
 
-#begin include listops.repy
 """ 
 Author: Justin Cappos
 
@@ -422,7 +361,6 @@ def listops_difference(list_a,list_b):
     if item not in list_b:
       retlist.append(item)
 
-  # ensure that a duplicated item in list_a is only listed once
   return listops_uniq(retlist)
 
 
@@ -451,7 +389,6 @@ def listops_union(list_a,list_b):
     if item not in list_a:
       retlist.append(item)
 
-  # ensure that a duplicated item in list_a is only listed once
   return listops_uniq(retlist)
 
 
@@ -480,7 +417,6 @@ def listops_intersect(list_a,list_b):
     if item in list_b:
       retlist.append(item)
 
-  # ensure that a duplicated item in list_a is only listed once
   return listops_uniq(retlist)
       
 
@@ -511,8 +447,6 @@ def listops_uniq(list_a):
 
 
 
-#end include listops.repy
-#begin include openDHTadvertise.repy
 """
 Author: Justin Cappos
 
@@ -525,7 +459,6 @@ This code is partially adapted from the example openDHT code.
 
 """
 
-#begin include random.repy
 """ 
 <Program Name>
   random.repy
@@ -566,17 +499,14 @@ This code is partially adapted from the example openDHT code.
       
 """
 
-#begin include math.repy
 """ Justin Cappos -- substitute for a few python math routines"""
 
 def math_ceil(x):
   xint = int(x)
   
-  # if x is positive and not equal to itself truncated then we should add 1
   if x > 0 and x != xint:
     xint = xint + 1
 
-  # I return a float because math.ceil does
   return float(xint)
 
 
@@ -584,11 +514,9 @@ def math_ceil(x):
 def math_floor(x):
   xint = int(x)
   
-  # if x is negative and not equal to itself truncated then we should subtract 1
   if x < 0 and x != xint:
     xint = xint - 1
 
-  # I return a float because math.ceil does
   return float(xint)
 
 
@@ -596,17 +524,12 @@ def math_floor(x):
 math_e = 2.7182818284590451
 math_pi = 3.1415926535897931
 
-# stolen from a link off of wikipedia (http://en.literateprograms.org/Logarithm_Function_(Python)#chunk use:logN.py)
-# MIT license
-#
-# hmm, math_log(4.5,4)      == 1.0849625007211561
-# Python's math.log(4.5,4)  == 1.0849625007211563
-# I'll assume this is okay.
 def math_log(X, base=math_e, epsilon=1e-16):
-  # log is logarithm function with the default base of e
+  if X <= 0:
+    raise ValueError, "log function domain error"
+
   integer = 0
   if X < 1 and base < 1:
-    # BUG: the cmath implementation can handle smaller numbers...
     raise ValueError, "math domain error"
   while X < 1:
     integer -= 1
@@ -626,7 +549,6 @@ def math_log(X, base=math_e, epsilon=1e-16):
   return (integer + decimal)
 
 
-#end include math.repy
 
 def random_randombytes(num_bytes, random_float=None):
   """
@@ -657,37 +579,19 @@ def random_randombytes(num_bytes, random_float=None):
    <Returns>
      A string of num_bytes random bytes suitable for cryptographic use.
   """
-  # To ensure accurate testing, this allows the source
-  # of random floats to be supplied.
   if random_float is None: 
     random_float = randomfloat()
   
   randombytes = ''
   
-  # num_bytes/6 + 1 is used because at most a single float
-  # can only result in 6 bytes of random data. So an additional
-  # 6 bytes is added and them trimmed to the desired size.
   for byte in range(num_bytes/6 + 1):
     
-    # Convert the float back to a integer by multiplying
-    # it by 2**53, 53 is used because the expected precision
-    # of a python float will be a C type double with a 53 bit 
-    # coefficient, this will still depend on the implementation
-    # but the standard is to expect 53 bits.
     randomint = int(random_float * (2**53)) 
-    # 53 bits trimmed down to 48bits
-    # and 48bits is equal to 6 bytes
     randomint = randomint >> 5  
     
-    # Transform the randomint into a byte string, 6 bytes were
-    # used to create this integer, but several of the leading 
-    # bytes could have been trimmed off in the process.
     sixbytes = _random_long_to_bytes(randomint)
     
-    # Add on the zeroes that should be there.
     if len(sixbytes) < 6: 
-      # pad additions binary zeroes that were lost during 
-      # the floats creation.
       sixbytes = '\x00'*(6-len(sixbytes)) + sixbytes 
     randombytes += sixbytes
   
@@ -710,21 +614,12 @@ def _random_long_to_bytes(long_int):
   byte_string = ''
   temp_int = 0
   
-  # Special case to ensure that a non-empty string
-  # is always returned.
   if long_int == 0:
     return '\000'
   
   while long_int > 0:
-    # Use a bitwise AND to get the last 8 bits from the long.
-    #    long_int  -->   1010... 010000001 (base 2)
-    #    0xFF      -->            11111111
-    #              _______________________
-    #  Bitwise AND result -->     10000001
     tmp_int = long_int & 0xFF
-    # Place the new character at the front of the string.
     byte_string = "%s%s" % (chr(tmp_int), byte_string)
-    # Bitshift the long because the trailing 8 bits have just been read.
     long_int = long_int >> 8
       
   return byte_string
@@ -811,27 +706,16 @@ def random_nbit_int(num_bits):
   if num_bits != int(num_bits):
     raise TypeError('number of bits should be an integer')
   
-  # The number of bits requested may not be a multiple of
-  # 8, then an additional byte will trimmed down.
   randstring = random_randombytes(num_bits/8)
 
   odd_bits = num_bits % 8
-  # A single random byte be converted to an integer (which will
-  # be an element of [0,255]) it will then be shifted to the required
-  # number of bits.
-  # Example: if odd_bits = 3, then the 8 bit retrieved from the 
-  # single byte will be shifted right by 5.
   if odd_bits != 0:
     char = ord(random_randombytes(1)) >> (8 - odd_bits)
     randstring = chr(char) + randstring
   
-  # the random bytes in randstring will be read from left to right
   result = 0L
   length = len(randstring)
   for i in range(0, length):
-    # While result = 0, the bitshift left will still result in 0
-    # Since we are dealing with integers, this does not result
-    # in the loss of any information.
     result = (result << 8) 
     result = result + ord(randstring[i]) 
   
@@ -876,10 +760,18 @@ def random_int_below(upper_bound):
     Returns a random integer between [0, upper_bound).
   
   """
+  
+  try:
+    upper_bound = int(upper_bound)
+  except ValueError:
+    raise TypeError('number should be an integer')
+  
   if upper_bound <= 0:
     raise ValueError('number must be greater than zero')
-  if upper_bound != int(upper_bound):
-    raise TypeError('number should be an integer')
+  
+    
+  if upper_bound == 1:
+    return 0
   
   k = int(1.00001 + math_log(upper_bound - 1, 2.0))   # 2**k > n-1 > 2**(k-2)
   r = random_nbit_int(k)
@@ -930,8 +822,6 @@ def random_randrange(start, stop=None, step=1):
   """
   maxwidth = 1L<<53
 
-  # This code is a bit messy to make it fast for the
-  # common case while still doing adequate error checking.
   istart = int(start)
   if istart != start:
     raise ValueError, "non-integer arg 1 for randrange()"
@@ -942,24 +832,11 @@ def random_randrange(start, stop=None, step=1):
       return int(randomfloat() * istart)
     raise ValueError, "empty range for randrange()"
 
-  # stop argument supplied.
   istop = int(stop)
   if istop != stop:
     raise ValueError, "non-integer stop for randrange()"
   width = istop - istart
   if step == 1 and width > 0:
-    # Note that
-    #     int(istart + self.random()*width)
-    # instead would be incorrect.  For example, consider istart
-    # = -2 and istop = 0.  Then the guts would be in
-    # -2.0 to 0.0 exclusive on both ends (ignoring that random()
-    # might return 0.0), and because int() truncates toward 0, the
-    # final result would be -1 or 0 (instead of -2 or -1).
-    #     istart + int(self.random()*width)
-    # would also be incorrect, for a subtler reason:  the RHS
-    # can return a long, and then randrange() would also return
-    # a long, but we're supposed to return an int (for backward
-    # compatibility).
 
     if width >= maxwidth:
       return int(istart + random_int_below(width))
@@ -967,7 +844,6 @@ def random_randrange(start, stop=None, step=1):
   if step == 1:
     raise ValueError, "empty range for randrange() (%d,%d, %d)" % (istart, istop, width)
 
-  # Non-unit step argument supplied.
   istep = int(step)
   if istep != step:
     raise ValueError, "non-integer step for randrange()"
@@ -1051,10 +927,6 @@ def random_sample(population, k):
 
   return retlist
 
-#end include random.repy
-#begin include sha.repy
-#!/usr/bin/env python
-# -*- coding: iso-8859-1
 
 """A sample implementation of SHA-1 in pure Python.
 
@@ -1070,12 +942,6 @@ version = 0.91 # Modernised by J. Hall`en and L. Creighton for Pypy
 
 
 
-# ======================================================================
-# Bit-Manipulation helpers
-#
-#   _long2bytes() was contributed by Barry Warsaw
-#   and is reused here with tiny modifications.
-# ======================================================================
 
 def _sha_long2bytesBigEndian(n, thisblocksize=0):
     """Convert a long integer to a byte string.
@@ -1085,28 +951,20 @@ def _sha_long2bytesBigEndian(n, thisblocksize=0):
     of blocksize.
     """
 
-    # Justin: I changed this to avoid using pack. I didn't test performance, etc
     s = ''
     while n > 0:
-        #original: 
-        # s = struct.pack('>I', n & 0xffffffffL) + s
-        # n = n >> 32
         s = chr(n & 0xff) + s
         n = n >> 8
 
-    # Strip off leading zeros.
     for i in range(len(s)):
         if s[i] <> '\000':
             break
     else:
-        # Only happens when n == 0.
         s = '\000'
         i = 0
 
     s = s[i:]
 
-    # Add back some pad bytes. This could be done more efficiently
-    # w.r.t. the de-padding being done above, but sigh...
     if thisblocksize > 0 and len(s) % thisblocksize:
         s = (thisblocksize - len(s) % thisblocksize) * '\000' + s
 
@@ -1139,12 +997,7 @@ def _sha_rotateLeft(x, n):
     return (x << n) | (x >> (32-n))
 
 
-# ======================================================================
-# The SHA transformation functions
-#
-# ======================================================================
 
-# Constants to be used
 sha_K = [
     0x5A827999L, # ( 0 <= t <= 19)
     0x6ED9EBA1L, # (20 <= t <= 39)
@@ -1158,15 +1011,11 @@ class sha:
     def __init__(self):
         "Initialisation."
         
-        # Initial message length in bits(!).
         self.length = 0L
         self.count = [0, 0]
 
-        # Initial empty message as a sequence of bytes (8 bit characters).
         self.inputdata = []
 
-        # Call a separate init function, that can be used repeatedly
-        # to start from scratch on the same object.
         self.init()
 
 
@@ -1176,7 +1025,6 @@ class sha:
         self.length = 0L
         self.inputdata = []
 
-        # Initial 160 bit message digest (5 times 32 bit).
         self.H0 = 0x67452301L
         self.H1 = 0xEFCDAB89L
         self.H2 = 0x98BADCFEL
@@ -1246,8 +1094,6 @@ class sha:
         self.H4 = (self.H4 + E) & 0xffffffffL
     
 
-    # Down from here all methods follow the Python Standard Library
-    # API of the sha module.
 
     def update(self, inBuf):
         """Add to the current message.
@@ -1267,10 +1113,8 @@ class sha:
 
         leninBuf = long(len(inBuf))
 
-        # Compute number of bytes mod 64.
         index = (self.count[1] >> 3) & 0x3FL
 
-        # Update number of bits.
         self.count[1] = self.count[1] + (leninBuf << 3)
         if self.count[1] < (leninBuf << 3):
             self.count[0] = self.count[0] + 1
@@ -1318,12 +1162,10 @@ class sha:
         padding = ['\200'] + ['\000'] * 63
         self.update(padding[:padLen])
 
-        # Append length (before padding).
         bits = _sha_bytelist2longBigEndian(self.inputdata[:56]) + count
 
         self._transform(bits)
 
-        # Store state in digest.
         digest = _sha_long2bytesBigEndian(self.H0, 4) + \
                  _sha_long2bytesBigEndian(self.H1, 4) + \
                  _sha_long2bytesBigEndian(self.H2, 4) + \
@@ -1361,13 +1203,7 @@ class sha:
         raise Exception, "not implemented"
 
 
-# ======================================================================
-# Mimic Python top-level functions from standard library API
-# for consistency with the md5 module of the standard library.
-# ======================================================================
 
-# These are mandatory variables in the module. They have constant values
-# in the SHA standard.
 
 sha_digest_size = sha_digestsize = 20
 sha_blocksize = 1
@@ -1385,21 +1221,17 @@ def sha_new(arg=None):
     return crypto
 
 
-# gives the hash of a string
 def sha_hash(string):
     crypto = sha()
     crypto.update(string)
     return crypto.digest()
 
 
-# gives the hash of a string
 def sha_hexhash(string):
     crypto = sha()
     crypto.update(string)
     return crypto.hexdigest()
 
-#end include sha.repy
-#begin include xmlrpc_client.repy
 """
 <Program Name>
   xmlrpc_client.py
@@ -1416,7 +1248,6 @@ def sha_hexhash(string):
 """
 
 
-#begin include urlparse.repy
 """
 <Program Name>
   urlparse.repy
@@ -1480,12 +1311,10 @@ def urlparse_urlsplit(urlstring, default_scheme="", allow_fragments=True):
     "fragment": "", "username": None, "password": None, "hostname": None,
     "port": None }
 
-  # Extract the scheme, if present.
   (lpart, rpart) = _urlparse_splitscheme(urlstring)
   if lpart:
     components["scheme"] = lpart
 
-  # Extract the server information, if present.
   if rpart.startswith("//"):
     (lpart, rpart) = _urlparse_splitnetloc(rpart, 2)
     components["netloc"] = lpart
@@ -1493,12 +1322,10 @@ def urlparse_urlsplit(urlstring, default_scheme="", allow_fragments=True):
     (components["username"], components["password"], components["hostname"],
       components["port"]) = _urlparse_splitauthority(lpart)
 
-  # Extract the fragment.
   if allow_fragments:
     (rpart, components["fragment"]) = _urlparse_splitfragment(rpart)
 
 
-  # Extract the query.
   (components["path"], components["query"]) = _urlparse_splitquery(rpart)
 
   return components
@@ -1506,7 +1333,6 @@ def urlparse_urlsplit(urlstring, default_scheme="", allow_fragments=True):
 
 def _urlparse_splitscheme(url):
   """Parse the scheme portion of the URL"""
-  # The scheme is valid only if it contains these characters.
   scheme_chars = \
     "abcdefghijklmnopqrstuvwxyz0123456789+-."
 
@@ -1516,10 +1342,8 @@ def _urlparse_splitscheme(url):
   spart = url.split(":", 1)
   if len(spart) == 2:
 
-    # Normalize the scheme.
     spart[0] = spart[0].lower()
 
-    # A scheme is valid only if it starts with an alpha character.
     if spart[0] and spart[0][0].isalpha():
       for char in spart[0]:
         if char not in scheme_chars:
@@ -1532,38 +1356,30 @@ def _urlparse_splitscheme(url):
 def _urlparse_splitnetloc(url, start=0):
   """Parse the netloc portion of the URL"""
 
-  # By default, the netloc is delimited by the end of the URL.
   delim = len(url)
 
-  # Find the left-most delimiter.
   for char in "/?#":
     xdelim = url.find(char, start)
     if xdelim >= 0:
       delim = min(delim, xdelim)
 
-  # Return the netloc and the rest of the URL.
   return url[start:delim], url[delim:]
 
 
 def _urlparse_splitauthority(netloc):
   """Parse the authority portion of the netloc"""
 
-  # The authority can have a userinfo portion delimited by "@".
   authority = netloc.split("@", 1)
 
-  # Default values.
   username = None
   password = None
   hostname = None
   port = None
 
-  # Is there a userinfo portion?
   if len(authority) == 2:
 
-    # userinfo can be split into username:password
     userinfo = authority[0].split(":", 1)
 
-    # hostport can be split into hostname:port
     hostport = authority[1].split(":", 1)
 
     if userinfo[0]:
@@ -1571,19 +1387,15 @@ def _urlparse_splitauthority(netloc):
     if len(userinfo) == 2:
       password = userinfo[1]
 
-  # No userinfo portion found.
   else:
 
-    # hostport can be split into hostname:port
     hostport = netloc.split(":", 1)
 
-  # Is there a port value?
   if hostport[0]:
     hostname = hostport[0]
   if len(hostport) == 2:
     port = int(hostport[1], 10)
 
-  # Return the values.
   return username, password, hostname, port
 
 
@@ -1610,8 +1422,6 @@ def _urlparse_splitfragment(url):
 
   return fpart[0], fragment
 
-#end include urlparse.repy
-#begin include httpretrieve.repy
 """
 <Program Name>
   httpretrieve.repy
@@ -1631,10 +1441,6 @@ def _urlparse_splitfragment(url):
 
 
 
-#begin include urlparse.repy
-#already included urlparse.repy
-#end include urlparse.repy
-#begin include sockettimeout.repy
 """
 <Author>
   Justin Cappos, Armon Dadgar
@@ -1661,7 +1467,6 @@ class _timeout_socket():
     for send() and recv().
   """
 
-  # Initialize with the socket object and a default timeout
   def __init__(self,socket,timeout=10, checkintv=0.1):
     """
     <Purpose>
@@ -1679,13 +1484,11 @@ class _timeout_socket():
               they can run. The smaller the interval the more time is
               spent busy waiting.
     """
-    # Store the socket, timeout and check interval
     self.socket = socket
     self.timeout = timeout
     self.checkintv = checkintv
 
 
-  # Allow changing the default timeout
   def settimeout(self,timeout=10):
     """
     <Purpose>
@@ -1697,11 +1500,9 @@ class _timeout_socket():
               Use 0 for no timeout. Given in seconds.
 
     """
-    # Update
     self.timeout = timeout
   
   
-  # Wrap willblock
   def willblock(self):
     """
     See socket.willblock()
@@ -1709,7 +1510,6 @@ class _timeout_socket():
     return self.socket.willblock()
 
 
-  # Wrap close
   def close(self):
     """
     See socket.close()
@@ -1717,7 +1517,6 @@ class _timeout_socket():
     return self.socket.close()
 
 
-  # Provide a recv() implementation
   def recv(self,bytes,timeout=None):
     """
     <Purpose>
@@ -1739,36 +1538,26 @@ class _timeout_socket():
     <Returns>
       The data received from the socket.
     """
-    # Set the timeout if None
     if timeout is None:
       timeout = self.timeout
 
-    # Get the start time
     starttime = getruntime()
 
-    # Block until we can read
     rblock, wblock = self.socket.willblock()
     while rblock:
-      # Check if we should break
       if timeout > 0:
-        # Get the elapsed time
         diff = getruntime() - starttime
 
-        # Raise an exception
         if diff > timeout:
           raise SocketTimeoutError,"recv() timed out!"
 
-      # Sleep
       sleep(self.checkintv)
 
-      # Update rblock
       rblock, wblock = self.socket.willblock()
 
-    # Do the recv
     return self.socket.recv(bytes)
 
 
-  # Provide a send() implementation
   def send(self,data,timeout=None):
     """
     <Purpose>
@@ -1790,32 +1579,23 @@ class _timeout_socket():
     <Returns>
       The number of bytes sent.
     """
-    # Set the timeout if None
     if timeout is None:
       timeout = self.timeout
 
-    # Get the start time
     starttime = getruntime()
 
-    # Block until we can write
     rblock, wblock = self.socket.willblock()
     while wblock:
-      # Check if we should break
       if timeout > 0:
-        # Get the elapsed time
         diff = getruntime() - starttime
 
-        # Raise an exception
         if diff > timeout:
           raise SocketTimeoutError,"send() timed out!"
 
-      # Sleep
       sleep(self.checkintv)
 
-      # Update rblock
       rblock, wblock = self.socket.willblock()
 
-    # Do the recv
     return self.socket.send(data) 
 
 
@@ -1866,16 +1646,9 @@ def timeout_waitforconn(localip, localport, function, timeout=5):
     Handle to listener.
   """
 
-  # We use a closure for the callback we pass to waitforconn so that we don't
-  # have to map mainch's to callback functions or deal with potential race
-  # conditions if we did maintain such a mapping. 
   def _timeout_waitforconn_callback(localip, localport, sockobj, ch, mainch):
-    # 'timeout' is the free variable 'timeout' that was the argument to
-    #  timeout_waitforconn.
     thissocketlikeobject = _timeout_socket(sockobj, timeout)
 
-    # 'function' is the free variable 'function' that was the argument to
-    #  timeout_waitforconn.
     return function(localip, localport, thissocketlikeobject, ch, mainch)
 
   return waitforconn(localip, localport, _timeout_waitforconn_callback)
@@ -1884,7 +1657,6 @@ def timeout_waitforconn(localip, localport, function, timeout=5):
   
 
 
-# a wrapper for stopcomm
 def timeout_stopcomm(commhandle):
   """
     Wrapper for stopcomm.   Does the same thing...
@@ -1895,8 +1667,6 @@ def timeout_stopcomm(commhandle):
     
 
 
-#end include sockettimeout.repy
-#begin include urllib.repy
 def urllib_quote(inputstring, safestring="/"):
   """
   <Purpose>
@@ -1929,8 +1699,6 @@ def urllib_quote(inputstring, safestring="/"):
 
   resultstr = ""
 
-  # We go through each character in the string; if it's not in [0-9a-zA-Z]
-  # we wrap it.
 
   safeset = set(safestring)
 
@@ -2012,9 +1780,6 @@ def urllib_unquote(inputstring):
 
   resultstr = ""
 
-  # We go through the inputstring from end to beginning, looking for wrapped
-  # octets. When one is found we add it (unwrapped) and the following
-  # string to the resultant string, and shorten the original inputstring.
 
   while True:
     lastpercentlocation = inputstring.rfind("%")
@@ -2124,7 +1889,6 @@ def urllib_unquote_parameters(inputstring):
   res = {}
 
   for quotedkeyval in keyvalpairs:
-    # Throw ValueError if there is more or less than one '='.
     quotedkey, quotedval = quotedkeyval.split("=")
     key = urllib_unquote_plus(quotedkey)
     val = urllib_unquote_plus(quotedval)
@@ -2132,7 +1896,6 @@ def urllib_unquote_parameters(inputstring):
 
   return res
 
-#end include urllib.repy
 
 
 
@@ -2215,7 +1978,6 @@ def httpretrieve_open(url, querydata=None, postdata=None,\
 
   starttimefloat = getruntime()
 
-  # Check if the URL is valid and get host, path, port and query
   parsedurldict = urlparse_urlsplit(url)
   hoststr = parsedurldict['hostname']
   pathstr = parsedurldict['path']
@@ -2229,18 +1991,11 @@ def httpretrieve_open(url, querydata=None, postdata=None,\
   if parsedurldict['query'] is not None and parsedurldict['query'] != "":
     raise ValueError("URL cannot include a query string.")
 
-  # Typical HTTP sessions consist of (optionally, a series of pairs of) HTTP
-  # requests followed by HTTP responses. These happen serially.
 
-  # Open connection to the web server
   try:
     if proxy is not None:
-      # if there is a proxy, open a connection with the proxy instead of the actual server
-      # use the timeout we are given (or none)
       sockobj = timeout_openconn(proxy[0], proxy[1], timeout=timeout)  
     else:
-      # if there is no proxy open a connection with server directly
-      # use the timeout we are given (or none)
       sockobj = timeout_openconn(hoststr, portint, timeout=timeout)
 
   except Exception, e:
@@ -2248,18 +2003,12 @@ def httpretrieve_open(url, querydata=None, postdata=None,\
       raise HttpConnectionError("Socket timed out connecting to host/port.")
     raise
 
-  # Builds the HTTP request:
   httprequeststr = _httpretrieve_build_request(hoststr, portint, pathstr, \
       querydata, postdata, httpheaders, proxy)
 
-  # Send the full HTTP request to the web server.
   _httpretrieve_sendall(sockobj, httprequeststr)
 
-  # Now, we're done with the HTTP request part of the session, and we need
-  # to get the HTTP response.
 
-  # Check if we've timed out (if the user requested a timeout); update the
-  # socket timeout to reflect the time taken sending the request.
   if timeout is None:
     sockobj.settimeout(0)
   elif getruntime() - starttimefloat >= timeout:
@@ -2267,14 +2016,9 @@ def httpretrieve_open(url, querydata=None, postdata=None,\
   else:
     sockobj.settimeout(timeout - (getruntime() - starttimefloat))
 
-  # Receive the header lines from the web server (a series of CRLF-terminated
-  # lines, terminated by an empty line, or by the server closing the
-  # connection.
   headersstr = ""
   while not headersstr.endswith("\r\n\r\n"):
     try:
-      # This should probably be replaced with page-sized reads in the future,
-      # but for now, the behavior is at least correct.
       headersstr += sockobj.recv(1)
     except Exception, e:
       if str(e) == "Socket closed":
@@ -2283,17 +2027,11 @@ def httpretrieve_open(url, querydata=None, postdata=None,\
         raise
 
   httpheaderlist = headersstr.split("\r\n")
-  # Ignore (a) trailing blank line(s) (for example, the response header-
-  # terminating blank line).
   while len(httpheaderlist) > 0 and httpheaderlist[-1] == "":
     httpheaderlist = httpheaderlist[:-1]
 
-  # Get the status code and status message from the HTTP response.
   statuslinestr, httpheaderlist = httpheaderlist[0], httpheaderlist[1:]
 
-  # The status line should be in the form: "HTTP/1.X NNN SSSSS", where
-  # X is 0 or 1, NNN is a 3-digit status code, and SSSSS is a 'user-friendly'
-  # string representation of the status code (may contain spaces).
   statuslinelist = statuslinestr.split(' ', 2)
 
   if len(statuslinelist) < 3:
@@ -2313,27 +2051,15 @@ def httpretrieve_open(url, querydata=None, postdata=None,\
 
   httpheaderdict = _httpretrieve_parse_responseheaders(httpheaderlist)
 
-  # If we got any sort of redirect response, follow the redirect. Note: we
-  # do *not* handle the 305 status code (use the proxy as specified in the
-  # Location header) at all; I think this is best handled at a higher layer
-  # anyway.
   if statusint in (301, 302, 303, 307):
     sockobj.close()
     try:
       redirecturlstr = httpheaderdict["Location"][0]
     except (KeyError, IndexError), ke:
-      # When a server returns a redirect status code (3xx) but no Location
-      # header, some clients, e.g. Firefox, just show the response body
-      # as they would normally for a 2xx or 4xx response. So, I think we
-      # should ignore a missing Location header and just return the page
-      # to the caller.
       pass
     else:
-      # If the server did send a redirect location, let's go there.
       return httpretrieve_open(redirecturlstr)
 
-  # If we weren't requested to redirect, and we didn't, return a read-only
-  # file-like object (representing the response body) to the caller.
   return _httpretrieve_filelikeobject(sockobj, httpheaderdict, \
       (statuslinelist[0], statusint, friendlystatusstr))
 
@@ -2367,13 +2093,10 @@ def httpretrieve_save_file(url, filename, querydata=None, postdata=None, \
     None
   """
 
-  # Open the output file object and http file-like object.
   outfileobj = open(filename, 'w')
   httpobj = httpretrieve_open(url, querydata=querydata, postdata=postdata, \
       httpheaders=httpheaders, proxy=proxy, timeout=timeout)
 
-  # Repeatedly read from the file-like HTTP object into our file, until the
-  # response is finished.
   responsechunkstr = None
   while responsechunkstr != '':
     responsechunkstr = httpobj.read(4096)
@@ -2406,11 +2129,9 @@ def httpretrieve_get_string(url, querydata=None, postdata=None, \
     Returns the body of the HTTP response (no headers).
   """
 
-  # Open a read-only file-like object for the HTTP request.
   httpobj = httpretrieve_open(url, querydata=querydata, postdata=postdata, \
       httpheaders=httpheaders, proxy=proxy, timeout=timeout)
 
-  # Read all of the response and return it.
   try:
     return httpobj.read()
   finally:
@@ -2420,30 +2141,18 @@ def httpretrieve_get_string(url, querydata=None, postdata=None, \
 
 
 class _httpretrieve_filelikeobject:
-  # This class implements a file-like object used for performing HTTP
-  # requests and retrieving responses.
 
   def __init__(self, sock, headers, httpstatus):
-    # The socket-like object connected to the HTTP server. Headers have
-    # already been read.
     self._sockobj = sock
 
-    # If this is set, the close() method has already been called, so we
-    # don't accept future reads.
     self._fileobjclosed = False
 
-    # This flag is set if we've finished recieving the entire response
-    # from the server.
     self._totalcontentisreceived = False
 
-    # This integer represents the number of bytes read so far.
     self._totalread = 0
 
-    # This is the dictionary of HTTP response headers associated with this
-    # file-like object.
     self.headers = headers
 
-    # The HTTP status tuple of this response, e.g. ("HTTP/1.0", 200, "OK")
     self.httpstatus = httpstatus
 
 
@@ -2470,12 +2179,9 @@ class _httpretrieve_filelikeobject:
       See file.read().
     """
 
-    # Raise an error if the caller has already close()d this object.
     if self._fileobjclosed:
       raise ValueError("I/O operation on closed file")
 
-    # If we've finished reading everything we can from the server, return the
-    # empty string.
     if self._totalcontentisreceived:
       return ''
 
@@ -2483,7 +2189,6 @@ class _httpretrieve_filelikeobject:
     if limit is not None:
       lefttoread = limit
 
-      # Sanity check type/value of limit.
       if type(limit) is not int:
         raise TypeError("Expected an integer or None for read() limit")
       elif limit < 0:
@@ -2494,7 +2199,6 @@ class _httpretrieve_filelikeobject:
     else:
       self._sockobj.settimeout(timeout)
 
-    # Try to read up to limit, or until there is nothing left.
     httpcontentstr = ''
     while True:
       try:
@@ -2545,8 +2249,6 @@ class _httpretrieve_filelikeobject:
 
 
 def _httpserver_put_in_headerdict(res, lastheader, lastheader_str):
-  # Helper function that tries to put the header into a dictionary of lists,
-  # 'res'.
   if lastheader is not None:
     if lastheader not in res:
       res[lastheader] = []
@@ -2556,22 +2258,7 @@ def _httpserver_put_in_headerdict(res, lastheader, lastheader_str):
 
 
 def _httpretrieve_parse_responseheaders(headerlines):
-  # Parse rfc822-style headers (this could be abstracted out to an rfc822
-  # library that would be quite useful for internet protocols). Returns
-  # a dictionary mapping headers to arrays of values. E.g.:
-  #
-  # Foo: a
-  # Bar:
-  #   b
-  # Bar: c
-  #
-  # Becomes: {"Foo": ["a"], "Bar": ["b", "c"]}
 
-  # These variables represent the key and value of the last header we found,
-  # unless we are parsing the very first header. E.g., if we've just read:
-  #   Content-Type: text/html
-  # Then, lastheaderkeystr == "Content-Type",
-  # lastheadervaluestr == "text/html"
 
   lastheaderkeystr = None
   lastheadervaluestr = ""
@@ -2582,17 +2269,13 @@ def _httpretrieve_parse_responseheaders(headerlines):
     return {}
 
   try:
-    # Iterate over the request header lines:
     for i in range(len(headerlines)):
-      # Lines with leading non-CRLF whitespace characters are part of the
-      # previous line (see rfc822 for details).
       if headerlines[i][0] in (" ", "\t") and lastheaderkeystr is not None:
         lastheadervaluestr += headerlines[i]
       else:
         _httpserver_put_in_headerdict(resdict, lastheaderkeystr, lastheadervaluestr)
         lastheaderkeystr, lastheadervaluestr = headerlines[i].split(":", 1)
 
-    # Add the last line to the result dictionary.
     _httpserver_put_in_headerdict(resdict, lastheaderkeystr, lastheadervaluestr)
 
     return resdict
@@ -2606,10 +2289,7 @@ def _httpretrieve_parse_responseheaders(headerlines):
 
 def _httpretrieve_build_request(host, port, path, querydata, postdata, \
     httpheaders, proxy):
-  # Builds an HTTP request from these parameters, returning it as
-  # a string.
 
-  # Sanity checks:
   if path == "":
     raise ValueError("Invalid path -- empty string.")
   if postdata is not None and type(postdata) not in (str, dict):
@@ -2619,7 +2299,6 @@ def _httpretrieve_build_request(host, port, path, querydata, postdata, \
   if httpheaders is not None and type(httpheaders) is not dict:
     raise TypeError("Expected HTTP headers as a dictionary.")
 
-  # Type-conversions:
   if type(querydata) is dict:
     querydata = urllib_quote_parameters(querydata)
   elif querydata is None:
@@ -2628,42 +2307,31 @@ def _httpretrieve_build_request(host, port, path, querydata, postdata, \
   if type(postdata) is dict:
     postdata = urllib_quote_parameters(postdata)
 
-  # Default to GET, unless the caller specifies a message body to send.
   methodstr = "GET"
   if postdata is not None:
     methodstr = "POST"
 
-  # Encode the path and querystring part of the request.
   resourcestr = querydata
   if querydata != "":
     resourcestr = "?" + resourcestr
 
-  # Encode the HTTP request line and headers:
   if proxy is not None:
-    # proxy exists thus the request header should include the original requested url  
     requeststr = methodstr + ' http://' + host + ':' + str(port) + path + resourcestr + ' HTTP/1.0\r\n'
   else:
-    # there is no proxy; send normal http request   
     requeststr = methodstr + ' ' + path + resourcestr + ' HTTP/1.0\r\n'
     
   if httpheaders is not None:
-    # Most servers require a 'Host' header for normal functionality
-    # (especially in the case of multiple domains being hosted on a
-    # single server).
     if "Host" not in httpheaders:
       requeststr += "Host: " + host + ':' + str(port) + "\r\n"
 
     for key, val in httpheaders.items():
       requeststr += key + ": " + val + '\r\n'
 
-  # Affix post-data related headers and content:
   if methodstr == "POST":
     requeststr += 'Content-Length: ' + str(len(postdata)) + '\r\n'
 
-  # The empty line terminates HTTP headers.
   requeststr += '\r\n'
 
-  # If we're a POST request, affix any requested data to the message body.
   if methodstr == "POST":
     requeststr += postdata
 
@@ -2673,13 +2341,9 @@ def _httpretrieve_build_request(host, port, path, querydata, postdata, \
 
 
 def _httpretrieve_sendall(sockobj, datastr):
-  # Helper function that attempts to dump all of the data in datastr to the
-  # socket sockobj (data is any arbitrary bytes).
   while len(datastr) > 0:
     datastr = datastr[sockobj.send(datastr):]
 
-#end include httpretrieve.repy
-#begin include xmlrpc_common.repy
 """
 <Program Name>
   $Id: xmlrpc_common.repy 3260 2009-12-09 18:26:31Z cemeyer $
@@ -2710,7 +2374,6 @@ def _httpretrieve_sendall(sockobj, datastr):
 """
 
 
-#begin include base64.repy
 """
 <Program Name>
   $Id: base64.repy 2527 2009-07-26 22:48:38Z cemeyer $
@@ -2746,7 +2409,6 @@ def _httpretrieve_sendall(sockobj, datastr):
 
 """
 
-# The Base64 for use in encoding
 BASE64_ALPHABET = \
   "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
 
@@ -2775,23 +2437,19 @@ def base64_b64encode(s, altchars=None):
     The encoded string.
 
   """
-  # Build the local alphabet.
   if altchars is None:
     base64_alphabet = BASE64_ALPHABET
   else:
     base64_alphabet = BASE64_ALPHABET[:62] + altchars
 
-  # Change from characters to integers for binary operations.
   bytes = []
   for x in s:
     bytes.append(ord(x))
 
-  # Encode the 8-bit words into 6-bit words.
   x6bit_words = []
   index = 0
   while True:
 
-    # Encode the first 6 bits from three 8-bit values.
     try:
       x8bits = bytes[index]
     except IndexError:
@@ -2801,7 +2459,6 @@ def base64_b64encode(s, altchars=None):
       leftover_bits = x8bits & 3
       x6bit_words.append(base64_alphabet[x6bits])
 
-    # Encode the next 8 bits.
     try:
       x8bits = bytes[index + 1]
     except IndexError:
@@ -2813,7 +2470,6 @@ def base64_b64encode(s, altchars=None):
       leftover_bits = x8bits & 15
       x6bit_words.append(base64_alphabet[x6bits])
 
-    # Encode the final 8 bits.
     try:
       x8bits = bytes[index + 2]
     except IndexError:
@@ -2858,33 +2514,28 @@ def base64_b64decode(s, altchars=None):
     The decoded string.
 
   """
-  # Build the local alphabet.
   if altchars is None:
     base64_alphabet = BASE64_ALPHABET
   else:
     base64_alphabet = BASE64_ALPHABET[:62] + altchars
 
-  # Generate the translation maps for decoding a Base64 string.
   translate_chars = []
   for x in xrange(256):
     char = chr(x)
     translate_chars.append(char)
 
-  # Build the strings of characters to delete.
   delete_chars = []
   for x in translate_chars:
     if x not in base64_alphabet:
       delete_chars.append(x)
   delete_chars = "".join(delete_chars)
 
-  # Insert the 6-bit Base64 values into the translation string.
   k = 0
   for v in base64_alphabet:
     translate_chars[ord(v)] = chr(k)
     k += 1
   translate_chars = "".join(translate_chars)
 
-  # Count the number of padding characters at the end of the string.
   num_pad = 0
   i = len(s) - 1
   while i >= 0:
@@ -2894,57 +2545,41 @@ def base64_b64decode(s, altchars=None):
       break
     i -= 1
 
-  # Translate the string into 6-bit characters and delete extraneous
-  # characters.
   s = s.translate(translate_chars, delete_chars)
 
-  # Determine correct alignment by calculating the number of padding
-  # characters needed for compliance to the specification.
   align = (4 - (len(s) & 3)) & 3
   if align == 3:
     raise TypeError("Incorrectly encoded base64 data (has 6 bits of trailing garbage)")
   if align > num_pad:
-    # Technically, this isn't correctly padded. But it's recoverable, so let's
-    # not care.
     pass
 
-  # Change from characters to integers for binary operations.
   x6bit_words = []
   for x in s:
     x6bit_words.append(ord(x))
   for x in xrange(align):
     x6bit_words.append(-1)
 
-  # Decode the 6-bit words into 8-bit words.
   bytes = []
   index = 0
   while True:
 
-    # Work on four 6-bit quantities at a time.  End when no more data is
-    # available.
     try:
       (x6bits1, x6bits2, x6bits3, x6bits4) = x6bit_words[index:index + 4]
     except ValueError:
       break
 
-    # Save an 8-bit quantity.
     bytes.append((x6bits1 << 2) | (x6bits2 >> 4))
 
-    # End of valid data.
     if x6bits3 < 0:
       break
 
-    # Save an 8-bit quantity.
     bytes.append(((x6bits2 & 15) << 4) | (x6bits3 >> 2))
 
-    # End of valid data.
     if x6bits4 < 0:
       break
 
-    # Save an 8-bit quantity.
     bytes.append(((x6bits3 & 3) << 6) | x6bits4)
 
-    # Next four 6-bit quantities.
     index += 4
 
   return "".join([chr(x) for x in bytes])
@@ -3038,8 +2673,6 @@ def base64_urlsafe_b64decode(s):
   """
   return base64_b64decode(s, "-_")
 
-#end include base64.repy
-#begin include xmlparse.repy
 """
 <Program Name>
   xmlparse.repy
@@ -3138,7 +2771,6 @@ def xmlparse_parse(data):
   if data.startswith("<?xml"):
     data = data[data.find("?>")+2:]
   
-  # Well-formed XML Documents have exactly one root node
   parsed_elements = _xmlparse_parse(data)
   if len(parsed_elements) != 1:
     raise xmlparse_XMLParseError("XML response from server contained more than one root node")
@@ -3149,53 +2781,9 @@ def xmlparse_parse(data):
 
 
 def _xmlparse_read_attributes(string):
-  # Returns a pair containing the dictionary of attributes and remainder
-  # of the string on success; excepts on failure.
 
-  # Q_n corresponds to the state_* constant of the same value. The starting
-  # node is Q_1.
-  #
-  #  [ Done ]
-  #     ^
-  #     |
-  #     | (>, /)
-  #     |
-  #     \--------\ 
-  #              |
-  #        ,-.   | v-----------------------------------\
-  # space (   [ Q_1 ]                                  |
-  #        `->   | ^-----------------------\ (')       |
-  #              |                         |           |
-  #              |                (')      |   <-.     | (")
-  #              | non-space   /------->[ Q_4 ]   )    |
-  #              |             |               `-'     |
-  #  (space)     v     (=)     |             (other)   |
-  #     /-----[ Q_2 ]------>[ Q_3 ]-------->[ Q_5 ]----/
-  #     |      ^   )           |      (")    ^   )
-  #     |       `-'            |              `-'
-  #     |     (other)   (other)|             (other)
-  #     |                      |
-  #     v                      |
-  #[Exception]<----------------/
 
-  # Basically the state machine is used to read a list of attribute-pairs,
-  # terminated by a '/' or '>'. Attribute pairs either look like:
-  #   name='value'
-  # or:
-  #   name="value"
-  # Single-quoted attributes can contain double-quotes, and vice-versa, but
-  # single-quotes in single-quoted attributes must be escaped.
-  # 
-  # To do this we start in Q_1, which consumes input until we arrive at
-  # something that looks like an attribute name. In Q_2 we consume characters
-  # for the attribute name until it looks like the attribute name is finished.
-  # In Q_3 we read a single character to determine what type of quoting is
-  # used for the attribute value. In Q_4 or Q_5, we read the attribute's value
-  # until the string is closed, then go back to Q_1 (saving the attribute name
-  # and value into the dictionary). We decide we are done when we encounter a
-  # '>' or '/' in Q_1.
 
-  # Constant states:
   state_EXPECTING_ATTRNAME = 1
   state_READING_ATTRNAME = 2
   state_EXPECTING_ATTRVALUE = 3
@@ -3220,7 +2808,6 @@ def _xmlparse_read_attributes(string):
       if current_character.isspace():
         pass    # We stay in this state
       elif current_character == '>' or current_character == '/':
-        # We're finished reading attributes
         return (attributes, string[current_position:])
       else:
         current_attrname += current_character
@@ -3270,10 +2857,6 @@ def _xmlparse_read_attributes(string):
 
 
 def _xmlparse_node_from_string(string):
-  # string:
-  #   <tag attr1="value" attr2='value'>content</tag>
-  # Content may be a string or a list of children nodes depending on if the
-  # first non-space character is a '<' or not.
 
   string = string.lstrip()
   if not string.startswith("<"):
@@ -3288,8 +2871,6 @@ def _xmlparse_node_from_string(string):
       raise xmlparse_XMLParseError("Error parsing XML -- parser " + \
           "ran out of input trying to read a tag")
 
-    # The tag name is ended with a space or a closing angle-brace or
-    # a "/".
     curchar = string[read_pos]
     if curchar.isspace() or curchar == ">" or curchar == "/":
       break
@@ -3299,13 +2880,8 @@ def _xmlparse_node_from_string(string):
   tag = string[0:read_pos]
   string = string[read_pos:]
 
-  # Get the attribute dictionary and remaining string (which will be
-  # "> ... [ inner stuff ] </[tag_name]>" or "/>" for well-formed XML).
   attributes, string = _xmlparse_read_attributes(string)
 
-  # "Empty" elements look like: "<[tag_name] [... maybe attributes] />" and
-  # not "Empty" elements look like:
-  # "<[tag_name] [... maybe attributes]> [inner content] </[tag_name]>".
   empty_element = False
   if string.startswith(">"):
     string = string[1:]
@@ -3320,21 +2896,15 @@ def _xmlparse_node_from_string(string):
     xmlnode.content = ""
 
   else:
-    # Locate the end-boundary of the inner content of this element.
     ending_tag_position = string.rfind("</")
     if ending_tag_position < 0:
       raise xmlparse_XMLParseError("XML parse error -- could not " + \
           "locate closing tag")
 
-    # If this elements starting and closing tag names do not match, this XML
-    # is not well-formed.
     if not string.startswith("</" + tag, ending_tag_position):
       raise xmlparse_XMLParseError("XML parse error -- different " + \
           "opening / closing tags at the same nesting level")
 
-    # If the inner content starts with another element, this element has
-    # children.  Otherwise, it has content, which is just a string containing
-    # the inner content.
     tag_body = string[:ending_tag_position]
     if tag_body.lstrip().startswith("<"):
       xmlnode.children = _xmlparse_parse(tag_body.lstrip())
@@ -3347,8 +2917,6 @@ def _xmlparse_node_from_string(string):
 
 
 def _xmlparse_find_next_tag(xmldata):
-  # Finds the position of the start of the next same-level tag in this XML
-  # document.
 
   read_position = 0
   nested_depth = 0
@@ -3357,7 +2925,6 @@ def _xmlparse_find_next_tag(xmldata):
   xmldata = xmldata.lstrip()
   length_difference = original_length - len(xmldata)
 
-  # Seek to another XML tag at the same depth.
   while True:
     if xmldata.startswith("</", read_position) or \
         xmldata.startswith("/>", read_position):
@@ -3382,16 +2949,12 @@ def _xmlparse_find_next_tag(xmldata):
 
 
 def _xmlparse_parse(xmldata):
-  # Takes a raw XML stream and returns a list of XMLTreeNodes.
 
   nodelist = []
 
   while True:
-    # Whitespace between tags isn't important to the content of
-    # an XML document.
     xmldata = xmldata.strip()
 
-    # Strip out XML comments.
     if xmldata.startswith("<!--"):
       commentendloc = xmldata.find("-->", 4)
       if commentendloc < 0:
@@ -3400,13 +2963,11 @@ def _xmlparse_parse(xmldata):
       xmldata = xmldata[commentendloc+3:]
       continue
 
-    # Find the end of the current tag.
     nexttagend = _xmlparse_find_next_tag(xmldata)
 
     thisnode_str = xmldata[0:nexttagend]
     xmldata = xmldata[nexttagend:]
 
-    # Parse a tag out of the string we just found.
     thisnode = _xmlparse_node_from_string(thisnode_str)
     nodelist.append(thisnode)
 
@@ -3415,7 +2976,6 @@ def _xmlparse_parse(xmldata):
 
   return nodelist
 
-#end include xmlparse.repy
 
 
 
@@ -3725,10 +3285,6 @@ def _xmlrpc_common_value2xml(obj):
       xml_string.append("</member>")
     xml_string.append("</struct>")
 
-  # This requires the new object inheritance model to be used. e.g. do
-  #   class Foo(object): pass
-  # rather than
-  #   class Foo: pass
   elif object_type is xmlrpc_common_Binary:
     xml_string.append("<base64>%s</base64>" % base64_standard_b64encode(obj.data))
 
@@ -3923,26 +3479,16 @@ def _xmlrpc_common_value2python(xml_node):
     message = "Unexpected XML node: %s" % xml_node.tag_name
     raise xmlrpc_common_XMLParseError(message)
 
-  # The values that XMLRPC can encode have an optional type-specifier.
-  # If the type-specifier is not included, the data is simply a string
-  # and doesn't need any other special interpretation. Additionally, there
-  # is an optional <string> type specifier, but e.g. openDHT doesn't use
-  # it. If xml_node.children is None here, the data lacks a type-specifying
-  # tag, so it is to be interpreted as a string.
   elif xml_node.children is not None and len(xml_node.children) > 1:
     raise xmlrpc_common_XMLParseError("Too many children for 'value'")
 
   value_node = xml_node
 
-  # Assume string by default, as explained earlier.
   tag = "string"
   if xml_node.children is not None:
-    # If the xml specifies a type, override the default.
     value_node = xml_node.children[0]
     tag = value_node.tag_name
 
-  # The string contents of the <value> tag (or of the type-specifying tag
-  # inside <value>, if one exists).
   value = value_node.content
 
   if tag == "nil":
@@ -3963,10 +3509,6 @@ def _xmlrpc_common_value2python(xml_node):
   elif tag == "array":
     if len(value_node.children) > 1:
       raise xmlrpc_common_XMLParseError("Too many children for 'array'")
-    # Arrays are encoded as:  <array><data>
-    #                           <value>...</value>
-    #                           ...
-    #                         </data></array>
     data_node = value_node.children[0]
     result = []
     if data_node.children:
@@ -3977,12 +3519,6 @@ def _xmlrpc_common_value2python(xml_node):
   elif tag == "struct":
     result = {}
 
-    # Structs are encoded as: <struct>
-    #                           <member><name>...</name><value>...</value></member>
-    #                           ...
-    #                         </struct>
-    # Keys (<name>) do not contain type information, so they are strings
-    # as far as XMLRPC is concerned.
     for member_node in value_node.children:
       if len(member_node.children) != 2:
         message = "Incorrect number of children for 'member'"
@@ -4002,7 +3538,6 @@ def _xmlrpc_common_value2python(xml_node):
     message = "Demarshaller: Unsupported value type: %s" % value_node.tag_name
     raise xmlrpc_common_XMLParseError(message)
 
-#end include xmlrpc_common.repy
 
 
 class xmlrpc_client_Client(object):
@@ -4084,7 +3619,6 @@ class xmlrpc_client_Client(object):
 
     starttime = getruntime()
 
-    # Prepare the XML request.
     request_xml = xmlrpc_common_call2xml(method_name, params)
 
     response = httpretrieve_get_string("http://%s:%s%s" % (self.server_host, \
@@ -4092,22 +3626,16 @@ class xmlrpc_client_Client(object):
         timeout=timeout, httpheaders={\
         "User-Agent": self.USER_AGENT, "Content-Type": "text/xml"})
 
-    # Timeout if the POST took too long.
     if timeout is not None and getruntime() - starttime > timeout:
       raise xmlrpc_common_Timeout()
 
-    # Parse the XML response body into Python values.
     response_value = xmlrpc_common_response2python(response)
 
-    # If a fault was decoded, raise the exception.
     if isinstance(response_value, xmlrpc_common_Fault):
       raise response_value
 
-    # Otherwise, return the results.
     return response_value
 
-#end include xmlrpc_client.repy
-#begin include parallelize.repy
 """ 
 Author: Justin Cappos
 
@@ -4130,8 +3658,6 @@ YOU MUST PUT A LOCK AROUND SUCH ACCESSES.
 """
 
 
-# I use this to get unique identifiers. 
-#begin include uniqueid.repy
 """ 
 Author: Justin Cappos
 
@@ -4148,7 +3674,6 @@ same ID.
 
 """
 
-# This is a list to prevent using part of the user's mycontext dict
 uniqueid_idlist = [0]
 uniqueid_idlock = getlock()
 
@@ -4172,8 +3697,6 @@ def uniqueid_getid():
 
   uniqueid_idlock.acquire()
 
-  # I'm using a list because I need a global, but don't want to use the 
-  # programmer's dict
   myid = uniqueid_idlist[0]
   uniqueid_idlist[0] = uniqueid_idlist[0] + 1
 
@@ -4183,7 +3706,6 @@ def uniqueid_getid():
 
 
 
-#end include uniqueid.repy
 
 
 
@@ -4191,23 +3713,6 @@ class ParallelizeError(Exception):
   """An error occurred when operating on a parallelized task"""
 
 
-# This has information about all of the different parallel functions.
-# The keys are unique integers and the entries look like this:
-# {'abort':False, 'callfunc':callfunc, 'callargs':callargs,
-# 'targetlist':targetlist, 'availabletargetpositions':positionlist,
-# 'runninglist':runninglist, 'result':result}
-#
-# abort is used to determine if future events should be aborted.
-# callfunc is the function to call
-# callargs are extra arguments to pass to the function
-# targetlist is the list of items to call the function with
-# runninglist is used to track which events are executing
-# result is a dictionary that contains information about completed function.
-#    The format of result is:
-#      {'exception':list of tuples with (target, exception string), 
-#       'aborted':list of targets,
-#       'returned':list of tuples with (target, return value)}
-# 
 parallelize_info_dict = {}
 
 
@@ -4233,8 +3738,6 @@ def parallelize_closefunction(parallelizehandle):
       invalid or already closed.
   """
 
-  # There is no sense trying to check then delete, since there may be a race 
-  # with multiple calls to this function.
   try:
     del parallelize_info_dict[parallelizehandle]
   except KeyError:
@@ -4337,8 +3840,6 @@ def parallelize_getresults(parallelizehandle):
 
   
   try:
-    # I copy so that the user doesn't have to deal with the fact I may still
-    # be modifying it
     return parallelize_info_dict[parallelizehandle]['result'].copy()
   except KeyError:
     raise ParallelizeError("Cannot get results for the parallel execution of a non-existent handle:"+str(parallelizehandle))
@@ -4389,12 +3890,10 @@ def parallelize_initfunction(targetlist, callerfunc,concurrentevents=5, *extrafu
 
   parallelizehandle = uniqueid_getid()
 
-  # set up the dict locally one line at a time to avoid a ginormous line
   handleinfo = {}
   handleinfo['abort'] = False
   handleinfo['callfunc'] = callerfunc
   handleinfo['callargs'] = extrafuncargs
-  # make a copy of target list because 
   handleinfo['targetlist'] = targetlist[:]
   handleinfo['availabletargetpositions'] = range(len(handleinfo['targetlist']))
   handleinfo['result'] = {'exception':[],'returned':[],'aborted':[]}
@@ -4403,18 +3902,13 @@ def parallelize_initfunction(targetlist, callerfunc,concurrentevents=5, *extrafu
   
   parallelize_info_dict[parallelizehandle] = handleinfo
 
-  # don't start more threads than there are targets (duh!)
   threads_to_start = min(concurrentevents, len(handleinfo['targetlist']))
 
   for workercount in range(threads_to_start):
-    # we need to append the workercount here because we can't return until 
-    # this is scheduled without having race conditions
     parallelize_info_dict[parallelizehandle]['runninglist'].append(workercount)
     try:
       settimer(0.0, parallelize_execute_function, (parallelizehandle,workercount))
     except:
-      # If I'm out of resources, stop
-      # remove this worker (they didn't start)
       parallelize_info_dict[parallelizehandle]['runninglist'].remove(workercount)
       if not parallelize_info_dict[parallelizehandle]['runninglist']:
         parallelize_closefunction(parallelizehandle)
@@ -4426,51 +3920,39 @@ def parallelize_initfunction(targetlist, callerfunc,concurrentevents=5, *extrafu
 
 
 def parallelize_execute_function(handle, myid):
-  # This is internal only.   It's used to execute the user function...
 
-  # No matter what, an exception in me should not propagate up!   Otherwise,
-  # we might result in the program's termination!
   try:
 
     while True:
-      # separate this from below functionality to minimize scope of try block
       thetargetlist = parallelize_info_dict[handle]['targetlist']
       try:
         mytarget = thetargetlist.pop()
       except IndexError:
-        # all items are gone, let's return
         return
 
-      # if they want us to abort, put this in the aborted list
       if parallelize_info_dict[handle]['abort']:
         parallelize_info_dict[handle]['result']['aborted'].append(mytarget)
 
       else:
-        # otherwise process this normally
 
-        # limit the scope of the below try block...
         callfunc = parallelize_info_dict[handle]['callfunc']
         callargs = parallelize_info_dict[handle]['callargs']
 
         try:
           retvalue = callfunc(mytarget,*callargs)
         except Exception, e:
-          # always log on error.   We need to report what happened
           parallelize_info_dict[handle]['result']['exception'].append((mytarget,str(e)))
         else:
-          # success, add it to the dict...
           parallelize_info_dict[handle]['result']['returned'].append((mytarget,retvalue))
 
 
   except KeyError:
-    # A KeyError is normal if they've closed the handle
     return
 
   except Exception, e:
     print 'Internal Error: Exception in parallelize_execute_function',e
 
   finally:
-    # remove my entry from the list of running worker threads...
     try:
       parallelize_info_dict[handle]['runninglist'].remove(myid)
     except (ValueError, KeyError):
@@ -4480,7 +3962,6 @@ def parallelize_execute_function(handle, myid):
     
 
 
-#end include parallelize.repy
 
 
 openDHTadvertise_context = {}
@@ -4522,45 +4003,34 @@ def openDHTadvertise_announce(key, value, ttlval, concurrentevents=5, proxiestoc
     None.
   """
 
-  # JAC: Copy value because it seems that Python may otherwise garbage collect
-  # it in some circumstances.   This seems to fix the problem
   value = str(value)[:]
 
-  # convert ttl to an int
   ttl = int(ttlval)
 
-  # If no timeout was specified, choose 10 seconds (completely arbitrary).
   if timeout is None:
     timeout = 10.0
 
-#  print "Announce key:",key,"value:",value, "ttl:",ttl
   while True:
-    # if we have an empty proxy list and no proxy, get more
     if openDHTadvertise_context["currentproxy"] == None and openDHTadvertise_context["proxylist"] == []:
       openDHTadvertise_context["proxylist"] = openDHTadvertise_get_proxy_list( \
           concurrentevents=concurrentevents, maxnumberofattempts=proxiestocheck)
-      # we couldn't get any proxies
       if openDHTadvertise_context["proxylist"] == []:
         return False
 
 
-    # if there isn't a proxy we should use, get one from our list
     if openDHTadvertise_context["currentproxy"] == None and openDHTadvertise_context["proxylist"] != []:
       openDHTadvertise_context["currentproxy"] = openDHTadvertise_context["proxylist"][0]
       del openDHTadvertise_context["proxylist"][0]
 
 
-    # This code block is adopted from put.py from OpenDHT
     pxy = xmlrpc_client_Client(openDHTadvertise_context["currentproxy"])
     keytosend = xmlrpc_common_Binary(sha_new(str(key)).digest())
     valtosend = xmlrpc_common_Binary(value)
 
     try:
       pxy.send_request("put", (keytosend, valtosend, ttl, "put.py"), timeout=timeout)
-      # if there isn't an exception, we succeeded
       break
     except (xmlrpc_common_ConnectionError, xmlrpc_common_Timeout):
-      # Let's avoid this proxy.   It seems broken
       openDHTadvertise_context["currentproxy"] = None
 
   return True
@@ -4598,66 +4068,50 @@ def openDHTadvertise_lookup(key, maxvals=100, concurrentevents=5, proxiestocheck
     The value stored in openDHT at key.
   """
 
-  # if no timeout is specified, pick 10 seconds (arbitrary value).
   if timeout is None:
     timeout = 10.0
 
   while True:
-    # if we have an empty proxy list and no proxy, get more
     if openDHTadvertise_context["currentproxy"] == None and openDHTadvertise_context["proxylist"] == []:
       openDHTadvertise_context["proxylist"] = openDHTadvertise_get_proxy_list( \
           concurrentevents=concurrentevents, maxnumberofattempts=proxiestocheck)
-      # we couldn't get any proxies
       if openDHTadvertise_context["proxylist"] == []:
         raise Exception, "Lookup failed"
 
 
-    # if there isn't a proxy we should use, get one from our list
     if openDHTadvertise_context["currentproxy"] == None and openDHTadvertise_context["proxylist"] != []:
       openDHTadvertise_context["currentproxy"] = openDHTadvertise_context["proxylist"][0]
       del openDHTadvertise_context["proxylist"][0]
 
 
-    # This code block is adopted from get.py from OpenDHT
     pxy = xmlrpc_client_Client(openDHTadvertise_context["currentproxy"])
     maxvalhash = int(maxvals)
-    # I don't know what pm is for but I assume it's some sort of generator / 
-    # running counter
     pm = xmlrpc_common_Binary("")
     keyhash = xmlrpc_common_Binary(sha_new(str(key)).digest())
 
 
     listofitems = []
-    # If the proxy fails, then we will go to the next one...
     while openDHTadvertise_context["currentproxy"]:
       try:
         vals, pm = pxy.send_request("get", (keyhash, maxvalhash, pm, "get.py"), timeout=timeout)
-        # if there isn't an exception, we succeeded
 
-        # append the .data part of the items, the other bits are:
-        # the ttl and hash / hash algorithm.
         for item in vals:
           listofitems.append(item.data)
 
-        # reached the last item.  We're done!
         if pm.data == "":
           return listofitems
 
       except (xmlrpc_common_ConnectionError, xmlrpc_common_Timeout):
-        # Let's avoid this proxy.   It seems broken
         openDHTadvertise_context["currentproxy"] = None
 
 
 
 
-# check to see if a server is up and ready for OpenDHT...
 def openDHTadvertise_checkserver(servername):
-  # try three times.   Why three?   Arbitrary value
   for junkcount in range(3):
     s = openconn(servername, 5851, timeout=2.0)
     s.close()
 
-  # this list is the "return value".   Add ourselves if no problems...
   openDHTadvertise_context["serverlistlock"].acquire()
   try:
     openDHTadvertise_context["serverlist"].append(servername)
@@ -4667,7 +4121,6 @@ def openDHTadvertise_checkserver(servername):
 
 
 
-# Loosely based on find-gateway.py from the OpenDHT project...
 def openDHTadvertise_get_proxy_list(maxnumberofattempts=5, concurrentevents=5):
   """
   <Purpose>
@@ -4690,7 +4143,6 @@ def openDHTadvertise_get_proxy_list(maxnumberofattempts=5, concurrentevents=5):
     A list of openDHT approxies that appear to be up.
   """
 
-  # populate server list
   socket = openconn('www.cs.washington.edu', 80)
   try: 
     socket.send("GET /homes/arvind/servers.txt HTTP/1.0\r\nHost: www.cs.washington.edu\r\n\r\n")
@@ -4700,7 +4152,6 @@ def openDHTadvertise_get_proxy_list(maxnumberofattempts=5, concurrentevents=5):
       try:
         newdata = socket.recv(4096)
       except:
-        # Server decided it is done.
         break
       if len(newdata) == 0:
         break   # Server finished sending us the response.
@@ -4715,16 +4166,11 @@ def openDHTadvertise_get_proxy_list(maxnumberofattempts=5, concurrentevents=5):
 
   headers, payload = body.split("\r\n\r\n", 1)
   lines = payload.split("\n")
-  # throw away the header line
   lines = lines[1:]
-  # get the server list
   servers = []
   for line in lines:
     if line.strip() == "":
       continue
-    # The lines look like:
-    # 4:	134.121.64.7:5850	planetlab2.eecs.wsu.edu
-    # The third field is the server name
     servers.append(line.split()[2])
 
   if len(servers) == 0:
@@ -4733,13 +4179,10 @@ def openDHTadvertise_get_proxy_list(maxnumberofattempts=5, concurrentevents=5):
   numberofattempts = min(len(servers), maxnumberofattempts)
   serverstocheck = random_sample(servers, numberofattempts)
 
-  # empty the server list
   openDHTadvertise_context["serverlist"] = []
 
-  # start checking...
   parhandle = parallelize_initfunction(serverstocheck, openDHTadvertise_checkserver, concurrentevents=concurrentevents)
 
-  # wait until all are finished
   while not parallelize_isfunctionfinished(parhandle):
     sleep(0.2)
 
@@ -4748,14 +4191,11 @@ def openDHTadvertise_get_proxy_list(maxnumberofattempts=5, concurrentevents=5):
 
   retlist = []
   for serverip in openDHTadvertise_context["serverlist"]:
-    # make it look like the right sort of url...
     retlist.append("http://"+serverip+":5851/")
 
 
   return retlist
 
-#end include openDHTadvertise.repy
-#begin include centralizedadvertise.repy
 """ 
 Author: Justin Cappos
 
@@ -4767,55 +4207,34 @@ Advertisements to a central server (similar to openDHT)
 
 """
 
-#begin include session.repy
-# This module wraps communications in a signaling protocol.   The purpose is to
-# overlay a connection-based protocol with explicit message signaling.   
-#
-# The protocol is to send the size of the message followed by \n and then the
-# message itself.   The size of a message must be able to be stored in 
-# sessionmaxdigits.   A size of -1 indicates that this side of the connection
-# should be considered closed.
-#
-# Note that the client will block while sending a message, and the receiver 
-# will block while recieving a message.   
-#
-# While it should be possible to reuse the connectionbased socket for other 
-# tasks so long as it does not overlap with the time periods when messages are 
-# being sent, this is inadvisable.
 
 class SessionEOF(Exception):
   pass
 
 sessionmaxdigits = 20
 
-# get the next message off of the socket...
 def session_recvmessage(socketobj):
 
   messagesizestring = ''
-  # first, read the number of characters...
   for junkcount in range(sessionmaxdigits):
     currentbyte = socketobj.recv(1)
 
     if currentbyte == '\n':
       break
     
-    # not a valid digit
     if currentbyte not in '0123456789' and messagesizestring != '' and currentbyte != '-':
       raise ValueError, "Bad message size"
      
     messagesizestring = messagesizestring + currentbyte
 
   else:
-    # too large
     raise ValueError, "Bad message size"
 
   messagesize = int(messagesizestring)
   
-  # nothing to read...
   if messagesize == 0:
     return ''
 
-  # end of messages
   if messagesize == -1:
     raise SessionEOF, "Connection Closed"
 
@@ -4831,18 +4250,14 @@ def session_recvmessage(socketobj):
 
   return data
 
-# a private helper function
 def session_sendhelper(socketobj,data):
   sentlength = 0
-  # if I'm still missing some, continue to send (I could have used sendall
-  # instead but this isn't supported in repy currently)
   while sentlength < len(data):
     thissent = socketobj.send(data[sentlength:])
     sentlength = sentlength + thissent
 
 
 
-# send the message 
 def session_sendmessage(socketobj,data):
   header = str(len(data)) + '\n'
   session_sendhelper(socketobj,header)
@@ -4852,64 +4267,377 @@ def session_sendmessage(socketobj,data):
 
 
 
-#end include session.repy
-# I'll use socket timeout to prevent hanging when it takes a long time...
-#begin include sockettimeout.repy
-#already included sockettimeout.repy
-#end include sockettimeout.repy
+"""
+Author: Justin Cappos
+
+
+Start date: October 9th, 2009
+
+Purpose: A simple library that serializes and deserializes built-in repy types.
+This includes strings, integers, floats, booleans, None, complex, tuples, 
+lists, sets, frozensets, and dictionaries.
+
+There are no plans for including objects.
+
+Note: that all items are treated as separate references.   This means things
+like 'a = []; a.append(a)' will result in an infinite loop.   If you have
+'b = []; c = (b,b)' then 'c[0] is c[1]' is True.   After deserialization 
+'c[0] is c[1]' is False.
+
+I can add support or detection of this if desired.
+"""
+
+
+
+
+def serialize_serializedata(data):
+  """
+   <Purpose>
+      Convert a data item of any type into a string such that we can 
+      deserialize it later.
+
+   <Arguments>
+      data: the thing to seriailize.   Can be of essentially any type except
+            objects.
+
+   <Exceptions>
+      TypeError if the type of 'data' isn't allowed
+
+   <Side Effects>
+      None.
+
+   <Returns>
+      A string suitable for deserialization.
+  """
+
+
+  if type(data) == type(None):
+    return 'N'
+
+  elif type(data) == type(True):
+    if data == True:
+      return 'BT'
+    else:
+      return 'BF'
+
+  elif type(data) is int or type(data) is long:
+    datastr = str(data) 
+    return 'I'+datastr
+
+
+  elif type(data) is float:
+    datastr = str(data) 
+    return 'F'+datastr
+
+
+  elif type(data) is complex:
+    datastr = str(data) 
+    if datastr[0] == '(' and datastr[-1] == ')':
+      datastr = datastr[1:-1]
+    return 'C'+datastr
+
+
+
+  elif type(data) is str:
+    return 'S'+data
+
+
+  elif type(data) is list or type(data) is tuple or type(data) is set or type(data) is frozenset:
+    if type(data) is list:
+      mystr = 'L'
+    elif type(data) is tuple:
+      mystr = 'T'
+    elif type(data) is set:
+      mystr = 's'
+    elif type(data) is frozenset:
+      mystr = 'f'
+    else:
+      raise Exception("InternalError: not a known type after checking")
+
+    for item in data:
+      thisitem = serialize_serializedata(item)
+      mystr = mystr + str(len(thisitem))+":"+thisitem
+
+    mystr = mystr + '0:'
+
+    return mystr
+
+
+  elif type(data) is dict:
+    mystr = 'D'
+
+    keysstr = serialize_serializedata(data.keys())
+    mystr = mystr + str(len(keysstr))+":"+keysstr
+    
+    valuestr = serialize_serializedata(data.values())
+    mystr = mystr + valuestr
+
+    return mystr
+
+
+  else:
+    raise TypeError("Unknown type '"+str(type(data))+"' for data :"+str(data))
+
+
+
+def serialize_deserializedata(datastr):
+  """
+   <Purpose>
+      Convert a serialized data string back into its original types.
+
+   <Arguments>
+      datastr: the string to deseriailize.
+
+   <Exceptions>
+      ValueError if the string is corrupted
+      TypeError if the type of 'data' isn't allowed
+
+   <Side Effects>
+      None.
+
+   <Returns>
+      Items of the original type
+  """
+
+  if type(datastr) != str:
+    raise TypeError("Cannot deserialize non-string of type '"+str(type(datastr))+"'")
+  typeindicator = datastr[0]
+  restofstring = datastr[1:]
+
+
+  if typeindicator == 'N':
+    if restofstring != '':
+      raise ValueError("Malformed None string '"+restofstring+"'")
+    return None
+
+  elif typeindicator == 'B':
+    if restofstring == 'T':
+      return True
+    elif restofstring == 'F':
+      return False
+    raise ValueError("Malformed Boolean string '"+restofstring+"'")
+
+  elif typeindicator == 'I':
+    try:
+      return int(restofstring) 
+    except ValueError:
+      raise ValueError("Malformed Integer string '"+restofstring+"'")
+
+
+  elif typeindicator == 'F':
+    try:
+      return float(restofstring) 
+    except ValueError:
+      raise ValueError("Malformed Float string '"+restofstring+"'")
+
+  elif typeindicator == 'C':
+    try:
+      return complex(restofstring) 
+    except ValueError:
+      raise ValueError("Malformed Complex string '"+restofstring+"'")
+
+
+
+  elif typeindicator == 'S':
+    return restofstring
+
+  elif typeindicator == 'L' or typeindicator == 'T' or typeindicator == 's' or typeindicator == 'f':
+
+    thislist = []
+
+    data = restofstring
+    while data != '0:':
+      lengthstr, restofdata = data.split(':', 1)
+      length = int(lengthstr)
+
+      thisitemdata = restofdata[:length]
+      thisitem = serialize_deserializedata(thisitemdata)
+      thislist.append(thisitem)
+
+      data = restofdata[length:]
+
+    if typeindicator == 'L':
+      return thislist
+    elif typeindicator == 'T':
+      return tuple(thislist)
+    elif typeindicator == 's':
+      return set(thislist)
+    elif typeindicator == 'f':
+      return frozenset(thislist)
+    else:
+      raise Exception("InternalError: not a known type after checking")
+
+
+  elif typeindicator == 'D':
+
+    lengthstr, restofdata = restofstring.split(':', 1)
+    length = int(lengthstr)
+
+    keysdata = restofdata[:length]
+    keys = serialize_deserializedata(keysdata)
+
+    values = serialize_deserializedata(restofdata[length:])
+
+    if type(keys) != list or type(values) != list or len(keys) != len(values):
+      raise ValueError("Malformed Dict string '"+restofstring+"'")
+    
+    thisdict = {}
+    for position in xrange(len(keys)):
+      thisdict[keys[position]] = values[position]
+    
+    return thisdict
+
+
+
+
+  else:
+    raise ValueError("Unknown typeindicator '"+str(typeindicator)+"' for data :"+str(restofstring))
+
+
+
+
+
+
 servername = "satya.cs.washington.edu"
-serverport = 10101
+serverport = 10102
+
+
+
+class CentralAdvertiseError(Exception):
+  """Error when advertising a value to the central advertise service."""
 
 def centralizedadvertise_announce(key, value, ttlval):
-  # Escape commas because they have a special meaning. Encoding scheme:
-  # , -> \c
-  # \ -> \\
-  value = value.replace("\\", "\\\\")
-  value = value.replace(",", "\\c")
+  """
+   <Purpose>
+     Announce a key / value pair into the CHT.
 
+   <Arguments>
+     key: the key to put the value under. This will be converted to a string.
+
+     value: the value to store at the key. This is also converted to a string.
+
+     ttlval: the amount of time until the value expires.   Must be an integer
+
+   <Exceptions>
+     TypeError if ttlval is of the wrong type.
+
+     ValueError if ttlval is not positive 
+
+     CentralAdvertiseError is raised the server response is corrupted
+
+     Various network and timeout exceptions are raised by timeout_openconn
+     and session_sendmessage / session_recvmessage
+
+   <Side Effects>
+     The CHT will store the key / value pair.
+
+   <Returns>
+     None
+  """
+  key = str(key)
+  value = str(value)
+
+  if not type(ttlval) is int and not type(ttlval) is long:
+    raise TypeError("Invalid type '"+str(type(ttlval))+"' for ttlval.")
+
+  if ttlval < 1:
+    raise ValueError("The argument ttlval must be positive, not '"+str(ttlval)+"'")
+
+  
+  datatosend = ('PUT',key,value,ttlval)
+  datastringtosend = serialize_serializedata(datatosend)
+
+  
   sockobj = timeout_openconn(servername,serverport, timeout=10)
   try:
-    session_sendmessage(sockobj, "PUT|"+str(key)+"|"+str(value)+"|"+str(ttlval))
-    response = session_recvmessage(sockobj)
-    if response != 'OK':
-      raise Exception, "Centralized announce failed '"+response+"'"
+    session_sendmessage(sockobj, datastringtosend)
+    rawresponse = session_recvmessage(sockobj)
   finally:
-    # BUG: This raises an error right now if the call times out ( #260 )
-    # This isn't a big problem, but it is the "wrong" exception
     sockobj.close()
   
-  return True
+  try:
+    response = serialize_deserializedata(rawresponse)
+    if response != 'OK':
+      raise CentralAdvertiseError("Centralized announce failed with '"+response+"'")
+  except ValueError, e:
+    raise CentralAdvertiseError("Received unknown response from server '"+rawresponse+"'")
       
 
 
 
 def centralizedadvertise_lookup(key, maxvals=100):
+  """
+   <Purpose>
+     Returns a list of valid values stored under a key
+
+   <Arguments>
+     key: the key to put the value under. This will be converted to a string.
+
+     maxvals: the maximum number of values to return.   Must be an integer
+
+   <Exceptions>
+     TypeError if maxvals is of the wrong type.
+
+     ValueError if maxvals is not a positive number
+
+     CentralAdvertiseError is raised the server response is corrupted
+
+     Various network and timeout exceptions are raised by timeout_openconn
+     and session_sendmessage / session_recvmessage
+
+   <Side Effects>
+     None
+
+   <Returns>
+     The list of values
+  """
+
+  key = str(key)
+
+  if not type(maxvals) is int and not type(maxvals) is long:
+    raise TypeError("Invalid type '"+str(type(maxvals))+"' for ttlval.")
+
+  if maxvals < 1:
+    raise ValueError("The argument ttlval must be positive, not '"+str(ttlval)+"'")
+
+  messagetosend = ('GET',key,maxvals)
+  messagestringtosend = serialize_serializedata(messagetosend)
+
+
   sockobj = timeout_openconn(servername,serverport, timeout=10)
   try:
-    session_sendmessage(sockobj, "GET|"+str(key)+"|"+str(maxvals))
-    recvdata = session_recvmessage(sockobj)
-    # worked
-    if recvdata.endswith('OK'):
-      # Decode the values (unescape commas).
-      encoded_values = recvdata[:-len('OK')].split(',')
-      values = []
-      for encoded_value in encoded_values:
-        value = encoded_value.replace("\\c", ",")
-        value = value.replace("\\\\", "\\")
-        values.append(value)
-
-      return values
-    raise Exception, "Centralized lookup failed"
+    session_sendmessage(sockobj, messagestringtosend)
+    rawreceiveddata = session_recvmessage(sockobj)
   finally:
-    # BUG: This raises an error right now if the call times out ( #260 )
-    # This isn't a big problem, but it is the "wrong" exception
     sockobj.close()
+
+
+  try:
+    responsetuple = serialize_deserializedata(rawreceiveddata)
+  except ValueError, e:
+    raise CentralAdvertiseError("Received unknown response from server '"+rawresponse+"'")
+
+  
+  if not type(responsetuple) is tuple:
+    raise CentralAdvertiseError("Received data is not a tuple '"+rawresponse+"'")
+
+  if len(responsetuple) != 2:
+    raise CentralAdvertiseError("Response tuple did not have exactly two elements '"+rawresponse+"'")
+  if responsetuple[0] != 'OK':
+    raise CentralAdvertiseError("Central server returns error '"+str(responsetuple)+"'")
+
+  
+  if not type(responsetuple[1]) is list:
+    raise CentralAdvertiseError("Received item is not a list '"+rawresponse+"'")
+
+  for responseitem in responsetuple[1]:
+    if not type(responseitem) is str:
+      raise CentralAdvertiseError("Received item '"+str(responseitem)+"' is not a string in '"+rawresponse+"'")
+
+
+  return responsetuple[1]
       
 
-
-
-#end include centralizedadvertise.repy
-#begin include DORadvertise.repy
 """
 Author: Conrad Meyer
 
@@ -4923,15 +4651,6 @@ Advertisements to the Digital Object Registry run by CNRI.
 
 
 
-#begin include sockettimeout.repy
-#already included sockettimeout.repy
-#end include sockettimeout.repy
-#begin include httpretrieve.repy
-#already included httpretrieve.repy
-#end include httpretrieve.repy
-#begin include xmlparse.repy
-#already included xmlparse.repy
-#end include xmlparse.repy
 
 
 
@@ -5050,10 +4769,7 @@ def DORadvertise_lookup(key, maxvals=100, timeout=None):
 
 
 def _DORadvertise_command(parameters, timeout=None):
-  # Internal helper function; calls the remote command, and returns
-  # the results we can glean from it.
 
-  # If there is a timeout, use it!
   if timeout != None:
     post_result = httpretrieve_get_string(DORadvertise_FORM_LOCATION, \
         postdata=parameters, timeout=timeout, \
@@ -5064,8 +4780,6 @@ def _DORadvertise_command(parameters, timeout=None):
         httpheaders={"Content-Type": "application/x-www-form-urlencoded"})
 
 
-  # Parse the result to check for success. Throw several exceptions to
-  # ensure the XML we're reading makes sense.
   xmltree = xmlparse_parse(post_result)
 
   if xmltree.tag_name != "HashTableService":
@@ -5076,8 +4790,6 @@ def _DORadvertise_command(parameters, timeout=None):
   if xmltree.children is None:
     raise DORadvertise_XMLError("Root node contains no children nodes.")
 
-  # We expect to get an error code, an error string, and possibly some
-  # values from the server.
   error_msg = None
   error = None
   values = None
@@ -5088,19 +4800,16 @@ def _DORadvertise_command(parameters, timeout=None):
         "number of child nodes.")
 
   for xmlchild in xmltree.children:
-    # Read the numeric error code.
     if xmlchild.tag_name == "status" and xmlchild.content is not None:
       if error is not None:
         raise DORadvertise_XMLError("XML contains multiple status tags")
       error = int(xmlchild.content.strip())
 
-    # String error message (description:status as strerror:errno).
     elif xmlchild.tag_name == "description":
       if error_msg is not None:
         raise DORadvertise_XMLError("XML contains multiple description tags")
       error_msg = xmlchild.content
 
-    # We found a <values> tag. Let's try and get some values.
     elif xmlchild.tag_name == "values" and xmlchild.children is not None:
       if values is not None:
         raise DORadvertise_XMLError("XML contains multiple values tags")
@@ -5118,7 +4827,6 @@ def _DORadvertise_command(parameters, timeout=None):
 
         values.append(content)
 
-    # Check for tags we do not expect.
     elif xmlchild.tag_name not in ("status", "description", "values"):
       raise DORadvertise_XMLError("Unexpected tag '" + \
           str(xmlchild.tag_name) + "' while parsing response.")
@@ -5126,19 +4834,13 @@ def _DORadvertise_command(parameters, timeout=None):
   if error is not 0:
     raise DORadvertise_BadRequest(error, error_msg)
 
-  # This happens when the server returns <values></values>
   if values is None:
     return []
 
   return values
 
-#end include DORadvertise.repy
-#begin include parallelize.repy
-#already included parallelize.repy
-#end include parallelize.repy
 
 
-# All the names of services we can support.
 _advertise_all_services = ("central", "DHT", "DOR")
 
 
@@ -5149,7 +4851,6 @@ for service in _advertise_all_services:
 nodemanager_announce_context_lock = getlock()
 
 
-# an exception to indicate an error occured while advertising
 class AdvertiseError(Exception):
   pass
 
@@ -5157,8 +4858,6 @@ class AdvertiseError(Exception):
 
 
 def _try_advertise_announce(args):
-  # Helper function used by advertise_announce(). This is the worker process
-  # run in parallel for DHT and central announces.
   which_service, key, value, ttlval, exceptions, finishedref = args
 
   if which_service not in _advertise_all_services:
@@ -5233,11 +4932,9 @@ def advertise_announce(key, value, ttlval, concurrentevents=2, \
     None.
   """
 
-  # convert different types to strings to avoid type conversion errors #874
   key = str(key)
   value = str(value)
 
-  # Wrapped in an array so we can modify the reference (python strings are immutable).
   exceptions = [''] # track exceptions that occur and raise them at the end
 
   parallize_worksets = []
@@ -5268,8 +4965,6 @@ def advertise_announce(key, value, ttlval, concurrentevents=2, \
       parallelize_abortfunction(ph)
       break
 
-  # Note: closefunction() doesn't actually abort future functions like
-  # it says it will.
   parallelize_closefunction(ph)
 
   if exceptions[0] != '':
@@ -5281,8 +4976,6 @@ def advertise_announce(key, value, ttlval, concurrentevents=2, \
 
 
 def _try_advertise_lookup(args):
-  # Helper function used by advertise_lookup(). This is the worker process
-  # run in parallel for DHT and central lookups.
   which_service, key, maxvals, finishedref = args
 
   if which_service not in _advertise_all_services:
@@ -5343,7 +5036,6 @@ def advertise_lookup(key, maxvals=100, lookuptype=None, \
     All unique values stored at the key.
   """
 
-  # convert different types to strings to avoid type conversion errors #874
   key = str(key)
 
   if lookuptype is None:
@@ -5385,7 +5077,6 @@ def advertise_lookup(key, maxvals=100, lookuptype=None, \
 
   return listops_uniq(results)
 
-#end include advertise.repy
 
 """
 Temporary naming service to emulate the behaviors of a real DNS server.
@@ -5427,7 +5118,6 @@ def _DummyDNSAdvertiseThread():
       try:
         advertise_announce(str(name), str(cache[name]), 100)
       except Exception, e:
-        # Excuse the flaky adv service
         pass
       
     if str(cache) == prevCacheStr:
@@ -5449,7 +5139,6 @@ def _DummyDNSAdvertiseThread():
       except KeyError, e:
         mycontext['wakeup'] = False
 
-  # end while
 
 
 
@@ -5497,11 +5186,9 @@ def DummyDNSLookup(name, create=False):
   """
   useRealDNS = True
 
-  # No need to resolve if it is already an IP address
   if is_ip_address(name):
     return name
 
-  # Try using real DNS first if the name looks like a real host name
   if len(name.split('.')) > 1 and useRealDNS:
     try:
       return gethostbyname_ex(name)[2][0]
@@ -5513,7 +5200,6 @@ def DummyDNSLookup(name, create=False):
   _DummyDNSInitialize()
   mycontext['dummy_dns_lock'].acquire()
   
-  # find in cache
   cache = mycontext['dummy_dns_cache']
   try:
     retip = cache[name]
@@ -5523,16 +5209,12 @@ def DummyDNSLookup(name, create=False):
   except KeyError, e:
     pass
 
-  # find in DHT
   lookup_results = advertise_lookup(name)
   if (not lookup_results) or (lookup_results and lookup_results[0] == ''):
-    # not found in DHT
     if create:
-      # create a record (esp used in waitforconn)
       myip = getmyip()
       lookup_results = [myip]
     else:
-      # use the real DNS 
       _DummyDNSLog("Error: Unable to resolve '%s' with DummyDNS. Now try real DNS." % name)
       try:
         if useRealDNS:
@@ -5544,7 +5226,6 @@ def DummyDNSLookup(name, create=False):
         raise DummyDNSException("DummyDNS: Unable to resolve '%s' because '%s'." 
                                 % (name, e))
 
-  # add to cache
   retip = lookup_results[0]
   cache[name] = retip
   mycontext['wakeup'] = create
@@ -5553,8 +5234,6 @@ def DummyDNSLookup(name, create=False):
   _DummyDNSLog("Lookup: %s -> %s" % (name, retip))
   return retip
 
-#end include DummyDNS.repy
-#begin include ShimLogger.repy
 
 SHIM_LOGGER_FILE = 'shims.log'
 
@@ -5578,28 +5257,21 @@ class ShimLogger:
       logfile.write(str(self._shimname) + ': ' + logstr + '\n')
       logfile.close()
     except Exception, e:
-      # Silently drops all exceptions
       pass
     finally:
       mycontext['shim_logger_lock'].release()
 
-#end include ShimLogger.repy
 
 
-# Include all shims in the world
-
-#begin include BaseShim.repy
 
 
-# Base class for all shims that simply calls the next shim in the stack.
+
 class BaseShim:
 
 
-  # Private static variables that subclass should not override or modify.
   mycontext['ShimInstanceCountDict'] = {}
   mycontext['ShimInstanceCountLock'] = getlock()
 
-  # TODO Legacy. For debugging and backward compatibility only.
   name = 'BaseShim'
   do_not_advertise = False
 
@@ -5607,11 +5279,6 @@ class BaseShim:
 
 
 
-  # ===========================================================================
-  # Public methods that directly interface with the application. 
-  #
-  # Do not modify any of these methods.
-  # ===========================================================================
 
   def openconn(self, host, port, localhost=None, localport=None, timeout=5):
     socket = self._shim_openconn(host, port, localhost, localport, timeout)
@@ -5620,7 +5287,6 @@ class BaseShim:
 
 
 
-  # Helper method for waitforconn
   def _waitforconn_shim_callback_wrapper(self, remoteip, remoteport, socket, thiscommhandle, listencommhandle):
     selfcopy = self.copy()
     (rip, rport, sock, th, lh) = selfcopy._shim_listener_callback(remoteip, remoteport, socket, thiscommhandle, listencommhandle)
@@ -5663,27 +5329,15 @@ class BaseShim:
 
 
 
-  # ===========================================================================
-  # Protected methods that the shim creator may want to override.
-  #
-  # Note that there are no protected attributes in Python. All attributes are
-  # either public or private. The protected methods below (except the
-  # constructor) are still public to the application that uses the shim.
-  # ===========================================================================
 
-  # Always call the BaseShim's constructor somewhere in the constructor of your
-  # subclass
   def __init__(self, next_shim=None, optional_args=None):
 
     self.shim_stack = ShimStack(next_shim)
     self._optional_args = optional_args
 
-    # If "NO_NOT_ADVERTISE" is a part of the shim's optional arguments, then we
-    # won't include this shim when advertising the shim stack.
     if optional_args:
       self.do_not_advertise = "DO_NOT_ADVERTISE" in optional_args
 
-    # Count instance
     mycontext['ShimInstanceCountLock'].acquire()
     instdict = mycontext['ShimInstanceCountDict']
     if instdict.has_key(self.name):
@@ -5733,36 +5387,11 @@ class BaseShim:
     return self.shim_stack.socket_recv(socket, bytes)
   
 
-  # ===========================================================================
-  # Public methods that the shim creator must override.
-  #
-  # Note that there are no protected attributes in Python. All attributes are
-  # either public or private. The protected methods below (except the
-  # constructor) are still public to the application that uses the shim.
-  # ===========================================================================
 
-  # Returns a copy of the current instance. Be sure to set internal states to be
-  # copied in the new object. An example would be:
-  # 
-  # class MyShim(BaseShim):
-  #   def copy(self):
-  #     mycopy = MyShim()
-  #     mycopy._internalstate = self._internalstate
-  #     return mycopy
   def copy(self):
     raise Exception("Subclass of BaseShim must implement the copy() method.")
 
 
-  # Returns the string used for advertisement of this shim and the shim stack
-  # below. An example would be:
-  #
-  # class MyShim(BaseShim):
-  #   def get_advertisement_string(self):
-  #     return '(MyShim,' + self._some_shared_str + ')' + \
-  #             self.shim_stack.get_advertisement_string()
-  #
-  # If the subclass shim is not meant to be public, then simply return an empyt
-  # string concatenated with the advertisemnt string of the rest of the stack.
   def get_advertisement_string(self):
     raise Exception("Subclass of BaseShim must implement the get_advertisement_string() method.")
 
@@ -5773,17 +5402,11 @@ class BaseShim:
 
 
 
-  # ===========================================================================
-  # Methods that should not be overridden by the derived classes
-  # ===========================================================================
 
   def getid(self):
     return self._instance_id
 
 
-  # TODO Legacy. Used for debugging and backward compatibility..
-  # Return only names that are compatible (i.e. required for balancing two
-  # shim stacks)
   def get_shims(self, get_all_shims=False, debug=False):
 
     myname = str(self)
@@ -5794,15 +5417,12 @@ class BaseShim:
     if self.do_not_advertise and (not get_all_shims):
       myname = ''
 
-    # recursive calls to subsequent shims
     if self.shim_stack.top_shim is None:
       return myname
     else:
       return myname + self.shim_stack.top_shim.get_shims(get_all_shims, debug)
 
 
-  # TODO Legacy. Used for debugging and backward compatibility..
-  # Preserved for backward compatibility
   def get_names(self):
     
     if self.shim_stack.top_shim is None:
@@ -5818,7 +5438,6 @@ class BaseShim:
 
 
   def __str__(self):
-    # convert the arguments to this shim as a list of strings
     args = []
     if self._optional_args:
       for arg in self._optional_args:
@@ -5826,7 +5445,6 @@ class BaseShim:
 
     myname = '(' + self.name
  
-    # append the shim arguments, if any
     if args:
       myname += ","
       myname += ",".join(args)
@@ -5837,36 +5455,24 @@ class BaseShim:
 
 
   def __repr__(self):
-    return self.__repr__()
+    return str(self)
 
 
 
-# Provides backward compatibility
 class EmptyShim(BaseShim):
   pass
 
 
-#end include BaseShim.repy
-#begin include CoordinationShim.repy
-#include local_lookup_methods.repy
-#begin include advertise.repy
-#already included advertise.repy
-#end include advertise.repy
 
 
-# TODO For TCP-based connections only. Coordinating for UDP won't be that hard
-# once this is done.
 class CoordinationShim(BaseShim):
 
   name = 'CoordinationShim'
 
-  # We will do a lookup on the DHT for at most the following number of times.
   _lookup_attempts = 4
 
-  # Number of seconds to re-advertise the shim stack to refresh DHT
   _advertise_wait_interval = 60
 
-  # Override
   def copy(self):
     return CoordinationShim()
 
@@ -5879,9 +5485,6 @@ class CoordinationShim(BaseShim):
     return '(CoordinationShim)' + self.shim_stack.get_advertisement_string()
 
 
-  # ===========================================================================
-  # SERVER METHODS
-  # ===========================================================================
 
   def _shim_listener_callback(self, remoteip, remoteport, socket, thiscommhandle, listencommhandle):
     self._logger.log('listener_callback: new client from %s:%s' % (remoteip, remoteport))
@@ -5891,17 +5494,11 @@ class CoordinationShim(BaseShim):
 
   def _shim_waitforconn(self, hostkey, port, callback):
 
-    # Traverse through the stack and build the general stack, which is shared
-    # for all incoming connections.
     handle = self.shim_stack.waitforconn(hostkey, port, callback)
 
-    # Now that the stack has been built, we can advertise its content.
     advertise_key = str(hostkey) + "," + str(port) + ",TCP"
     advertise_value = self.shim_stack.get_advertisement_string()
 
-    # We advertise the contents of the shim stack at its first creation.
-    # Subsequent changes are on a per-connection basis (using negotiation) and
-    # are irrelevant for coordination.
     self._listener_active = True
     settimer(0, self._advertise_thread, [advertise_key, advertise_value])
     self._logger.log('waitforconn: Listening. About to advertise <"%s","%s">' % (advertise_key, advertise_value))
@@ -5913,14 +5510,8 @@ class CoordinationShim(BaseShim):
   def _advertise_thread(self, advertise_key, advertise_value):
     while self._listener_active:
       try:
-        # We're prepending an '@' sign to the shim stack string because of a
-        # flaw in the advertisement service, which returns a list of an empty
-        # string upon unsuccessful lookup. We want to distinguish that case with
-        # an empyt stack string.
         advertise_announce(str(advertise_key), "@" + str(advertise_value), 120)
       except Exception, e:
-        # Silently drops all errors because the advertisement service can be
-        # flaky at times
         pass
 
       sleep(self._advertise_wait_interval)
@@ -5930,19 +5521,9 @@ class CoordinationShim(BaseShim):
 
 
 
-  # ===========================================================================
-  # NON-SERVER METHODS
-  # ===========================================================================
 
 
-  # Uses a lookup service to coordinate the construction of the client shim
-  # stack. Returns a list of available shim stack string representations. If
-  # use_cache is set to True, then we are only doing a lookup on a local
-  # cache. Otherwise, we will do a lookup remotely. Helper for the openconn
-  # operation.
   def _get_shimstack_strings(self, hostkey, port, use_cache=True):
-    # Initializes the local cache so we don't have to contact the remote
-    # services all the time.
     if mycontext.has_key('shim_stack_string_cache_lock'):
       mycontext['shim_stack_string_cache_lock'].acquire()
     else:
@@ -5954,33 +5535,25 @@ class CoordinationShim(BaseShim):
     lookup_key = str(hostkey)+','+str(port)+',TCP'
     local_lookup_cache = mycontext['shim_stack_string_cache']
 
-    # Search the cache if use_cache is True. If cache returns empty, use the
-    # remote lookup service.
     if use_cache and local_lookup_cache.has_key(lookup_key):
       lookup_results = local_lookup_cache[lookup_key][:]
       if lookup_results:
         mycontext['shim_stack_string_cache_lock'].release()
         return lookup_results
 
-    # Contact the remote lookup service
     for count in range(self._lookup_attempts):
       lookup_results = advertise_lookup(lookup_key)
       if len(lookup_results) > 0 and lookup_results[0]:
         break
       sleep(1)
 
-    # Add to local cache.
     if local_lookup_cache.has_key(lookup_key):
       local_lookup_cache[lookup_key] += lookup_results[:]
     else:
       local_lookup_cache[lookup_key] = lookup_results[:]
 
-    # Remove duplicates or else we would be trying the same non-working shim
-    # stacks multiple times.
     self._remove_duplicates(local_lookup_cache[lookup_key])
 
-    # Return a copy so that others won't be able to mess with our internal
-    # cache.
     lookup_results = local_lookup_cache[lookup_key][:]
 
     mycontext['shim_stack_string_cache_lock'].release()
@@ -5993,18 +5566,13 @@ class CoordinationShim(BaseShim):
     exception_str = ''
     sock = None
 
-    # Indicates whether we have tried using the remote lookup services
-    # (e.g. DHT) to locate the shim stack strings of the server.
     tried_using_remote_lookup = False
 
-    # First, obtain the shim stack string from cache, or if not, from the DHT.
     shimstackstr_list = self._get_shimstack_strings(hostkey, port, use_cache=True)
 
-    # Try to do openconn for every possible shim stack string
     while len(shimstackstr_list) > 0:
 
       try:
-        # Remove the preceding @ sign in the shim stack string
         shimstackstr = shimstackstr_list.pop()[1:]
         shim_stack = ShimStack(shimstackstr)
       except Exception, e:
@@ -6017,26 +5585,16 @@ class CoordinationShim(BaseShim):
       except Exception,e:
         exception_str +=' || Exception: '+str(e)+' for stack '+shimstackstr
       else:
-        # Success in openconn. We won't try the rest of the shimstack strings.
         break
 
       if len(shimstackstr_list) == 0 and not tried_using_remote_lookup:
-        # All possible shim stack strings are consumed and we still haven't
-        # found a workable one. We want to lookup the shim stack strings using
-        # the remote services, instead of the local cache.
         shimstackstr_list = self._get_shimstack_strings(hostkey, port, use_cache=False)
         tried_using_remote_lookup = True
 
       if len(shimstackstr_list) == 0 and tried_using_remote_lookup:      
-        # All possible shim stack strings are consumed. We haven't found a
-        # workable one after lookups on both the local cache and the remote
-        # services. We raise our arms and shall surrender.
         break
 
-    # end while
 
-    # If all things fail, we will connect without the shim interface. This
-    # provides backward compatibility for older servers.
     if sock is None:
       self._logger.log("openconn: Trying to connect to %s:%s without using the shim interface." % (hostkey, port))
       try:
@@ -6044,7 +5602,6 @@ class CoordinationShim(BaseShim):
       except Exception,e:
         exception_str +=' || Unable to connect without using shims becase %s.' % e
 
-    # At this point, we've exhausted all our means.
     if sock is None:
       exception_str = 'CoordinationShim error: ' + exception_str
       self._logger.log("CoordinationShim: " + exception_str)
@@ -6062,13 +5619,10 @@ class CoordinationShim(BaseShim):
     return self.shim_stack.stopcomm(handle)
 
 
-  # Remove the duplicates in the input list. The input list is modified. Helper
-  # method for self._get_shimstack_strings.
   def _remove_duplicates(self, inlist):
     listindex = 0
 
     while listindex < len(inlist):
-      # If the current item appears in the rest of the list, remove it.
       currentitem = inlist[listindex]
       if currentitem in inlist[listindex+1:]:
         del inlist[listindex]
@@ -6076,8 +5630,6 @@ class CoordinationShim(BaseShim):
         listindex += 1
 
 
-#end include CoordinationShim.repy
-#begin include NatForwardingShim.repy
 
 """
 <Program Name>
@@ -6113,10 +5665,6 @@ class CoordinationShim(BaseShim):
 
 
 
-#begin include session.repy
-#already included session.repy
-#end include session.repy
-#begin include NAT_CONSTANTS.repy
 """
 NatForwardingShim.repy and Nat_Forwarder.repy must communicate over the network
 through a series of requests and responses.
@@ -6127,19 +5675,16 @@ within this file
 
 """
 
-# connection types
 NAT_SERVER = 'S'
 NAT_LEGACY_CLIENT = 'C'
 NAT_CLIENT = 'c'
 NAT_CHECK_CONN = '?'
 
-# requests
 NAT_CONNECTION_ALIVE = 'ALIVE?'
 NAT_NEW_CONN = 'CONN'
 NAT_INIT = 'INIT'
 
 
-# responses
 NAT_YES = 'YES'   # use for an postive confirmation
 NAT_NO = 'NO'     # use for negitive confirmation
 
@@ -6148,13 +5693,10 @@ NAT_FORWARDER_BUSY = 'BUSY'
 NAT_SERVER_ERROR = 'SERVERERROR'
 
 
-#common advertise keys
 
 NAT_FORWARDER = 'seattle_NAT_FORWARDING_SERVICE_NODE'
 
 
-#end include NAT_CONSTANTS.repy
-#begin include AdvertiseObjects.repy
 """
 
 <Author>
@@ -6193,23 +5735,17 @@ NAT_FORWARDER = 'seattle_NAT_FORWARDING_SERVICE_NODE'
 
 
 
-#begin include advertise.repy
-#already included advertise.repy
-#end include advertise.repy
 
 
 
 
 class LookupCache():
-  # caches lookups in a global data structure
 
 
   cache = {} # a dict that will map lookups to results
   lock = getlock()
 
   def __init__(self,refresh_time=120):
-    # refresh_time is the amount of time the we will return results
-    # from the cache without doing a new lookup
     self.refresh_time = refresh_time
 
   
@@ -6233,25 +5769,20 @@ class LookupCache():
     """ 
     
     if key not in self.cache:
-      # do the initial look up 
       results = advertise_lookup(key, maxvals, lookuptype,concurrentevents,
                               graceperiod, timeout)
       
       if len(results) > 0 and results[0] != '':
-        # don't cache results of a failed lookup
         self.cache[key] = {'results':results,'time':getruntime()}
 
       return results
 
     else:
-      # if the key is in the cache see how old it is
       time_expired = getruntime() - self.cache[key]['time']
       if time_expired > self.refresh_time or time_expired < 0:
-        # refresh the cache value if its old or the time doesnt make since
         results = advertise_lookup(key, maxvals, lookuptype,concurrentevents,
                                             graceperiod, timeout)
         if len(results) > 0 and results[0] != '':
-          # don't cache failed results
           self.cache[key]['results'] = results
           self.cache[key]['time'] = getruntime()
 
@@ -6259,7 +5790,6 @@ class LookupCache():
 
 
       else:
-        # return the cache results without a lookup
         return self.cache[key]['results']
 
 
@@ -6268,8 +5798,6 @@ class LookupCache():
 
 
 class AdvertisePipe():
-  # shares a thread of execution across instances to 
-  # advertise key value pairs
   
   advertise_dict = {} # store info to be advertised
   state= {'run':False} # should the add thread be running
@@ -6279,19 +5807,12 @@ class AdvertisePipe():
 
 
   def _advertise_thread(self):
-    # add a short sleep so that key,value pairs added 
-    # close to the same time will be advertised together
-    #without waiting for the next cycle
     sleep(2)   
 
-    # advertise values stored in the advertise_dict
     while self.state['run']:
       
-      # get the start time of the advertisement pass
       start = getruntime()
 
-      # advertise each key,value pair that was in the dict
-      # at the beggining of this pass
       entry_keys = self.advertise_dict.keys()
       for entry_key in entry_keys:
         try:
@@ -6302,8 +5823,6 @@ class AdvertisePipe():
     
           
   
-      # now wait until redo time has expired
-      # if run has gone to false we want to stop sleeping and kill the thread
       while getruntime() - start < self.redo and self.state['run']:
         sleep(10)
           
@@ -6325,18 +5844,15 @@ class AdvertisePipe():
       can not be started
     """ 
     
-    # create a unique handle
     handle = object() 
     self.advertise_dict[handle]=(key,value)
     
-    # if the advertise thread is not running start it
     self.state_lock.acquire()
     if not self.state['run']:
       self.state['run'] = True
       settimer(0,self._advertise_thread,[])
     self.state_lock.release()    
     
-    # return the handle
     return handle
     
 
@@ -6367,8 +5883,6 @@ class AdvertisePipe():
     
   
 
-#end include AdvertiseObjects.repy
-#begin include NatForwardingLib.repy
 """
 
 <Program Name>
@@ -6393,26 +5907,12 @@ class AdvertisePipe():
 
 """
 
-#begin include NAT_CONSTANTS.repy
-#already included NAT_CONSTANTS.repy
-#end include NAT_CONSTANTS.repy
-#begin include session.repy
-#already included session.repy
-#end include session.repy
-#begin include sockettimeout.repy
-#already included sockettimeout.repy
-#end include sockettimeout.repy
-#begin include AdvertiseObjects.repy
-#already included AdvertiseObjects.repy
-#end include AdvertiseObjects.repy
 
 
 class NatConnError(Exception):
-  # base class for problem with nat connections
   pass
 
 class NatLookupError(NatConnError):
-  # unable to lookup a needed value
   pass
 
 
@@ -6420,9 +5920,6 @@ class NatLookupError(NatConnError):
 
 
 def natforwardinglib_isBidirectional(ip,port):
-  # returns True if some kind of forwarding should be used
-  # returns False if this host can recieve incomming connections
-  #               OR there is an error and we can't decide for sure
   
   host_str = ip+':'+str(port)
 
@@ -6446,19 +5943,13 @@ def natforwardinglib_isBidirectional(ip,port):
 
 
 def _natforwardinglib_do_check(host_str,forwarder_ip,forwarder_port):
-  # returns True if some kind of forwarding should be used
-  # returns False if this host can recieve incomming connections
-  # raises an Exception if an error occurs
   
 
-  #sock = timeout_openconn(forwarder_ip,forwarder_port,timeout=30)
   shim = ShimStackInterface()
   sock = shim.openconn(forwarder_ip, forwarder_port, timeout=30)
   
-  # tells the forwrader we want to check behind nat
   sock.send(NAT_CHECK_CONN) 
      
-  #send my ip, this should be what the other end sees
   session_sendmessage(sock,host_str)
 
   msg = session_recvmessage(sock)
@@ -6477,20 +5968,15 @@ def _natforwardinglib_do_check(host_str,forwarder_ip,forwarder_port):
     except Exception, e:
       raise Exception
 
-    # tell the forwarder we are ready for a connection
     session_sendmessage(sock,NAT_YES)
 
-    # check the connection
     msg = session_recvmessage(sock)
 
     sock.close()
     stopcomm(handle)
 
-    # if NAT_YES return True - to use the forwarder
-    # otherwise false
     return (msg == NAT_YES)
 
-  # if we got something weird from the server return false
   else:
     sock.close()
     return False
@@ -6501,7 +5987,6 @@ def _natforwardinglib_do_check(host_str,forwarder_ip,forwarder_port):
 
 def _natforwardinglib_listen(remote_ip,remote_port,
                                       sock,this_handle,listen_handle):
-  # internal call back method for outside forwarder to connect to
   sock.close()
 
 
@@ -6509,10 +5994,6 @@ def _natforwardinglib_listen(remote_ip,remote_port,
 
 
 def natforwardinglib_forwarder_lookup():
-  # retrns a list of forwarders in the form [(ip,port),...]
-  # ordered by the server load on the forwareders
-  # 
-  # raises exception if no valid forwarder entries are found
 
   lookup_obj = LookupCache()
 
@@ -6521,7 +6002,6 @@ def natforwardinglib_forwarder_lookup():
     raise NatLookupError("No Nat Forwarders were found")
 
 
-  # hash the forwarders based on the load they have    
   tuple_list_dict = {}
   for item in raw_data:
     try:
@@ -6537,8 +6017,6 @@ def natforwardinglib_forwarder_lookup():
   if len(tuple_list_dict) < 1:
     raise NatLookupError("No Valid entries were found for nat forwarders")
 
-  # drop all of the tuples into a list ordered by increasing 
-  # forwarder load
   ranked_tuple_list = []
   key_list =  tuple_list_dict.keys()
   key_list.sort()
@@ -6548,13 +6026,10 @@ def natforwardinglib_forwarder_lookup():
     
   return ranked_tuple_list
 
-#end include NatForwardingLib.repy
 
 
 
 
-# custom obj used as a comm handle and to keep state 
-# for diffent calls to waitforconn
 class NatStateObj:
   def __init__(self,host,port,callback):
     self.sock = None
@@ -6575,28 +6050,18 @@ class NatForwardingShim(BaseShim):
   name = 'NatForwardingShim'
 
 
-  ######    CONSTRUCTOR
 
   def __init__(self,next_shim=None,optional_args=None):
     
-    # call the base constructor
     BaseShim.__init__(self,next_shim,optional_args)    
 
-    # Default shim stack used in communication between the internals of this
-    # shim and the forwarder. This stack is on the client side of the
-    # communication, as we always call openconn on this stack. Thus, we maintain
-    # individual instances of the stacks.
     self._forwarder_shim_stack = ShimStackInterface()
 
     self.state_objs = {}
 
-    # hop_key and hop_port can be used to avoid doing a lookup with
-    # openconn, primarily used for testing
     self.hop_key = None
     self.hop_port = None
 
-    # optional args should not be supplied, or should be a hop key and port
-    # note: these are done as optional args to conform with ShimStack standards
     if optional_args is not None:
       if len(optional_args) == 2:
        self.hop_key = optional_args[0]
@@ -6605,7 +6070,6 @@ class NatForwardingShim(BaseShim):
         raise Exception("Improper optional args passed into NatForwardingShim")
     
     
-  # Override
   def copy(self):
     return NatForwardingShim(optional_args=self._optional_args)
 
@@ -6614,7 +6078,6 @@ class NatForwardingShim(BaseShim):
     args = "," + str(self.hop_key) + "," + str(self.hop_port)
     return '(NatForwardingShim' + args + ')' + self.shim_stack.get_advertisement_string()
 
-  #######  SERVER METHODS  
 
 
 
@@ -6645,31 +6108,24 @@ class NatForwardingShim(BaseShim):
 
     """
     if port in self.state_objs:
-      # if this port alreayd has an active listener just replace the callback
       state_obj = self.state_objs[port]
       state_obj.callback = callback
       return state_obj
 
 
-    # create a new state object for this listener
     state_obj = NatStateObj(key,port,callback)
 
-    # establish a control socket with a forwarder
     self.establish_control_sock(state_obj) 
     self.state_objs[port] = state_obj
 
-    # start a thread to listen for new requests
     settimer(0,self.nat_waitfor_request,[state_obj])
 
-    # return a handle
     return state_obj
 
 
 
 
   def establish_control_sock(self,state_obj):
-    # connect to a forwarder and establish a control socket
-    # this control socket is used to listen for connection requests
 
     if self.hop_key is not None and self.hop_port is not None:
       control_sock = self._forwarder_shim_stack.openconn(self.hop_key,int(self.hop_port))  
@@ -6677,7 +6133,6 @@ class NatForwardingShim(BaseShim):
       for_port = int(self.hop_port)
     
     else:
-      # use the lookup mechanism to find a forwarder
       
       forwarder_list = natforwardinglib_forwarder_lookup()
       connected = False      
@@ -6698,28 +6153,23 @@ class NatForwardingShim(BaseShim):
                      +str(len(forwarder_list))+" forwarders: "+ex_str)   
 
 
-      # remember the forwarder info for advertisement later
       self.hop_key = for_ip
       self.hop_port = int(for_port)
 
-    #register the with the forwarder
     control_sock.send(NAT_SERVER) 
     session_sendmessage(control_sock,NAT_INIT)
     session_sendmessage(control_sock,str(state_obj.host)) 
     session_sendmessage(control_sock,str(state_obj.port))
 
   
-    # see if the connection was established
     response = session_recvmessage(control_sock)
     if response != NAT_YES:
       raise Exception, 'NAT node refused connection'
 
-    # create an add key and add value for new clients
     ad_key = state_obj.host+'$'+str(state_obj.port)+'$TCP'
     ad_value = self.name+'$'+for_ip+'$'+str(for_port)
     ad_handle = self.advertise_obj.add(ad_key,ad_value)
     
-    # create an add key and add value for legacy clients
     legacy_key = "__NAT_SRV__"+state_obj.host
     legacy_value = for_ip+"*"+str(for_port)
     legacy_ad_handle = self.advertise_obj.add(legacy_key,legacy_value)
@@ -6732,11 +6182,7 @@ class NatForwardingShim(BaseShim):
 
 
   def establish_comms_sock(self,control_sock):
-    # upon recieve a connection request make a new connection
-    # to the forwarder to facilliate the communication
-    # raises an exception if failure occurs
 
-    # read the connection request over the control socket
     remote_key = session_recvmessage(control_sock)
     remote_port = session_recvmessage(control_sock)
     forwarder_ip = session_recvmessage(control_sock)
@@ -6744,26 +6190,20 @@ class NatForwardingShim(BaseShim):
 
     
 
-    # create the new connection
     new_sock = self._forwarder_shim_stack.openconn(forwarder_ip,int(forwarder_port))
     new_sock.send(NAT_SERVER)
     session_sendmessage(new_sock,NAT_NEW_CONN)
     session_sendmessage(new_sock,remote_key)
     session_sendmessage(new_sock,remote_port) 
     
-    # verify the connection is established
     response = session_recvmessage(new_sock)
     if response != NAT_YES:
       new_sock.close() # this connection failed
     else:
-      # confirm the connection over the control sock 
       session_sendmessage(control_sock,NAT_YES)
       
-      # wait for the forwarder to verify that the socket is ready
-      # to pass up to the users fuction
       response = session_recvmessage(control_sock)
       
-      # return the connection along with the identity of the clt
       if response == NAT_YES: return (remote_key,remote_port,new_sock)
       else: raise Exception("Establish comms failed")
      
@@ -6783,7 +6223,6 @@ class NatForwardingShim(BaseShim):
     handle.running = False
     handle.sock.close()
     
-    # remove this port fromt the list of active state objects
     del self.state_objs[handle.port]
     
     return True
@@ -6793,23 +6232,17 @@ class NatForwardingShim(BaseShim):
 
   
   def nat_waitfor_request(self,state_obj):
-    # wait for requsts for new connections over a control socket
 
     while state_obj.running:
-      # do this until stopcomm is called 
       try:
         request = NAT_CONNECTION_ALIVE
        
-        # respond to forwarder checks to see if this connection is still
-        # active, if we've lost the control sock we will detect it here
-        # and can reconnection
         while request == NAT_CONNECTION_ALIVE:
           try:
             request = session_recvmessage(state_obj.sock)
             if request != NAT_CONNECTION_ALIVE: break
             session_sendmessage(state_obj.sock,NAT_YES)  
           except:
-            # error over the control socket, establish a new one
             if state_obj.running:
               state_obj.sock.close()
               
@@ -6822,32 +6255,25 @@ class NatForwardingShim(BaseShim):
             else:
               raise # if stop has been called don't re-establish
 
-        # take a request to make a new connection 
         if request != NAT_NEW_CONN:
           raise Exception("in establish comms sock with request: "+request)  
        
-        # try to establish the new connection
         try:
           (remote_key,remote_port,comms_sock) = self.establish_comms_sock(state_obj.sock)
         except:
           pass #todo log this? there was a failure setting up a new connection
         else:
-          # new connection complete, send socket to callback func
          
-          # WARNING, i just return the socket as the listen handle, TODO,
-          # make sure this works
           settimer(0,state_obj.callback,[remote_key,remote_port,comms_sock,comms_sock,state_obj])    
      
       except Exception, e:
         if state_obj.running:
-          #stopcomm has not been called and the connection failed
           raise Exception('ERROR OCCURED IN nat_watifor_request '+str(e))      
      
        
 
 
 
-  ############ CLIENT METHODS
 
 
   def _shim_openconn(self,id,port,localip=None,localport=None,timeout=5):
@@ -6869,14 +6295,12 @@ class NatForwardingShim(BaseShim):
     """  
 
     if self.hop_key is not None and self.hop_port is not None:
-      # If a hop key and port have been specified, use them.
       base_sock = self._forwarder_shim_stack.openconn(self.hop_key,self.hop_port,localip,localport,timeout+5)
       self.establish_client_server_conn(base_sock,id,port)
       return base_sock
 
     else:
 
-      #find the host with a lookup
       host_list = self.lookup_host(id,port)
 
       exception_str = ''
@@ -6896,9 +6320,7 @@ class NatForwardingShim(BaseShim):
 
 
   def establish_client_server_conn(self,base_sock,id,port):
-    #used by opennconn to establish connection
 
-    # specify this is a client connection, and what server we want
     try:
       base_sock.send(NAT_CLIENT)
       session_sendmessage(base_sock,str(id)) 
@@ -6906,7 +6328,6 @@ class NatForwardingShim(BaseShim):
     except Exception,e:
       raise NatConnError("Error initializing socket connection: "+str(e))    
 
-    # see if the connection was established
     response =  session_recvmessage(base_sock)
     if response != NAT_YES:
       base_sock.close()
@@ -6919,19 +6340,16 @@ class NatForwardingShim(BaseShim):
       else:
         raise NatConnError("Unknown nat failure: "+response)
 
-    #if the connection is established we can return the socket
     return base_sock
 
 
 
-  ####   ADVERTISE / LOOKUP METHODS
 
 
       
 
 
   def lookup_host(self,host,port):
-    # returns a list of tuples (forwarderip,forwarderport)
     raw_list = self.lookup_obj.lookup(host+'$'+str(port)+'$TCP')
     if raw_list is None or len(raw_list) == 0:
       raise NatLookupError('No lookup results for: '+host+':'+str(port))
@@ -6955,8 +6373,6 @@ class NatForwardingShim(BaseShim):
 
 
 
-#end include NatForwardingShim.repy
-#begin include NatDeciderShim.repy
 """
 
 <Program Name>
@@ -6973,13 +6389,9 @@ class NatForwardingShim(BaseShim):
 
 """
 
-#begin include NatForwardingLib.repy
-#already included NatForwardingLib.repy
-#end include NatForwardingLib.repy
 
 class NatDeciderShim(BaseShim):
   
-  # TODO Retained for debug
   name = 'NatDeciderShim'
 
   def __init__(self, next_shim=None, optional_args=None):
@@ -6991,7 +6403,6 @@ class NatDeciderShim(BaseShim):
     return NatDeciderShim()
 
 
-  # This shim is not advertised.
   def get_advertisement_string(self):
     return self.shim_stack.get_advertisement_string()
 
@@ -7000,7 +6411,6 @@ class NatDeciderShim(BaseShim):
 
   def waitforconn(self, host, port, callback):
     self._logger.log("waitforconn: Check if we're behind NAT")
-    # If server is behind the NAT, then behind_nat = True.
     behind_nat = natforwardinglib_isBidirectional(getmyip(), port)
 
     if behind_nat:
@@ -7011,8 +6421,6 @@ class NatDeciderShim(BaseShim):
   
 
 
-#end include NatDeciderShim.repy
-#begin include SimpleEncryptionShim.repy
 
 class SimpleEncryptionShim(BaseShim):
 
@@ -7024,32 +6432,24 @@ class SimpleEncryptionShim(BaseShim):
     if optional_args:
       self._ascii_shift = int(optional_args[0])
 
-  # override
   def copy(self):
     newshim = SimpleEncryptionShim(optional_args=[self._ascii_shift])
     return newshim
 
-  # override
   def get_advertisement_string(self):
     return '(SimpleEncryptionShim,' + str(self._ascii_shift) + ')' + \
         self.shim_stack.get_advertisement_string()
 
-  # Increases the ascii value of every character of the input string by
-  # _ascii_shift.
   def _encrypt(self, string):
     cypher = ""
     for char in string:
       cypher += chr((ord(char) + self._ascii_shift) % 256)
-    #print "ENCRYPT - %s - from '%s' to '%s'" % (self.name, string, cypher)
     return cypher
 
-  # Does the reverse of _encrypt(), i.e. decreases the ascii values by
-  # _ascii_shift.
   def _decrypt(self, cypher):
     string = ""
     for char in cypher:
       string += chr((ord(char) - self._ascii_shift) % 256)
-    #print "DECRYPT - %s - from '%s' to '%s'" % (self.name, cypher, string)
     return string
 
 
@@ -7058,21 +6458,17 @@ class SimpleEncryptionShim(BaseShim):
 
 
   def _shim_socket_send(self, socket, msg):
-    #print "'%s'._shim_socket_send: rawstr = %s" % (self.name, msg)
     return self.shim_stack.socket_send(socket, self._encrypt(msg))
 
 
   def _shim_socket_recv(self, socket, bytes): 
     rawstr = self.shim_stack.socket_recv(socket, bytes)
-    #print "'%s'._shim_socket_recv: rawstr = %s" % (self.name, rawstr)
     return self._decrypt(rawstr)
   
   
 
 
 
-#end include SimpleEncryptionShim.repy
-#begin include LogShim.repy
 
 class LogShim(EmptyShim):
 
@@ -7092,11 +6488,9 @@ class LogShim(EmptyShim):
 
 
   def get_advertisement_string(self):
-    # We don't want to advertise this shim
     return self.shim_stack.get_advertisement_string()
 
 
-  # Private method that adds a valid entry to the loglist
   def _addlog(self, operation, sourceip=None, sourceport=None, destip=None, destport=None, socket=None):
 
     logentry = ' * '
@@ -7107,7 +6501,6 @@ class LogShim(EmptyShim):
       logentry += 'socket: %s' % socket
     logentry += '\n\n'
 
-    # append to logfile
     self._lock.acquire()
     fileobj = open(self._logfile, 'a')
     fileobj.write(logentry)
@@ -7116,7 +6509,6 @@ class LogShim(EmptyShim):
 
 
 
-  # Wrapper for the callback function in waitforconn()
   def _log_waitforconn_callback(self, remoteip, remoteport, sock, th, lh):
     self._addlog('waitforconn_callback', 
                  sourceip=self._waitforconn_sourceip,
@@ -7151,7 +6543,6 @@ class LogShim(EmptyShim):
 
 
 
-  # Wrapper for the callback function in recvmess()
   def _log_recvmess_callback(self, remoteip, remoteport, msg, handle):
     self._addlog('recvmess_callback', 
                  sourceip = self._recvmess_sourceip,
@@ -7164,8 +6555,6 @@ class LogShim(EmptyShim):
 
   def _shim_recvmess(self,host,port,callback):
     self._recvmess_callback = callback
-    # This is not logged, because this method is usually placed within a loop.
-    #self._addlog('recvmess', sourceip=host, sourceport=port)
 
     self._recvmess_sourceip = host
     self._recvmess_sourceport = port
@@ -7198,11 +6587,6 @@ class LogShim(EmptyShim):
     return self.shim_stack.socket_close(socket)
 
 
-#end include LogShim.repy
-#begin include RSAShim.repy
-#begin include session.repy
-#already included session.repy
-#end include session.repy
 
 class RSAShim(BaseShim):
 
@@ -7213,14 +6597,11 @@ class RSAShim(BaseShim):
     self._logger = ShimLogger('RSAShim')
     self._sharedKey = None
 
-    # The following is true in new instances of this shim, when new incoming
-    # connections are accepted and a new stack is cloned in the server.
     if optional_args:
       self._sharedKey = optional_args[0]
 
 
   def copy(self):
-    #newshim = RSAShim(optional_args=[self._sharedKey])
     newshim = RSAShim()
     return newshim
 
@@ -7230,12 +6611,10 @@ class RSAShim(BaseShim):
 
 
 
-  # Server accept()
   def _shim_listener_callback(self, remoteip, remoteport, socket, thiscommhandle, listencommhandle):
     self._logger.log("listener callback: instance id = [%d]" % self.getid())
     (pubKey, privKey) = self._get_RSA_keys()
 
-    # send public key
     try:
       session_sendmessage(socket, "pubKey@@@" + pubKey)
     except Exception, err:
@@ -7244,7 +6623,6 @@ class RSAShim(BaseShim):
 
     self._logger.log("listener callback: sent public key " + pubKey)
 
-    # Receive shared random key, encrypted with public key
     try:
       handshakestr = self._RSA_decrypt(privKey, session_recvmessage(socket))
     except Exception, err:
@@ -7264,8 +6642,6 @@ class RSAShim(BaseShim):
     self._sharedKey = sharedKey
     self._logger.log("listener callback: received shared key " + str(sharedKey))
 
-    # TODO for debug only. This displays the shared key in the string
-    # representation of the shim when used in client.
     self._optional_args = [self._sharedKey]
 
     return (remoteip, remoteport, socket, thiscommhandle, listencommhandle)
@@ -7280,7 +6656,6 @@ class RSAShim(BaseShim):
     return self.shim_stack.waitforconn(host, port, self._zzcallback_wrapper)
 
 
-  # Client connect()
   def _shim_openconn(self, host, port, localhost=None, localport=None, timeout=5):
     sock = self.shim_stack.openconn(host, port, localhost, localport, timeout)
     self._logger.log('openconn: connection established with %s:%s' % (host, port))
@@ -7303,7 +6678,6 @@ class RSAShim(BaseShim):
 
     self._logger.log('openconn: received public key ' + str(pubKey))
 
-    # Send shared random key to server, encrypted with public key
     self._sharedKey = str(int(randomfloat()*999999) % 256)
 
     try:
@@ -7315,8 +6689,6 @@ class RSAShim(BaseShim):
 
     self._logger.log('openconn: sent shared key ' + str(self._sharedKey))
 
-    # TODO for debug only. This displays the shared key in the string
-    # representation of the shim when used in client.
     self._optional_args = [self._sharedKey]
 
     return sock
@@ -7339,23 +6711,17 @@ class RSAShim(BaseShim):
 
 
 
-  # ===========================================================================
-  # Fake encryption methods for better performance during debug
-  #
 
   def _get_RSA_keys(self):
     randi = int(randomfloat()*999999)
     return (str(randi), str(1+randi))
 
-  # Fake key matcher for performance in testing
   def _match_keys(self, pubKey, privKey):
     return int(pubKey)+1 == int(privKey)
 
-  # Encrypt with pub key
   def _RSA_encrypt(self, pubKey, msg):
     return pubKey + "@#$#@" + msg
 
-  # Decrypt with priv key
   def _RSA_decrypt(self, privKey, cypher):
     try:
       (pubKey, msg) = cypher.split("@#$#@")
@@ -7367,32 +6733,23 @@ class RSAShim(BaseShim):
 
     return msg
 
-  # Encrypt with shared random key RN
   def _RN_encrypt(self, RN, msg):
     cypher = ''
     for char in msg:
       cypher += chr((ord(char) + int(RN)) % 256)
     return cypher
 
-  # Decrypt with shared random key RN
   def _RN_decrypt(self, RN, cypher):
     msg = ''
     for char in cypher:
       msg += chr((ord(char) - int(RN)) % 256)
     return msg
 
-  #
-  # ===========================================================================
-
-#end include RSAShim.repy
-#begin include NatBranchingShim.repy
 
 
-# A wrapper for listener handles with their corresponding shim stacks.
+
 class NatBranchingShimHandle:
   def __init__(self, handle_stack_map):
-    # A dict that maps handle to shim stack. We use the object's built-in hash
-    # function, which calculates the hash value based on its memory address.
     self.handle_stack_map = handle_stack_map
 
   def get_map(self):
@@ -7428,29 +6785,21 @@ class NatBranchingShim(BaseShim):
     return '(NatBranchingShim)' + self.shim_stack.get_advertisement_string()
 
   
-  # Server listener callback
   def _shim_listener_callback(self, rip, rport, sock, th, lh):
-    # busy-waiting until handle is ready
     while not self._listen_handle:
       sleep(0.5)
 
     return (rip, rport, sock, th, self._listen_handle)
 
 
-  # Create two separate shim stacks. Return a wrapper of both handles when both
-  # shim stacks return.
   def _shim_waitforconn(self, host, port, callback):
 
-    # Build both shims
     noopstack = self.shim_stack.copy()
     natstack = self.shim_stack.copy()
     natstack.push(NatForwardingShim())
 
-    # Create callback wrapper so that the callback function receives our
-    # customized listen handle
     self._branch_waitforconn_cb = callback
 
-    # create handle
     self._logger.log('waitforconn: Constructing noop shim stack.')
     noophandle = noopstack.waitforconn(host, port, callback)
     self._logger.log('waitforconn: Constructing NAT shim stack.')
@@ -7462,11 +6811,8 @@ class NatBranchingShim(BaseShim):
 
 
 
-  # Stop both listeners.
   def _shim_stopcomm(self, listen_handle):
-    # check handle
     if not isinstance(listen_handle, NatBranchingShimHandle):
-      # TODO Should return false here
       raise Exception('Incorrect listen_handle type.') 
 
     result = True
@@ -7481,15 +6827,8 @@ class NatBranchingShim(BaseShim):
     
 
   def _shim_openconn(self, host, port, localhost=None, localport=None, timeout=5):
-    # Let us try direct connection first
     try:
  
-      # debug only
-      # if not mycontext.has_key('branch_client_count'):
-      #   mycontext['branch_client_count'] = 0
-      # mycontext['branch_client_count'] += 1
-      # if mycontext['branch_client_count'] % 2 == 0 and True:
-      #   raise Exception('Testing: Try using Nat.')
 
       self._logger.log("openconn: Trying direct connection.")
       sock = self.shim_stack.openconn(host, port, localhost, localport, timeout)
@@ -7504,15 +6843,10 @@ class NatBranchingShim(BaseShim):
       self._logger.log("openconn: NAT works.")
       return sock
 
-#end include NatBranchingShim.repy
-#begin include RSABranchingShim.repy
 
 
-# A wrapper for listener handles with their corresponding shim stacks.
 class RSABranchingShimHandle:
   def __init__(self, handle_stack_map):
-    # A dict that maps handle to shim stack. We use the object's built-in hash
-    # function, which calculates the hash value based on its memory address.
     self.handle_stack_map = handle_stack_map
 
   def get_map(self):
@@ -7541,21 +6875,15 @@ class RSABranchingShim(BaseShim):
     return mycopy
 
 
-  # The coordinator recognizes '[(ShimA)||(ShimB)]' as a branch statement and
-  # will automatically expand it appropriately. The alternative port number is
-  # enclosed in curly braces.
   def get_advertisement_string(self):
     return '(RSABranchingShim)[(RSAShim){' + \
         str(self._rsaport) + '}||]' + self.shim_stack.get_advertisement_string()
 
   
-  # Server listener callback
   def _branch_waitforconn_cb_wrapper(self, rip, rport, sock, th, lh):
-    # busy-waiting until handle is ready
     while not self._listen_handle:
       sleep(0.5)
 
-    # rebuild stack below this shim
     shimstack = self._listen_handle.get_stack(lh)
     socketptr = sock
     while shimstack.top_shim is not None:
@@ -7563,25 +6891,17 @@ class RSABranchingShim(BaseShim):
       socketptr = socketptr._socket
       shimstack = shimstack.top_shim.shim_stack
 
-    # Now that the socket contains a copy of the shim stack below, we can pass
-    # the socket to the callback.
     self._branch_waitforconn_cb(rip, rport, sock, th, self._listen_handle)
 
 
-  # Create two separate shim stacks. Return a wrapper of both handles when both
-  # shim stacks return.
   def _shim_waitforconn(self, host, port, callback):
 
-    # Build both shims
     noopstack = self.shim_stack.copy()
     rsastack = self.shim_stack.copy()
     rsastack.push(RSAShim())
 
-    # Create callback wrapper so that the callback function receives our
-    # customized listen handle
     self._branch_waitforconn_cb = callback
 
-    # create handle
     noophandle = noopstack.waitforconn(host, port, self._branch_waitforconn_cb_wrapper)
     debugprint("Built noopstack: '%s'" % noopstack)
     self._rsaport = getFreePort()
@@ -7594,11 +6914,8 @@ class RSABranchingShim(BaseShim):
 
 
 
-  # Stop both listeners.
   def _shim_stopcomm(self, listen_handle):
-    # check handle
     if not isinstance(listen_handle, RSABranchingShimHandle):
-      # TODO Should return false here
       raise Exception('Incorrect listen_handle type.') 
 
     result = True
@@ -7616,10 +6933,7 @@ class RSABranchingShim(BaseShim):
 
     has_rsa = isinstance(self.shim_stack.top_shim, RSAShim)
 
-    # TODO debug only. This determines whether this client uses the rsa shim
-    # begin
 
-    # if my local ip ends with an even number, then use rsa
     if localhost is None:
       raise Exception('Must specify local IP for debug')
 
@@ -7637,20 +6951,13 @@ class RSABranchingShim(BaseShim):
     else:
       debugprint("openconn: NOT using RSA.")
 
-    # end
 
     sock = self.shim_stack.openconn(host, port, localhost, localport, timeout)
     return sock
 
 
 
-#end include RSABranchingShim.repy
-#begin include ReverseShim.repy
-# A 'subtractive' shim!
 
-#begin include session.repy
-#already included session.repy
-#end include session.repy
 
 
 class ReverseShim(BaseShim):
@@ -7666,26 +6973,20 @@ class ReverseShim(BaseShim):
     return '(ReverseShim)' + self.shim_stack.get_advertisement_string()
 
 
-  # Server's listen
   def _shim_waitforconn(self, hostkey, port, callback):
     self._server_cb = callback
     return self.shim_stack.waitforconn(hostkey, port, self._server_cb_wrapper)
 
 
-  # Server's listener callback
   def _server_cb_wrapper(self, rip, rport, sock, th, lh):
     debugprint('callback: sock: %s' % sock)
 
-    # obtain client's listener details
     clientip = session_recvmessage(sock)
     clientport = int(session_recvmessage(sock))
 
-    # Pop the nat shim from the copy of the current stack. Important: We do not
-    # want to mess with the contents of the current stack!
     shim_stack = self.shim_stack.copy()
     popped = shim_stack.pop()
 
-    # Wait for the client's listener to be ready
     control_msg = session_recvmessage(sock)
     if control_msg == 'client is listening':
       debugprint('Attempt to connect to client %s:%s' % (clientip, clientport))
@@ -7695,36 +6996,27 @@ class ReverseShim(BaseShim):
     else:
       raise Exception("Invalid control_msg: '%s'." % control_msg)
 
-    # return new socket to callback
     self._server_cb(rip, rport, callback_sock, th, lh)
 
 
 
-  # Client's openconn.
-  #
-  # Upon connection, send server my ip and port, pop the stack and then I start
-  # listening.
   def _shim_openconn(self, hostkey, port, localhost=None, localport=None, timeout=5):
     sock = self.shim_stack.openconn(hostkey, port, localhost, localport, timeout)
 
-    # TODO send my public ip and port, randomly assigned for now
     mylistenip = getRandomIP() # Returns 127.x.x.x
     mylistenport = 12345
     session_sendmessage(sock, mylistenip)
     session_sendmessage(sock, str(mylistenport))
 
-    # Remove the nat shim below me. Again, always make a copy of the stack!
     shim_stack = self.shim_stack.copy()
     shim_stack.pop()
 
-    # start listening!
     self._comm_socket = None
     self._client_listener = shim_stack.waitforconn(mylistenip, mylistenport, self._client_cb_wrapper)
     debugprint('openconn: start listening')
 
     session_sendmessage(sock, 'client is listening')
 
-    # wait for the server to callback so we have a socket!
     while not self._comm_socket:
       sleep(1)
 
@@ -7732,12 +7024,9 @@ class ReverseShim(BaseShim):
     return self._comm_socket
 
 
-  # Client's listener callback
   def _client_cb_wrapper(self, rip, rport, sock, th, lh):
     self._comm_socket = sock
 
-#end include ReverseShim.repy
-#begin include NoopShim.repy
 
 class NoopShim(BaseShim):
 
@@ -7745,12 +7034,335 @@ class NoopShim(BaseShim):
     return NoopShim()
 
 
-#end include NoopShim.repy
+
+class FECShim(BaseShim):
+
+  name = 'FECShim'
+
+  ip = getmyip()
+  send_lock = getlock()
+  recv_lock = getlock()
+  send_dict = {'package_id':random_nbit_int(10)}
+
+
+  def __init__(self, next_shim=None, optional_args=None):
+    BaseShim.__init__(self, next_shim, optional_args)
+    self._logger = ShimLogger('FECShim')
+
+    self.prev_callback = None
+    self.recv_dict = {}
+
+
+
+  def copy(self):
+    return FECShim()
+
+
+  def get_advertisement_string(self):
+    return '(FECShim)' + self.shim_stack.get_advertisement_string()
+
+
+
+  def recvmess(self,host,port,callback):
+    self.prev_callback = callback
+    handle = self.shim_stack.recvmess(host,port,self.fec_callback)
+    return ('FEC',handle)
+
+
+
+  def fec_callback(self,rip,rport,message,handle):
+      
+    try:
+      (rip,id,count,message) = message.split(':',3)
+    except Exception, e:
+      raise Exception('Bad message header in FECShim: '+str(e))
+    
+    if count not in ['0','1','2']: 
+      raise Exception('Bad message header in FESCHim: '+count)    
+
+    package_header = rip+':'+id
+    
+    self.recv_lock.acquire()
+    
+    if package_header not in self.recv_dict:
+      self.recv_dict[package_header] = {'0':None,'1':None,'2':None,'recv':0} 
+    
+    package_dict = self.recv_dict[package_header]
+
+    if package_dict[count] is not None:
+      self.recv_lock.release()
+      return
+    
+    package_dict[count] = message
+    package_dict['recv'] += 1
+    
+    
+    if package_dict['recv'] == 1 and count != '2':
+      self.recv_lock.release()     
+      self.prev_callback(rip,rport,message,handle)
+
+    elif package_dict['recv'] == 2:
+      
+      if package_dict['2'] is None:
+        self.recv_lock.release()
+        self.prev_callback(rip,rport,message,handle)
+      
+      else:
+
+        self.recv_lock.release()
+        
+
+        if count != '2':
+          recovered_packet = self.str_xor(package_dict['2'],message)
+          
+        if count == '2':
+          if package_dict['1'] is None:
+            recovered_packet = self.str_xor(package_dict['0'],message)
+          elif package_dict['0'] is None:
+            recovered_packet = self.str_xor(package_dict['1'],message)
+          else:
+            raise Exception("ERROR in FECShim")
+          self.prev_callback(rip,rport,recovered_packet,handle)    
+          return
+        
+        while True:
+          try:
+            self.prev_callback(rip,rport,recovered_packet,handle)    
+          except Exception,e:
+            if 'events' in str(e): 
+              sleep(1) #wait and try
+              print 'caught events exception in FECShim'
+            else: raise
+          else:
+            break        
+      
+        self.prev_callback(rip,rport,message,handle)
+
+
+    elif package_dict['recv'] == 3:
+      del self.recv_dict[package_header]
+      self.recv_lock.release()
+      return
+
+    elif package_dict['recv'] > 3:
+      raise Exception("ERROR IN FECSHIM, recvied: "+str(package_dict['recv'])) 
+    
+
+
+
+  def sendmess(self,host,port,msg,localhost=None,localport=None):
+    
+    self.send_lock.acquire()
+    
+
+    target = host+':'+str(port)
+    if target not in self.send_dict:
+      self.send_dict[target] = {'id':self.send_dict['package_id'],'str':None}
+      self.send_dict['package_id'] += 1
+
+    if self.send_dict[target]['str'] == None:
+      self.send_dict[target]['str'] = msg
+      self.send_lock.release()
+      
+      new_msg = self.ip+':'+str(self.send_dict[target]['id'])+':0:'+msg
+      self.shim_stack.sendmess(host,port,new_msg,localhost,localport)
+ 
+    else:
+      
+      xor = self.str_xor(self.send_dict[target]['str'],msg)
+      new_msg = self.ip+':'+str(self.send_dict[target]['id'])+':1:'+msg
+      xor = self.ip+':'+str(self.send_dict[target]['id'])+':2:'+xor
+      del self.send_dict[target]
+      
+      self.send_lock.release()
+      
+      self.shim_stack.sendmess(host,port,new_msg,localhost,localport)
+      self.shim_stack.sendmess(host,port,xor,localhost,localport)
+      
+    return len(msg) 
+    
+    
+  def stopcomm(self,handle):
+    try:
+      (name,handle) = handle
+      if name != 'FEC':  raise Excetpion('Bad name'+str(name))
+    except Exception, e:
+      raise Exception('Bad handle in FECShim: '+str(e))
+    else:
+      self.recv_dict = None
+      self.shim_stack.stopcomm(handle)
+
+  def str_xor(self,a,b):
+    if len(a) > len(b):
+      (a,b) = (b,a)
+    outstr = ''
+    for pos in range(len(a)):
+      outstr = outstr + chr( ord(a[pos]) ^ ord(b[pos]))
+    outstr = outstr + b[pos+1:]
+    return outstr
 
 
 
 
-# Register all shims in the world
+"""
+Compression shim that implements the LZW algorithm.
+
+Written by: Danny Yuxing Huang (yh1@williams.edu)
+
+LZW Algorithm adapted from: http://bjourne.blogspot.com/2007/11/example-of-lzw-algorithm.html
+
+Base 36 conversion: http://en.wikipedia.org/wiki/Base_36#Python_Conversion_Code
+
+"""
+
+class LZWShim(BaseShim):
+
+  def __init__(self, next_shim=None, optional_args=None):
+    BaseShim.__init__(self, next_shim, optional_args)
+    self._logger = ShimLogger('LZWShim')
+  
+    self._code_to_str = [chr(i) for i in range(256)]
+    self._str_to_code = {}
+    for i in range(256):
+      self._str_to_code[chr(i)] = i
+
+  def sendmess(self,host,port,longmsg,localhost=None,localport=None):
+    shortmsg = self._compress(longmsg)
+    shortlength = self.shim_stack.sendmess(host,port,shortmsg,localhost,localport)
+
+    if shortlength == len(shortmsg):
+      return len(longmsg)
+    else:
+      return 0
+
+
+  def recvmess(self,host,port,callback):
+    self._prev_callback = callback
+    return self.shim_stack.recvmess(host,port,self._recvmess_callback)
+
+
+  def _recvmess_callback(self,rip,rport,longmsg,handle):
+    shortmsg = self._decompress(longmsg)
+    self._prev_callback(rip, rport, shortmsg, handle)
+
+
+
+
+  def _compress(self, longstr):
+    """
+    Returns an LZW compressed list of the input character sequence.
+    """
+    timeStart = getruntime()
+    output = []
+    table = dict(self._str_to_code)
+
+    s = ''
+    for ch in longstr:
+      it = s + ch
+      if it in table:
+        s = it
+      else:
+        output.append(table[s])
+        table[it] = len(table)
+        s = ch
+
+    output.append(table[s])
+    serialized = self._serialize(output)
+    timeEnd = getruntime()
+    if len(longstr) == 50000:
+      print '[%f]'%(timeEnd - timeStart) ,
+    return serialized
+
+  def _decompress(self, seq):
+    """
+    Returns a decompressed string of the LZW compressed input.
+    """
+    seq = self._deserialize(seq)
+
+    table = self._code_to_str[:]
+    prevcode = seq[0]
+
+    output = ""
+    output += table[prevcode]
+
+    for code in seq[1:]:
+      try:
+        entry = table[code]
+      except IndexError:
+        entry = table[prevcode]
+        entry += entry[0]
+      output += entry
+      table.append(table[prevcode] + entry[0])
+      prevcode = code
+
+    return output
+
+
+
+  def _base36encode(self, number, alphabet='0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ'):
+    """
+    Convert positive integer to a base36 string.
+    """
+    if not isinstance(number, (int, long)):
+      raise TypeError('number must be an integer')
+    if number < 0:
+      raise ValueError('number must be nonnegative')
+
+    if number == 0:
+      return '0'
+
+    base36 = ''
+    while number != 0:
+      number, i = divmod(number, 36)
+      base36 = alphabet[i] + base36
+
+    return base36
+
+
+  def _base36decode(self, number):
+    return int(number,36)
+
+
+  def _serialize(self, seq):
+    ret = ""
+    for number in seq:
+      numberstr = self._base36encode(number)
+
+      numberstr = chr(ord(numberstr[0]) + 100) + numberstr[1:]
+
+      ret += numberstr
+
+    return ret
+
+
+  def _deserialize(self, string):
+    seq = []
+    numberstr = ""
+    index = 0
+
+    while index < len(string):
+
+      numberstr += string[index]
+
+      if (index+1 < len(string) and ord(string[index+1]) > 100) or (index+1 == len(string)):
+
+        numberstr = chr(ord(numberstr[0]) - 100) + numberstr[1:]
+
+        number = self._base36decode(numberstr)
+
+        seq.append(number)
+        numberstr = ""
+
+      index += 1
+
+    return seq
+
+
+
+
+
+
+
 
 register_shim('BaseShim', BaseShim)
 register_shim('CoordinationShim', CoordinationShim)
@@ -7763,16 +7375,12 @@ register_shim('NatBranchingShim', NatBranchingShim)
 register_shim('RSABranchingShim', RSABranchingShim)
 register_shim('ReverseShim', ReverseShim)
 register_shim('NoopShim', NoopShim)
+register_shim('FECShim', FECShim)
+register_shim('LZWShim', LZWShim)
 
 
 
-# =============================================================================
-# TODO for debugging
-#
 
-#begin include random.repy 
-#already included random.repy 
-#end include random.repy 
 debugging = True
 
 def debugprint(string):
@@ -7782,7 +7390,6 @@ def debugprint(string):
 
 
 mycontext['debug_free_ports'] = [12346, 12347]
-# For the purpose of debugging only
 def getFreePort():
   try:
     return mycontext['debug_free_ports'].pop()
@@ -7797,8 +7404,6 @@ def getRandomIP():
   return ip
   
 
-#
-# =============================================================================
 
 
 
@@ -7812,9 +7417,6 @@ class ShimStackInterface:
       if stack_str.find('CoordinationShim') < 0:
         self._stack_str = '(CoordinationShim)' + self._stack_str
 
-    # Maps handle to stack. Although handle does not have a hash function
-    # defined, it is in fact hashed by its memory address. Thus, the keys in our
-    # map always reference to unique handles in the memory.
     self._handle_dict = {}
 
     self._logger = ShimLogger('')
