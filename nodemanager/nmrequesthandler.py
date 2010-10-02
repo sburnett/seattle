@@ -58,71 +58,60 @@ def initialize(myip, publickey, version):
 
   
 # Armon: Safely closes a socket object
-def safe_close(socket):
-  try:
-    socket.close()
-  except:
-    pass
-
 
 # this takes a connection and safely processes the request.   
 def handle_request(socketobj):
 
-
+  # always close the socketobj
   try:
-    # let's get the request...
-    # BUG: Should prevent endless data / slow retrival attacks
-    fullrequest = session_recvmessage(socketobj)
+
+
+    try:
+      # let's get the request...
+      # BUG: Should prevent endless data / slow retrival attacks
+      fullrequest = session_recvmessage(socketobj)
   
-  # Armon: Catch a vanilla exception because repy emulated_sockets
-  # will raise Exception when the socket has been closed.
-  # This is changed from just passing through socket.error,
-  # which we were catching previously.
-  except Exception, e:
-    # close if possible
-    safe_close(socketobj)
+    # Armon: Catch a vanilla exception because repy emulated_sockets
+    # will raise Exception when the socket has been closed.
+    # This is changed from just passing through socket.error,
+    # which we were catching previously.
+    except Exception, e:
 
-    # I can't handle this, let's exit
-    # BUG: REMOVE LOGGING IN PRODUCTION VERSION (?)
-    servicelogger.log_last_exception()
-    return
+      # I can't handle this, let's exit
+      # BUG: REMOVE LOGGING IN PRODUCTION VERSION (?)
+      servicelogger.log_last_exception()
+      return
 
-  # handle the request as appropriate
-  try:
-    retstring = process_API_call(fullrequest)
 
-  # Bad parameters, signatures, etc.
-  except nmAPI.BadRequest,e:
+
+    # handle the request as appropriate
     try:
+      retstring = process_API_call(fullrequest)
+
+    # Bad parameters, signatures, etc.
+    except nmAPI.BadRequest,e:
       session_sendmessage(socketobj, str(e)+"\nError")
-    except:
-      pass
-    # Armon: Moved out from the same try/catch because if session_sendmessage fails
-    # then, the socket would not be closed, this is to prevent leaks
-    safe_close(socketobj)
-    return
+      return
 
-  # Other exceptions only should happen on an internal error and should be
-  # captured by servicelogger.log
-  except Exception,e:
-    try:
+    # Other exceptions only should happen on an internal error and should be
+    # captured by servicelogger.log
+    except Exception,e:
       servicelogger.log_last_exception()
       session_sendmessage(socketobj,"Internal Error\nError")
-    except:
-      pass
-    # Armon: Prevent socket leaks
-    safe_close(socketobj)
-    return
+      return
  
-  
-  # send any output from the command
-  try:
+    # send the output of the command...
     session_sendmessage(socketobj,retstring)
-  except:
-    pass
   
-  # Prevent leaks
-  safe_close(socketobj)
+  finally:
+    # Prevent leaks
+    try:
+      socketobj.close()
+    except Exception, e:
+      servicelogger.log_last_exception()
+   
+      
+  
 
 
 

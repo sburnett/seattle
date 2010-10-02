@@ -161,7 +161,9 @@ class WorkerThread(threading.Thread):
         if len(connection_dict)>0:
           # get the "first" request
           conn = pop_request()
+          servicelogger.log('start handle_request:'+str(id(conn)))
           nmrequesthandler.handle_request(conn)
+          servicelogger.log('finish handle_request:'+str(id(conn)))
         else:
           # check at most twice a second (if nothing is new)
           time.sleep(self.sleeptime)
