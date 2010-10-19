@@ -39,6 +39,7 @@ import glob
 import os
 import random
 import shutil
+import optparse
 import subprocess
 
 sys.path.insert(0, os.path.join(os.getcwd(), "repy", "tests"))
@@ -59,13 +60,29 @@ def copy_to_target(file_expr, target):
 #iterate through the .mix files in current folder and run them through the preprocessor
 #script_path must specify the name of the preprocessor script
 #the working directory must be set to the directory containing the preprocessor script prior to executing this function.
-def process_mix(script_path):
+def process_mix(script_path, verbose):
   mix_files = glob.glob("*.mix")
- 
+  error_list = []
+
   for file_path in mix_files:
     #generate a .py file for the .mix file specified by file_path
     processed_file_path = (os.path.basename(file_path)).replace(".mix",".py")
     (theout, theerr) =  exec_command("python " + script_path + " " + file_path + " " + processed_file_path)
+
+    # If there was any problem processing the files, then notify the user.
+    if theerr:
+      print "Unable to process the file: " + file_path
+      error_list.append((file_path, theerr))
+      # If the verbose option is on then print the error.
+      
+  if verbose:
+    print "\n" + '#'*50 + "\nPrinting all the exceptions (verbose option)\n" + '#'*50
+    if len(error_list) == 0:
+      print "NONE!!"
+    for file_name, error in error_list:
+      print "\n" + file_name + ":"
+      print error
+      print '-'*80
 
 
 def exec_command(command):
@@ -101,42 +118,55 @@ def exec_command(command):
   return (theout, theerr)
 
 
-helpstring = """python preparetest.py [-t] <foldername>"""
+helpstring = """python preparetest.py [-t | -v] <foldername>"""
 
 # Prints the given error message and the help string, then exits
-def help_exit(errMsg):
+def help_exit(errMsg, parser):
   print errMsg
-  print helpstring
+  parser.print_help()
   sys.exit(1)
 
 def main():
   repytest = False
   RANDOMPORTS = False
+  verbose = False
 	
   target_dir = None
-  for arg in sys.argv[1:]:
-    # -t means we will copy repy tests
-    if arg == '-t':
-      repytest = True
 
-    # The user wants us to fill in the port numbers randomly.
-    elif arg == '-randomports':
-      RANDOMPORTS = True
+  # Parse the options provided.
+  parser = optparse.OptionParser()
 
-    # Not a flag? Assume it's the target directory
-    else:
-      target_dir = arg
+  parser.add_option("-t", "--include-test-files", action="store_true",
+                    dest="include_tests", help="Include the test " +
+                    "files in the output directory.")
+  parser.add_option("-v", "--verbose", action="store_true",
+                    dest="verbose", help="Show more output on failure")
+  parser.add_option("-r", "--randomports", action="store_true", 
+                    dest="randomports", help="Fill in the ports randomly")
 
-  # We need a target dir. If one isn't found in argv, quit.
-  if target_dir is None:
-    help_exit("Please pass the target directory as a parameter.")
+  (options, args) = parser.parse_args()
+
+  # Set certain variables according to the options provided.
+  if options.include_tests:
+    repytest = True
+  if options.randomports:
+    RANDOMPORTS = True
+  if options.verbose:
+    verbose = True
+
+  # Extract the target directory if available.
+  if len(args) == 0:
+    help_exit("Please pass the target directory as a parameter.", parser)
+  else:
+    target_dir = args[0]
+
 
   #store root directory
   current_dir = os.getcwd()
 
   # Make sure they gave us a valid directory
   if not( os.path.isdir(target_dir) ):
-    help_exit("given foldername is not a directory")
+    help_exit("given foldername is not a directory", parser)
 
   #set working directory to the test folder
   os.chdir(target_dir)	
@@ -193,7 +223,7 @@ def main():
   os.chdir(target_dir)
 
   #call the process_mix function to process all mix files in the target directory
-  process_mix("repypp.py")
+  process_mix("repypp.py", verbose)
 
   # set up dynamic port information
   if RANDOMPORTS:
