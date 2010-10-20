@@ -368,7 +368,10 @@ def listfilesinvessel(vesselname):
     raise BadRequest, "No such vessel"
 
   # the directory should exist.   If not, it's an Internal error...
+  # After getting the list, sort the file names in alphabetical
+  # order.
   filelist = os.listdir(vesselname+"/")
+  filelist.sort()
 
   # return the list of files, separated by spaces
   return ' '.join(filelist) + "\nSuccess"
