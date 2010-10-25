@@ -612,54 +612,61 @@ def create_softwareupdater_server(temp_install_dir, update_server_dir, keystore_
     Returns the list of file in the temp_install_dir
   """
 
-  # This is done, because of some permission problems.
-  quickstart_root = "/tmp/quickstart_root/"
-
-  _copy_filetree(temp_install_dir, quickstart_root, 
-                 ignore=['nodeman.cfg', 'resources.offcut'])
-
-  try:
-    os.chmod(quickstart_root, 0755)
-
-
-    # These are the arguments used to create the softwareupdater
-    # server. We run quickstart, which takes care of most of these.
-    args = ["python",
-            "quickstart.py",
-            "-k",
-            keystore_location+"/keystore.txt",
-            "-p",
-            "genirepy",
-            "-t",
-            "1",
-            "-l",
-            update_server_dir,
-            "-r",
-            quickstart_root,
-            "-e",
-            "12/12/2012"]
-    retcode = subprocess.call(args)
-    
-    # Make sure we ran quickstart successfully.
-    if retcode:
-      raise Exception("Unable to run quickstart.py: " + str(retcode))
-    
-    # Create the necessary directories and copy over the all the 
-    # necessary files.
-    os.makedirs(os.path.join(temp_install_dir, "repo", "cur"))
-    os.makedirs(os.path.join(temp_install_dir, "repo", "prev"))
-    
-    for f in glob.iglob(os.path.join(update_server_dir, "meta/", "*")):
-      shutil.copy(f, os.path.join(temp_install_dir, "repo", "cur"))
-      
-      for f in glob.iglob(os.path.join(update_server_dir, "meta/", "*")):
-        shutil.copy(f, os.path.join(temp_install_dir, "repo", "prev"))
+  os.chmod(temp_install_dir, 0755)
+  
+  
+  # These are the arguments used to create the softwareupdater
+  # server. We run quickstart, which takes care of most of these.
+  args = ["python",
+          "quickstart.py",
+          "-k",
+          keystore_location+"/keystore.txt",
+          "-p",
+          "genirepy",
+          "-t",
+          "1",
+          "-l",
+          update_server_dir,
+          "-r",
+          temp_install_dir,
+          "-e",
+          "12/12/2012"]
+  retcode = subprocess.call(args)
+  
+  # Make sure we ran quickstart successfully.
+  if retcode:
+    raise Exception("Unable to run quickstart.py: " + str(retcode))
         
-  finally:
-    # Make sure to remove the temporary dir.
-    shutil.rmtree(quickstart_root)
 
   return os.listdir(temp_install_dir)
+
+
+
+
+
+
+def copy_softwareupdater_files(temp_install_dir, update_server_dir):
+  """
+  This function copies over the directory structure
+  that is needed for the softwareupdater to run 
+  properly.
+  """
+
+  # Create the necessary directories and copy over the all the
+  # necessary files.
+  os.makedirs(os.path.join(temp_install_dir, "repo", "cur"))
+  os.makedirs(os.path.join(temp_install_dir, "repo", "prev"))
+
+  for f in glob.iglob(os.path.join(update_server_dir, "meta/", "*")):
+    shutil.copy(f, os.path.join(temp_install_dir, "repo", "cur"))
+
+  for f in glob.iglob(os.path.join(update_server_dir, "meta/", "*")):
+    shutil.copy(f, os.path.join(temp_install_dir, "repo", "prev"))
+
+
+  return os.listdir(temp_install_dir)
+
+
 
 
 
@@ -762,9 +769,14 @@ def test_arguments(arguments):
   if not os.path.exists(sys.argv[6]):
     raise IOError("Softwareupdater server directory does not exist.")
 
-  if len(os.listdir(sys.argv[6])) != 0:
-    raise IOError("Softwareupdater server directory is not empty.")
+  server_dir_list = os.listdir(sys.argv[6])
+  if len(server_dir_list) == 0:
+    raise IOError("Softwareupdater server has not been created yet!")
 
+  for file_name in ["targets", "meta", "root.cfg"]:
+    if file_name not in server_dir_list:
+      raise IOError("Softwareupdater server seems to be not exist or" +
+                    " malformed. Please check the path: " + sys.argv[6]) 
 
 
   # All arguments are valid.
@@ -945,7 +957,6 @@ def main():
   privkey = os.path.realpath(sys.argv[4])
   softwareupdater_server_dir = os.path.realpath(sys.argv[6])
   version = ""
-  keystore_location = os.path.split(os.path.realpath(pubkey))[0]
   
   # Figure out if the optional version number or the path to the Windows GUI
   # builder was passed in.
@@ -1018,10 +1029,9 @@ def main():
   prepare_gen_files(trunk_location,temp_install_dir,include_tests,
                     pubkey,privkey,True)
 
-  shutil.copy2(os.path.join(temp_install_dir, "metainfo"), "/home/testgeni/temp")
-  # Create the software updater server and sign all the data.
-  gen_files = create_softwareupdater_server(temp_install_dir, softwareupdater_server_dir,
-                                            keystore_location)
+  gen_files = copy_softwareupdater_files(temp_install_dir, softwareupdater_server_dir)
+
+
   print "Complete."
 
 
