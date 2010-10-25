@@ -33,11 +33,13 @@
 
 import os
 import sys
+import glob
 import shutil
-import subprocess
-import tempfile
 import zipfile
 import tarfile
+import tempfile
+import subprocess
+
 
 import clean_folder
 
@@ -187,6 +189,7 @@ def prepare_gen_files(trunk_location,temp_install_dir,include_tests,pubkey,
       Boolean variable specifying whether or not to prepare the final files
       after the metafile has been written
 
+
   <Exceptions>
     IOError on bad file paths.    
 
@@ -255,6 +258,7 @@ def prepare_gen_files(trunk_location,temp_install_dir,include_tests,pubkey,
   clean_folder.clean_folder(trunk_location + "/dist/initial_files.fi",
                             temp_install_dir)
 
+
   # To run writemetainfo.py, we must be in that directory (probably a bug in
   # writemetainfo.py?)
   os.chdir(temp_install_dir)
@@ -264,7 +268,6 @@ def prepare_gen_files(trunk_location,temp_install_dir,include_tests,pubkey,
                         privkey,pubkey,"-n"])
   p.wait()
   os.chdir(original_dir)
-
 
 
   # If specified, copy remaining files that should not be included in the
@@ -278,8 +281,37 @@ def prepare_gen_files(trunk_location,temp_install_dir,include_tests,pubkey,
     clean_folder.clean_folder(trunk_location + "/dist/final_files.fi",
                               temp_install_dir)
 
+  # Copy over the tuf related files.
+  shutil.copytree(os.path.join(trunk_location, "tuf"), 
+                  os.path.join(temp_install_dir, "tuf"))
+  shutil.copytree(os.path.join(trunk_location, "tuf", "simplejson"),
+                  os.path.join(temp_install_dir, "simplejson"))
+
+  # This will remove any other unnecessary pyc files that have been 
+  # added to the server by accident.
+  remove_pyc_files(temp_install_dir)
 
   return os.listdir(temp_install_dir)
+
+
+
+
+
+
+
+def remove_pyc_files(root_dir):
+  """
+  Remove all the pyc files in the directory recursively.
+  """
+
+  for dirpath, dirnames, filenames in os.walk(root_dir):
+    for name in filenames:
+      path = os.path.normpath(os.path.join(dirpath, name))
+      if os.path.isfile(path) and path.endswith(".pyc"):
+        os.remove(path)
+  
+
+
 
 
 
@@ -400,66 +432,72 @@ def package_win_or_winmob(trunk_location, temp_install_dir, temp_tarball_dir,
 
   <Returns>
     None.  
-   """
+  """
 
-  # Open the Windows zipfile for writing, or create a zipfile for Windows
-  # Mobile.
-  if not "winmob" in inst_name:
-    shutil.copy2(trunk_location + "/dist/win/partial_win.zip",
-                 temp_tarball_dir + os.sep + inst_name)
-    installer_zipfile = zipfile.ZipFile(temp_tarball_dir + os.sep + inst_name,
-                                        "a")
+  temp_seattle_dir = tempfile.mkdtemp()
+  
+  partial_win_zip_path = os.path.join(temp_seattle_dir, inst_name)
+  specific_installer_dir = ""
+
+
+  # We copy over some files, if its not a windows mobile installer
+  if "winmob" not in inst_name:
+    shutil.copy2(trunk_location + "/dist/win/partial_win.zip", 
+                 partial_win_zip_path)
+
+    _extract_zip_file(partial_win_zip_path, temp_seattle_dir)
+
+    specific_installer_dir = trunk_location + WINDOWS_PATH
+
+    # Non-winmob windows need some additional files that needs to be copied over. 
+    script_wrappers_dir = trunk_location + WINDOWS_SCRIPT_WRAPPERS_PATH
+    _copy_filetree(script_wrappers_dir, os.path.join(temp_seattle_dir, BASE_INSTALL_DIR), 
+                   ignore=['svn'])
   else:
-    installer_zipfile = zipfile.ZipFile(temp_tarball_dir + os.sep + inst_name,
-                                        "w")
+    specific_installer_dir = trunk_location + WINMOB_PATH
 
-  # Put all general program files into zipfile.
-  for fname in gen_files:
-    installer_zipfile.write(temp_install_dir + os.sep + fname,
-                            BASE_PROGRAM_FILES_DIR + os.sep + fname)
-
-
-
-  # Put all files specific to this installer into zipfile.
-
-  # First, copy all scripts that belong in the BASE_PROGRAM_FILES_DIR.
-  if not "winmob" in inst_name:
-    specific_installer_dir = trunk_location + os.sep + WINDOWS_PATH
-  else:
-    specific_installer_dir = trunk_location + os.sep + WINMOB_PATH
-  specific_files = os.listdir(specific_installer_dir)
-
-  # Add OS-specific files to the zipfile.
-  for fname in specific_files:
-    if not "svn" in fname and fname != "manifest.txt":
-      # Add the README and LICENSE files to the highest-level directory
-      # (BASE_INSTALL_DIR).
-      if "LICENSE" in fname or "README" in fname:
-        installer_zipfile.write(specific_installer_dir + os.sep + fname,
-                                BASE_INSTALL_DIR + os.sep + fname)
-      else:
-        installer_zipfile.write(specific_installer_dir + os.sep + fname,
-                              BASE_PROGRAM_FILES_DIR + os.sep + fname)
-
-
-
-  # Second, copy all script wrappers (which call those in the
-  # BASE_PROGRAM_FILES_DIR) to the BASE_INSTALL_DIR.
-  if "winmob" in inst_name:
-    return
-  else:
-    script_wrappers_dir = trunk_location + os.sep + WINDOWS_SCRIPT_WRAPPERS_PATH
-  script_wrappers = os.listdir(script_wrappers_dir)
-
-  # Add script wrappers to the zipfile.
-  for fname in script_wrappers:
-    if not "svn" in fname:
-      installer_zipfile.write(script_wrappers_dir + os.sep + fname,
-                              BASE_INSTALL_DIR + os.sep + fname)
-
-
-  installer_zipfile.close()
     
+
+  # Copy over all the general non-os specific files.
+  for fname in gen_files:
+    source_path = os.path.join(temp_install_dir, fname)
+    target_path = os.path.join(temp_seattle_dir,BASE_PROGRAM_FILES_DIR, fname)
+    if os.path.isdir(source_path):
+      if os.path.exists(target_path):
+        shutil.rmtree(target_path)
+      shutil.copytree(source_path, target_path)
+    else:
+      if not os.path.exists(os.path.dirname(target_path)):
+        os.makedirs(os.path.dirname(target_path))
+      shutil.copy2(source_path, target_path)
+
+
+  # Copy over all the specific files. Ignoring the files 
+  # matching the pattern.
+  _copy_filetree(specific_installer_dir, 
+                 os.path.join(temp_seattle_dir, BASE_PROGRAM_FILES_DIR), 
+                 ignore=['svn', 'LICENSE', 'README', 'manifest.txt'])
+
+  
+  # Copy over the License and the Readme file to the top level
+  # directory for everyone to read.
+  for fname in ['LICENSE.txt', 'README.txt']:
+    source_path = os.path.join(specific_installer_dir, fname)
+    target_path = os.path.join(temp_seattle_dir, BASE_INSTALL_DIR, fname)
+    # Check if the file exists.
+    if os.path.exists(source_path):
+      shutil.copy2(source_path, target_path)
+
+  
+  # Create the archive zip file.
+  _archive_zip_file(os.path.join(temp_tarball_dir, inst_name), 
+                    os.path.join(temp_seattle_dir, BASE_INSTALL_DIR))
+
+  # Remove the temporary directory.
+  shutil.rmtree(temp_seattle_dir)
+
+
+
 
 
 
@@ -502,7 +540,7 @@ def package_linux_or_mac(trunk_location, temp_install_dir, temp_tarball_dir,
   # Put all general installer files into the tar file.
   for fname in gen_files:
     installer_tarfile.add(temp_install_dir + os.sep + fname,
-                          BASE_PROGRAM_FILES_DIR + os.sep + fname,False)
+                          os.path.join(BASE_PROGRAM_FILES_DIR, fname), recursive=True)
 
 
 
@@ -548,14 +586,148 @@ def package_linux_or_mac(trunk_location, temp_install_dir, temp_tarball_dir,
 
 
 
+
+def create_softwareupdater_server(temp_install_dir, update_server_dir, keystore_location):
+  """
+  <Purpose>
+    We create and prepare the software updater server. It calls quickstart
+    in order to properly prepare the server.
+
+  <Arguments>
+    temp_install_dir - The directory where all the general non-os specific
+      files are stored for the moment.
+
+    update_server_dir - The root dir where the sofware updater server
+      resides.
+
+    keystore_location - where to store the keys generated by tuf preparation.
+
+  <Side_Effects>
+    Calls quickstart with subprocess
+
+  <Error>
+    Error will be raised if the server directory has already been prepared.
+
+  <Return>
+    Returns the list of file in the temp_install_dir
+  """
+
+  # This is done, because of some permission problems.
+  quickstart_root = "/tmp/quickstart_root/"
+
+  _copy_filetree(temp_install_dir, quickstart_root, 
+                 ignore=['nodeman.cfg', 'resources.offcut'])
+
+  try:
+    os.chmod(quickstart_root, 0755)
+
+
+    # These are the arguments used to create the softwareupdater
+    # server. We run quickstart, which takes care of most of these.
+    args = ["python",
+            "quickstart.py",
+            "-k",
+            keystore_location+"/keystore.txt",
+            "-p",
+            "genirepy",
+            "-t",
+            "1",
+            "-l",
+            update_server_dir,
+            "-r",
+            quickstart_root,
+            "-e",
+            "12/12/2012"]
+    retcode = subprocess.call(args)
+    
+    # Make sure we ran quickstart successfully.
+    if retcode:
+      raise Exception("Unable to run quickstart.py: " + str(retcode))
+    
+    # Create the necessary directories and copy over the all the 
+    # necessary files.
+    os.makedirs(os.path.join(temp_install_dir, "repo", "cur"))
+    os.makedirs(os.path.join(temp_install_dir, "repo", "prev"))
+    
+    for f in glob.iglob(os.path.join(update_server_dir, "meta/", "*")):
+      shutil.copy(f, os.path.join(temp_install_dir, "repo", "cur"))
+      
+      for f in glob.iglob(os.path.join(update_server_dir, "meta/", "*")):
+        shutil.copy(f, os.path.join(temp_install_dir, "repo", "prev"))
+        
+  finally:
+    # Make sure to remove the temporary dir.
+    shutil.rmtree(quickstart_root)
+
+  return os.listdir(temp_install_dir)
+
+
+
+
+
+def update_softwareupdater_server(temp_install_dir, update_server_dir, keystore_location):
+  """
+  <Purpose>
+    We update the sofware updater server, in order to push the new updates
+    onto the seattle clients.
+
+  <Arguments>
+    temp_install_dir - The directory where all the general non-os specific
+      files are stored for the moment.
+
+    update_server_dir - The root dir where the sofware updater server 
+      resides.
+
+    keystore_location - where to store the keys generated by tuf preparation.
+
+  <Side_Effects>
+    Calls quickstart with subprocess
+
+  <Error>
+    Error will be raised if the server directory has already been prepared.
+
+  <Return>
+    None
+  """
+
+
+  # The path to the configuration file.
+  cfg_path = os.path.join(update_server_dir, 'root.cfg')
+
+  # Make sure we have the right permissions on all files.
+  os.chmod(temp_install_dir, 0755)
+  args = ["python",
+          "quickstart.py",
+          "-u",
+          "-k",
+          keystore_location+"/keystore.txt",
+          "-p",
+          "genirepy",
+          "-l",
+          update_server_dir,
+          "-r",
+          temp_install_dir,
+          "-c",
+          cfg_path]
+
+  # Update the sofwareupdater server from the temp_install dir.
+  retcode = subprocess.call(args)
+
+  # Make sure we ran quickstart successfully.
+  if retcode:
+    raise Exception("Unable to run quickstart.py: " + str(retcode))
+
+
+
+
 def test_arguments(arguments):
   """
   """
   # Test argument flags
-  if len(arguments) < 6:
+  if len(arguments) < 7:
     print "Too few arguments."
     return False
-  elif len(arguments) > 9:
+  elif len(arguments) > 10:
     print "Too many arguments."
     return False
 
@@ -587,6 +759,12 @@ def test_arguments(arguments):
   if not os.path.exists(sys.argv[4]):
     raise IOError("Private key not found.")
 
+  if not os.path.exists(sys.argv[6]):
+    raise IOError("Softwareupdater server directory does not exist.")
+
+  if len(os.listdir(sys.argv[6])) != 0:
+    raise IOError("Softwareupdater server directory is not empty.")
+
 
 
   # All arguments are valid.
@@ -594,10 +772,149 @@ def test_arguments(arguments):
 
 
 
+def _extract_zip_file(zip_file_name, output_path_dir=os.getcwd()):
+  """
+  Given a zip file name, extract all the files in the zip
+  file to the provided path, or the current directory if
+  no path is provided.
+  """
+
+  # If directories for the archive dir does not
+  # exist, then create them.
+  if not os.path.exists(output_path_dir):
+    os.makedirs(output_path_dir)
+
+  # Get reference to the zip file.
+  zip_fd = zipfile.ZipFile(zip_file_name)
+
+  # Get a list of all the files in the zilp file.
+  file_list = zip_fd.namelist()
+
+  # Open each file up in the zip file, and write it
+  # as a regular file.
+  for filemember in file_list:
+    
+    # Make sure that the filemember is a zipinfo object.
+    if not isinstance(filemember, zipfile.ZipInfo):
+      filemember = zip_fd.getinfo(filemember)
+
+    filename = filemember.filename
+    # Normalize the file path and get the file name out of the zipinfo object.
+    targetpath = os.path.normpath(os.path.join(output_path_dir, filename))
+
+    # If the filename is a directory path, then we create the directory
+    # if it does not exist, otherwise we continue.
+    if filename[-1] == '/':
+      if not os.path.isdir(targetpath):
+        os.makedirs(targetpath)
+      continue
+
+    source = zip_fd.read(filename)
+    target = open(targetpath, 'wb')
+    target.write(source)
+    target.close()
+
+  zip_fd.close()
+
+
+
+
+
+
+def _archive_zip_file(zip_filename, root_dir=os.getcwd(), append=False):
+  """
+  Create a zip file recursively given a root_dir from
+  where to create the zip file from. Most of this code
+  has been copied over from shutil.mak_archive implemented
+  in Python 2.7 with modification to simply it. The reason 
+  for this function is because we support Python 2.5.4 
+  but Python 2.5.4 does not have any methods that does this.
+  """
+
+  # Get the directory path for archive.
+  archive_dir = os.path.dirname(zip_filename)
+
+  # If directories for the archive dir does not
+  # exist, then create them.
+  if not os.path.exists(archive_dir):
+    os.makedirs(archive_dir)
+
+  # Open up a zip file to create or open up an existing one.
+  if append:
+    zip = zipfile.ZipFile(zip_filename, "a",
+                          compression=zipfile.ZIP_DEFLATED)
+  else:
+    zip = zipfile.ZipFile(zip_filename, "w",
+                          compression=zipfile.ZIP_DEFLATED)
+
+  # We want to create the zip file from the directory its in, otherwise
+  # the whole tree of directories are created.
+  cur_dir = os.getcwd()
+  archive_root = os.path.dirname(root_dir)
+  os.chdir(archive_root)
+  archive_base = os.path.basename(root_dir)
+
+  # Recursively add all the files into the zip file.
+  for dirpath, dirnames, filenames in os.walk(archive_base):
+    for name in filenames:
+      path = os.path.normpath(os.path.join(dirpath, name))
+      if os.path.isfile(path):
+        zip.write(path, path)
+
+  # Close the zip file.
+  zip.close()
+  
+  # Change directory back
+  os.chdir(cur_dir)
+
+
+def _contains_forbidden_substring(name, forbidden):
+  """
+  Check if name contains any of the words in forbidden list
+  """
+  return any(prohibit_name in name for prohibit_name in forbidden)
+
+  
+def _copy_filetree(source_dir, target_dir, ignore=[]):
+  """
+  Given a source directory and target directory, recursively 
+  copy all the files in the source directory to the target 
+  directory. If the target directory does not exist, create 
+  it. If the file name is in the ignore list we don't copy 
+  it over. Most of the code was copied over from Python 2.7
+  implementation. The reason for this is because it was not
+  implemented in Python 2.5.4, which we support.
+  """
+
+
+  # Create the target directory if not there.
+  if not os.path.exists(target_dir):
+    os.makedirs(target_dir)
+
+  for file_name in os.listdir(source_dir):
+    
+    # If file name in ignore list, then we continue.
+    if _contains_forbidden_substring(file_name, ignore):
+      continue
+  
+    source_path = os.path.join(source_dir, file_name)
+    target_path = os.path.join(target_dir, file_name)
+
+    # Recursively copy directories.
+    if os.path.isdir(source_path):
+      _copy_filetree(source_path, target_path, ignore)
+    else:
+      # Copy over the files.
+      shutil.copy2(source_path, target_path)
+
+
+
+
+
 
 def usage():
   print "USAGE: python make_base_installer.py m|l|w|i|a|t path/to/trunk/ " \
-      + "pubkey privkey output/dir/ [version of seattle] " \
+      + "pubkey privkey output/dir/ softwareupdater_dir [version of seattle] " \
       + "[--wg path/to/Windows/GUI/builder/makensis.exe]"
   print "\tFLAGS: m,l,w,i,a,t represent the OS for which the base installer " \
       + "is being created.  m = Macintosh, l = Linux, w = Windows, " \
@@ -626,13 +943,16 @@ def main():
   output_dir = os.path.realpath(sys.argv[5])
   pubkey = os.path.realpath(sys.argv[3])
   privkey = os.path.realpath(sys.argv[4])
+  softwareupdater_server_dir = os.path.realpath(sys.argv[6])
   version = ""
+  keystore_location = os.path.split(os.path.realpath(pubkey))[0]
+  
   # Figure out if the optional version number or the path to the Windows GUI
   # builder was passed in.
-  if len(sys.argv) > 6:
-    if len(sys.argv) == 7:
+  if len(sys.argv) > 7:
+    if len(sys.argv) == 8:
       # Only one extra option was passed, so it must be the version number.
-      version = sys.argv[6]
+      version = sys.argv[7]
       if version == "--wg":
         print "Windows GUI builder path not specified"
         usage()
@@ -641,29 +961,29 @@ def main():
     else:
       global WINDOWS_GUI_BUILDER_PATH
 
-      if sys.argv[6] == "--wg":
+      if sys.argv[7] == "--wg":
         # The path to the Windows GUI builder was passed in.
-        if len(sys.argv) == 7:
+        if len(sys.argv) == 8:
           # The path was not given with the "--wg" option.
           usage()
           return
-        elif len(sys.argv) > 8:
+        elif len(sys.argv) > 9:
           # The version number was also given.
           version = sys.argv[8]
 
-        WINDOWS_GUI_BUILDER_PATH = sys.argv[7]
+        WINDOWS_GUI_BUILDER_PATH = sys.argv[8]
 
 
       else:
         # The version must have been given before the path to the Windows GUI
         # builder if the path was given at all.
-        version = sys.argv[6]
-        if sys.argv[7] != "--wg":
+        version = sys.argv[7]
+        if sys.argv[8] != "--wg":
           # An extraneous option must have been given.
           usage()
           return
         else:
-          WINDOWS_GUI_BUILDER_PATH = sys.argv[8]
+          WINDOWS_GUI_BUILDER_PATH = sys.argv[9]
 
   if WINDOWS_GUI_BUILDER_PATH:
     # Confirm that the path exists.
@@ -695,8 +1015,13 @@ def main():
   include_tests = False
   if "t" in installer_type:
       include_tests = True
-  gen_files = prepare_gen_files(trunk_location,temp_install_dir,include_tests,
-                                pubkey,privkey,True)
+  prepare_gen_files(trunk_location,temp_install_dir,include_tests,
+                    pubkey,privkey,True)
+
+  shutil.copy2(os.path.join(temp_install_dir, "metainfo"), "/home/testgeni/temp")
+  # Create the software updater server and sign all the data.
+  gen_files = create_softwareupdater_server(temp_install_dir, softwareupdater_server_dir,
+                                            keystore_location)
   print "Complete."
 
 
@@ -750,6 +1075,7 @@ def main():
     shutil.copy2(temp_tarball_dir + os.sep + tarball, output_dir)
 
   # Remove the temporary directories
+  
   shutil.rmtree(temp_install_dir)
   shutil.rmtree(temp_tarball_dir)
 

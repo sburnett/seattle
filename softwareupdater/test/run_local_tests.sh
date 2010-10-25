@@ -61,7 +61,8 @@ cd $testsdir
 export SEATTLE_RUN_NODEMANAGER_IN_FOREGROUND=1
 
 # Run the tests.
-python utf.py -m softwareupdaters
+python ut_softwareupdaters_testupdaterlocal.py
+#python ut_softwareupdaters_testupdater.py
 
 if [ "$?" != "0" ]; then
   echo "Software updater test did not run correctly"
