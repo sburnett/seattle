@@ -94,7 +94,7 @@ import servicelogger
 
 repyhelper.translate_and_import('sha.repy')
 repyhelper.translate_and_import('rsa.repy')
-repyhelper.translate_and_import('ShimStackInterface.repy')
+repyhelper.translate_and_import('ShimStackInterface.py')
 
 
 # Armon: To handle user preferrences with respect to IP's and Interfaces
@@ -254,6 +254,11 @@ def start_accepter():
 
       else:
         servicelogger.log("[ERROR]: cannot find a port for waitforconn.")
+
+    # Saves myname to a file so that  unit test programs can connect to me using shim's naming system
+    fileobj = open('advertised_name', 'w')
+    fileobj.write(myname)
+    fileobj.close()
 
     # check infrequently
     time.sleep(configuration['pollfrequency'])

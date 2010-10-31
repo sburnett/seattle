@@ -3,6 +3,17 @@
   Justin Cappos, Armon Dadgar
   This is a rewrite of the previous version by Richard Jordan
 
+  Modification by Danny Yuxing Huang to make it compatible with the shim
+  library. Note that we cannot include "ShimStackInterface.repy" in this file to
+  avoid circular dependency; the ShimStackInterface module includes shims, which
+  include the advertise module that ultimately imports this module. When this
+  module is used by the shim libraries, the use_shim flag at each of the
+  timeout_* methdos is set to False by default, so these methods do not use the
+  shim-capable sockets; instead, the system's sockets are used for the
+  underlying connections. On the other hand, when another application
+  (e.g. nmclient) uses this module, it must explicitly set the use_shim flags as
+  True so that the shim-capable sockets handle the underlying connections.
+
 <Start Date>
   26 Aug 2009
 
@@ -12,9 +23,7 @@
 
 """
 
-include ShimStackInterface.repy
-
-timeout_shimstack = ShimStackInterface()
+include ShimLogger.repy
 
 
 class SocketTimeoutError(Exception):
@@ -187,8 +196,35 @@ class _timeout_socket():
 
 
 
+def _initialize_timeout_shimstack():
+  """
+  Helper method for the following timeout_* methods. Creates a single instance
+  of the ShimStackInterface and returns this instance, no matter how many times
+  this method is invoked. Added by Danny Yuxing Huang to incorporate shims into
+  this module.
 
-def timeout_openconn(desthost, destport, localip=None, localport=None, timeout=5):
+  Before this method is called, you must check if ShimStackInterface has been
+  imported beforehand by doing:
+
+    if "shim_stack_interface_imported" in mycontext.keys():
+      shims = _initialize_timeout_shimstack()
+
+  As explained in the header of this module, we cannot include
+  ShimStackInterface.repy to avoid the circular import issue. The ideal solution
+  is to do a dynamic import; this, however, is not plausible in the current
+  version. 
+
+  """
+  if "timeout_shimstack" not in mycontext.keys():
+    mycontext["timeout_shimstack"] = ShimStackInterface()
+    mycontext["sockettimeout_logger"] = ShimLogger("SocketTimeout")
+
+  return mycontext["timeout_shimstack"]
+
+
+
+
+def timeout_openconn(desthost, destport, localip=None, localport=None, timeout=5, use_shim=False):
   """
   <Purpose> 
     Wrapper for openconn.   Very, very similar
@@ -206,7 +242,12 @@ def timeout_openconn(desthost, destport, localip=None, localport=None, timeout=5
     socket obj on success
   """
 
-  realsocketlikeobject = timeout_shimstack.openconn(desthost, destport, localip, localport, timeout)
+  if "shim_stack_interface_imported" in mycontext.keys() and use_shim:
+    shims = _initialize_timeout_shimstack()
+    realsocketlikeobject = shims.openconn(desthost, destport, localip, localport, timeout)
+    mycontext["sockettimeout_logger"].log('openconn success %s:%s' % (desthost, destport))
+  else:
+    realsocketlikeobject = openconn(desthost, destport, localip, localport, timeout)
 
   thissocketlikeobject = _timeout_socket(realsocketlikeobject, timeout)
   return thissocketlikeobject
@@ -215,7 +256,7 @@ def timeout_openconn(desthost, destport, localip=None, localport=None, timeout=5
 
 
 
-def timeout_waitforconn(localip, localport, function, timeout=5):
+def timeout_waitforconn(localip, localport, function, timeout=5, use_shim=False):
   """
   <Purpose> 
     Wrapper for waitforconn.   Essentially does the same thing...
@@ -245,19 +286,29 @@ def timeout_waitforconn(localip, localport, function, timeout=5):
     #  timeout_waitforconn.
     return function(localip, localport, thissocketlikeobject, ch, mainch)
 
-  return timeout_shimstack.waitforconn(localip, localport, _timeout_waitforconn_callback)
+  if "shim_stack_interface_imported" in mycontext.keys() and use_shim:
+    shims = _initialize_timeout_shimstack()
+    handle = shims.waitforconn(localip, localport, _timeout_waitforconn_callback)
+    mycontext["sockettimeout_logger"].log('waitforconn success %s:%s' % (localip, localport))
+  else:
+    handle = waitforconn(localip, localport, _timeout_waitforconn_callback)
 
+  return handle
   
   
 
 
 # a wrapper for stopcomm
-def timeout_stopcomm(commhandle):
+def timeout_stopcomm(commhandle, use_shim=False):
   """
     Wrapper for stopcomm.   Does the same thing...
   """
 
-  return timeout_shimstack.stopcomm(commhandle)
+  if "shim_stack_interface_imported" in mycontext.keys() and use_shim:
+    shims = _initialize_timeout_shimstack()
+    return shims.stopcomm(commhandle)
+  else:
+    return stopcomm(commhandle)
   
     
 

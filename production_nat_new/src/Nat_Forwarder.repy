@@ -32,7 +32,7 @@ include session.repy
 include NAT_CONSTANTS.repy
 include advertise.repy
 include LegacyForwarderLib.repy
-include ShimStackInterface.repy
+include ShimStackInterface.mix
 
 
 

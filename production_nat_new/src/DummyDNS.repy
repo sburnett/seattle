@@ -108,16 +108,20 @@ def DummyDNSLookup(name, create=False):
   be resolved.
 
   """
+  _DummyDNSLog("\nLookup begin: %s" % name)
   useRealDNS = True
 
   # No need to resolve if it is already an IP address
   if is_ip_address(name):
+    _DummyDNSLog("Lookup end: No need to translate.")
     return name
 
   # Try using real DNS first if the name looks like a real host name
   if len(name.split('.')) > 1 and useRealDNS:
     try:
-      return gethostbyname_ex(name)[2][0]
+      retIP = gethostbyname_ex(name)[2][0]
+      _DummyDNSLog("Lookup end: Real DNS translates it to %s." % retIP)
+      return retIP
     except Exception, e:
       _DummyDNSLog("Error: Failed to resolve '%s' using real DNS because '%s'."
                    % (name, e))
@@ -130,8 +134,8 @@ def DummyDNSLookup(name, create=False):
   cache = mycontext['dummy_dns_cache']
   try:
     retip = cache[name]
-    _DummyDNSLog("Lookup: %s -> %s (cached)" % (name, retip))
     mycontext['dummy_dns_lock'].release()
+    _DummyDNSLog("Lookup: %s -> %s (cached)" % (name, retip))
     return retip
   except KeyError, e:
     pass

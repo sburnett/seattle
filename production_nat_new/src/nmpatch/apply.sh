@@ -2,19 +2,19 @@
 
 # compiling
 
-cd ~/seattle/trunk/production_nat_new/src/
-~/runtest.sh -c ShimStackInterface.repy
-echo 'ShimStackInterface compiled from trunk'
+# cd ~/seattle/trunk/production_nat_new/src/
+# ~/runtest.sh -c ShimStackInterface.repy
+# echo 'ShimStackInterface compiled from trunk'
 
 
-# applying patch
+# # applying patch
 
-cd ~/seattle/trunk/production_nat_new/src/nmpatch
-cp /tmp/seattle/out.ShimStackInterface.repy ShimStackInterface.repy
-python removeComments.py
+# cd ~/seattle/trunk/production_nat_new/src/nmpatch
+# cp /tmp/seattle/out.ShimStackInterface.repy ShimStackInterface.repy
+# python removeComments.py
 
-cp ShimStackInterface.repy addme.py nmmain.py nmclient.repy sockettimeout.repy ~/seattle/nm/seattle_repy/
-echo 'Patch applied to nm'
+#cp ShimStackInterface.repy addme.py nmmain.py nmclient.repy sockettimeout.repy ~/seattle/nm/seattle_repy/
+#echo 'Patch applied to nm'
 
 cp ShimStackInterface.repy nmmain.py sockettimeout.repy nmclient.repy /tmp/test/
 echo 'Patch applied to test directory.'
@@ -22,8 +22,8 @@ echo 'Patch applied to test directory.'
 # cp ShimStackInterface.repy addme.py nmmain.py nmclient.repy sockettimeout.repy ~/seattle/nm-win/seattle_repy/
 # echo 'Patch applied to nm-win'
 
-cp ShimStackInterface.repy nmclient.repy sockettimeout.repy ~/seattle/demokit/
-echo 'Patch applied to seash.'
+#cp ShimStackInterface.repy nmclient.repy sockettimeout.repy ~/seattle/demokit/
+#echo 'Patch applied to seash.'
 
 # scp -q ShimStackInterface.repy nmclient.repy sockettimeout.repy hdanny@blackbox.cs.washington.edu:~/deploy/seattle
 # ssh hdanny@blackbox.cs.washington.edu 'rm ~/deploy/seattle/*_repy.py'

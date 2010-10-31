@@ -20,7 +20,7 @@ include signeddata.repy
 include session.repy
 
 
-
+include ShimStackInterface.mix
 
 
 # makes connections time out
@@ -78,7 +78,7 @@ nmclient_handledictlock = getlock()
 def nmclient_rawcommunicate(nmhandle, *args):
 
   try:
-    thisconnobject = timeout_openconn(nmclient_handledict[nmhandle]['IP'],nmclient_handledict[nmhandle]['port'],timeout=nmclient_handledict[nmhandle]['timeout'])
+    thisconnobject = timeout_openconn(nmclient_handledict[nmhandle]['IP'],nmclient_handledict[nmhandle]['port'],timeout=nmclient_handledict[nmhandle]['timeout'],use_shim=True)
   except Exception, e:
     raise NMClientException, str(e)
   
@@ -152,7 +152,7 @@ def nmclient_signedcommunicate(nmhandle, *args):
 
 
   try:
-    thisconnobject = timeout_openconn(nmclient_handledict[nmhandle]['IP'], nmclient_handledict[nmhandle]['port'],timeout=nmclient_handledict[nmhandle]['timeout'])
+    thisconnobject = timeout_openconn(nmclient_handledict[nmhandle]['IP'], nmclient_handledict[nmhandle]['port'],timeout=nmclient_handledict[nmhandle]['timeout'],use_shim=True)
   except Exception, e:
     raise NMClientException, str(e)
 
@@ -211,6 +211,19 @@ def nmclient_safelygethandle():
 # Per #537, the default timeout (15) should be greater than the wait period 
 # for starting a vessel.
 def nmclient_createhandle(nmIP, nmport, sequenceid = None, timestamp=True, identity = True, expirationtime = 60*60, publickey = None, privatekey = None, vesselid = None, timeout=15):
+
+  # If nmIP is the same as the current IP, we know that we're testing
+  # nmclient. First, we don't run the node manager and the nmclient on the same
+  # machine under normal operations. Second, all the components communicate
+  # using shim's naming system, rather than IP. During testing, we need to
+  # translate the IP into the advertised name of the node manager, which is
+  # stored in a file called 'advertised_name'. Added by Danny Yuxing Huang to
+  # facilitate the evaluation and deployment of shims.
+  if False and nmIP == getmyip():
+    fileobj = open('advertised_name', 'r')
+    (nmIP, nmport) = fileobj.read().strip().split(':')
+    nmport = int(nmport)
+    fileobj.close()
 
   thisentry = {}
   thisentry['IP'] = nmIP

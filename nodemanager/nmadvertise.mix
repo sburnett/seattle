@@ -14,7 +14,12 @@ from repyportability import *
 # needed to convert keys to strings
 include rsa.repy
 
-include advertise.repy
+# Comment out following line by Danny Y. Huang. Potentially unsafe operation if it contains repy-specific symbols like mycontext.
+# include advertise.repy
+
+import repyhelper
+repyhelper.translate_and_import("advertise.repy")
+
 
 include listops.repy
 

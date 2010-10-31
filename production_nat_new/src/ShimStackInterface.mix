@@ -54,9 +54,6 @@ register_shim('LZWShim', LZWShim)
 # TODO for debugging
 #
 
-#begin include random.repy 
-#already included random.repy 
-#end include random.repy 
 debugging = True
 
 def debugprint(string):
@@ -101,7 +98,7 @@ class ShimStackInterface:
     # map always reference to unique handles in the memory.
     self._handle_dict = {}
 
-    self._logger = ShimLogger('')
+    self._logger = ShimLogger('SHIM')
 
 
   def waitforconn(self, host, port, callback):
@@ -161,4 +158,4 @@ class ShimStackInterface:
     return handle
 
 
-
+mycontext['shim_stack_interface_imported'] = True

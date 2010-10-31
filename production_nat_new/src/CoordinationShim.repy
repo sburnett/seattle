@@ -89,6 +89,8 @@ class CoordinationShim(BaseShim):
   # cache. Otherwise, we will do a lookup remotely. Helper for the openconn
   # operation.
   def _get_shimstack_strings(self, hostkey, port, use_cache=True):
+    self._logger.log("_get_shimstack_strings: Entrance.")
+
     # Initializes the local cache so we don't have to contact the remote
     # services all the time.
     if mycontext.has_key('shim_stack_string_cache_lock'):
@@ -108,6 +110,7 @@ class CoordinationShim(BaseShim):
       lookup_results = local_lookup_cache[lookup_key][:]
       if lookup_results:
         mycontext['shim_stack_string_cache_lock'].release()
+        self._logger.log("_get_shimstack_strings: Exit 1.")
         return lookup_results
 
     # Contact the remote lookup service
@@ -133,6 +136,7 @@ class CoordinationShim(BaseShim):
 
     mycontext['shim_stack_string_cache_lock'].release()
 
+    self._logger.log("_get_shimstack_strings: Exit 2.")
     return lookup_results
 
 
