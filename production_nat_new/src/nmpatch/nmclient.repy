@@ -101,7 +101,7 @@ def nmclient_rawcommunicate(nmhandle, *args):
 # communication header, sends all the data, receives the result, and returns
 # the result)...
 def nmclient_signedcommunicate(nmhandle, *args):
-  
+
   # need to check lots of the nmhandle settings...
 
   if nmclient_handledict[nmhandle]['timestamp'] == True:
@@ -219,7 +219,7 @@ def nmclient_createhandle(nmIP, nmport, sequenceid = None, timestamp=True, ident
   # translate the IP into the advertised name of the node manager, which is
   # stored in a file called 'advertised_name'. Added by Danny Yuxing Huang to
   # facilitate the evaluation and deployment of shims.
-  if False and nmIP == getmyip():
+  if nmIP == getmyip():
     fileobj = open('advertised_name', 'r')
     (nmIP, nmport) = fileobj.read().strip().split(':')
     nmport = int(nmport)
@@ -450,3 +450,13 @@ def nmclient_getvesseldict(nmhandle):
   if lastvesselname:
     retdict['vessels'][lastvesselname] = thisvessel
   return retdict
+
+
+def _nmclient_log(logstr):
+  if 'nmclient_log_lock' not in mycontext:
+    mycontext['nmclient_log_lock'] = getlock()
+  mycontext['nmclient_log_lock'].acquire()
+  f = open('nmclient_test.log', 'a')
+  f.write(str(logstr) + '\n')
+  f.close()
+  mycontext['nmclient_log_lock'].release()

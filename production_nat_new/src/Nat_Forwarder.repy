@@ -465,8 +465,7 @@ def forwarder_advertise_thread(ip,waitport):
       sleep(60)
 
 
-if callfunc == 'initialize':
-
+def main():
   if len(callargs) == 1:
     ip = getmyip()
     wait_port = int(callargs[0])
@@ -491,4 +490,9 @@ if callfunc == 'initialize':
   # hostname = 'crazyideas21.vicp.net'
   # print "NAT Forwarder advertised on %s:%s" % (hostname, wait_port)
   forwarder_advertise_thread(ip,wait_port)
+
+
+
+if callfunc == 'initialize':
+  main()
 

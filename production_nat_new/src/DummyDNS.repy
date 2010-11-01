@@ -15,9 +15,9 @@ def _DummyDNSInitialize():
     mycontext['dummy_dns_lock'].acquire()
     mycontext['dummy_dns_cache'] = {}
     mycontext['dummy_dns_log_lock'] = getlock()
-    mycontext['dummy_dns_active'] = True
+    mycontext['dummy_dns_active'] = False
     mycontext['dummy_dns_lock'].release()
-    settimer(0, _DummyDNSAdvertiseThread, [])
+
 
 
 def _DummyDNSAdvertiseThread():
@@ -28,14 +28,14 @@ def _DummyDNSAdvertiseThread():
   
   prevCacheStr = ''
 
-  while True:
+  mycontext['dummy_dns_active'] = True
+
+  while mycontext['dummy_dns_active']:
+
     mycontext['dummy_dns_lock'].acquire()
     cache = mycontext['dummy_dns_cache'].copy()
     mycontext['dummy_dns_lock'].release()
 
-    if not mycontext['dummy_dns_active']:
-      break
-    
     for name in cache.keys():
       try:
         advertise_announce(str(name), str(cache[name]), 100)
@@ -97,7 +97,36 @@ def is_ip_address(ipstr):
   
 
 def DummyDNSStop():
-  mycontext['dummy_dns_active'] = False
+  if 'dummy_dns_active' in mycontext:
+    mycontext['dummy_dns_active'] = False
+
+
+
+def DummyDNSReverseLookup(ip):
+  """
+  Translates an IP address back to the unique node ID; if not found, then return
+  the original IP.
+
+  """
+  _DummyDNSInitialize()
+  cache = mycontext['dummy_dns_cache']
+  found = False
+
+  mycontext['dummy_dns_lock'].acquire()
+  for uid in cache.keys():
+    if str(ip) == str(cache[uid]):
+      found = True
+      break
+  mycontext['dummy_dns_lock'].release()
+
+  if found:
+    result = str(uid)
+  else:
+    result = str(ip)
+
+  _DummyDNSLog("Reverse lookup: %s -> %s" % (ip, result))
+  return result
+  
 
 
 
@@ -165,6 +194,9 @@ def DummyDNSLookup(name, create=False):
   retip = lookup_results[0]
   cache[name] = retip
   mycontext['wakeup'] = create
+  if create and (not mycontext['dummy_dns_active']):
+    settimer(0, _DummyDNSAdvertiseThread, [])
+
   mycontext['dummy_dns_lock'].release()
 
   _DummyDNSLog("Lookup: %s -> %s" % (name, retip))

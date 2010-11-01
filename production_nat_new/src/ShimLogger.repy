@@ -1,5 +1,6 @@
 
 SHIM_LOGGER_FILE = 'shims.log'
+SHIM_LOGGER_LOCK = 'shims_logger_lock'
 
 class ShimLogger:
 
@@ -11,11 +12,70 @@ class ShimLogger:
   def _initialize_logger(self):
     if not mycontext.has_key('shim_logger_lock'):
       mycontext['shim_logger_lock'] = getlock()
-      self.log("\n" * 3)
+      mycontext['shim_logger_lock_id'] = str(randomfloat())
+      self.log("New ShimLogger.")
+
+
+  # TODO NOT TESTED
+  def _lock(self):
+    lockid = mycontext['shim_logger_lock_id']
+
+    # Try reading from the lockfile, and if it does not exist, create one
+    try:
+      lockfile = open(SHIM_LOGGER_LOCK, 'r')
+    except IOError, err:
+      lockfile = open(SHIM_LOGGER_LOCK, 'w')
+    finally:
+      lockfile.close()
+
+    # Loop till we can write our lockid to the file
+    lock_acquired = False
+    while not lock_acquired:
+      # Lock belongs to us if the value of the lockfile equals the lockid.
+      lockfile = open(SHIM_LOGGER_LOCK, 'r')
+      lockstatus = lockfile.read().strip()
+      lockfile.close()
+
+      lock_acquired = (lockstatus == lockid)
+
+      # Try writing our lockid to file if the lock status is unlocked
+      if (not lock_acquired) and (lockstatus == ''):
+        try:
+          lockfile = open(SHIM_LOGGER_LOCK, 'w')
+          lockfile.write(lockid)
+        except:
+          pass
+        finally:
+          lockfile.close()
+
+
+  # TODO NOT TESTED          
+  def _unlock(self):
+    lockid = mycontext['shim_logger_lock_id']
+
+    try:
+      # Emptyp the lock file
+      lockfile = open(SHIM_LOGGER_LOCK, 'w')
+      lockfile.write('')
+      lockfile.close()
+
+      # We need to make sure that indeed we're unlocked.
+      lockfile = open(SHIM_LOGGER_LOCK, 'r')
+      if lockfile.read().strip() != '':
+        raise Exception("Unable to write empty string to the lock file.")
+
+    except Exception, err:
+      raise Exception("Unable to unlock because: %s" % err)
+
+    finally:
+      lockfile.close()
+
+
 
 
   def log(self, logstr):
     mycontext['shim_logger_lock'].acquire()
+    #self._lock()
     try:
       logfile = open(SHIM_LOGGER_FILE, 'a')
       logfile.write(str(self._shimname) + ': ' + logstr + '\n')
@@ -24,4 +84,5 @@ class ShimLogger:
       # Silently drops all exceptions
       pass
     finally:
+      #self._unlock()
       mycontext['shim_logger_lock'].release()

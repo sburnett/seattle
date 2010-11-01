@@ -212,17 +212,22 @@ class ShimStack:
   # ===========================================================================
 
 
-  def _shim_stack_waitforconn_callback_wrapper(self,sock,rip,rport,th,lh):
-    self._shim_stack_waitforconn_callback(sock,rip,rport,th,lh)
+  def _shim_stack_waitforconn_callback_wrapper(self,rip,rport,sock,th,lh):
+    ShimLogger('ShimStack Callback').log("%s:%s using %s" % (rip, rport, sock))
+    self._shim_stack_waitforconn_callback(rip,rport,sock,th,lh)
+
+  def _shim_stack_waitforconn_callback_wrapper_no_shim(self,rip,rport,sock,th,lh):
+    hostkey = DummyDNSReverseLookup(rip)
+    ShimLogger('Base Callback').log("%s[%s]:%s using %s" % (rip, hostkey, rport, sock))
+    self._shim_stack_waitforconn_callback(hostkey,rport,sock,th,lh)
 
 
   def waitforconn(self,host,port,callback):
+
     self._shim_stack_waitforconn_callback = callback
 
     if self.top_shim is None:
-      self._shim_stack_waitforconn_callback = callback
-      return waitforconn(DummyDNSLookup(host,True), port, self._shim_stack_waitforconn_callback_wrapper)
-
+      return waitforconn(DummyDNSLookup(host,True), port, self._shim_stack_waitforconn_callback_wrapper_no_shim)
     else:
       return self.top_shim.waitforconn(host,port,self._shim_stack_waitforconn_callback_wrapper)
 

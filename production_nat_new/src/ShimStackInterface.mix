@@ -96,9 +96,53 @@ class ShimStackInterface:
     # Maps handle to stack. Although handle does not have a hash function
     # defined, it is in fact hashed by its memory address. Thus, the keys in our
     # map always reference to unique handles in the memory.
-    self._handle_dict = {}
+    if 'shim_stack_interface_handle_dict' not in mycontext:
+      mycontext['shim_stack_interface_handle_dict'] = {}
+    self._handle_dict = mycontext['shim_stack_interface_handle_dict']
 
-    self._logger = ShimLogger('SHIM')
+
+    # Keeps track of number of instances and the number of actively listening
+    # handles (threads)
+    if 'shim_stack_interface_instance_counter' not in mycontext:
+      mycontext['shim_stack_interface_instance_counter_lock'] = getlock()
+      mycontext['shim_stack_interface_instance_counter'] = 0
+      mycontext['shim_stack_interface_active_listeners'] = 0
+    
+    mycontext['shim_stack_interface_instance_counter_lock'].acquire()
+    self._instance_id = mycontext['shim_stack_interface_instance_counter']
+    mycontext['shim_stack_interface_instance_counter'] += 1
+    mycontext['shim_stack_interface_instance_counter_lock'].release()
+
+    # Generate a global ID unique per process
+    if 'shim_stack_global_id' not in mycontext:
+      mycontext['shim_stack_global_id'] = str(randomfloat())[2:5]
+
+    self._logger = ShimLogger('SHIM %s [%d]' % (mycontext['shim_stack_global_id'], self._instance_id))
+
+
+
+
+  def __del__(self):
+    # Keeps track of number of instaces
+    mycontext['shim_stack_interface_instance_counter_lock'].acquire()
+    mycontext['shim_stack_interface_instance_counter'] -= 1
+    instances_left = mycontext['shim_stack_interface_instance_counter']
+    mycontext['shim_stack_interface_instance_counter_lock'].release()
+
+    self._logger.log('Instances left: ' + str(instances_left) + \
+                       '; Number of listeners: ' + \
+                       str(mycontext['shim_stack_interface_active_listeners']))
+
+    # Clean up running threads when there are no more instances of
+    # ShimStackInterface and no more active listeners from waitforconn or
+    # recvmess
+    if instances_left == 0 and mycontext['shim_stack_interface_active_listeners'] == 0:
+      DummyDNSStop()
+      self._logger.log('DummyDNS stopped.')
+
+
+
+
 
 
   def waitforconn(self, host, port, callback):
@@ -112,7 +156,15 @@ class ShimStackInterface:
 
     self._logger.log('waitforconn on %s:%s' % (host, port))
     self._handle_dict[handle] = shimstack
+
+    mycontext['shim_stack_interface_instance_counter_lock'].acquire()
+    mycontext['shim_stack_interface_active_listeners'] += 1
+    mycontext['shim_stack_interface_instance_counter_lock'].release()
+
     return handle
+
+
+
 
 
   def stopcomm(self, handle):
@@ -128,8 +180,13 @@ class ShimStackInterface:
       self._logger.log('stopcomm: Uncaught exception: ' + str(err))
       raise Exception(err)
 
+    mycontext['shim_stack_interface_instance_counter_lock'].acquire()
+    mycontext['shim_stack_interface_active_listeners'] -= 1
+    mycontext['shim_stack_interface_instance_counter_lock'].release()
+
     return ret
  
+
 
   def openconn(self,host,port,localhost=None,localport=None,timeout=5):
     shimstack = ShimStack(self._stack_str)
@@ -155,6 +212,9 @@ class ShimStackInterface:
     shimstack = ShimStack(self._stack_str)
     handle = shimstack.recvmess(host, port, callback)
     self._handle_dict[handle] = shimstack
+
+    mycontext['shim_stack_interface_active_listeners'] += 1
+
     return handle
 
 

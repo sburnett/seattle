@@ -218,7 +218,7 @@ def is_accepter_started():
 
 def start_accepter():
   
-  shimstack = ShimStackInterface('(NatDeciderShim)')
+  shimstack = ShimStackInterface('(NatDeciderShim)(RSAShim)')
   
   unique_id = rsa_publickey_to_string(configuration['publickey'])
   unique_id = sha_hexhash(unique_id) + str(configuration['service_vessel'])
