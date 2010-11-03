@@ -82,6 +82,15 @@ echo "Finished creating new TUF server"
 # Step 2: Create a migrating server that distributes tuf files.
 ###################################################################
 
+# Ensure that the migrating server directory exists.
+if [ ! -d "$temp_server_dir" ]; then
+  sudo mkdir $temp_server_dir
+  if [ "$?" != "0" ]; then
+    echo "Failed to create missing directory $tuf_server_dir"
+    exit 1
+  fi
+fi
+
 # Copy over the repo files.
 echo "Copying all the tuf related files..."
 python cp_repo_files.py $trunk_dir/dist/tuf_migration $tuf_server_dir
@@ -98,9 +107,22 @@ cp $migration_dir/*.tar $trunk_dir/softwareupdater/
 rm -rf $migration_dir/repo/
 echo "Finished copying tuf related files."
 
+
+# Before we push everything to the server, we want to ensure that the
+# softwareupdater url embedded into the softwareupdater.py is correct.
+updater_url_found=$(grep -F "seattle_url = \"$tuf_server_url\"" $trunk_dir/softwareupdater/softwareupdater.py)
+
+if [ "$update_url_found" == "" ]; then
+  echo "Did not find the correct update url in $trunk_dir/softwareupdater/softwareupdater.py"
+  rm $migration_dir/*.tar
+  exit 1
+fi
+
+
 # Create the temporary migrating directory.
 echo "Creating temporary migrating updater server..."
 /bin/bash $migration_dir/push_update_to_all_clients.sh $trunk_dir $public_key_file $private_key_file $temp_server_url $temp_server_dir
+rm $migration_dir/*.tar
 echo "Finished creating the temporary migrating updater server."
 
 
@@ -115,6 +137,18 @@ echo "Finished creating the temporary migrating updater server."
 echo "Copying the modified software updater"
 cp $cur_softwareupdater_path $migration_dir/softwareupdater.py.bak
 cp $temp_softwareupdater_path $cur_softwareupdater_path
+
+
+# Before we push everything to the server, we want to ensure that the
+# softwareupdater url embedded into the softwareupdater.py is correct.
+temp_updater_url_found=$(grep -F "softwareurl = \"$temp_server_url\"" $trunk_dir/softwareupdater/softwareupdater.py)
+
+if [ "$temp_updater_url_found" == "" ]; then
+  echo "Did not find the correct update url in $temp_softwareupdater_path"
+  mv $migration_dir/softwareupdater.py.bak $cur_softwareupdater_path
+  rm $migration_dir/softwareupdater.py.bak
+  exit 1
+fi
 
 
 echo "Starting to push the modified softwareupdater..."
