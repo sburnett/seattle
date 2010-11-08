@@ -220,8 +220,10 @@ def timeout_openconn(desthost, destport, localip=None, localport=None, timeout=5
 
   if "shim_stack_interface_imported" in mycontext.keys() and use_shim:
     shims = ShimStackInterface()
+    beginTime = getruntime()
     realsocketlikeobject = shims.openconn(desthost, destport, localip, localport, timeout)
-    ShimLogger("sockettimeout").log('openconn success %s:%s' % (desthost, destport))
+    duration = getruntime() - beginTime
+    ShimLogger("sockettimeout").log('openconn success %s:%s which takes %f seconds.' % (desthost, destport, duration))
   else:
     realsocketlikeobject = openconn(desthost, destport, localip, localport, timeout)
 
