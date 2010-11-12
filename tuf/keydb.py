@@ -39,6 +39,7 @@ class KeyDB:
     def __init__(self):
         self._keys = {}
         self._roles = {}
+	self._passwords = {}
 
     @staticmethod
     def create_from_root(root_meta):
@@ -50,7 +51,7 @@ class KeyDB:
             keydb.add_role(rolename, roleinfo)
         return keydb
 
-    def add_key(self, key, keyid=None):
+    def add_key(self, key, password, keyid=None):
         """
         If keyid is provided, this will ensure it is the correct keyid for
         the key and will raise an exception if it is not.
@@ -63,6 +64,8 @@ class KeyDB:
         if keyid in self._keys:
             raise tuf.KeyAlreadyExistsError("keyid: %s" % keyid)
         self._keys[keyid] = key
+	self._passwords[keyid] = password
+	
 
     def _validate_rolename(self, rolename):
         if rolename != rolename.strip():

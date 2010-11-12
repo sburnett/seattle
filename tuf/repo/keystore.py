@@ -18,47 +18,68 @@ json = tuf.util.import_json()
 
 
 class KeyStore(tuf.keydb.KeyDB):
-    """Helper to store private keys in an encrypted file."""
+    """Helper to store private keys in encrypted files.
 
-    def __init__(self, fname, password=None, encrypted=True):
+    Originally this stored the keys in one file- we've changed that so that it
+    instead encrypts them separately, naming them according to their id value.
+
+    This changes the semantics of the system considerably- first, the fname
+    passed in was originally treated as a filename. We now treat it as the name
+    of a directory.
+
+    Secondly, it no longer makes sense to provide access to keys which do not
+    match the given decryption key.
+
+    Thirdly, the semantics of adding keys has changed. It does not make sense to 
+    have only one key for the entire keystore, and as a result we're requiring 
+    that the password be set at the point where the key is added.
+    """
+
+    def __init__(self, dirname):
         tuf.keydb.KeyDB.__init__(self)
+        self._dirname = dirname
 
-        self._loaded = False
-        self._fname = fname
-        self._encrypted = encrypted
-        self._passwd = password
+    def load(self, passwords):
+        logger.debug(passwords)
+        logger.info("Loading private keys from %r...", self._dirname)
 
-        logger.info("Loading private keys from %r...", self._fname)
-        if not os.path.exists(self._fname):
-            logger.info("...no such file.")
-            return
+        # check to make sure the directory exists and we have access
+        if not os.path.exists(self._dirname):
+            logger.info("...no such directory.")
 
-        contents = open(self._fname, 'rb').read()
-        if self._encrypted:
-            contents = _decrypt(contents, self._passwd)
+        # test for access here
 
-        listOfKeys = json.loads(contents)
-        if not listOfKeys.has_key('keys'):
-            listOfKeys['keys'] = []
-        for obj in listOfKeys['keys']:
-            key = tuf.keys.RSAKey.from_meta(obj)
-            self.add_key(key)
-            logger.info("Loaded key %s", key.get_key_id())
+        # now get the list of filenames containing keys from the directory
+        is_keypath = lambda x: x.endswith('.key')
+        keypaths = filter(is_keypath, os.listdir(self._dirname))
 
-    def set_password(self, passwd):
-        self._passwd = passwd
+        # decrypt the keys we can
+        for keypath in keypaths:
+            raw_contents = open(os.path.join(self._dirname, keypath), 'rb').read()
+            for pw in passwords:
+                try: jsondata = _decrypt(raw_contents, pw)
+                except: continue
+                keydata = json.loads(jsondata)
+                key = tuf.keys.RSAKey(keydata)
+                self.add_key(key, pw, keyid=keypath[:-4])
+                logger.info("Loaded key %s", key.get_key_id())
+                break
 
-    def clear_password(self):
-        self._passwd = None
+        # go home
+        logger.info("Done.")
 
     def save(self):
-        logger.info("Saving private keys into %r...", self._fname)
-        keys = {'keys' : [key.get_meta(private=True) for
-                          key in self._keys.values()]}
-        contents = json.dumps(keys)
-        if self._encrypted:
-            contents = _encrypt(contents, self._passwd)
-        tuf.util.replace_file(self._fname, contents)
+        logger.info("Saving private keys into %r...", self._dirname)
+
+        # check to make sure the directory exists and we have access
+        if not os.path.exists(self._dirname):
+            logger.info("...no such directory.")
+            os.mkdir(self._dirname)
+
+        for key_id, key in self._keys.items():
+            f = open(os.path.join(self._dirname, key_id + '.key'), 'w')
+            f.write(_encrypt(json.dumps(key.key), self._passwords[key_id]))
+            f.close()
         logger.info("Done.")
 
 def _encrypt(value, password):
