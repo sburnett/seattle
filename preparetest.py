@@ -219,6 +219,9 @@ def main():
     # I assume zackrb needed this for installer testing.
     copy_to_target("dist/update_crontab_entry.py", target_dir)
 
+    # Unit tests for shims
+    copy_to_target("production_nat_new/src/unit_tests/*.mix", target_dir)
+
   #set working directory to the test folder
   os.chdir(target_dir)
 

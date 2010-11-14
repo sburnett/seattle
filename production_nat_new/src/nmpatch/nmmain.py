@@ -216,9 +216,31 @@ def is_accepter_started():
   return result
 
 
+
+# If user specifies the --shims parameter in the command line, we construct a
+# shim stack based on the argument that follows '--shims'; otherwise, we'll use a
+# default shim stack 'NatDeciderShim'.
+def _construct_shim_stack():
+
+  default_shim = '(NatDeciderShim)'
+
+  # We extract the argument that follows '--shims' in the command line
+  sysargs = sys.argv[1:]
+  arglength = len(sysargs)
+  for index in range(arglength):
+    if (sysargs[index] == '--shims') and (index+1 < arglength):
+      default_shim = sysargs[index+1]
+      servicelogger.log("[INFO]: Using user-specified shims " + default_shim)
+      break
+
+  return ShimStackInterface(default_shim)
+
+
+
+
 def start_accepter():
   
-  shimstack = ShimStackInterface('(NatDeciderShim)')
+  shimstack = _construct_shim_stack()
   
   unique_id = rsa_publickey_to_string(configuration['publickey'])
   unique_id = sha_hexhash(unique_id) + str(configuration['service_vessel'])
@@ -509,11 +531,19 @@ def main():
 
 
 if __name__ == '__main__':
-  
+
+  """
+  We check the command line arguments here. The node manager accepts the
+  following optional arguments:
+
+  --foreground: Forces background and does not daemonize.
+
+  --shims [shim name]: Forces use of the specified shims. The shim name must
+    conform to the format as specified in:
+    https://seattle.cs.washington.edu/wiki/UsingShims.
+
+  """
   for arg in sys.argv[1:]:
-    # take a command line argument to force use of natlayer
-    if arg == '-nat':
-      AUTO_USE_NAT = True
 
     # take a command line argument to force foreground
     if arg == '--foreground':

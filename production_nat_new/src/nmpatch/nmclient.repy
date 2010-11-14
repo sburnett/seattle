@@ -67,6 +67,19 @@ nmclient_handledict = {}
 # needed when assigning new handles to prevent race conditions...
 nmclient_handledictlock = getlock()
 
+##
+# Determins if we are using shims for the underlying connections. An application
+# that uses the shim library must explicity define mycontext['UsingShims'] =
+# True to turn on shims. Added by Danny Yuxing Huang.
+#
+# See also:
+# https://seattle.cs.washington.edu/wiki/UsingShims#Usingshimsinyourapplication
+##
+def _use_shim_check():
+  if 'UsingShims' in mycontext: 
+    return mycontext['UsingShims']
+  else:
+    return False
 
 
 # Note: I open a new connection for every request.   Is this really what I want
@@ -78,7 +91,7 @@ nmclient_handledictlock = getlock()
 def nmclient_rawcommunicate(nmhandle, *args):
 
   try:
-    thisconnobject = timeout_openconn(nmclient_handledict[nmhandle]['IP'],nmclient_handledict[nmhandle]['port'],timeout=nmclient_handledict[nmhandle]['timeout'],use_shim=False)
+    thisconnobject = timeout_openconn(nmclient_handledict[nmhandle]['IP'],nmclient_handledict[nmhandle]['port'],timeout=nmclient_handledict[nmhandle]['timeout'],use_shim=_use_shim_check())
   except Exception, e:
     raise NMClientException, str(e)
   
@@ -152,7 +165,7 @@ def nmclient_signedcommunicate(nmhandle, *args):
 
 
   try:
-    thisconnobject = timeout_openconn(nmclient_handledict[nmhandle]['IP'], nmclient_handledict[nmhandle]['port'],timeout=nmclient_handledict[nmhandle]['timeout'],use_shim=False)
+    thisconnobject = timeout_openconn(nmclient_handledict[nmhandle]['IP'], nmclient_handledict[nmhandle]['port'],timeout=nmclient_handledict[nmhandle]['timeout'],use_shim=_use_shim_check())
   except Exception, e:
     raise NMClientException, str(e)
 
