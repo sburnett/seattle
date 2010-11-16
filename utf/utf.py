@@ -41,6 +41,10 @@
       #pragma error [TEXT]
 
     The parser throws an exception on unrecognized pragmas. 
+
+<Modified>
+  Modified on Nov. 16, 2010 by Monzur Muhammad to add functionality for the
+  verbose option. Now if verbose is on, it display the time taken for the test.
 """
 
 
@@ -68,7 +72,8 @@ ERROR_PRAGMA = 'error'
 OUT_PRAGMA = 'out'
 
 
-
+# Verbose Option
+VERBOSE = False
 
 # UTF Exceptions.
 class InvalidTestFileError(Exception): 
@@ -110,7 +115,7 @@ def main():
   group_generic.add_option("-v", "--verbose",
                     action="store_true", dest="verbose", default=False,
                     help="verbose output")
-
+ 
   parser.add_option_group(group_generic)
 
   ### Testing Option Category.
@@ -158,6 +163,12 @@ def main():
   if i > 1:
     parser.error("Options are mutually exclusive!")
     
+
+  # Check if the verbose option is on.
+  if (options.verbose):
+    global VERBOSE
+    VERBOSE = True
+
 
   if (options.file): # Single file.
 
@@ -270,8 +281,14 @@ def test_module(module_name, module_file_list):
     print "Now running setup script: " + setup_file
     test_single(setup_file)    
 
+  start_time = time.time()
+
+  # Run the module tests
   for test_file in module_file_list: 
     test_single(test_file)
+
+  end_time = time.time()
+
 
   if shutdown_file:
     print "Now running shutdown script: " + shutdown_file
@@ -286,6 +303,12 @@ def test_module(module_name, module_file_list):
 
     else: 
       sub.kill()
+      
+  if VERBOSE:
+    print "Total time take to run tests on module %s is: %s" % (module_name, str(end_time-start_time)[:6])
+
+
+
 
 def test_all(file_list):
   """
@@ -366,10 +389,24 @@ def testing_monitor(file_path):
     return
 
   # Now, execute the test file.
+  start_time = time.time()
   report = execution_monitor(file_path, pragmas)
 
+  # Calculate the time taken for the test
+  end_time = time.time()
+  time_taken = str(end_time - start_time)[:5]
+  if len(time_taken) < 5:
+    time_taken = " "*(5-len(time_taken)) + time_taken
+
   if report:
-    print '[ FAIL ]'
+    if VERBOSE:
+      print '[ FAIL ] [ %ss ]' % time_taken
+
+    else:
+      print '[ FAIL ]'
+
+
+
     print_dashes()
     
     for key, value in report.items():
@@ -380,7 +417,10 @@ def testing_monitor(file_path):
       print_dashes()
     
   else:
-    print '[ PASS ]'
+    if VERBOSE:
+      print '[ PASS ] [ %ss ]' % time_taken
+    else:
+      print '[ PASS ]'
 
 
 
