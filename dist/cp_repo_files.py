@@ -27,7 +27,7 @@ def main():
     exit()
     
   dest_dir = os.path.realpath(sys.argv[1])
-  software_server_dir = os.path.realpath(sys.argv[2])
+  softwareupdater_server_dir = os.path.realpath(sys.argv[2])
 
   make_base_installers.copy_softwareupdater_files(dest_dir, softwareupdater_server_dir)
 
