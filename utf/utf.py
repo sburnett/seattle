@@ -75,6 +75,8 @@ OUT_PRAGMA = 'out'
 # Verbose Option
 VERBOSE = False
 
+SHOW_TIME = False
+
 # UTF Exceptions.
 class InvalidTestFileError(Exception): 
   pass
@@ -115,7 +117,12 @@ def main():
   group_generic.add_option("-v", "--verbose",
                     action="store_true", dest="verbose", default=False,
                     help="verbose output")
- 
+
+  # Verbose flag.
+  group_generic.add_option("-T", "--show-time",
+                    action="store_true", dest="show_time", default=False,
+                    help="display the time taken to execute a test.")
+
   parser.add_option_group(group_generic)
 
   ### Testing Option Category.
@@ -164,10 +171,10 @@ def main():
     parser.error("Options are mutually exclusive!")
     
 
-  # Check if the verbose option is on.
-  if (options.verbose):
-    global VERBOSE
-    VERBOSE = True
+  # Check if the show_time option is on.
+  if (options.show_time):
+    global SHOW_TIME
+    SHOW_TIME = True
 
 
   if (options.file): # Single file.
@@ -304,8 +311,8 @@ def test_module(module_name, module_file_list):
     else: 
       sub.kill()
       
-  if VERBOSE:
-    print "Total time take to run tests on module %s is: %s" % (module_name, str(end_time-start_time)[:6])
+  if SHOW_TIME:
+    print "Total time taken to run tests on module %s is: %s" % (module_name, str(end_time-start_time)[:6])
 
 
 
@@ -399,7 +406,7 @@ def testing_monitor(file_path):
     time_taken = " "*(5-len(time_taken)) + time_taken
 
   if report:
-    if VERBOSE:
+    if SHOW_TIME:
       print '[ FAIL ] [ %ss ]' % time_taken
 
     else:
@@ -417,7 +424,7 @@ def testing_monitor(file_path):
       print_dashes()
     
   else:
-    if VERBOSE:
+    if SHOW_TIME:
       print '[ PASS ] [ %ss ]' % time_taken
     else:
       print '[ PASS ]'
