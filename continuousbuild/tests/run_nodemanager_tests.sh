@@ -17,7 +17,7 @@ cd $trunkdir
 python preparetest.py -t $tmpdir
 cd $tmpdir
 
-python utf.py -m nm >$logfile 2>&1
+python utf.py -T -m nm >$logfile 2>&1
 
 result=$?
 

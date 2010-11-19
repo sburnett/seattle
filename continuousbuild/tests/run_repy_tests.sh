@@ -17,7 +17,7 @@ cd $trunkdir
 python preparetest.py -t $tmpdir
 cd $tmpdir
 
-python utf.py -m repytests  >$logfile 2>&1
+python utf.py -T -m repytests  >$logfile 2>&1
 
 if [ "$?" != "0" ]; then
   echo "utf repytests didn't run properly"

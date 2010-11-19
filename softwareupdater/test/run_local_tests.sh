@@ -50,6 +50,8 @@ python preparetest.py $testsdir
 # We copy the utf files because the -t flag to prepartest.py wasn't used.
 cp utf/*.py $testsdir
 cp -R softwareupdater/test/* $testsdir
+cp -R tuf/ $testdir
+cp -R tuf/simplejson/ $testdir
 
 # Change to the tests directory.
 cd $testsdir
@@ -61,7 +63,7 @@ cd $testsdir
 export SEATTLE_RUN_NODEMANAGER_IN_FOREGROUND=1
 
 # Run the tests.
-python ut_softwareupdaters_testupdaterlocal.py
+python utf.py -T -m softwareupdaters
 #python ut_softwareupdaters_testupdater.py
 
 if [ "$?" != "0" ]; then
