@@ -195,10 +195,10 @@ def main():
   copy_to_target("LICENSE.TXT", target_dir)
 
   # Copy over the files needed for using shim.
-  copy_to_target("production_nat_new/src/*", target_dir)
-  copy_to_target("production_nat_new/src/nmpatch/nmmain.py", target_dir)
-  copy_to_target("production_nat_new/src/nmpatch/nmclient.repy", target_dir)
-  copy_to_target("production_nat_new/src/nmpatch/sockettimeout.repy", target_dir)
+#  copy_to_target("production_nat_new/src/*", target_dir)
+#  copy_to_target("production_nat_new/src/nmpatch/nmmain.py", target_dir)
+#  copy_to_target("production_nat_new/src/nmpatch/nmclient.repy", target_dir)
+#  copy_to_target("production_nat_new/src/nmpatch/sockettimeout.repy", target_dir)
 
   
   # Only copy the tests if they were requested.
@@ -220,7 +220,7 @@ def main():
     copy_to_target("dist/update_crontab_entry.py", target_dir)
 
     # Unit tests for shims
-    copy_to_target("production_nat_new/src/unit_tests/*.mix", target_dir)
+#    copy_to_target("production_nat_new/src/unit_tests/*.mix", target_dir)
 
   #set working directory to the test folder
   os.chdir(target_dir)
