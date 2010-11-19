@@ -98,6 +98,7 @@ repyhelper.translate_and_import('NATLayer_rpc.repy')
 repyhelper.translate_and_import('sha.repy')
 repyhelper.translate_and_import('rsa.repy')
 
+repyhelper.translate_and_import('sockettimeout.repy')
 
 
 # Armon: To handle user preferrences with respect to IP's and Interfaces
@@ -265,8 +266,11 @@ def start_accepter():
 
           # do a local waitforconn (not using a forwarder)
           # this makes the node manager easily accessible locally
-          waitforconn(bind_ip, possibleport, 
-                    nmconnectionmanager.connection_handler)
+ 
+          #JAC: I do a timeout waitforconn in an attempt to address #881
+          # 10 seconds should be adequate for a client to respond / communicate
+          timeout_waitforconn(bind_ip, possibleport, 
+                    nmconnectionmanager.connection_handler, timeout=10)
           # Now that waitforconn has been called, unset the accepter reset flag
           node_reset_config['reset_accepter'] = False
         except Exception, e:
