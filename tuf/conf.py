@@ -12,7 +12,7 @@ class SettingsHolder(object):
         # unusable.
         self.temp_dir = None
 
-        self.log_level = logging.DEBUG
+        self.log_level = logging.ERROR
 
         # If None, then logging will be done to stderr.
         self.log_filename = None

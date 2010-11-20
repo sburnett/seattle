@@ -50,8 +50,8 @@ python preparetest.py $testsdir
 # We copy the utf files because the -t flag to prepartest.py wasn't used.
 cp utf/*.py $testsdir
 cp -R softwareupdater/test/* $testsdir
-cp -R tuf/ $testdir
-cp -R tuf/simplejson/ $testdir
+cp -R tuf/ $testsdir
+cp -R tuf/simplejson/ $testsdir
 
 # Change to the tests directory.
 cd $testsdir

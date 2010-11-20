@@ -18,6 +18,7 @@ import subprocess
 from SocketServer import TCPServer
 from SimpleHTTPServer import SimpleHTTPRequestHandler
 
+import runonce
 from harshexit import portablekill
 
 class Server(TCPServer):
@@ -99,11 +100,11 @@ class Scenario:
 		self.post_client_action()	
 		args = ["python", "softwareupdater.py", "debug"]
 		out = subprocess.call(args, cwd=self.client_root)
+		self.stop_repo_server()
 		if not out:
 			return True
 		else:
 			return False
-		self.stop_repo_server()
 
 	def make_client(self):
 		shutil.copytree(self.project_root, self.client_root)
@@ -119,14 +120,13 @@ class Scenario:
 			"quickstart.py",
 			"-k",
 			self.keystore_path,
-			"-p",
-			"password",
 			"-t",
 			"1",
 			"-l",
 			self.server_root,
 			"-r",
 			self.project_root,
+			"--test",
 			"-e",
 			"12/12/2012"]
 		subprocess.call(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -229,10 +229,9 @@ class UpdateTest(Scenario):
 			"-u",
 			"-k",
 			self.keystore_path,
-			"-p",
-			"password",
 			"-l",
 			self.server_root,
+			"--test",
 			"-r",
 			self.server_targets_path,
 			"-c",
@@ -284,10 +283,9 @@ class RestartTest(Scenario):
 			"-u",
 			"-k",
 			self.keystore_path,
-			"-p",
-			"password",
 			"-l",
 			self.server_root,
+			"--test",
 			"-r",
 			self.server_targets_path,
 			"-c",
@@ -348,6 +346,29 @@ if __name__ == "__main__":
 	restart_live = RestartTest(working_dir)
 	results.append(restart_live.run_live_test())
 	restart_live.cleanup()
+
+	# get any remaining softwareupdaters and kill them
+	while 1:
+		pid = runonce.getprocesslock('softwareupdater.old')
+		if pid == True:
+			runonce.releaseprocesslock('softwareupdater.old')
+			break
+		elif pid == False:
+			print '[ FAIL ]',
+			sys.exit(1)
+		else:
+			portablekill(pid)
+
+	while 1:
+		pid = runonce.getprocesslock('softwareupdater.new')
+		if pid == True:
+			runonce.releaseprocesslock('softwareupdater.new')
+			break
+		elif pid == False:
+			print '[ FAIL ]',
+			sys.exit(1)
+		else:
+			portablekill(pid)
 
 	if all(results) and (len(results) == 7):
 		print "[ PASS ]",
