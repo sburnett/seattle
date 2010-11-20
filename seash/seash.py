@@ -2626,7 +2626,7 @@ update             -- Update information about the vessels
 
           faillist = []
           goodlist = []
-          retdict = contact_targets(targets[currenttarget],setowner_target,newadvert)
+          retdict = contact_targets(targets[currenttarget],setowner_target,newowner)
 
           for longname in retdict:
             if retdict[longname][0]:
