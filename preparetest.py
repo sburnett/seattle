@@ -46,6 +46,10 @@ sys.path.insert(0, os.path.join(os.getcwd(), "repy", "tests"))
 import testportfiller
 sys.path = sys.path[1:]
 
+# Whether to copy files that enable shims. In case of major bugs in shims,
+# simply turn it off to revert back to the shim-less architecture. Added by
+# Danny Yuxing Huang.
+USE_SHIMS = False
 
 #define a function to use for copying the files matching the file expression to the target folder
 #file_expr may contain wildcards
@@ -194,11 +198,15 @@ def main():
   # The license must be included in anything we distribute.
   copy_to_target("LICENSE.TXT", target_dir)
 
-  # Copy over the files needed for using shim.
-#  copy_to_target("production_nat_new/src/*", target_dir)
-#  copy_to_target("production_nat_new/src/nmpatch/nmmain.py", target_dir)
-#  copy_to_target("production_nat_new/src/nmpatch/nmclient.repy", target_dir)
-#  copy_to_target("production_nat_new/src/nmpatch/sockettimeout.repy", target_dir)
+  if USE_SHIMS:
+    # Copy over the files needed for using shim.
+    copy_to_target("production_nat_new/src/*", target_dir)
+    copy_to_target("production_nat_new/src/nmpatch/nmmain.py", target_dir)
+    copy_to_target("production_nat_new/src/nmpatch/nminit.mix", target_dir)
+    copy_to_target("production_nat_new/src/nmpatch/seash.py", target_dir)
+    copy_to_target("production_nat_new/src/nmpatch/nmclient.repy", target_dir)
+    copy_to_target("production_nat_new/src/nmpatch/nmclient_shims.mix", target_dir)
+    copy_to_target("production_nat_new/src/nmpatch/sockettimeout.repy", target_dir)
 
   
   # Only copy the tests if they were requested.
@@ -219,8 +227,9 @@ def main():
     # I assume zackrb needed this for installer testing.
     copy_to_target("dist/update_crontab_entry.py", target_dir)
 
-    # Unit tests for shims
-#    copy_to_target("production_nat_new/src/unit_tests/*.mix", target_dir)
+    if USE_SHIMS:
+      # Unit tests for shims
+      copy_to_target("production_nat_new/src/unit_tests/*.mix", target_dir)
 
   #set working directory to the test folder
   os.chdir(target_dir)

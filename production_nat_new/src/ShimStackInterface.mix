@@ -10,7 +10,6 @@ not consistant with the API semantics. Provides logging capabilities.
 include ShimSocketWrapper.repy
 include ShimStack.repy
 include ShimException.repy
-include DummyDNS.repy
 include ShimLogger.repy
 
 
@@ -133,12 +132,6 @@ class ShimStackInterface:
                        '; Number of listeners: ' + \
                        str(mycontext['shim_stack_interface_active_listeners']))
 
-    # Clean up running threads when there are no more instances of
-    # ShimStackInterface and no more active listeners from waitforconn or
-    # recvmess
-    if instances_left == 0 and mycontext['shim_stack_interface_active_listeners'] == 0:
-      DummyDNSStop()
-      self._logger.log('DummyDNS stopped.')
 
 
 

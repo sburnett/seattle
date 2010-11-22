@@ -70,9 +70,14 @@ nmclient_handledictlock = getlock()
 ##
 # Determins if we are using shims for the underlying connections. An application
 # that uses the shim library must explicity define mycontext['UsingShims'] =
-# True to turn on shims. Added by Danny Yuxing Huang.
+# True to turn on shims. Shims are disabled by default. Many unit tests, for
+# instance those of the node manager, make use of nmclient. If shim is enabled
+# by default, then these unit tests will be unknowingly be running on top of
+# shims. Their performance will suffer. ContinuousBuild on Blackbox will get
+# time-outs. Hence, unless otherwise specified as such, we do not use shims for
+# the underlying connections.
 #
-# See also:
+# Added by Danny Yuxing Huang. For actual usage, see also:
 # https://seattle.cs.washington.edu/wiki/UsingShims#Usingshimsinyourapplication
 ##
 def _use_shim_check():
@@ -452,12 +457,3 @@ def nmclient_getvesseldict(nmhandle):
     retdict['vessels'][lastvesselname] = thisvessel
   return retdict
 
-
-def _nmclient_log(logstr):
-  if 'nmclient_log_lock' not in mycontext:
-    mycontext['nmclient_log_lock'] = getlock()
-  mycontext['nmclient_log_lock'].acquire()
-  f = open('nmclient_test.log', 'a')
-  f.write(str(logstr) + '\n')
-  f.close()
-  mycontext['nmclient_log_lock'].release()

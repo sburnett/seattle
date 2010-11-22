@@ -1,0 +1,36 @@
+"""
+A wrapper for nmclient that uses shims
+
+Created by: Danny Yuxing Huang
+
+Usually, adopting shims in a program consists of find-and-replace operations. A
+repy program includes the ShimStackInterface.mix. Before being deployed, the
+repy program is pre-processed. All the shim code (which ShimStackInterface.mix
+includes) will be expanded into the same long file as the pre-processed repy
+program. The fact that all the code exists in the same file allows me to solve
+the circular import problem.
+
+However, this approach doesn't work out that well in seash because it is a
+Python program. It does a translate_and_import("nmclient.repy"). Within
+nmclient.repy, there is a line "include ShimStackInterface.mix" which is turned
+into "translate_and_import("ShimStackInterface.mix")" by the repyhelper. The
+problem starts here. Translate_and_import doesn't expand the included mix files
+into the one giant file. Because of this, certain symbols cannot be found by
+certain modules, because the dependent module is not in the same file.
+
+The pre-processed include statements and translate_and_import() have different
+semantics. We need to get around this difference.
+
+By doing translate_and_import on this file, I can solve the problem.  Upon
+pre-processing, nmclient.mix is turned into nmclient.py, which contains
+everything, including the shim code, all in one long file.
+
+In seash.py, instead of doing translate_and_import("nmclient.repy"), I do
+translate_and_import("nmclient.py"). All the symbols can be found. Seash can
+execute correctly.
+
+"""
+
+mycontext['UsingShims'] = True
+
+include nmclient.repy

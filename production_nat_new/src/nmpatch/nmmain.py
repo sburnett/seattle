@@ -95,6 +95,7 @@ import servicelogger
 repyhelper.translate_and_import('sha.repy')
 repyhelper.translate_and_import('rsa.repy')
 repyhelper.translate_and_import('ShimStackInterface.py')
+repyhelper.translate_and_import('advertise.repy')
 
 
 # Armon: To handle user preferrences with respect to IP's and Interfaces
@@ -147,6 +148,11 @@ configuration = {}
 accepter_state = {'lock':getlock(),'started':False}
 
 FOREGROUND = False
+
+NAME_SERVER = "zenodotus.cs.washington.edu"
+
+# Number of seconds that our DNS record should live on the DNS server.
+DNS_CACHE_TTL = 600
 
 # Dict to hold up-to-date nodename and boolean flags to track when to reset
 # advertisement and accepter threads (IP mobility)
@@ -244,6 +250,7 @@ def start_accepter():
   
   unique_id = rsa_publickey_to_string(configuration['publickey'])
   unique_id = sha_hexhash(unique_id) + str(configuration['service_vessel'])
+  unique_id += "." + NAME_SERVER
  
   # do this until we get the accepter started...
   while True:
@@ -256,6 +263,16 @@ def start_accepter():
       for possibleport in configuration['ports']:
         try:
           servicelogger.log("[INFO]: Trying to wait")
+
+          # We advertise the unique_id first so that we can perform waitforconn
+          # on it later. It's tempting to do a waitforconn directly on the
+          # current IP, but IPs are not unique. If we are behind a NAT, our IP
+          # can be some private address which may have duplicates registered in
+          # the NAT forwarder. As a result, a client may not be able to locate
+          # us within the NAT forwarder. Hence, waitforconn must occur on a unique
+          # resolvable name.
+          advertise_to_DNS(unique_id)
+
           shimstack.waitforconn(unique_id, possibleport,
                                 nmconnectionmanager.connection_handler)
 
@@ -277,10 +294,10 @@ def start_accepter():
       else:
         servicelogger.log("[ERROR]: cannot find a port for waitforconn.")
 
-    # Saves myname to a file so that  unit test programs can connect to me using shim's naming system
-    fileobj = open('advertised_name', 'w')
-    fileobj.write(myname)
-    fileobj.close()
+    # Saves myname to a file so that unit test programs can connect to me using shim's naming system
+    advertised_name_file_obj = open('advertised_name', 'w')
+    advertised_name_file_obj.write(myname)
+    advertised_name_file_obj.close()
 
     # check infrequently
     time.sleep(configuration['pollfrequency'])
@@ -351,6 +368,41 @@ def start_status_thread(vesseldict,sleeptime):
     statusthread.start()
     started_waitable_thread('status')
   
+
+
+def advertise_to_DNS(unique_id):
+  """
+  Advertise unique_id to the zenodotus DNS server. We strip away whatever that
+  follows the NAME_SERVER part of the unique_id. For instance, if our unique_id
+  is abc.NAME_SERVER:1234@xyz, then we only advertise abc.NAME_SERVER.
+
+  """
+  # IP that maps to the unique_id
+  myip = emulcomm.getmyip()
+
+  # Extract the part of unique_id up to the name server,
+  # i.e. xyz.zenodotus.washington.edu, and discard whatever that follows
+  name_server_pos = unique_id.find(NAME_SERVER)
+  if name_server_pos > -1:
+    unique_id = unique_id[0 : name_server_pos + len(NAME_SERVER)]
+  else:
+    raise Exception("Invalid unique_id format: '" + str(unique_id) + "'")
+  
+  try:
+    advertise_announce(unique_id, myip, DNS_CACHE_TTL)
+    servicelogger.log("[INFO]: Advertised " + str(unique_id) + " which maps to " + myip)
+  except Exception, error:
+    if 'announce error' in str(error):
+      # We can confidently drop the exception here. The advertisement service
+      # can sometimes be flaky, yet it can guarantee advertisement of our
+      # key-value pair on at least one of the three components. Thus, we are
+      # printing the error message as a warning here.
+      pass
+    else:
+      raise Exception(error)
+
+
+
 
 
 # lots of little things need to be initialized...   
@@ -459,6 +511,8 @@ def main():
   # I will count my iterations through the loop so that I can log a message
   # periodically.   This makes it clear I am alive.
   times_through_the_loop = 0
+  
+  last_advertise_to_DNS_time = time.time()
 
   # BUG: Need to exit all when we're being upgraded
   while True:
@@ -468,6 +522,13 @@ def main():
     # and this code was never executed, so i removed it completely
 
     myname = node_reset_config['name']
+
+    # Refresh the DNS cache if the duration from when we last advertised is
+    # longer than half of the TTL. This guarantees we advertise our name before
+    # it expires in the DNS cache.
+    if 2 * (time.time() - last_advertise_to_DNS_time) > DNS_CACHE_TTL:
+      advertise_to_DNS(myname)
+      last_advertise_to_DNS_time = time.time()
         
     if not is_worker_thread_started():
       servicelogger.log("[WARN]:At " + str(time.time()) + " restarting worker...")

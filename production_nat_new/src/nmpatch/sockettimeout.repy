@@ -206,7 +206,11 @@ def timeout_openconn(desthost, destport, localip=None, localport=None, timeout=5
     Wrapper for openconn.   Very, very similar
 
   <Args>
-    Same as Repy openconn
+    Same as Repy openconn except the following
+
+    use_shim: By default, shims are not enabled in this module. You need to
+    explicitly set this as True to take advantage of shims. In addition, you
+    should include ShimStackInterface in your application.
 
   <Exception>
     Raises the same exceptions as openconn.
@@ -240,7 +244,10 @@ def timeout_waitforconn(localip, localport, function, timeout=5, use_shim=False)
     Wrapper for waitforconn.   Essentially does the same thing...
 
   <Args>
-    Same as Repy waitforconn with the addition of a timeout argument.
+    Same as Repy waitforconn with the addition of a timeout argument. 
+
+    See documentation of timeout_openconn for an explanation of the use_shim
+    argument.
 
   <Exceptions> 
     Same as Repy waitforconn

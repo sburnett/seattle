@@ -9,7 +9,7 @@ various information along the way.
 import sys
 import subprocess
 
-LOCAL = True
+LOCAL = False
 
 if LOCAL:
   USERNAME = "angela"

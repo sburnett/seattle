@@ -190,7 +190,7 @@ class CoordinationShim(BaseShim):
     if sock is None:
       self._logger.log("openconn: Trying to connect to %s:%s without using the shim interface." % (hostkey, port))
       try:
-        sock = openconn(DummyDNSLookup(hostkey),port,localhost,localport,timeout)
+        sock = openconn(hostkey,port,localhost,localport,timeout)
       except Exception,e:
         exception_str +=' || Unable to connect without using shims becase %s.' % e
 
