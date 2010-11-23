@@ -43,7 +43,7 @@
 	   A: Our intent from the outset has been to maximize security.   We believe our system is safer than existing code sandboxes for web applications that are prevalent on all systems.   However, any software adds risk.</p>
     
     <p> Q: What sort of network traffic will my computer send?<br />
-	   A: Seattle only generates TCP and UDP traffic on ports 63100 - 63199 (inclusive).   There is an <a href="https://seattle.cs.washington.edu/wiki/ContainmentInSeattle">optional module</a> under development that will restrict the source and / or destination of Seattle traffic to only other Seattle nodes.</p>
+	   A: By default, Seattle only allows a user to listen on TCP and UDP using local ports 63100 - 63199 (inclusive).   Outgoing traffic will use ports greater than 1024.   There is an <a href="https://seattle.cs.washington.edu/wiki/ContainmentInSeattle">optional module</a> under development that will restrict the source and / or destination of Seattle traffic to only other Seattle nodes.</p>
        
     <p>Q: What files are accessible by programs running in the Seattle virtual machines?<br />
 	   A: Programs running on Seattle are restricted to reading and writing files in a single directory that is below the Seattle installation directory.</p>
