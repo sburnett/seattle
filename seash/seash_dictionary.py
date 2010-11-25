@@ -180,6 +180,9 @@ show uploadrate -- Display the upload rate which seash uses to estimate
           'to':{'name':'to', 'callback':None, 'help_text':'', 'children':{
               '[FILENAME]':{'name':'filename', 'callback':command_callbacks.show_ip_to_file, 'help_text':'', 'children':{}},
           }},
+          '>':{'name':'>', 'callback':None, 'help_text':'', 'children':{
+              '[FILENAME]':{'name':'filename', 'callback':command_callbacks.show_ip_to_file, 'help_text':'', 'children':{}},
+          }},
       }},
       'hostname':{'name':'hostname', 'callback':command_callbacks.show_hostname, 'help_text':'', 'children':{}},
       'location':{'name':'location', 'callback':command_callbacks.show_location, 'help_text':'', 'children':{}},
