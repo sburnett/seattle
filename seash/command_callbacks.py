@@ -343,7 +343,12 @@ def show_files(input_dict, environment_dict):
 
     # True means it worked
     if retdict[longname][0]:
-      print "Files on '"+longname+"': '"+retdict[longname][1]+"'"
+      # let's sort the files...
+      fileliststring = retdict[longname][1]
+      filelist = fileliststring.split()
+      filelist.sort()
+      fileliststring = " ".join(filelist)
+      print "Files on '"+longname+"': '"+fileliststring+"'"
       goodlist.append(longname)
 
     else:
