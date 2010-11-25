@@ -2118,6 +2118,59 @@ def delete_remotefn(input_dict, environment_dict):
     print "Added group 'deletegood' with "+str(len(seash_global_variables.targets['deletegood']))+" targets and 'deletefail' with "+str(len(seash_global_variables.targets['deletefail']))+" targets"
 
 
+
+
+# cat remotefn  -- Print a file to the screen
+def cat_filename(input_dict, environment_dict):
+
+  command_key = input_dict.keys()[0]
+
+  # Iterates through the dictionary to retrieve the user's filename
+  while input_dict[command_key]['name'] is not 'filename':
+     input_dict = input_dict[command_key]['children']
+     command_key = input_dict.keys()[0]
+
+  remotefn = os.path.basename(command_key)
+
+  if not environment_dict['currenttarget']:
+    raise seash_exceptions.UserError("Must specify a target")
+
+
+
+  faillist = []
+  goodlist = []
+
+  retdict = seash_helper.contact_targets(seash_global_variables.targets[environment_dict['currenttarget']],seash_helper.cat_target,remotefn)
+
+
+  # here is where I list it out...
+  for longname in retdict:
+
+    # True means it worked
+    if retdict[longname][0]:
+      print
+      print "File '"+remotefn+"' on '"+longname+"': "
+      print retdict[longname][1]
+      print
+      goodlist.append(longname)
+
+    else:
+      print
+      print "failure on '"+longname+"': '"+retdict[longname][1]+"'"
+      faillist.append(longname)
+  
+  # and display it...
+  if faillist:
+    print "Failures on "+str(len(faillist))+" targets: "+", ".join(faillist)
+
+  if goodlist and faillist:
+    seash_global_variables.targets['catgood'] = goodlist
+    seash_global_variables.targets['catfail'] = faillist
+    print "Added group 'catgood' with "+str(len(seash_global_variables.targets['catgood']))+" targets and 'catfail' with "+str(len(seash_global_variables.targets['catfail']))+" targets"
+
+
+
+
   
   
 

@@ -129,6 +129,7 @@ loadkeys fn [as identity]   -- loads filename.publickey and filename.privatekey
 list               -- Update and display information about the vessels
 upload localfn (remotefn)   -- Upload a file 
 download remotefn (localfn) -- Download a file 
+cat remotefn          -- List the contents of a file
 delete remotefn             -- Delete a file
 reset                  -- Reset the vessel (clear the log and files and stop)
 run file [args ...]    -- Shortcut for upload a file and start
@@ -345,6 +346,10 @@ set autosave [ on | off ] -- Sets whether to save the state after every command.
 
   'delete':{'name':'delete', 'callback':None, 'help_text':'', 'children':{
       '[FILENAME]':{'name':'filename', 'callback':command_callbacks.delete_remotefn, 'help_text':'', 'children':{}},
+  }},
+
+  'cat':{'name':'cat', 'callback':None, 'help_text':'', 'children':{
+      '[FILENAME]':{'name':'filename', 'callback':command_callbacks.cat_filename, 'help_text':'', 'children':{}},
   }},
 
 

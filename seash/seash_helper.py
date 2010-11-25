@@ -439,6 +439,23 @@ def download_target(longname,localfn,remotefn):
 
 
 
+def cat_target(longname,remotefn):
+
+  vesselname = seash_global_variables.vesselinfo[longname]['vesselname']
+
+  try:
+    # get the file data...
+    retrieveddata = nmclient_signedsay(seash_global_variables.vesselinfo[longname]['handle'], "RetrieveFileFromVessel", vesselname, remotefn)
+
+  except NMClientException, e:
+    return (False, str(e))
+
+  else:
+    # and return it..
+    return (True, retrieveddata)
+
+
+
 def delete_target(longname,remotefn):
 
   vesselname = seash_global_variables.vesselinfo[longname]['vesselname']
