@@ -117,37 +117,45 @@ seashcommanddict = {
   'help':{'name':'help', 'callback':command_callbacks.help, 'priority':True, 'help_text':"""
 A target can be either a host:port:vesselname, %ID, or a group name.
 
-on target [command] -- Runs a command on a target (or changes the default)
+loadkeys fn [as identity]    -- Loads filename.publickey and filename.privatekey
 as keyname [command]-- Run a command using an identity (or changes the default).
+on target [command] -- Run a command on a target (or changes the default)
 add [target] [to group]      -- Adds a target to a new or existing group 
 remove [target] [from group] -- Removes a target from a group
-show                -- Displays shell state (use 'help show' for more info)
-set                 -- Changes the state of the targets (use 'help set')
-browse              -- Find vessels I can control
+show                         -- Displays shell state (see 'help show')
+set                          -- Changes the shell or vessels (see 'help set')
+browse                       -- Find vessels I can control
+list                         -- Update and display information about the vessels
+upload localfn (remotefn)    -- Upload a file
+download remotefn (localfn)  -- Download a file (to multiple local files)
+cat remotefn                 -- Display the contents of a remote file
+delete remotefn              -- Delete a file
+reset                        -- Reset the vessel (clear files / log and stop)
+run file [args ...]          -- Upload a file and start executing it
+stop                         -- Stop an experiment but leave the log / files
+help [extended | set | show ]-- Try 'help extended' for more commands
+exit                         -- Exits the shell
+
+See https://seattle.cs.washington.edu/wiki/RepyTutorial for more info!""", 
+    'children':{}
+  },
+
+
+  'extended':{'name':'extended', 'callback':command_callbacks.help, 'help_text':"""
+Extended commands (not commonly used):
+
+move target to group         -- Add target to group, remove target from default
+loadstate fn -- Load encrypted shell state from a file with the keyname
+savestate fn -- Save the shell's state information to a file with the keyname.
 genkeys fn [len] [as identity] -- creates new pub / priv keys (default len=1024)
-loadkeys fn [as identity]   -- loads filename.publickey and filename.privatekey
-list               -- Update and display information about the vessels
-upload localfn (remotefn)   -- Upload a file 
-download remotefn (localfn) -- Download a file 
-cat remotefn          -- List the contents of a file
-delete remotefn             -- Delete a file
-reset                  -- Reset the vessel (clear the log and files and stop)
-run file [args ...]    -- Shortcut for upload a file and start
-start file [args ...] -- Start an experiment
-stop               -- Stop an experiment
-split resourcefn            -- Split another vessel off of each vessel
-join                        -- Join vessels on the same node
-help [help | set | show ]    -- help information 
-exit                         -- exits the shell
-loadstate fn -- Load saved states from a local file. One must call 'loadkeys 
-                 username' and 'as username' first before loading the states,
-                 so seash knows whose RSA keys to use in deciphering the state
-                 file.
-savestate fn -- Save the current state information to a local file.
-""", 'children':{
-
-  }},
-
+loadpub fn [as identity]     -- loads filename.publickey 
+loadpriv fn [as identity]    -- loads filename.privatekey
+start file [args ...]        -- Start an experiment (doesn't upload)
+contact host:port[:vessel]   -- Communicate with a node explicitly
+update                       -- Update information about the vessels
+split resourcefn             -- Split another vessel off (requires owner)
+join                         -- Join vessels on the same node (requires owner)
+""", 'children':{}},
 
   'show':{'name':'show', 'callback':command_callbacks.show, 'help_text':"""
 show info       -- Display general information about the vessels
@@ -245,10 +253,13 @@ show uploadrate -- Display the upload rate which seash uses to estimate
 
 
   'set':{'name':'set', 'callback':command_callbacks.set, 'help_text':"""
+Commands requiring owner credentials on a vessel:
 set users [ identity ... ]  -- Change a vessel's users
 set ownerinfo [ data ... ]    -- Change owner information for the vessels
 set advertise [ on | off ] -- Change advertisement of vessels
 set owner identity        -- Change a vessel's owner
+
+Shell settings:
 set timeout count  -- Sets the time that seash is willing to wait on a node
 set uploadrate speed -- Sets the upload rate which seash will use to estimate
                         the time needed for a file to be uploaded to a vessel.
