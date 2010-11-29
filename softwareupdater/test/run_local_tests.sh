@@ -52,6 +52,7 @@ cp utf/*.py $testsdir
 cp -R softwareupdater/test/* $testsdir
 cp -R tuf/ $testsdir
 cp -R tuf/simplejson/ $testsdir
+cp -R tuf/evpy/ $testsdir
 
 # Change to the tests directory.
 cd $testsdir
