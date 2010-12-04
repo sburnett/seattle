@@ -76,9 +76,6 @@ except ImportError:
 # Needed for parsing user commands and executing command functions
 import seash_dictionary
 
-# For access to the global variables
-import seash_global_variables
-
 # To be able to catch certain exceptions thrown throughout the program
 import seash_exceptions
 
