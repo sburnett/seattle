@@ -268,7 +268,7 @@ def command_loop():
                                  environment_dict['defaulttarget'], environment_dict['defaultkeyname'], 
                                  environment_dict['autosave'], environment_dict['defaultkeyname'])
         except Exception, error:
-          raise UserError("There is an error in autosave: '" + str(error) + "'. You can turn off autosave using the command 'set autosave off'.")
+          raise seash_exceptions.UserError("There is an error in autosave: '" + str(error) + "'. You can turn off autosave using the command 'set autosave off'.")
 
 
       prompt = ''
