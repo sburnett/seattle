@@ -14,7 +14,7 @@ tmpdir=`mktemp -d -t tmp.XXXXXXXX` || exit 1
 # Change directory to the directory that preparetest.py is in.
 cd $trunkdir
 
-python preparetest.py -tr $tmpdir
+python preparetest.py -tr $tmpdir > /dev/null
 cd $tmpdir
 
 python utf.py -T -m nm >$logfile 2>&1
