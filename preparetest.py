@@ -234,11 +234,10 @@ def main():
   #set working directory to the test folder
   os.chdir(target_dir)
 
-  #call the process_mix function to process all mix files in the target directory
-  process_mix("repypp.py", verbose)
 
   # set up dynamic port information
   if RANDOMPORTS:
+    print "\n[ Randomports option was chosen ]\n"+'-'*50
     portstouseasints = random.sample(range(52000, 53000), 3)
     portstouseasstr = []
     for portint in portstouseasints:
@@ -246,12 +245,76 @@ def main():
     
     print "Randomly chosen ports: ",portstouseasstr
     testportfiller.replace_ports(portstouseasstr, portstouseasstr)
+
+    # Replace the string <nodemanager_port> with a random port
+    random_nodemanager_port = random.randint(53000, 54000)
+    print "Chosen random nodemanager port: " + str(random_nodemanager_port)
+    print '-'*50 + "\n"
+    replace_string("<nodemanager_port>", str(random_nodemanager_port), "*nm*")
+    
   else:
     # if this isn't specified, just use the default ports...
     testportfiller.replace_ports(['12345','12346','12347'], ['12345','12346','12347'])
 
+    # Use default port 1224 for the nodemanager port if --random flag is not provided.
+    replace_string("<nodemanager_port>", '1224', "*nm*")
+
+
+
+  #call the process_mix function to process all mix files in the target directory
+  process_mix("repypp.py", verbose)
+
   #go back to root project directory
   os.chdir(current_dir) 
+
+
+
+
+def replace_string(old_string, new_string, file_name_pattern="*"):
+  """
+  <Purpose>
+    Go through all the files in the current folder and replace
+    every match of the old string in the file with the new
+    string.
+
+  <Arguments>
+    old_string - The string we want to replace.
+ 
+    new_string - The new string we want to replace the old string
+      with.
+
+    file_name_pattern - The pattern of the file name if you want
+      to reduce the number of files we look at. By default the 
+      function looks at all files.
+
+  <Exceptions>
+    None.
+
+  <Side Effects>
+    Many files may get modified.
+
+  <Return>
+    None
+  """
+
+  for testfile in glob.glob(file_name_pattern):
+    # Read in the initial file.
+    inFile = file(testfile, 'r')
+    filestring = inFile.read()
+    inFile.close()
+
+    # Replace any form of the matched old string with
+    # the new string.
+    filestring = filestring.replace(old_string, new_string)
+
+    # Write the file back.
+    outFile = file(testfile, 'w')
+    outFile.write(filestring)
+    outFile.close()
+
+
+
+
 
 
 if __name__ == '__main__':
