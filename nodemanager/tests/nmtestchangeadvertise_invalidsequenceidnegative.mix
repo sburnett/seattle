@@ -10,7 +10,7 @@ include nmclient.repy
 if callfunc == 'initialize':
 
   time_updatetime(34612)
-  nmhandle = nmclient_createhandle(getmyip(), 1224, sequenceid=('req',-1))
+  nmhandle = nmclient_createhandle(getmyip(), <nodemanager_port>, sequenceid=('req',-1))
   
   myhandleinfo = nmclient_get_handle_info(nmhandle)
 
@@ -40,7 +40,7 @@ if callfunc == 'initialize':
 
   if vesselinfo['vessels'][myvessel]['advertise'] != origstate:
     # Change it back...
-    nmhandle = nmclient_createhandle(getmyip(), 1224)
+    nmhandle = nmclient_createhandle(getmyip(), <nodemanager_port>)
     nmclient_set_handle_info(nmhandle, myhandleinfo)
     
     nmclient_signedsay(nmhandle, "ChangeAdvertise", myvessel, origstate)

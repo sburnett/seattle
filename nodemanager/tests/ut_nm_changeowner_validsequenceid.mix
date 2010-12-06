@@ -19,7 +19,7 @@ if callfunc == 'initialize':
 
   time_updatetime(34612)
   
-  nmhandle = nmclient_createhandle(getmyip(), 1224)  
+  nmhandle = nmclient_createhandle(getmyip(), <nodemanager_port>)  
   myhandleinfo = nmclient_get_handle_info(nmhandle)
   myhandleinfo['publickey'] = origpub
   myhandleinfo['privatekey'] = origpriv
@@ -34,7 +34,7 @@ if callfunc == 'initialize':
   nmclient_signedsay(nmhandle, "ChangeAdvertise", myvessel, False)
   
   #set up a new handle with sequence id 0
-  nmhandle = nmclient_createhandle(getmyip(), 1224, sequenceid=('req',0))  
+  nmhandle = nmclient_createhandle(getmyip(), <nodemanager_port>, sequenceid=('req',0))  
   myhandleinfo = nmclient_get_handle_info(nmhandle)
   myhandleinfo['publickey'] = origpub
   myhandleinfo['privatekey'] = origpriv
@@ -48,7 +48,7 @@ if callfunc == 'initialize':
     raise Exception, "Change owner request with sequence id 0 failed"
 
   # use the credentials I just created...
-  nmhandle = nmclient_createhandle(getmyip(), 1224, sequenceid=('req',1))
+  nmhandle = nmclient_createhandle(getmyip(), <nodemanager_port>, sequenceid=('req',1))
   myhandleinfo = nmclient_get_handle_info(nmhandle)
   myhandleinfo['publickey'] = keys[0]
   myhandleinfo['privatekey'] = keys[1]
@@ -60,7 +60,7 @@ if callfunc == 'initialize':
     nmclient_signedsay(nmhandle, "ChangeOwner", myvessel, rsa_publickey_to_string(origpub))
   except NMClientException:
     #try to change owner back using a request with no sequence id
-    nmhandle = nmclient_createhandle(getmyip(), 1224) 
+    nmhandle = nmclient_createhandle(getmyip(), <nodemanager_port>) 
     myhandleinfo = nmclient_get_handle_info(nmhandle)
     myhandleinfo['publickey'] = keys[0]
     myhandleinfo['privatekey'] = keys[1]

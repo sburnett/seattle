@@ -19,11 +19,11 @@ if callfunc == 'initialize':
   # nm accept only three cons from an IP, since it may be processing one, the
   # maximum I should be able to get and use is four.   The other should be
   # closed.
-  junk1 = openconn(ip,1224)
-  junk2 = openconn(ip,1224)
-  junk3 = openconn(ip,1224)
-  junk4 = openconn(ip,1224)
-  junk5 = openconn(ip,1224)
+  junk1 = openconn(ip,<nodemanager_port>)
+  junk2 = openconn(ip,<nodemanager_port>)
+  junk3 = openconn(ip,<nodemanager_port>)
+  junk4 = openconn(ip,<nodemanager_port>)
+  junk5 = openconn(ip,<nodemanager_port>)
   settimer(0, waitonsocket, (junk1,1))
   settimer(0, waitonsocket, (junk2,2))
   settimer(0, waitonsocket, (junk3,3))

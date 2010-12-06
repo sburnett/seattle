@@ -24,7 +24,7 @@ if callfunc == 'initialize':
   
   #get the current time
   current_time = time_gettime()
-  nmhandle = nmclient_createhandle(getmyip(), 1224, timestamp =current_time, expirationtime= 2)
+  nmhandle = nmclient_createhandle(getmyip(), <nodemanager_port>, timestamp =current_time, expirationtime= 2)
   
   myhandleinfo = nmclient_get_handle_info(nmhandle)
 
@@ -56,7 +56,7 @@ if callfunc == 'initialize':
   origstate = vesselinfo['vessels'][myvessel]['advertise']
   
   #check if new credentials are working
-  nmhandle = nmclient_createhandle(getmyip(), 1224)
+  nmhandle = nmclient_createhandle(getmyip(), <nodemanager_port>)
   myhandleinfo = nmclient_get_handle_info(nmhandle)
   myhandleinfo['publickey'] = keys[0]
   myhandleinfo['privatekey'] = keys[1]
@@ -82,7 +82,7 @@ if callfunc == 'initialize':
   if not test_pass:
     #change the owner back
     # use the credentials I just created...
-    nmhandle = nmclient_createhandle(getmyip(), 1224)
+    nmhandle = nmclient_createhandle(getmyip(), <nodemanager_port>)
     myhandleinfo = nmclient_get_handle_info(nmhandle)
     myhandleinfo['publickey'] = keys[0]
     myhandleinfo['privatekey'] = keys[1]

@@ -152,8 +152,11 @@ accepter_state = {'lock':getlock(),'started':False}
 
 # whether or not to use the natlayer, this option is passed in via command line
 # -nat
+# If TEST_NM is true, then the nodemanager won't worry about another nmmain
+# running already.
 AUTO_USE_NAT = False
 FOREGROUND = False
+TEST_NM = False
 
 # Dict to hold up-to-date nodename and boolean flags to track when to reset
 # advertisement and accepter threads (IP mobility)
@@ -374,24 +377,43 @@ def main():
     # Background ourselves.
     daemon.daemonize()
 
-  # ensure that only one instance is running at a time...
-  gotlock = runonce.getprocesslock("seattlenodemanager")
-  if gotlock == True:
-    # I got the lock.   All is well...
-    pass
-  else:
-    if gotlock:
-      servicelogger.log("[ERROR]:Another node manager process (pid: " + str(gotlock) + 
-          ") is running")
-    else:
-      servicelogger.log("[ERROR]:Another node manager process is running")
-    return
 
-  
+  # Check if we are running in testmode.
+  if TEST_NM:
+    nodemanager_pid = os.getpid()
+    servicelogger.log("[INFO]: Running nodemanager in test mode on port <nodemanager_port>, "+
+                      "pid %s." % str(nodemanager_pid))
+    nodeman_pid_file = open(os.path.join(os.getcwd(), 'nodemanager.pid'), 'w')
+    
+    # Write out the pid of the nodemanager process that we started to a file.
+    # This is only done if the nodemanager was started in test mode.
+    try:
+      nodeman_pid_file.write(str(nodemanager_pid))
+    finally:
+      nodeman_pid_file.close()
+
+  else:
+    # ensure that only one instance is running at a time...
+    gotlock = runonce.getprocesslock("seattlenodemanager")
+
+    if gotlock == True:
+      # I got the lock.   All is well...
+      pass
+    else:
+      if gotlock:
+        servicelogger.log("[ERROR]:Another node manager process (pid: " + str(gotlock) + 
+                        ") is running")
+      else:
+        servicelogger.log("[ERROR]:Another node manager process is running")
+      return
+
+
+
   # I'll grab the necessary information first...
   servicelogger.log("[INFO]:Loading config")
   # BUG: Do this better?   Is this the right way to engineer this?
   configuration = persist.restore_object("nodeman.cfg")
+  
   
   # Armon: initialize the network restrictions
   initialize_ip_interface_restrictions(configuration)
@@ -494,7 +516,7 @@ def main():
       servicelogger.log("[WARN]:At " + str(time.time()) + " restarting status...")
       start_status_thread(vesseldict,configuration['pollfrequency'])
 
-    if not runonce.stillhaveprocesslock("seattlenodemanager"):
+    if not TEST_NM and not runonce.stillhaveprocesslock("seattlenodemanager"):
       servicelogger.log("[ERROR]:The node manager lost the process lock...")
       harshexit.harshexit(55)
 
@@ -554,6 +576,10 @@ if __name__ == '__main__':
     if arg == '--foreground':
       FOREGROUND = True
 
+    # take a command line argument to run nmmain as test.
+    if arg == '--test-mode':
+      TEST_NM = True
+
   # Initialize the service logger.   We need to do this before calling main
   # because we want to print exceptions in main to the service log
   servicelogger.init('nodemanager')
@@ -568,5 +594,9 @@ if __name__ == '__main__':
     # Since the main thread has died, this is a fatal exception,
     # so we need to forcefully exit
     harshexit.harshexit(15)
+
+
+
+
 
 

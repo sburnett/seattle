@@ -12,7 +12,7 @@ include nmclient.repy
 if callfunc == 'initialize':
 
   time_updatetime(34612)
-  nmhandle = nmclient_createhandle(getmyip(), 1224)
+  nmhandle = nmclient_createhandle(getmyip(), <nodemanager_port>)
 
   myhandleinfo = nmclient_get_handle_info(nmhandle)
 

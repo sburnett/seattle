@@ -11,7 +11,7 @@ if callfunc == 'initialize':
 
 
   # nm will only wait 10 seconds for a connection to have activity...
-  socketobj = openconn(ip,1224)
+  socketobj = openconn(ip,<nodemanager_port>)
   # the node manager should time the socket out before this fires...
   settimer(15, error_and_exit, ())
 
