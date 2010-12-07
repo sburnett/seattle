@@ -11,11 +11,7 @@ Usage:  ./softwareupdater.py
 
 
 Updated 1/23/2009 use servicelogger to log errors - Xuanhua (Sean)s Ren
-
-
 """
-
-
 
 import sys
 import os
@@ -23,6 +19,9 @@ import os
 import daemon
 
 import repyhelper
+
+import tuf
+from tuf.client import updater
 
 # I need to make a cachedir for repyhelper...
 if not os.path.exists('softwareupdater.repyhelpercache'):
@@ -60,12 +59,11 @@ repyhelper.translate_and_import("sha.repy")
 TIME_PORT = 51234
 TIME_PORT_2 = 42345
 
-softwareurl = "http://seattle.cs.washington.edu/couvb/updatesite/0.1/"
+# set the repo dir
+tuf.conf.settings.repo_meta_dir = "."
 
-# embedded this because it seems easier to update it along with this file
-# Every computer running Seattle will have this same public key, and will trust
-# files signed by this key.
-softwareupdatepublickey = {'e':82832270266597330072676409661763231354244983360850404742185516224735762244569727906889368190381098316859532462559839005559035695542121011189767114678746829532642015227757061325811995458461556243183965254348908097559976740460038862499279411461302045605434778587281242796895759723616079286531587479712074947611, 'n':319621204384190529645831372818389656614287850643207619926347176392517761801427609535545760457027184668587674034177692977122041230031985031724339016854308623931563908276376263003735701277100364224187045110833742749159504168429702766032353498688487937836208653017735915837622736764430341063733201947629404712911592942893299407289815035924224344585640141382996031910529762480483482480840200108190644743566141062967857181966489101744929170144756204101501136046697030104623523067263295405505628760205318871212056879946829241448986763757070565574197490565540710448548232847380638562809965308287901471553677400477022039092783245720343246522144179191881098268618863594564939975401607436281396130900640289859459360314214324155479461961863933551434423773320970748327521097336640702078449006530782991443968680573263568609595969967079764427272827202433035192418494908184888678872217792993640959292902948045622147093326912328933981365394795535990933982037636876825043938697362285277475661382202880481400699819441979130858152032120174957606455858082332914545153781708896942610940094268714863253465554125515897189179557899347310399568254877069082016414203023408461051519104976942275899720740657969311479534442473551582563833145735116565451064388421}
+# where to get updates from
+seattle_url = "http://blackbox.cs.washington.edu/tuf_updatesite/"
 
 # Whether the nodemanager should be told not to daemonize when it is restarted.
 # This is only to assist our automated tests.
@@ -80,8 +78,6 @@ run_softwareupdater_in_foreground = True
 # way that main() is currently written, an exception may escape from main and
 # a loop in the global scope will catch it and call main() again.
 restartme = False
-
-
 
 # This code is in its own function called later rather than directly in the
 # global scope right here because otherwise we need to ensure that the
@@ -110,15 +106,12 @@ def safe_log(message):
   the servicelogger, then just try to print the message.
   """
   try:
+    #f = open('/tmp/log.txt', 'a')
+    #f.write(message + '\n')
+    #f.close()
     servicelogger.log(message)
   except:
-    try:
-      print message
-    except:
-      # As the standard output streams aren't closed, it would seem that this
-      # should never happen. If it does, though, what can we do to log the
-      # message, other than directly write to a file?
-      pass
+    pass
 
 
 
@@ -145,54 +138,6 @@ def safe_log_last_exception():
       pass
 
 
-
-
-def get_file_hash(filename):
-  fileobj = file(filename, 'rb')
-  filedata = fileobj.read()
-  fileobj.close()
-
-  return sha_hexhash(filedata)
-
-
-
-# We'll use this to get a file.   If it doesn't download in a reasonable time, 
-# we'll fail. (BUG: doesn't do this yet.   I use timeouts, but they don't
-# always work)
-def safe_download(serverpath, filename, destdir, filesize):
-  # TODO: filesize isn't being used.
-  # TODO: raise an RsyncError from here if the download fails instead of
-  #       returning True/False.
-  try:
-    urllib.urlretrieve(serverpath+filename,destdir+filename)
-    return True
-  except Exception,e:
-    safe_log_last_exception()
-    safe_log('[safe_download] Failed to download ' + serverpath + filename)
-    return False
- 
-#  # how much we have left to download
-#  remainingsize = filesize
-#
-#  # get a file-like object for the URL...
-#  safefo = urllib.urlopen(filename)
-#
-#  # always close after this...
-#  try:
-#    # download up to "filesize" worth of data...   
-#    # BUG: We also should check to see if this is too slow...
-#    mydata
-#  
-#  
-#  finally:
-#    try:
-#      safefo.close()
-#    except:
-#      pass
-
-
-
-
 ################### Begin Rsync ################### 
 # I'd love to be able to put this in a separate module or repyify it, but 
 # I'd need urllib...
@@ -200,10 +145,7 @@ def safe_download(serverpath, filename, destdir, filesize):
 class RsyncError(Exception):
   pass
 
-
-
-
-def do_rsync(serverpath, destdir, tempdir):
+def do_rsync(serverpath, destdir, tempdir, meta_dir="."):
   """
   <Purpose>
     This method is the one that attempts to download the metainfo file from
@@ -243,146 +185,68 @@ def do_rsync(serverpath, destdir, tempdir):
     A list of files that have been updated.  The list is empty if nothing is
     to be updated.
   """
+  # start the update
+  safe_log('started update')
 
-  # get the metainfo (like a directory listing)
-  safe_download(serverpath, "metainfo", tempdir, 1024*32)
+  # set the additional data that the repo needs to function
+  safe_log('setting repo metadata')
+  tuf.conf.settings.repo_meta_dir = meta_dir
+  # directory structure:
+  #   /
+  #     /meta
+  #     /targets
+  #     data
+  mirrors = {'repo': {'urlbase':serverpath,'metapath':'meta','targetspath':'targets','metacontent':['**'],'targetscontent':['**']}}
+  
+  # set up the repo and get the targets it provides
+  safe_log('creating the repository and getting the targets')
+  repo = updater.Repository('repo', mirrors)
+  repo.refresh()
+  all_targets = repo.get_all_targets()
 
-  # read the file data into a string
-  newmetafileobject = file(tempdir+"metainfo")
-  newmetafiledata = newmetafileobject.read()
-  newmetafileobject.close()
+  # get the full list of files needing an update
+  safe_log('getting the list of files that need updates')
+  files_to_update = []
+  for target in all_targets:
+    target.path = os.path.sep.join(target.path.split(os.path.sep)[1:])
+    path = os.path.join(destdir, target.path)
+    for hash_, digest in target.fileinfo['hashes'].items():
+      local_hasher = tuf.hash.Digest(hash_)
+      try:
+        local_hasher.update_filename(path)
+      except IOError:
+        files_to_update.append(target)
+      if local_hasher.format() != digest:
+        files_to_update.append(target)
+  #files_to_update = list(all_targets)
 
-  # Incorrectly signed, we don't update...
-  if not signeddata_issignedcorrectly(newmetafiledata, softwareupdatepublickey):
-    safe_log("[do_rsync] New metainfo not signed correctly. Not updating.")
-    return []
-
-  try:
-    # read in the old file
-    oldmetafileobject = file(destdir+"metainfo")
-    oldmetafiledata = oldmetafileobject.read()
-    oldmetafileobject.close()
-  except:
-    # The old file has problems.   We'll use the new one since it's signed
-    pass
-
-  else:
-    try:
-      # Armon: Update our time via NTP, before we check the meta info
-      time_updatetime(TIME_PORT)
-    except:
-      time_updatetime(TIME_PORT_2)
-    
-    # they're both good.   Let's compare them...
-    shoulduse, reasons = signeddata_shouldtrust(oldmetafiledata,newmetafiledata,softwareupdatepublickey)
-
-    if shoulduse == True:
-      # great!   All is well...
-      pass
-    elif shoulduse == None:
-      # hmm, a warning...   
-      if len(reasons) == 1 and reasons[0] == 'Cannot check expiration':
-        # we should probably allow this.  The node may be offline
-        # JCS: if it's offline, how is it downloading the metainfo or even
-        # getting past the time_updatetime() calls above?
-        safe_log("[do_rsync] Warning: " + str(reasons))
-      elif 'Timestamps match' in reasons:
-        # Already seen this one...
-        safe_log("[do_rsync] The metainfo indicates no update is needed: " + str(reasons))
-        return []
-
-    elif shoulduse == False:
-      if 'Public keys do not match' in reasons:
-        # If the only complaint is that the oldmetafiledata and newmetafiledata
-        # are signed by different keys, this is actually OK at this point.  We
-        # know that the newmetafiledata was correctly signed with the key held
-        # within this softwareupdater, so this should actually only happen when
-        # the oldmetafiledata has an out of date signature.  However, we do 
-        # still need to make sure there weren't any other fatal errors that 
-        # we should distrust. - Brent
-        reasons.remove('Public keys do not match')
-        for comment in reasons:
-          if comment in signeddata_fatal_comments:
-            # If there is a different fatal comment still there, still log it
-            # and don't perform the update.
-            safe_log("[do_rsync] Serious problem with signed metainfo: " + str(reasons))
-            return []
-            
-          if comment in signeddata_warning_comments:
-            # If there is a different warning comment still there, log the
-            # warning.  We will take care of specific behavior shortly.
-            safe_log("[do_rsync] " + str(comment))
-            
-        if 'Timestamps match' in reasons:
-          # Act as we do above when timestamps match
-          # Already seen this one...
-          safe_log("[do_rsync] The metainfo indicates no update is needed: " + str(reasons))
-          return []
-      else:
-        # Let's assume this is a bad thing and exit
-        safe_log("[do_rsync] Something is wrong with the metainfo: " + str(reasons))
-        return []
-
-  # now it's time to update
-  updatedfiles = [ "metainfo" ]
-
-  for line in file(tempdir+"metainfo"):
-
-    # skip comments
-    if line[0] == '#':
-      continue
- 
-    # skip signature parts
-    if line[0] == '!':
-      continue
- 
-    # skip blank lines
-    if line.strip() == '':
-      continue
-
-    linelist = line.split()
-    if len(linelist)!= 3:
-      raise RsyncError, "Malformed metainfo line: '"+line+"'"
-
-    filename, filehash, filesize = linelist
-    
-    shoulddownloadfile = False
-    
-    # if the file is missing or the hash is different, we want to download...
-    if not os.path.exists(destdir+filename):
-      shoulddownloadfile = True
-      safe_log("[do_rsync] Downloading file " + filename + " because it doesn't already exist at " + destdir+filename)
-    elif get_file_hash(destdir+filename) != filehash:
-      shoulddownloadfile = True
-      safe_log("[do_rsync] Downloading file " + filename + " because the hash changed.")
-      
-    if shoulddownloadfile:
-      # get the file
-      safe_download(serverpath, filename, tempdir, filesize)
-
-      # The hash doesn't match what we expected it to be according to the signed metainfo.
-      if get_file_hash(tempdir+filename) != filehash:
-        safe_log("[do_rsync] Hash mismatch on file '"+filename+"':" + filehash +
-            " vs " + get_file_hash(tempdir+filename))
-        raise RsyncError, "Hash of file '"+filename+"' does not match information in metainfo file"
-
-      # put this file in the list of files we need to update
-      updatedfiles.append(filename)      
-
+  # download each of the needed files
+  safe_log('downloading the needed files')
+  updatedfiles = []
+  for target in files_to_update:
+    safe_log("Repo tells us that %s needs updating" % target.path)
+    temporary_path = os.path.join(tempdir, target.path)
+    temporary_path_prefix = os.path.dirname(temporary_path)
+    if not os.path.exists(temporary_path_prefix):
+      os.makedirs(temporary_path_prefix)
+    target.download(temporary_path)
+    updatedfiles.append(target.path)
 
   # copy the files to the local dir...
-  safe_log("[do_rsync] Updating files: " + str(updatedfiles))
+  safe_log('updating')
   for filename in updatedfiles:
-    shutil.copy(tempdir+filename, destdir+filename)
+    temporary_path = os.path.join(tempdir, filename)
+    destination_path = os.path.join(destdir, filename)
+    destination_prefix = os.path.dirname(destination_path)
+    if not os.path.exists(destination_prefix):
+      os.mkdir(destination_prefix)
+    shutil.copy(temporary_path, destination_path)
     
-  # done!   We updated the files
+  # and go home
+  safe_log('going home')
   return updatedfiles
   
 ################### End Rsync ################### 
-
-
-
-
 
 # MUTEX  (how I prevent multiple copies)
 # a new copy writes an "OK" file. if it's written the previous can exit.   
@@ -464,7 +328,7 @@ def init():
   socket.setdefaulttimeout(10)
 
   # time to handle startup (with respect to other copies of the updater
-  if len(sys.argv) == 1:
+  if len(sys.argv) == 1 or sys.argv[-1] == 'debug':
     # I was called with no arguments, must be a fresh start...
     fresh_software_updater()
   else:
@@ -505,6 +369,7 @@ def software_updater_start(mutexname):
   # if "stop" file exists, then exit
   if os.path.exists("softwareupdater.stop."+mutexname):
     safe_log("[software_updater_start] There's a stop file. Exiting.")
+    open('/tmp/log.txt', 'w').write("HERE")
     sys.exit(2)
 
   # write "OK" file
@@ -696,7 +561,7 @@ def restart_client(filenamelist):
   # time, perhaps outliving me (if I'm updated first)
 
 
-def main():
+def main(debug=False):
   """
   <Purpose>
     Has an infinite loop where we sleep for 5-55 minutes, then check for 
@@ -726,18 +591,26 @@ def main():
   #   3) we restart our client if they are updated
 
   while True:
-    # sleep for 5-55 minutes 
-    for junk in range(random.randint(10, 110)):
+    if debug:
+      rint = 1
+    else:
+      rint = random.randint(10, 110)
+    for junk in range(rint):
       # We need to wake up every 30 seconds otherwise we will take
       # the full 5-55 minutes before we die when someone tries to
       # kill us nicely.
-      misc.do_sleep(30)
+      misc.do_sleep(1)
       # Make sure we still have the process lock.
       # If not, we should exit
       if not runonce.stillhaveprocesslock('softwareupdater.old'):
         safe_log('[main] We no longer have the processlock\n')
         sys.exit(55)
 
+    # set the softwareurl based on whether debug is set
+    if debug:
+      softwareurl = 'http://localhost:12345'
+    else:
+      softwareurl = seattle_url
 
     # Make sure that if we failed somehow to restart, we keep trying before
     # every time we try to update. - Brent
@@ -751,22 +624,20 @@ def main():
     # I'll clean this up in a minute
     try:
       updatedlist = do_rsync(softwareurl, "./",tempdir)
-    except RsyncError:
+    except Exception:
+      safe_log_last_exception()
       # oops, hopefully this will be fixed next time...
       continue
 
     finally:
       shutil.rmtree(tempdir)
 
+    safe_log('[main] rsync with server yielded the following changes: %s' % str(updatedlist))
     # no updates   :)   Let's wait again...
     if updatedlist == []:
       continue
 
-    # if there were updates, the metainfo file should be one of them...
-    assert('metainfo' in updatedlist)
-
     clientlist = updatedlist[:]
-
     if 'softwareupdater.py' in clientlist:
       restartme = True
       clientlist.remove('softwareupdater.py')
@@ -779,7 +650,7 @@ def main():
     if restartme:
       restart_software_updater()
 
-
+    if debug: break
 
 
 
@@ -809,8 +680,22 @@ def read_environmental_options():
 
 
 if __name__ == '__main__':
+  from sys import argv
+
+  # find out whether we're debugging or not
+  if 'debug' in argv[-1]:
+    debug = True
+  else:
+    debug = False
+
+  if 'debugrestart' in argv[-1]:
+    loop = True
+  else:
+    loop = False
+
+  # get our env options
   read_environmental_options()
-  if not run_softwareupdater_in_foreground:
+  if not run_softwareupdater_in_foreground and not debug:
     daemon.daemonize()
 
   # Initialize the service logger.
@@ -827,7 +712,7 @@ if __name__ == '__main__':
   # in main)
   while True:
     try:
-      main()
+      main(debug)
     except SystemExit:
       # If there is a SystemExit exception, we should probably actually exit...
       raise
@@ -837,3 +722,4 @@ if __name__ == '__main__':
       # Sleep a little to prevent a fast loop if the exception is happening
       # before any other calls to do_sleep().
       misc.do_sleep(1.0)
+    if not loop: break

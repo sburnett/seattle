@@ -41,7 +41,7 @@ import tempfile
 
 import string
 import datetime
-
+import logging
 
 logger = tuf.log.get_logger()
 
@@ -52,6 +52,10 @@ BUILD_TARGETS = 2
 BUILD_RELEASE = 3
 BUILD_TIMESTAMP = 4
 FINISH = 5
+
+# test flag
+global TEST
+TEST = False
 
 def prompt(message, result_type=str):
 	return result_type(raw_input(message))
@@ -200,7 +204,7 @@ def build_timestamp_txt(fuzzy_keys, key_db, metadata_root):
 	signed = signerlib.sign_meta(timestamp_meta, fuzzy_keys, key_db)
 	signerlib.write_metadata_file(signed, metadata_root + pathsep + "timestamp.txt")
 
-def update_metadata(keystore_path, project_root, root_cfg_path, server_dir, state=BUILD_ROOT):
+def update_metadata(keystore_path, project_root, root_cfg_path, server_dir, add_keys, remove_keys, thresholds, keysize, state=BUILD_ROOT):
 	logger.info(state)
 	# normalize the paths
 	metadata_root = os.path.join(server_dir, "meta")
@@ -208,21 +212,66 @@ def update_metadata(keystore_path, project_root, root_cfg_path, server_dir, stat
 
 	# build the keydb
 	key_db = keystore.KeyStore(keystore_path)
+	if TEST: key_db.load(['test'])
 	while True:
+		if TEST: break
 		line = signercli._get_password("Please input a decryption password for the keystore, or -- to stop: ")
 		if line != '--':
 			key_db.load([line])
 		else:
 			break
 
+	# these are the keys we'll sign with and those that will wind up in the
+	# root.cfg when we're done
+	fuzzy_keys = {'root': set(), 'targets': set(), 'release': set(), 'timestamp': set()}
+	if not thresholds:
+		thresholds = {	'root': 1, 
+				'targets': 1, 
+				'release': 1, 
+				'timestamp': 1}
+
+	# generate any new keys
+	for role, add in add_keys.items():
+		if add:
+			key = signerlib.generate_key(keysize)
+			pw = signercli._get_password()
+			key_db.add_key(key, pw)
+			fuzzy_keys[role].add(key.get_key_id())
+			key_db.save()
+			
 	# get the config data
 	root_cfg = ConfigParser()
 	root_cfg.read(root_cfg_path)
-	fuzzy_root_keys = [key for key in root_cfg.get("root", "keyids").split(", ")]
-	fuzzy_targets_keys = [key for key in root_cfg.get("targets", "keyids").split(", ")]
-	fuzzy_release_keys = [key for key in root_cfg.get("release", "keyids").split(", ")]
-	fuzzy_timestamp_keys = [key for key in root_cfg.get("timestamp", "keyids").split(", ")]
 	
+	# read the config data
+	known_keys = list(key_db._keys)
+	for role in fuzzy_keys:
+		for key_id in root_cfg.get(role, "keyids").split(","):
+			if key_id in known_keys:
+				fuzzy_keys[role].add(key_id)
+		if not thresholds[role]:
+			thresholds[role] = root_cfg.get(role, 'threshold')
+
+	# remove any removed keys
+	for role in fuzzy_keys:
+		fuzzy_keys[role].discard(remove_keys[role])
+
+	# write the results back to the root.cfg
+	expiration = root_cfg.get('expiration', 'days')
+	keydata = {}
+	for role in fuzzy_keys:
+		previous_keys = set(root_cfg.get(role, 'keyids').split(','))
+		previous_keys.discard(remove_keys[role])
+		previous_keys |= set(fuzzy_keys[role])
+		if len(previous_keys) < thresholds[role]:
+			msg = "Number of keys for %s is less then threshold."
+			msg += "Threshold set: %s, keys provided: %s" 
+			msg = msg % (role, thresholds[role], previous_keys)
+			log.error(msg)
+			return
+		keydata[role] = (previous_keys, thresholds[role])
+	build_root_cfg(server_dir, expiration, keydata)
+
 	# copy the project over to the targets root
 	if project_root != targets_root:
 		rmtree(targets_root)
@@ -233,19 +282,20 @@ def update_metadata(keystore_path, project_root, root_cfg_path, server_dir, stat
 	# started
 	if state == BUILD_ROOT:
 		try:
-			build_root_txt(root_cfg_path, fuzzy_root_keys, key_db, metadata_root)
+			build_root_txt(root_cfg_path, fuzzy_keys['root'], key_db, metadata_root)
 			state += 1
-		except:
+		except Exception, e:
+			print e
 			logger.info('Quickstart was unable to build root.txt. Please send the incomplete update to your root key holder.')
 			logger.info('They can continue the update process by running quickstart with the \'-step build_root\' argument')
 			state = FINISH
+
 	# built_root
 	logger.info("done with root")
 	if state == BUILD_TARGETS:
 		try:
-			build_targets_txt(targets_root, fuzzy_targets_keys, key_db, server_dir)
+			build_targets_txt(targets_root, fuzzy_keys['targets'], key_db, server_dir)
 			state += 1
-			print("BUILT TARGETS")
 		except:
 			logger.info('Quickstart was unable to build targets.txt. Please send the incomplete update to your targets key holder.')
 			logger.info('They can continue the update process by running quickstart with the \'-step build_targets\' argument')
@@ -255,7 +305,7 @@ def update_metadata(keystore_path, project_root, root_cfg_path, server_dir, stat
 	logger.info("done with targets")
 	if state == BUILD_RELEASE:
 		try:
-			build_release_txt(fuzzy_release_keys, key_db, metadata_root)
+			build_release_txt(fuzzy_keys['release'], key_db, metadata_root)
 			state += 1
 		except:
 			logger.info('Quickstart was unable to build release.txt. Please send the incomplete update to your release key holder.')
@@ -266,7 +316,7 @@ def update_metadata(keystore_path, project_root, root_cfg_path, server_dir, stat
 	logger.info("done with the release")
 	if state == BUILD_TIMESTAMP:
 		try:
-			build_timestamp_txt(fuzzy_timestamp_keys, key_db, metadata_root)
+			build_timestamp_txt(fuzzy_keys['timestamp'], key_db, metadata_root)
 			state += 1
 		except:
 			logger.info('Quickstart was unable to build timestamp.txt. Please send the incomplete update to your timestamp key holder.')
@@ -296,11 +346,28 @@ if __name__ == "__main__":
 	parser.add_option("-u", dest="UPDATE", action="store_true")
 	parser.add_option("-c", dest="CONFIG_PATH")
 	parser.add_option("--step", dest="STATE", type=int, default=BUILD_ROOT)
+	parser.add_option("--test", dest="TEST", action="store_true", default=False)
+	parser.add_option("--add-root-key", dest="ADD_ROOT_KEY", action="store_true", default=False)
+	parser.add_option("--add-timestamp-key", dest="ADD_TIMESTAMP_KEY", action="store_true", default=False)
+	parser.add_option("--add-release-key", dest="ADD_RELEASE_KEY", action="store_true", default=False)
+	parser.add_option("--add-targets-key", dest="ADD_TARGETS_KEY", action="store_true", default=False)
+	parser.add_option("--remove-root-key", dest="REMOVE_ROOT_KEY", default=None)
+	parser.add_option("--remove-timestamp-key", dest="REMOVE_TIMESTAMP_KEY", default=False)
+	parser.add_option("--remove-release-key", dest="REMOVE_RELEASE_KEY", default=False)
+	parser.add_option("--remove-targets-key", dest="REMOVE_TARGETS_KEY", default=False)
+	parser.add_option("--set-root-threshold", dest="ROOT_THRESHOLD", type=int, default=None)
+	parser.add_option("--set-timestamp-threshold", dest="TIMESTAMP_THRESHOLD", type=int, default=False)
+	parser.add_option("--set-release-threshold", dest="RELEASE_THRESHOLD", type=int, default=False)
+	parser.add_option("--set-targets-threshold", dest="TARGETS_THRESHOLD",type=int, default=False)
 
 	options, args = parser.parse_args()
 
+	if options.TEST:
+		TEST = True
+		options.VERBOSE = 0
+
 	# set the logging level
-	if not options.VERBOSE == 0:
+	if options.VERBOSE == 0:
 		set_log_level(logging.ERROR)
 	elif options.VERBOSE == 1:
 		set_log_level(logging.WARNING)
@@ -310,10 +377,29 @@ if __name__ == "__main__":
 		set_log_level(logging.INFO)
 
 	if options.UPDATE:
+		add_keys = {	'root': options.ADD_ROOT_KEY, 
+				'timestamp': options.ADD_TIMESTAMP_KEY, 
+				'release': options.ADD_RELEASE_KEY, 
+				'targets': options.ADD_TARGETS_KEY}
+
+		remove_keys = {	'root': options.REMOVE_ROOT_KEY, 
+				'timestamp': options.REMOVE_TIMESTAMP_KEY, 
+				'release': options.REMOVE_RELEASE_KEY, 
+				'targets': options.REMOVE_TARGETS_KEY}
+
+		thresholds = {	'root': options.ROOT_THRESHOLD, 
+				'timestamp': options.TIMESTAMP_THRESHOLD, 
+				'release': options.RELEASE_THRESHOLD, 
+				'targets': options.TARGETS_THRESHOLD}
+
 		update_metadata(options.KEYSTORE_LOCATION,
 				options.PROJECT_ROOT_LOCATION,
 				options.CONFIG_PATH,
 				options.SERVER_ROOT_LOCATION,
+				add_keys,
+				remove_keys,
+				thresholds,
+				options.DEFAULT_KEY_SIZE,
 				options.STATE
 				)
 		exit(0)
@@ -338,8 +424,10 @@ if __name__ == "__main__":
 			threshold = options.DEFAULT_THRESHOLD
 		for i in range(threshold):
 			key = signerlib.generate_key(options.DEFAULT_KEY_SIZE)
-			password = signercli._get_password()
+			if TEST: password = 'test'
+			else: password = signercli._get_password('Password for %s key #%d: ' % (k, i+1))
 			key_db.add_key(key, password)
+			if not TEST: print 'keyid for %s key #%d: %s' % (k, i+1, key.get_key_id())
 			try:
 				key_ids[k][0].append(key.get_key_id())
 			except KeyError:
@@ -351,9 +439,7 @@ if __name__ == "__main__":
 		options.SERVER_ROOT_LOCATION = get_server_root()
 	# build the server root
 	metadata_loc = options.SERVER_ROOT_LOCATION + pathsep + "meta"
-	print metadata_loc
 	targets_loc = options.SERVER_ROOT_LOCATION + pathsep + "targets"
-	print targets_loc
 	try: mkdir(options.SERVER_ROOT_LOCATION)
 	except: pass
 	try: mkdir(metadata_loc)
