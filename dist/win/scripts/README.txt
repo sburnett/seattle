@@ -57,6 +57,16 @@ To restart Seattle running on your system, simply click the start_seattle.bat
 icon.  After doing this, Seattle will run as though it had never been stopped
 after the installation.
 
+seash.py
+If you are a developer as well as a user, you can use the copy of the 
+Seattle shell which is included in your installer.   Simply run
+python seash.py to access the shell.   See the wiki for more information
+about using the shell.
+
+repy.py
+Developers can also run programs locally using a local instance of repy.
+This allows you to experiment with your programs locally before deploying
+them on remote machines.
 
 
 
