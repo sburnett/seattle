@@ -35,6 +35,7 @@ req time_interface.repy
 req advertise.repy
 req centralizedadvertise.repy
 req checkpythonversion.py
+req command_callbacks.py
 req daemon.py
 req emulcomm.py
 req emulfile.py
@@ -72,6 +73,9 @@ req rsa.repy
 req safe.py
 req safe_check.py
 req seash.py
+req seash_dictionary.py
+req seash_exceptions.py
+req seash_global_variables.py
 req serialize.repy
 req servicelogger.py
 req servicelookup.repy
