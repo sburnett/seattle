@@ -180,7 +180,24 @@ def main():
   if (options.file): # Single file.
 
     file_path = options.file
-    test_single(file_path)
+
+    # I need to derive the module name...
+    if not file_path.startswith('ut_') or len(file_path.split('_'))<3:
+      print "Error, cannot determine module name from filename '"+file_path+"'"
+      return
+    else:
+      module_name = file_path.split('_')[1]
+
+    # the test_module code is really poorly structured.   I need to tell it to 
+    # consider the shutdown, setup, and subprocess scripts...
+    files_to_use = [file_path]
+    module_file_list = filter_files(valid_files, module = module_name)
+    
+    files_to_use = files_to_use + filter_files(module_file_list, descriptor = 'setup')
+    files_to_use = files_to_use + filter_files(module_file_list, descriptor = 'shutdown')
+    files_to_use = files_to_use + filter_files(module_file_list, descriptor = 'subprocess')
+
+    test_module(module_name, files_to_use)
 
   elif (options.module): # Entire module.
     
@@ -203,10 +220,11 @@ def main():
 
 
 
-def test_single(file_path):
+def execute_and_check_program(file_path):
   """
   <Purpose>
-    Given the test file path, this function will execute the test using the test framework.
+    Given the test file path, this function will execute the program and
+    monitor its behavior
     
   <Arguments>
     Test file path.
@@ -286,20 +304,20 @@ def test_module(module_name, module_file_list):
 
   if setup_file:
     print "Now running setup script: " + setup_file
-    test_single(setup_file)    
+    execute_and_check_program(setup_file)    
 
   start_time = time.time()
 
   # Run the module tests
   for test_file in module_file_list: 
-    test_single(test_file)
+    execute_and_check_program(test_file)
 
   end_time = time.time()
 
 
   if shutdown_file:
     print "Now running shutdown script: " + shutdown_file
-    test_single(shutdown_file)
+    execute_and_check_program(shutdown_file)
 
   #If we opened a subprocess, we need to be sure to kill it
   if sub:
