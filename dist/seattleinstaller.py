@@ -1776,8 +1776,6 @@ def perform_system_benchmarking():
     # Transfer the contents of the file used to log the benchmark and creation
     # of vessel states. The service logger cannot be used sooner because
     # the seattle vessel directory has not yet been created.
-    # Initialize the service logger.
-    servicelogger.init('installInfo')
     benchmark_logfileobj.seek(0)
     servicelogger.log(benchmark_logfileobj.read())
     benchmark_logfileobj.close()
@@ -2025,6 +2023,8 @@ def main():
   ## stop with this installation and quit.                                             ##
   #######################################################################################
 
+  # Initialize the service logger.
+  servicelogger.init('installInfo')
 
   # Configure seattle to run at startup.
   if not DISABLE_STARTUP_SCRIPT:
