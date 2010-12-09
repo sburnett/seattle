@@ -34,9 +34,10 @@ they do not terminate prematurely (restarting them as necessary).
 import checkpythonversion
 checkpythonversion.ensure_python_version_is_supported()
 
-import daemon
 import os
 import sys
+import daemon
+import optparse
 
 import repyhelper #used to bring in NAT Layer
 
@@ -151,7 +152,7 @@ configuration = {}
 accepter_state = {'lock':getlock(),'started':False}
 
 # whether or not to use the natlayer, this option is passed in via command line
-# -nat
+# --nat
 # If TEST_NM is true, then the nodemanager won't worry about another nmmain
 # running already.
 AUTO_USE_NAT = False
@@ -562,27 +563,76 @@ def main():
     if times_through_the_loop % LOG_AFTER_THIS_MANY_ITERATIONS == 0:
       servicelogger.log("[INFO]: node manager is alive...")
       
+
+
+
+
+def parse_arguments():
+  """
+  Parse all the arguments passed in through the command
+  line for the nodemanager. This way in the future it
+  will be easy to add and remove options from the
+  nodemanager.
+  """
+
+  # Create the option parser
+  parser = optparse.OptionParser(version="Seattle " + version)
+
+  # Add the --foreground option.
+  parser.add_option('--foreground', dest='foreground',
+                    action='store_true', default=False,
+                    help="Run the nodemanager in foreground " +
+                         "instead of daemonizing it.")
+
+
+  # Add the --test-mode optino.
+  parser.add_option('--test-mode', dest='test_mode',
+                    action='store_true', default=False,
+                    help="Run the nodemanager in test mode.")
+
+
+  # Add the --nat option.
+  parser.add_option('--nat', dest='nat', action='store_true',
+                    default=False, help="Forcibly use the natlayer")
+                    
+
+
+  # Parse the argumetns.
+  options, args = parser.parse_args()
+
+  # Set some global variables.
+  global FOREGROUND
+  global TEST_NM
+  global AUTO_USE_NAT
+
+
+  # Analyze the options
+  if options.foreground:
+    FOREGROUND = True
+
+  if options.test_mode:
+    TEST_NM = True
+
+  if options.nat:
+    AUTO_USE_NAT = True
+
     
 
 
 if __name__ == '__main__':
-  
-  for arg in sys.argv[1:]:
-    # take a command line argument to force use of natlayer
-    if arg == '-nat':
-      AUTO_USE_NAT = True
-
-    # take a command line argument to force foreground
-    if arg == '--foreground':
-      FOREGROUND = True
-
-    # take a command line argument to run nmmain as test.
-    if arg == '--test-mode':
-      TEST_NM = True
+  """
+  Start up the nodemanager. We are going to setup the servicelogger,
+  then parse the arguments and then start everything up.
+  """
 
   # Initialize the service logger.   We need to do this before calling main
   # because we want to print exceptions in main to the service log
   servicelogger.init('nodemanager')
+
+  # Parse the arguments passed in the command line to set
+  # different variables.
+  parse_arguments()
+
 
   # Armon: Add some logging in case there is an uncaught exception
   try:

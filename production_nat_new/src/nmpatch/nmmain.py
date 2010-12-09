@@ -34,9 +34,11 @@ they do not terminate prematurely (restarting them as necessary).
 import checkpythonversion
 checkpythonversion.ensure_python_version_is_supported()
 
-import daemon
 import os
 import sys
+import daemon
+import optparse
+
 
 import repyhelper #used to bring in NAT Layer
 
@@ -139,7 +141,7 @@ LOG_AFTER_THIS_MANY_ITERATIONS = 600  # every 10 minutes
 # BUG: what if the data on disk is corrupt?   How do I recover?   What is the
 # "right thing"?   I could run nminit again...   Is this the "right thing"?
 
-version = "0.1s"
+version = "0.1t"
 
 # Our settings
 configuration = {}
@@ -147,12 +149,17 @@ configuration = {}
 # Lock and condition to determine if the accepter thread has started
 accepter_state = {'lock':getlock(),'started':False}
 
+default_shim = '(NatDeciderShim)'
+
 FOREGROUND = False
 
 NAME_SERVER = "zenodotus.cs.washington.edu"
 
 # Number of seconds that our DNS record should live on the DNS server.
 DNS_CACHE_TTL = 600
+
+# Weather or not to run the nodemanager in test mode
+TEST_NM = False
 
 # Dict to hold up-to-date nodename and boolean flags to track when to reset
 # advertisement and accepter threads (IP mobility)
@@ -226,18 +233,9 @@ def is_accepter_started():
 # If user specifies the --shims parameter in the command line, we construct a
 # shim stack based on the argument that follows '--shims'; otherwise, we'll use a
 # default shim stack 'NatDeciderShim'.
+# Note that if the --shim option was used, we have already parsed the argument
+# and changed the default_shim to the value provided.
 def _construct_shim_stack():
-
-  default_shim = '(NatDeciderShim)'
-
-  # We extract the argument that follows '--shims' in the command line
-  sysargs = sys.argv[1:]
-  arglength = len(sysargs)
-  for index in range(arglength):
-    if (sysargs[index] == '--shims') and (index+1 < arglength):
-      default_shim = sysargs[index+1]
-      servicelogger.log("[INFO]: Using user-specified shims " + default_shim)
-      break
 
   return ShimStackInterface(default_shim)
 
@@ -414,18 +412,35 @@ def main():
     # Background ourselves.
     daemon.daemonize()
 
-  # ensure that only one instance is running at a time...
-  gotlock = runonce.getprocesslock("seattlenodemanager")
-  if gotlock == True:
-    # I got the lock.   All is well...
-    pass
+  # Check if we are running in testmode.
+  if TEST_NM:
+    nodemanager_pid = os.getpid()
+    servicelogger.log("[INFO]: Running nodemanager in test mode on port <nodemanager_port>, "+
+                      "pid %s." % str(nodemanager_pid))
+    nodeman_pid_file = open(os.path.join(os.getcwd(), 'nodemanager.pid'), 'w')
+
+    # Write out the pid of the nodemanager process that we started to a file.
+    # This is only done if the nodemanager was started in test mode.
+    try:
+      nodeman_pid_file.write(str(nodemanager_pid))
+    finally:
+      nodeman_pid_file.close()
+
   else:
-    if gotlock:
-      servicelogger.log("[ERROR]:Another node manager process (pid: " + str(gotlock) + 
-          ") is running")
+    # ensure that only one instance is running at a time...
+    gotlock = runonce.getprocesslock("seattlenodemanager")
+
+    if gotlock == True:
+      # I got the lock.   All is well...
+      pass
     else:
-      servicelogger.log("[ERROR]:Another node manager process is running")
-    return
+      if gotlock:
+        servicelogger.log("[ERROR]:Another node manager process (pid: " + str(gotlock) +
+                        ") is running")
+      else:
+        servicelogger.log("[ERROR]:Another node manager process is running")
+      return
+
 
   
   # I'll grab the necessary information first...
@@ -542,7 +557,7 @@ def main():
       servicelogger.log("[WARN]:At " + str(time.time()) + " restarting status...")
       start_status_thread(vesseldict,configuration['pollfrequency'])
 
-    if not runonce.stillhaveprocesslock("seattlenodemanager"):
+    if not TEST_NM and not runonce.stillhaveprocesslock("seattlenodemanager"):
       servicelogger.log("[ERROR]:The node manager lost the process lock...")
       harshexit.harshexit(55)
 
@@ -588,31 +603,85 @@ def main():
     if times_through_the_loop % LOG_AFTER_THIS_MANY_ITERATIONS == 0:
       servicelogger.log("[INFO]: node manager is alive...")
       
+
+
+
+
+
+def parse_arguments():
+  """
+  Parse all the arguments passed in through the command
+  line for the nodemanager. This way in the future it 
+  will be easy to add and remove options from the 
+  nodemanager.
+  """
+
+  # Create the option parser
+  parser = optparse.OptionParser(version="Seattle " + version)
+  
+  # Add the --foreground option.
+  parser.add_option('--foreground', dest='foreground',
+                    action='store_true', default=False,
+                    help="Run the nodemanager in foreground " +
+                         "instead of daemonizing it.")
+                    
+
+  # Add the --test-mode optino.
+  parser.add_option('--test-mode', dest='test_mode',
+                    action='store_true', default=False,
+                    help="Run the nodemanager in test mode.")
+
+  
+  # Add the using shim capability.
+  # --shims [shim name]: Forces use of the specified shims. The shim name must
+  #  conform to the format as specified in:
+  #  https://seattle.cs.washington.edu/wiki/UsingShims.
+  parser.add_option('--shims', type="string", dest="shim_name",
+                    help="Use a user specified shim instead of the" +
+                         " default (NatDeciderShim)")
+
+
+  
+  # Parse the argumetns.
+  options, args = parser.parse_args()
+
+  # Set some global variables.
+  global FOREGROUND
+  global TEST_NM
+  global default_shim
+
+
+  # Analyze the options
+  if options.foreground:
+    FOREGROUND = True
+
+  if options.test_mode:
+    TEST_NM = True
+
+  if options.shim_name:
+    servicelogger.log("[INFO]: Using user-specified shims " + options.shim_name)
+    default_shim = options.shim_name
     
+    
+
+
 
 
 if __name__ == '__main__':
 
   """
-  We check the command line arguments here. The node manager accepts the
-  following optional arguments:
-
-  --foreground: Forces background and does not daemonize.
-
-  --shims [shim name]: Forces use of the specified shims. The shim name must
-    conform to the format as specified in:
-    https://seattle.cs.washington.edu/wiki/UsingShims.
-
+  Start up the nodemanager. We are going to setup the servicelogger,
+  then parse the arguments and then start everything up.
   """
-  for arg in sys.argv[1:]:
-
-    # take a command line argument to force foreground
-    if arg == '--foreground':
-      FOREGROUND = True
 
   # Initialize the service logger.   We need to do this before calling main
   # because we want to print exceptions in main to the service log
   servicelogger.init('nodemanager')
+
+  # Parse the arguments passed in the command line to set
+  # different variables.
+  parse_arguments()
+
 
   # Armon: Add some logging in case there is an uncaught exception
   try:

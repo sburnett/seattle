@@ -1,4 +1,4 @@
 import subprocess
 
 subprocess.Popen(["python", "nminit.py"]);
-subprocess.Popen(["python", "nmmain.py", '--shims', '(RSAShim)(NatForwardingShim)']);
+subprocess.Popen(["python", "nmmain.py", '--test-mode', '--shims', '(RSAShim)(NatForwardingShim)']);

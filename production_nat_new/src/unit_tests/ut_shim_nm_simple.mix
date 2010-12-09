@@ -24,7 +24,7 @@ if callfunc == 'initialize':
   except Exception, e:
     raise Exception("Unit test is unable to obtained the advertised ID of the node manager: " + str(e))
 
-  nmhandle = nmclient_createhandle(nodemanager_id, 1224)
+  nmhandle = nmclient_createhandle(nodemanager_id, <nodemanager_port>)
 
   nmclient_rawsay(nmhandle, "GetVessels")
 
