@@ -83,7 +83,12 @@ import seash_helper
 
 import repyhelper
 
-repyhelper.translate_and_import("time.repy")
+repyhelper.translate_and_import("nmclient_shims.py")
+
+# Following line commented out because time.repy has already been included in
+# nmclient_shims.py, a pre-processed version of nmclient with explicit shim
+# support, i.e. mycontext['UsingShims'] = True
+# repyhelper.translate_and_import("time.repy")
 
 import traceback
 
