@@ -49,7 +49,7 @@ sys.path = sys.path[1:]
 # Whether to copy files that enable shims. In case of major bugs in shims,
 # simply turn it off to revert back to the shim-less architecture. Added by
 # Danny Yuxing Huang.
-USE_SHIMS = False
+USE_SHIMS = True
 
 #define a function to use for copying the files matching the file expression to the target folder
 #file_expr may contain wildcards

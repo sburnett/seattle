@@ -81,7 +81,7 @@ def parse_instructions(instr_path):
       elif m2:
         del_files.append(m2.group(1).strip())
       else:
-        output("Parse warning: skipping invalid line " + line_count + " in "
+        output("Parse warning: skipping invalid line " + str(line_count) + " in "
                 + instr_path)
 
   # Check that no file is both required and deleted
