@@ -238,12 +238,17 @@ def timeout_openconn(desthost, destport, localip=None, localport=None, timeout=5
 
 
 
-def timeout_waitforconn(localip, localport, function, timeout=5, use_shim=False):
+def timeout_waitforconn(localip, localport, function, timeout=5, use_shim=False, shim_string=""):
   """
   <Purpose> 
     Wrapper for waitforconn.   Essentially does the same thing...
 
   <Args>
+
+    shim_string - A string representation of the shim stack on which to perform
+    a waitforconn operation. It is effectively when when use_shim is set to
+    True.
+
     Same as Repy waitforconn with the addition of a timeout argument. 
 
     See documentation of timeout_openconn for an explanation of the use_shim
@@ -272,7 +277,7 @@ def timeout_waitforconn(localip, localport, function, timeout=5, use_shim=False)
     return function(localip, localport, thissocketlikeobject, ch, mainch)
 
   if "shim_stack_interface_imported" in mycontext.keys() and use_shim:
-    shims = ShimStackInterface()
+    shims = ShimStackInterface(shim_string)
     handle = shims.waitforconn(localip, localport, _timeout_waitforconn_callback)
     ShimLogger("sockettimeout").log('waitforconn success %s:%s' % (localip, localport))
   else:

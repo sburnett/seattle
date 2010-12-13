@@ -97,7 +97,6 @@ import servicelogger
 repyhelper.translate_and_import('sha.repy')
 repyhelper.translate_and_import('rsa.repy')
 repyhelper.translate_and_import('ShimStackInterface.py')
-repyhelper.translate_and_import('advertise.repy')
 
 
 # Armon: To handle user preferrences with respect to IP's and Interfaces
@@ -230,21 +229,12 @@ def is_accepter_started():
 
 
 
-# If user specifies the --shims parameter in the command line, we construct a
-# shim stack based on the argument that follows '--shims'; otherwise, we'll use a
-# default shim stack 'NatDeciderShim'.
-# Note that if the --shim option was used, we have already parsed the argument
-# and changed the default_shim to the value provided.
-def _construct_shim_stack():
 
-  return ShimStackInterface(default_shim)
 
 
 
 
 def start_accepter():
-  
-  shimstack = _construct_shim_stack()
   
   unique_id = rsa_publickey_to_string(configuration['publickey'])
   unique_id = sha_hexhash(unique_id) + str(configuration['service_vessel'])
@@ -271,8 +261,9 @@ def start_accepter():
           # resolvable name.
           advertise_to_DNS(unique_id)
 
-          shimstack.waitforconn(unique_id, possibleport,
-                                nmconnectionmanager.connection_handler)
+          timeout_waitforconn(unique_id, possibleport,
+                              nmconnectionmanager.connection_handler,
+                              timeout=10, use_shim=True, shim_string=default_shim)
 
         except Exception, e:
           servicelogger.log("[ERROR]: when calling waitforconn for the connection_handler: " + str(e))

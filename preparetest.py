@@ -203,7 +203,6 @@ def main():
     copy_to_target("production_nat_new/src/*", target_dir)
     copy_to_target("production_nat_new/src/nmpatch/nmmain.py", target_dir)
     copy_to_target("production_nat_new/src/nmpatch/nminit.mix", target_dir)
-    copy_to_target("production_nat_new/src/nmpatch/seash.py", target_dir)
     copy_to_target("production_nat_new/src/nmpatch/nmclient.repy", target_dir)
     copy_to_target("production_nat_new/src/nmpatch/nmclient_shims.mix", target_dir)
     copy_to_target("production_nat_new/src/nmpatch/sockettimeout.repy", target_dir)
