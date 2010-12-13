@@ -376,19 +376,24 @@ def advertise_to_DNS(unique_id):
     unique_id = unique_id[0 : name_server_pos + len(NAME_SERVER)]
   else:
     raise Exception("Invalid unique_id format: '" + str(unique_id) + "'")
+
+  advertise_success = False
   
-  try:
-    advertise_announce(unique_id, myip, DNS_CACHE_TTL)
-    servicelogger.log("[INFO]: Advertised " + str(unique_id) + " which maps to " + myip)
-  except Exception, error:
-    if 'announce error' in str(error):
-      # We can confidently drop the exception here. The advertisement service
-      # can sometimes be flaky, yet it can guarantee advertisement of our
-      # key-value pair on at least one of the three components. Thus, we are
-      # printing the error message as a warning here.
-      pass
-    else:
-      raise Exception(error)
+  # We keep trying until successful advertisement (Fix for Ticket #956)
+  while not advertise_success:
+    try:
+      advertise_announce(unique_id, myip, DNS_CACHE_TTL)
+      servicelogger.log("[INFO]: Advertised " + str(unique_id) + " which maps to " + myip)
+      advertise_success = True
+    except Exception, error:
+      if 'announce error' in str(error):
+        # We can confidently drop the exception here. The advertisement service
+        # can sometimes be flaky, yet it can guarantee advertisement of our
+        # key-value pair on at least one of the three components. Thus, we are
+        # printing the error message as a warning here.
+        advertise_success = True
+      else:
+        advertise_success = False
 
 
 
