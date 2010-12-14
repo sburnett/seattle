@@ -147,33 +147,3 @@ req stop_all_seattle_processes.py
 req geoip_client.repy
 req priority_queue.repy
 req AdvertiseObjects.repy
-
-# Shim files.
-req BaseShim.repy
-req CoordinationShim.repy
-req DummyDNS.repy
-req EmptyShim.repy
-req FECShim.repy
-req LegacyForwarderLib.repy
-req local_lookup_methods.repy
-req local_lookup_service.repy
-req LogShim.repy
-req LZWShim.repy
-req NatBranchingShim.repy
-req NAT_CONSTANTS.repy
-req NatDeciderShim.repy
-req Nat_Forwarder.repy
-req NatForwardingLib.repy
-req NatForwardingShim.repy
-req nmclient_shims.py
-req NoopShim.repy
-req NullShim.repy
-req ReverseShim.repy
-req RSABranchingShim.repy
-req RSAShim.repy
-req ShimException.repy
-req ShimLogger.repy
-req ShimSocketWrapper.repy
-req ShimStackInterface.py
-req ShimStack.repy
-req SimpleEncryptionShim.repy

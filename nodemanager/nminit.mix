@@ -259,8 +259,9 @@ def initialize_state():
 
   # first, let's clean up any existing directory data...
   for vesseldirectoryname in glob.glob('v[0-9]*'):
-    print 'Removing:',vesseldirectoryname
-    shutil.rmtree(vesseldirectoryname)
+    if os.path.isdir(vesseldirectoryname):
+      print 'Removing:',vesseldirectoryname
+      shutil.rmtree(vesseldirectoryname)
 
   # initialize my configuration file.   This involves a few variables:
   #    pollfrequency --  the amount of time to sleep after a check when "busy
@@ -280,7 +281,7 @@ def initialize_state():
   # 1224 by preparetest.py. If --random-ports option is used when running
   # preparetest.py, then the first port will be a random port. This will 
   # allow us to run multiple nodemanagers for testing purposes.
-  configuration['ports'] = [<nodemanager_port>, 2888, 9625, 10348, 39303, 48126, 52862, 57344, 64310]
+  configuration['ports'] = [53405, 2888, 9625, 10348, 39303, 48126, 52862, 57344, 64310]
 
   print "Generating key..."
   keys = rsa_gen_pubpriv_keys(100)
