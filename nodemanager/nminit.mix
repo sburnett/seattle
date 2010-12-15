@@ -281,7 +281,7 @@ def initialize_state():
   # 1224 by preparetest.py. If --random-ports option is used when running
   # preparetest.py, then the first port will be a random port. This will 
   # allow us to run multiple nodemanagers for testing purposes.
-  configuration['ports'] = [53405, 2888, 9625, 10348, 39303, 48126, 52862, 57344, 64310]
+  configuration['ports'] = [<nodemanager_port>, 2888, 9625, 10348, 39303, 48126, 52862, 57344, 64310]
 
   print "Generating key..."
   keys = rsa_gen_pubpriv_keys(100)
