@@ -6,7 +6,7 @@ import os
 initproc = subprocess.Popen(["python", "nminit.py"])
 initproc.wait()
 
-nmproc = subprocess.Popen(["python", "nmmain.py", "--test-mode"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+nmproc = subprocess.Popen(["python", "nmmain.py", '--test-mode', '--shims', '(RSAShim)(NatForwardingShim)'],stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
 # without closing stdin, stdout, stderr, nmmain.py won't execute on XP
 nmproc.stdin.close()

@@ -57,7 +57,6 @@ import sys
 import time
 
 import utfutil
-import harshexit
 
 # Valid prefix and suffix.
 SYNTAX_PREFIX = 'ut_'
@@ -295,10 +294,11 @@ def test_module(module_name, module_file_list):
 
   
   sub = None
-  # If we must open a process to run concurrently with the tests 
+  # If we must open a process to run concurrently with the tests, we will use
+  # its stdin to indicate when to stop...
   if subprocess_file:
     print "Now starting subprocess: " + subprocess_file
-    sub = subprocess.Popen(['python', subprocess_file])
+    sub = subprocess.Popen(['python', subprocess_file], stdin=subprocess.PIPE)
     # Give the process time to start
     time.sleep(30)
 
@@ -319,16 +319,13 @@ def test_module(module_name, module_file_list):
     print "Now running shutdown script: " + shutdown_file
     execute_and_check_program(shutdown_file)
 
-  #If we opened a subprocess, we need to be sure to kill it
+  #If we opened a subprocess, we need to stop it by shutting its stdin
   if sub:
-    print "Now killing subprocess: " + subprocess_file    
-    if sys.version_info < (2, 6):
-      # Using portablekill instead of os.kill as it is more uniform across os.
-      harshexit.portablekill(sub.pid)
+    print "Now stopping subprocess: " + subprocess_file    
+    sub.stdin.close()
+    sub.wait()
 
-    else: 
-      sub.kill()
-      
+
   if SHOW_TIME:
     print "Total time taken to run tests on module %s is: %s" % (module_name, str(end_time-start_time)[:6])
 
