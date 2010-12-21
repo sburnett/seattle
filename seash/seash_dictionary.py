@@ -222,11 +222,11 @@ show uploadrate -- Display the upload rate which seash uses to estimate
   'add':{'name':'add', 'callback':None, 'help_text':'', 'children':{
       '[TARGET]':{'name':'target', 'callback':command_callbacks.add_target, 'help_text':'', 'children':{
           'to':{'name':'to', 'callback':None, 'help_text':'', 'children':{
-              '[GROUP]':{'name':'group', 'callback':command_callbacks.add_target_to_group, 'help_text':'', 'children':{}},
+              '[ARGUMENT]':{'name':'args', 'callback':command_callbacks.add_target_to_group, 'help_text':'', 'children':{}},
           }},
       }},
       'to':{'name':'to', 'callback':None, 'help_text':'', 'children':{
-          '[GROUP]':{'name':'group', 'callback':command_callbacks.add_to_group, 'help_text':'', 'children':{}},
+          '[ARGUMENT]':{'name':'args', 'callback':command_callbacks.add_to_group, 'help_text':'', 'children':{}},
       }},
   }},
 

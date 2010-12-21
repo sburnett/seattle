@@ -738,8 +738,8 @@ def add_target_to_group(input_dict, environment_dict):
 
   source = command_key
 
-  # Iterates through the dictionary to retrieve the user's group name
-  while input_dict[command_key]['name'] is not 'group':
+  # Iterates through the dictionary to retrieve the user's group argument
+  while input_dict[command_key]['name'] is not 'args':
      input_dict = input_dict[command_key]['children']
      command_key = input_dict.keys()[0]
 
@@ -778,8 +778,8 @@ def add_to_group(input_dict, environment_dict):
 
   command_key = input_dict.keys()[0]
 
-  # Iterates through the dictionary to retrieve the user's group name
-  while input_dict[command_key]['name'] is not 'group':
+  # Iterates through the dictionary to retrieve the user's group argument
+  while input_dict[command_key]['name'] is not 'args':
      input_dict = input_dict[command_key]['children']
      command_key = input_dict.keys()[0]
 
