@@ -102,13 +102,50 @@ any other potential command words that can follow 'show'.
 
 
 seashcommanddict = {
-  'on':{'name':'on', 'callback':None, 'help_text':'', 'children':{
+  'on':{'name':'on', 'callback':None, 'help_text':"""
+on group
+on group [command]
+
+Sets the default group for future commands.   Most other commands will only 
+operate on the vessels specified in the default group.  The default group is 
+listed in the seash command prompt 'identity@group !>'.   The 'on' command can 
+also be prepended to another command to set the group for only this command.
+
+
+Example:
+
+exampleuser@browsegood !> on WAN
+exampleuser@WAN !>
+
+exampleuser@browsegood !> on WAN show ip
+1.2.3.4
+5.6.7.8
+exampleuser@browsegood !>
+""", 'children':{
       '[TARGET]':{'name':'ontarget', 'callback':command_callbacks.on_target, 'priority':True, 'help_text':'', 'children':{
       }}
   }},
 
 
-  'as':{'name':'as', 'callback':None, 'help_text':'', 'children':{
+  'as':{'name':'as', 'callback':None, 'help_text':"""
+as identity
+as identity [command]
+
+Sets the default identity for an operation.   The credentials (i.e. public
+and private key) for this user are used for the following commands.   The 
+default identity is listed in
+the seash command prompt 'identity@group !>'.   The 'as' command can also
+be prepended to another command to set the identity for just this command.
+
+Example:
+
+exampleuser@%all !> as tom
+tom@%all !>
+
+exampleuser@browsegood !> as tom browse
+(browse output here)
+exampleuser@browsegood !>
+""", 'children':{
       '[KEYNAME]':{'name':'askeyname', 'callback':command_callbacks.as_keyname, 'priority':True, 'help_text':'', 'children':{
       }},
   }},
@@ -180,11 +217,46 @@ show uploadrate -- Display the upload rate which seash uses to estimate
 
 (*) No need to update prior, the command contacts the nodes anew
 """, 'children':{
-      'info':{'name':'info', 'callback':command_callbacks.show_info, 'help_text':'', 'children':{}},
-      'users':{'pattern':'users', 'name':'users', 'callback':command_callbacks.show_users, 'help_text':'', 'children':{}},
-      'ownerinfo':{'name':'ownerinfo', 'callback':command_callbacks.show_ownerinfo, 'help_text':'', 'children':{}},
-      'advertise':{'name':'advertise', 'callback':command_callbacks.show_advertise, 'help_text':'', 'children':{}},
-      'ip':{'name':'ip', 'callback':command_callbacks.show_ip, 'help_text':'', 'children':{
+      'info':{'name':'info', 'callback':command_callbacks.show_info, 'help_text':"""
+show info
+
+This command prints general information about vessels in the default group
+including the version, nodeID, etc.
+
+Example:
+TODO
+""", 'children':{}},
+      'users':{'pattern':'users', 'name':'users', 'callback':command_callbacks.show_users, 'help_text':"""
+show users
+
+This command lists the set of user keys for vessels in the default group.   
+If the key has been loaded into seash as an identity, this name will be used.
+
+Example:
+TODO
+""", 'children':{}},
+      'ownerinfo':{'name':'ownerinfo', 'callback':command_callbacks.show_ownerinfo, 'help_text':"""
+show ownerinfo
+
+This lists the ownerinfo strings for vessels in the default group.   See
+'set ownerinfo' for more details
+""", 'children':{}},
+      'advertise':{'name':'advertise', 'callback':command_callbacks.show_advertise, 'help_text':"""
+show advertise
+
+This indicates whether the node manager will advertise the vessel's keys in 
+the advertise services.   See 'set advertise' for more details.
+""", 'children':{}},
+      'ip':{'name':'ip', 'callback':command_callbacks.show_ip, 'help_text':"""
+show ip 
+show ip [to file]
+
+This lists the ip addresses of the vessels in the default group.   These IP
+addresses may be optionally written to a file.   
+
+Note that machines behind a NAT, mobile devices, or other systems with 
+atypical network connectivity may list a host name instead.
+""", 'children':{
           'to':{'name':'to', 'callback':None, 'help_text':'', 'children':{
               '[FILENAME]':{'name':'filename', 'callback':command_callbacks.show_ip_to_file, 'help_text':'', 'children':{}},
           }},
@@ -192,34 +264,122 @@ show uploadrate -- Display the upload rate which seash uses to estimate
               '[FILENAME]':{'name':'filename', 'callback':command_callbacks.show_ip_to_file, 'help_text':'', 'children':{}},
           }},
       }},
-      'hostname':{'name':'hostname', 'callback':command_callbacks.show_hostname, 'help_text':'', 'children':{}},
-      'location':{'name':'location', 'callback':command_callbacks.show_location, 'help_text':'', 'children':{}},
-      'coordinates':{'name':'coordinates', 'callback':command_callbacks.show_coordinates, 'help_text':'', 'children':{}},
-      'owner':{'name':'owner', 'callback':command_callbacks.show_owner, 'help_text':'', 'children':{}},
-      'targets':{'name':'targets', 'callback':command_callbacks.show_targets, 'help_text':'', 'children':{}},
-      'identities':{'name':'identities', 'callback':command_callbacks.show_identities, 'help_text':'', 'children':{}},
-      'keys':{'name':'keys', 'callback':command_callbacks.show_keys, 'help_text':'', 'children':{}},
-      'log':{'name':'log', 'callback':command_callbacks.show_log, 'help_text':'', 'children':{
+      'hostname':{'name':'hostname', 'callback':command_callbacks.show_hostname, 'help_text':"""
+show hostname
+
+This lists the DNS host names for the vessels in the default group.   If this
+information is not available, this will be listed.
+""", 'children':{}},
+      'location':{'name':'location', 'callback':command_callbacks.show_location, 'help_text':"""
+show location
+
+Uses a geo-IP location service to return information about the position of the
+nodes in the current group.   
+""", 'children':{}},
+      'coordinates':{'name':'coordinates', 'callback':command_callbacks.show_coordinates, 'help_text':"""
+show coordinates
+
+Uses a geo-IP location service to get approximate latitude and longitude 
+information about nodes in the current group.
+""", 'children':{}},
+      'owner':{'name':'owner', 'callback':command_callbacks.show_owner, 'help_text':"""
+show owner
+
+Displays the owner key (or identity if known) for the vessels in the default
+group.
+""", 'children':{}},
+      'targets':{'name':'targets', 'callback':command_callbacks.show_targets, 'help_text':"""
+show targets
+
+Lists the known targets (groups and individual nodes) that commands may be 
+run on.
+""", 'children':{}},
+      'identities':{'name':'identities', 'callback':command_callbacks.show_identities, 'help_text':"""
+show identities
+
+Lists the identities loaded into the shell and whether the public or private
+keys are loaded.   This does not display the keys themselves (see 'show keys').
+""", 'children':{}},
+      'keys':{'name':'keys', 'callback':command_callbacks.show_keys, 'help_text':"""
+show keys
+
+List the actual keys loaded by the shell.   To see identity information, see
+'show identities'.
+""", 'children':{}},
+      'log':{'name':'log', 'callback':command_callbacks.show_log, 'help_text':"""
+show log [to filename]
+
+Lists the log of operations from the vessel.   This log is populated by print
+statements and exceptions from the program running in the vessel.
+""", 'children':{
           'to':{'name':'to', 'callback':None, 'help_text':'', 'children':{
               '[FILENAME]':{'name':'filename', 'callback':command_callbacks.show_log_to_file, 'help_text':'', 'children':{}},
           }},
       }},
-      'files':{'name':'files', 'callback':command_callbacks.show_files, 'help_text':'', 'children':{}},
-      'resources':{'name':'resources', 'callback':command_callbacks.show_resources, 'help_text':'', 'children':{}},
-      'offcut':{'name':'offcut', 'callback':command_callbacks.show_offcut, 'help_text':'', 'children':{}},
-      'timeout':{'name':'timeout', 'callback':command_callbacks.show_timeout, 'help_text':'', 'children':{}},
-      'uploadrate':{'name':'uploadrate', 'callback':command_callbacks.show_uploadrate, 'help_text':'', 'children':{}},
+      'files':{'name':'files', 'callback':command_callbacks.show_files, 'help_text':"""
+show files
+
+Lists the names of the files loaded into vessels in the default groups.   
+This is similar to dir or ls.
+""", 'children':{}},
+      'resources':{'name':'resources', 'callback':command_callbacks.show_resources, 'help_text':"""
+show resources
+
+Lists the resources allotted to vessels in the default group.
+""", 'children':{}},
+      'offcut':{'name':'offcut', 'callback':command_callbacks.show_offcut, 'help_text':"""
+show offcut
+
+This lists the amount of resources that will be lost by splitting a vessel or
+gained by joining two vessels.   This is shown on a per-node basis amongst
+all vessels in the default group
+""", 'children':{}},
+      'timeout':{'name':'timeout', 'callback':command_callbacks.show_timeout, 'help_text':"""
+show timeout
+
+This shows the amount of time the shell will wait for a command to timeout.   
+Note that commands like 'run' and 'upload' will use both this value and the
+uploadrate setting
+""", 'children':{}},
+      'uploadrate':{'name':'uploadrate', 'callback':command_callbacks.show_uploadrate, 'help_text':"""
+show uploadrate
+
+This lists the minimum rate at which the shell should allow uploads to occur.
+Uploads to vessels that go slower than this will be aborted.   Note that this
+is used in combination with the timeout setting.
+""", 'children':{}},
   }},
 
 
-  'run':{'name':'run', 'callback':None, 'help_text':'', 'children':{
+  'run':{'name':'run', 'callback':None, 'help_text':"""
+run programname [arg1, arg2, ...]
+
+Uploads programname to a vessel and starts it running.   (This command is 
+actually just a short-cut for the 'upload' and 'start' commands).   The 
+arguments listed will be passed to the command when it is started.
+""", 'children':{
       '[FILENAME]':{'name':'filename', 'callback':command_callbacks.run_localfn, 'help_text':'','children':{
           '[ARGUMENT]':{'name':'args', 'callback':command_callbacks.run_localfn_arg, 'help_text':'', 'children':{}},
       }},
   }},
 
 
-  'add':{'name':'add', 'callback':None, 'help_text':'', 'children':{
+  'add':{'name':'add', 'callback':None, 'help_text':"""
+add target [to group]
+add to group
+
+Adds a target (a vessel name or group) a group.   If the group does not exist,
+it is created.   This can be used to control which vessels are manipulated by 
+different commands.   The short form 'add target' adds the target to the 
+default group.   The short form 'add to group' adds the default group to
+the target.
+
+If the target is already in the group, an error message will be printed.
+
+Example:
+
+TODO
+""", 'children':{
       '[TARGET]':{'name':'target', 'callback':command_callbacks.add_target, 'help_text':'', 'children':{
           'to':{'name':'to', 'callback':None, 'help_text':'', 'children':{
               '[ARGUMENT]':{'name':'args', 'callback':command_callbacks.add_target_to_group, 'help_text':'', 'children':{}},
@@ -231,7 +391,12 @@ show uploadrate -- Display the upload rate which seash uses to estimate
   }},
 
 
-  'move':{'name':'move', 'callback':None, 'help_text':'', 'children':{
+  'move':{'name':'move', 'callback':None, 'help_text':"""
+move target to group
+
+This is essentially a shortcut for removing the target from the default group
+and adding it to group.   See 'add' and 'remove' for more information.
+""", 'children':{
       '[TARGET]':{'name':'target', 'callback':None, 'help_text':'', 'children':{
           'to':{'name':'to', 'callback':None, 'help_text':'', 'children':{
               '[GROUP]':{'name':'group', 'callback':command_callbacks.move_target_to_group, 'help_text':'', 'children':{}},
@@ -240,7 +405,21 @@ show uploadrate -- Display the upload rate which seash uses to estimate
   }},
 
 
-  'remove':{'name':'remove', 'callback':None, 'help_text':'', 'children':{
+  'remove':{'name':'remove', 'callback':None, 'help_text':"""
+remove target [from group]
+remove from group
+
+This command removes a target (vesselname or group) from a group.   This means
+that future group operations will not include the listed vesselname or group.
+The short form 'remove target' removes the target from the default group.
+The short form 'remove from group' removes the default group from group.
+
+If the target is not in the group, an error message will be printed.
+
+Example:
+
+TODO
+""", 'children':{
       '[TARGET]':{'name':'target', 'callback':command_callbacks.remove_target, 'help_text':'', 'children':{
           'from':{'name':'from', 'callback':None, 'help_text':'', 'children':{
               '[GROUP]':{'name':'group', 'callback':command_callbacks.remove_target_from_group, 'help_text':'', 'children':{}},
@@ -271,36 +450,99 @@ set autosave [ on | off ] -- Sets whether to save the state after every command.
                              file called 'autosave_keyname', where keyname is 
                              the name of the current key you're using.
 """, 'children':{
-      'users':{'name':'users', 'callback':None, 'help_text':'', 'children':{
+      'users':{'name':'users', 'callback':None, 'help_text':"""
+set users [identity1, identity2, ...]
+
+Sets the user keys for vessels in the default group.   The current identity
+must own the vessels.
+""", 'children':{
           '[ARGUMENT]':{'name':'args', 'callback':command_callbacks.set_users_arg, 'help_text':'', 'children':{}},
       }},
-      'ownerinfo':{'name':'ownerinfo', 'callback':None, 'help_text':'', 'children':{
+      'ownerinfo':{'name':'ownerinfo', 'callback':None, 'help_text':"""
+set ownerinfo 'string'
+
+This command sets the owner information for each vessel in the default group.
+The default identity must own the vessels.
+
+""", 'children':{
           '[ARGUMENT]':{'name':'args', 'callback':command_callbacks.set_ownerinfo_arg, 'help_text':'', 'children':{}},
       }},
-      'advertise':{'name':'advertise', 'callback':None, 'help_text':'', 'children':{
+      'advertise':{'name':'advertise', 'callback':None, 'help_text':"""
+set advertise [on/off]
+
+This setting is changable only by the vessel owner and indicates whether or
+not the node's IP / port should be advertised under the owner and user keys.
+The default value is on.   With this turned off, the 'browse' command will
+be unable to discover the vessel.
+""", 'children':{
           '[ARGUMENT]':{'name':'args', 'callback':command_callbacks.set_advertise_arg, 'help_text':'', 'children':{}},
       }},
-      'owner':{'name':'owner', 'callback':None, 'help_text':'', 'children':{
+      'owner':{'name':'owner', 'callback':None, 'help_text':"""
+set owner identity
+
+This changes the owner key for all vessels in the default group to the
+identity specified.   This command may only be issued by the vessels' current
+owner.
+""", 'children':{
           '[ARGUMENT]':{'name':'args', 'callback':command_callbacks.set_owner_arg, 'help_text':'', 'children':{}},
       }},
-      'timeout':{'name':'timeout', 'callback':None, 'help_text':'', 'children':{
+      'timeout':{'name':'timeout', 'callback':None, 'help_text':"""
+set timeout timeoutval
+
+This sets the timeout for network related commands.   Most commands will then
+be aborted on nodes if they are not completed withing the timeoutval number of
+seconds.   Note that the upload and run commands also use the uploadrate 
+setting to determine their timeout.
+""", 'children':{
           '[ARGUMENT]':{'name':'args', 'callback':command_callbacks.set_timeout_arg, 'help_text':'', 'children':{}},
       }},
-      'uploadrate':{'name':'uploadrate', 'callback':None, 'help_text':'', 'children':{
+      'uploadrate':{'name':'uploadrate', 'callback':None, 'help_text':"""
+set uploadrate rate_in_bps
+
+This value is used along with the timeout value to determine when to declare an
+upload or run command as failed.   The wait time is computed as:
+   timeout + filesize / rate_in_bps
+
+Thus if the timeout is 10 seconds and rate_in_bps is 102400 (100 KB / s), a 1MB 
+will attempt to upload for 20 seconds.
+""", 'children':{
           '[ARGUMENT]':{'name':'args', 'callback':command_callbacks.set_uploadrate_arg, 'help_text':'', 'children':{}},
       }},
-      'autosave':{'name':'autosave', 'callback':None, 'help_text':'', 'children':{
+      'autosave':{'name':'autosave', 'callback':None, 'help_text':"""
+set autosave [on/off]
+
+When turned on, the shell settings such as keys, targets, timeout value, etc.
+will all be persisted to disk after every operation.   These are saved in a
+file called TODO, which is encrypted with the default identity.   The user
+can then restore the shell's state by typing 'loadstate identity'.
+""", 'children':{
           '[ARGUMENT]':{'name':'args', 'callback':command_callbacks.set_autosave_arg, 'help_text':'', 'children':{}},
       }},
   }},
 
 
-  'browse':{'name':'browse', 'callback':command_callbacks.browse, 'help_text':'', 'children':{
+  'browse':{'name':'browse', 'callback':command_callbacks.browse, 'help_text':"""
+browse [advertisetype]
+
+This command will use the default identity to search for vessels that can
+be controlled.   Any vessel with the advertise flag set will be advertised
+in at least one advertise service.   browse will look into these services
+and add any vessels it can contact.
+
+Setting advertisetype will restrict the advertise lookup to only use that 
+service.   Some permitted values for advertisetype are central, DHT, and DOR.
+""", 'children':{
       '[ARGUMENT]':{'name':'args', 'callback':command_callbacks.browse_arg, 'help_text':'', 'children':{}},
   }},
 
 
-  'genkeys':{'name':'genkeys', 'callback':None, 'help_text':'', 'children':{
+  'genkeys':{'name':'genkeys', 'callback':None, 'help_text':"""
+genkeys keyprefix [as identity]
+
+Generates a new set of keys, writing them to files keyprefix.publickey and
+keyprefix.privatekey.   It also adds the identity under the name given.  If
+identity is not specified, keyprefix is used.
+""", 'children':{
       '[FILENAME]':{'name':'filename', 'callback':command_callbacks.genkeys_filename, 'help_text':'', 'children':{
           '[ARGUMENT]':{'name':'args', 'callback':command_callbacks.genkeys_filename_len, 'help_text':'', 'children':{
               'as':{'name':'as', 'callback':None, 'help_text':'', 'children':{
@@ -314,7 +556,14 @@ set autosave [ on | off ] -- Sets whether to save the state after every command.
   }},
 
 
-  'loadkeys':{'name':'loadkeys', 'callback':None, 'help_text':'', 'children':{
+  'loadkeys':{'name':'loadkeys', 'callback':None, 'help_text':"""
+loadkeys keyprefix [as identity]
+
+Loads a public key named keyprefix.publickey and a private key named
+keyprefix.privatekey.   This is a shortcut for the 'loadpub' and 'loadpriv'
+operations.   If identity is specified, the shell refers to the keys using
+this.   If not, keyprefix is the identity.
+""", 'children':{
       '[FILENAME]':{'name':'filename', 'callback':command_callbacks.loadkeys_keyname, 'help_text':'', 'children':{
           'as':{'name':'as', 'callback':None, 'help_text':'', 'children':{
               '[ARGUMENT]':{'name':'args', 'callback':command_callbacks.loadkeys_keyname_as, 'help_text':'', 'children':{}},
@@ -323,7 +572,12 @@ set autosave [ on | off ] -- Sets whether to save the state after every command.
   }},
 
 
-  'loadpub':{'name':'loadpub', 'callback':None, 'help_text':'', 'children':{
+  'loadpub':{'name':'loadpub', 'callback':None, 'help_text':"""
+loadpub pubkeyfile [as identity]
+
+Loads a public key named keyprefix.publickey.  If identity is specified, the 
+shell refers to the keys using this.   If not, keyprefix is the identity.
+""", 'children':{
       '[FILENAME]':{'name':'filename', 'callback':command_callbacks.loadpub_filename, 'help_text':'', 'children':{
           'as':{'name':'as', 'callback':None, 'help_text':'', 'children':{
               '[ARGUMENT]':{'name':'args', 'callback':command_callbacks.loadpub_filename_as, 'help_text':'', 'children':{}},
@@ -332,7 +586,12 @@ set autosave [ on | off ] -- Sets whether to save the state after every command.
   }},
 
 
-  'loadpriv':{'name':'loadpriv', 'callback':None, 'help_text':'', 'children':{
+  'loadpriv':{'name':'loadpriv', 'callback':None, 'help_text':"""
+loadpriv privkeyfile [as identity]
+
+Loads a private key named keyprefix.privatekey.  If identity is specified, the 
+shell refers to the keys using this.   If not, keyprefix is the identity.
+""", 'children':{
       '[FILENAME]':{'name':'filename', 'callback':command_callbacks.loadpriv_filename, 'help_text':'', 'children':{
           'as':{'name':'as', 'callback':None, 'help_text':'', 'children':{
               '[ARGUMENT]':{'name':'args', 'callback':command_callbacks.loadpriv_filename_as, 'help_text':'', 'children':{}},
@@ -341,70 +600,159 @@ set autosave [ on | off ] -- Sets whether to save the state after every command.
   }},
 
   
-  'list':{'name':'list', 'callback':command_callbacks.list, 'help_text':'', 'children':{}},
+  'list':{'name':'list', 'callback':command_callbacks.list, 'help_text':"""
+list
+
+Display status information about a set of vessels.   This indicates whether
+the vessels are running programs, if the default identity is the owner or
+just a user, along with other useful information.
+
+Example:
+TODO
+""", 'children':{}},
 
 
-  'upload':{'name':'upload', 'callback':None, 'help_text':'', 'children':{
+  'upload':{'name':'upload', 'callback':None, 'help_text':"""
+upload srcfilename [destfilename]
+
+Uploads a file into all vessels in the default group.   The file name that is
+created in those vessels is destfilename (or srcfilename by default).
+""", 'children':{
       '[FILENAME]':{'name':'filename', 'callback':command_callbacks.upload_filename, 'help_text':'', 'children':{
           '[ARGUMENT]':{'name':'args', 'callback':command_callbacks.upload_filename_remotefn, 'help_text':'', 'children':{}}
       }},
   }},
 
 
-  'download':{'name':'download', 'callback':None, 'help_text':'', 'children':{
+  'download':{'name':'download', 'callback':None, 'help_text':"""
+download srcfilename [destfilename]
+
+Retrieves a copy of srcfilename from every vessel in the default group.   The
+file is written as the destfilename.vesselname (with ':' replaced with '_').
+If the destfilename is not specified, srcfilename is used instead.
+""", 'children':{
       '[FILENAME]':{'name':'filename', 'callback':command_callbacks.download_filename, 'help_text':'', 'children':{
           '[ARGUMENT]':{'name':'args', 'callback':command_callbacks.download_filename_localfn, 'help_text':'', 'children':{}}
       }},
   }},
 
 
-  'delete':{'name':'delete', 'callback':None, 'help_text':'', 'children':{
+  'delete':{'name':'delete', 'callback':None, 'help_text':"""
+delete filename
+
+Erases filename from every vessel in the default group.
+""", 'children':{
       '[FILENAME]':{'name':'filename', 'callback':command_callbacks.delete_remotefn, 'help_text':'', 'children':{}},
   }},
 
-  'cat':{'name':'cat', 'callback':None, 'help_text':'', 'children':{
+  'cat':{'name':'cat', 'callback':None, 'help_text':"""
+cat filename
+
+Displays the content of filename from every vessel in the default group.
+""", 'children':{
       '[FILENAME]':{'name':'filename', 'callback':command_callbacks.cat_filename, 'help_text':'', 'children':{}},
   }},
 
 
-  'reset':{'name':'reset', 'callback':command_callbacks.reset, 'help_text':'', 'children':{}},
+  'reset':{'name':'reset', 'callback':command_callbacks.reset, 'help_text':"""
+reset
+
+Clears the log, stops any programs, and deletes all files from every vessel
+in the default group.
+""", 'children':{}},
 
 
-  'start':{'name':'start', 'callback':None, 'help_text':'', 'children':{
+  'start':{'name':'start', 'callback':None, 'help_text':"""
+start programname [arg1 arg2 ...]
+
+Begins executing a file in the vessel named programname with the given 
+arguments.   This program must first be uploaded to the vessel (the 'run'
+command does this for the user).
+""", 'children':{
       '[FILENAME]':{'name':'filename', 'callback':command_callbacks.start_remotefn, 'help_text':'', 'children':{
           '[ARGUMENT]':{'name':'args', 'callback':command_callbacks.start_remotefn_arg, 'help_text':'', 'children':{}},
       }},
   }},
 
 
-  'stop':{'name':'stop', 'callback':command_callbacks.stop, 'help_text':'', 'children':{}},
+  'stop':{'name':'stop', 'callback':command_callbacks.stop, 'help_text':"""
+stop
+
+Stops executing the running program in every vessel in the default group.   
+The program will halt as though it were killed / interrupted.   The status
+for these vessels will become 'Stopped'.
+""", 'children':{}},
 
 
-  'split':{'name':'split', 'callback':None, 'help_text':'', 'children':{
+  'split':{'name':'split', 'callback':None, 'help_text':"""
+split resourcefile
+
+Divides the vessels in the default group into two new vessels.   The first
+vessel will have the size specified in the resource file.   The second will
+have the remaining size, minus the size of the offcut resources.   The new
+vessels will be known to the shell. 
+
+You must be the owner of the vessel to use the split command.
+""", 'children':{
       '[FILENAME]':{'name':'filename', 'callback':command_callbacks.split_resourcefn, 'help_text':'', 'children':{}},
   }},
 
 
-  'join':{'name':'join', 'callback':command_callbacks.join, 'help_text':'', 'children':{}},
+  'join':{'name':'join', 'callback':command_callbacks.join, 'help_text':"""
+join
+
+Joins any vessels in the default group that are on the same node.   The 
+resulting vessel will have a size equal to the two other vessels plus the
+offcut resource amount.  The new vessels will be known to the shell. 
+
+You must be the owner of the vessels to join them.
+""", 'children':{}},
 
 
-  'exit':{'name':'exit', 'callback':command_callbacks.exit, 'help_text':'', 'children':{}},
+  'exit':{'name':'exit', 'callback':command_callbacks.exit, 'help_text':"""
+exit
+
+Exits seash.
+""", 'children':{}},
 
 
-  'loadstate':{'name':'loadstate', 'callback':None, 'help_text':'', 'children':{
+  'loadstate':{'name':'loadstate', 'callback':None, 'help_text':"""
+loadstate filename
+
+Loads state information from filename using the default identity to decrypt
+the file.   This will restore all identities, keys, groups, etc. from a 
+previous seash run.  See also 'set autosave on/off.'
+""", 'children':{
       '[FILENAME]':{'name':'filename', 'callback':command_callbacks.loadstate_filename, 'help_text':'', 'children':{}},
   }},
 
 
-  'savestate':{'name':'savestate', 'callback':None, 'help_text':'', 'children':{
+  'savestate':{'name':'savestate', 'callback':None, 'help_text':"""
+savestate filename
+
+Saves state information into a filename, encrypting the data with the default 
+identity's private key.  This can be later used to restore the shell's 
+settings, groups, and other information.   See also 'set autosave on/off.'
+""", 'children':{
       '[FILENAME]':{'name':'filename', 'callback':command_callbacks.savestate_filename, 'help_text':'', 'children':{}},
   }},
 
 
-  'update':{'name':'update', 'callback':command_callbacks.update, 'help_text':'', 'children':{}},
+  'update':{'name':'update', 'callback':command_callbacks.update, 'help_text':"""
+update
+
+Reacquire cached state from the vessels.   This state is used for many of the
+'show' commands to prevent every operation from needing to contact all vessels.
+""", 'children':{}},
 
 
-  'contact':{'name':'contact', 'callback':None, 'help_text':'', 'children':{
+  'contact':{'name':'contact', 'callback':None, 'help_text':"""
+contact IP:port[:vesselname]
+
+Add the specified vessel to the shell.   This bypasses advertise lookups and
+directly contacts the node manager.   If the vesselname argument is omitted,
+all vessels that can be controlled by the default identity are added.
+""", 'children':{
       '[ARGUMENT]':{'name':'args', 'callback':command_callbacks.contact, 'help_text':'', 'children':{}},
   }},
 
