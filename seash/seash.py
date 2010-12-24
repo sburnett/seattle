@@ -68,6 +68,7 @@ try:
   # Required for the tab completer. It works on Linux and Mac. It does not work
   # on Windows. See http://docs.python.org/library/readline.html for details. 
   import readline
+  import tab_completer
 except ImportError:
   print "Auto tab completion is off, because it is not available on your operating system."
   tabcompletion = False
@@ -90,131 +91,6 @@ import traceback
 import os.path    # fix path names when doing upload, loadkeys, etc.
 
 import sys
-
-#
-# Provides tab completion of file names for the CLI, especially when running
-# experiments. Able to automatically list file names upon pressing tab, offering
-# functionalities similar to thoese of the Unix bash shell. 
-#
-# Define prefix as the string from the user input before the user hits TAB.
-#
-# TODO: If the directory or file names contain spaces, tab completion does not
-# work. Also works for only Unix-like systems where slash is "/".
-#
-# Loosely based on http://effbot.org/librarybook/readline.htm
-# Mostly written by Danny Y. Huang
-#
-class TabCompleter:
-
-
-
-  # Constructor that initializes all the private variables
-  def __init__(self):
-
-    # list of files that match the directory of the given prefix
-    self._words = []
-
-    # list of files that match the given prefix
-    self._matching_words = []
-
-    self._prefix = None
-
-    
-
-  # Returns the path from a given prefix, by extracting the string up to the
-  # last forward slash in the prefix. If no forward slash is found, returns an
-  # empty string.
-  def _getpath(self, prefix):
-
-    slashpos = prefix.rfind("/")
-    currentpath = ""
-    if slashpos > -1:
-      currentpath = prefix[0 : slashpos+1]
-
-    return currentpath
-
-
-
-  # Returns the file name, or a part of the file name, from a given prefix, by
-  # extracting the string after the last forward slash in the prefix. If no
-  # forward slash is found, returns an empty string.
-  def _getfilename(self, prefix):
-
-    # Find the last occurrence of the slash (if any), as it separates the path
-    # and the file name.
-    slashpos = prefix.rfind("/")
-    filename = ""
-
-    # If slash exists and there are characters after the last slash, then the
-    # file name is whatever that follows the last slash.
-    if slashpos > -1 and slashpos+1 <= len(prefix)-1:
-      filename = prefix[slashpos+1:]
-
-    # If no slash is found, then we assume that the entire user input is the
-    # prefix of a file name because it does not contain a directory
-    elif slashpos == -1:
-      filename = prefix
-
-    # If both cases fail, then the entire user input is the name of a
-    # directory. Thus, we return the file name as an empty string.
-
-    return filename
-
-
-
-  # Returns a list of file names that start with the given prefix.
-  def _listfiles(self, prefix):
-
-    # Find the directory specified by the prefix
-    currentpath = self._getpath(prefix)
-    if not currentpath:
-      currentpath = "./"
-    filelist = []
-
-    # Attempt to list files from the directory
-    try:
-      currentpath = os.path.expanduser(currentpath)
-      filelist = os.listdir(currentpath)
-
-    except:
-      # We are silently dropping all exceptions because the directory specified
-      # by the prefix may be incorrect. In this case, we're returning an empty
-      # list, similar to what you would get when you TAB a wrong name in the
-      # Unix shell.
-      pass
-
-    finally:
-      return filelist
-
-
-
-  # The completer function required as a callback by the readline module. See
-  # also http://docs.python.org/library/readline.html#readline.set_completer
-  def complete(self, prefix, index):
-
-    # If the user updates the prefix, then we list files that start with the
-    # prefix.
-    if prefix != self._prefix:
-
-      self._words = self._listfiles(prefix)
-      fn = self._getfilename(prefix)
-
-      # Find the files that match the prefix
-      self._matching_words = []
-      for word in self._words:
-        if word.startswith(fn):
-          self._matching_words.append(word)
-
-      self._prefix = prefix
-
-    try:
-      return self._getpath(prefix) + self._matching_words[index]
-
-    except IndexError:
-      return None
-
-
-
 
 
 
@@ -241,9 +117,14 @@ def command_loop():
 
   # Set up the tab completion environment (Added by Danny Y. Huang)
   if tabcompletion:
-    completer = TabCompleter()
+    # Initializes seash's tab completer
+    completer = tab_completer.Completer()
     readline.parse_and_bind("tab: complete")
-    readline.set_completer_delims(" ")
+    # Determines when a new tab complete instance should be initialized,
+    # which, in this case, is never, so the tab completer will always take
+    # the entire user's string into account
+    readline.set_completer_delims("")
+    # Sets the completer function that readline will utilize
     readline.set_completer(completer.complete)
 
 
@@ -251,7 +132,10 @@ def command_loop():
   while True:
 
     try:
-      
+      if tabcompletion:
+        # Updates the list of variable values in the tab complete class
+        completer.set_target_list()
+        completer.set_keyname_list()
    
       # Saving state after each command? (Added by Danny Y. Huang)
       if environment_dict['autosave'] and environment_dict['defaultkeyname']:

@@ -892,11 +892,6 @@ def parse_command(userinput):
             # Raise exception if not found in list of targets
             if user_string not in seash_global_variables.targets:
               raise seash_exceptions.ParseError("Target does not exist")
-
-            # Distinguish between general targets and specific groups if looking for
-            # a group. Raises an error if user's input is not a valid group name
-            elif cmd_pattern == '[GROUP]' and user_string.startswith('%'):
-              raise seash_exceptions.ParseError("Invalid group name")
           
           # Necessity of checking existence of keynames yet to be determined
           #elif cmd_pattern == '[KEYNAME]':
