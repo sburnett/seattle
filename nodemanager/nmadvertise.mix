@@ -142,13 +142,13 @@ class advertthread(threading.Thread):
         misc.do_sleep(adsleepfrequency)
     except Exception, e:
       exceptionstring = "[ERROR]:"
-      (type, value, tb) = sys.exc_info()
+      (etype, value, tb) = sys.exc_info()
     
       for line in traceback.format_tb(tb):
         exceptionstring = exceptionstring + line
   
       # log the exception that occurred.
-      exceptionstring = exceptionstring + str(type)+" "+str(value)+"\n"
+      exceptionstring = exceptionstring + str(etype)+" "+str(value)+"\n"
 
       servicelogger.log(exceptionstring)
       raise e
