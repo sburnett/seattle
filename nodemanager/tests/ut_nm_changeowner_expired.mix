@@ -42,8 +42,10 @@ if callfunc == 'initialize':
   # get new keys / credentials...
   keys = rsa_gen_pubpriv_keys(50)
 
-  #sleep 3 seconds so the handle will be expired
-  sleep(3)
+  # sleep 10 seconds so the handle will be expired.   We previously slept 3 
+  # seconds, but in rare cases where NTP is off by > 1 second, this isn't 
+  # adequate
+  sleep(10)
 
 
   # try to change the owner to the new credentials
