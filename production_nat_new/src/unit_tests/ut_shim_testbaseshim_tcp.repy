@@ -1,0 +1,61 @@
+#pragma repy
+
+"""
+<Program>
+  ut_shims_testtimeoutopenconn_base.repy
+
+<Author>
+  Monzur Muhammad
+  monzum@cs.washington.edu
+
+<Purpose>
+  Testing timeout of openconn with the basic base shim.
+"""
+
+include advertise.repy
+include ShimTestingInterface.mix
+
+
+mycontext['UsingShims'] = True
+
+
+def test_func(remoteip, remoteport, sockobj, thiscommhandle, listencommhandle):
+  """
+  A test function that the server runs. It waits for incoming messages
+  and when it receives a message, it will print the message then exit.
+  """
+
+  while True:
+    message = sockobj.recv(1024)
+
+    if len(message) > 0:
+      assert(message == "Hello World")
+      assert(remoteip == mycontext['client_name'])
+      break
+
+  exitall()
+
+
+
+if callfunc == 'initialize':
+
+  mycontext['server_name'] = "test.zenodotus.cs.washington.edu"
+  mycontext['client_name'] = "client.zenodotus.cs.washington.edu"
+
+  try:
+    advertise_announce(mycontext['server_name'], getmyip(), 600)
+  except:
+    pass
+
+  # Define the shim.
+  server_shim = ShimStackInterface('(CoordinationShim)(TestShimLib)', mycontext['server_name'])
+  client_shim = ShimStackInterface('(CoordinationShim)(TestShimLib)', mycontext['client_name'])
+
+  # Create the server.
+  server_shim.waitforconn(server_shim.getmyip(), 12345, test_func)
+
+  # Open a client connection to the server.
+  sock_conn = client_shim.openconn(mycontext['server_name'], 12345, timeout=10)
+
+  sock_conn.send("Hello World")
+

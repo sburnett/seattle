@@ -1,5 +1,6 @@
 #include local_lookup_methods.repy
 include advertise.repy
+include session.repy
 
 
 # TODO For TCP-based connections only. Coordinating for UDP won't be that hard
@@ -7,6 +8,12 @@ include advertise.repy
 class CoordinationShim(BaseShim):
 
   name = 'CoordinationShim'
+  
+  # When we first establish a TCP connection, the client sends over its 
+  # hostname as the first message. This message has a special header 
+  # character. We define the character here.
+  hostname_header = "hostname@@@"
+  
 
   # We will do a lookup on the DHT for at most the following number of times.
   _lookup_attempts = 4
@@ -19,8 +26,10 @@ class CoordinationShim(BaseShim):
     return CoordinationShim()
 
   def __init__(self, next_shim=None, optional_args=None):
+    self._localhost = mycontext['localhost']
     BaseShim.__init__(self, next_shim, optional_args)
     self._logger = ShimLogger('CoordinationShim')
+
 
 
   def get_advertisement_string(self):
@@ -33,7 +42,36 @@ class CoordinationShim(BaseShim):
 
   def _shim_listener_callback(self, remoteip, remoteport, socket, thiscommhandle, listencommhandle):
     self._logger.log('listener_callback: new client from %s:%s' % (remoteip, remoteport))
+
+    # The first message that is received is the hostname that is associated with the remote
+    # node.
+    try:
+      received_message = session_recvmessage(socket)
+    except SessionEOF, err:
+      self._logger.log("Session closed before receiving remote hostname.")
+      raise
+    except Exception, err:
+      self._logger.log("Exception occured in listener_callback " + str(err))
+      raise
+
+    
+    # Make sure that the first message that we received is in the correct
+    # format and has the hostname in the message.
+    if self.hostname_header in received_message:
+      remote_hostname = received_message.split(self.hostname_header)[1]
+      self._logger.log("Registered remote hostname as %s" % remote_hostname)
+      remoteip = remote_hostname      
+  
+    # This is the case where the first message did not include the hostname
+    # header. It should never get here.
+    else:
+      self._logger.log("The client did not send the hostname across the connection.")
+      socket.close()
+      raise Exception("Could not resolve a hostname from the client node!")
+ 
+
     return (remoteip, remoteport, socket, thiscommhandle, listencommhandle)
+
 
 
 
@@ -168,7 +206,22 @@ class CoordinationShim(BaseShim):
         exception_str +=' while connecting to %s:%s' % (hostkey, port)
       else:
         # Success in openconn. We won't try the rest of the shimstack strings.
+        # Now that we have made a connection, the first message we are going 
+        # to send over is the localhostname.
+        hostname_message = self.hostname_header + self._localhost
+
+        # Send the hostname across the connection. If we fail, raise an error.
+        try:
+          session_sendmessage(sock, hostname_message)
+        except Exception, err:
+          self._logger_log("openconn: Unable to send hostname across connection. " + 
+                           str(err))
+          sock.close()
+          raise 
+
+        # Break out of whileloop because everything was successful.
         break
+
 
       if len(shimstackstr_list) == 0 and not tried_using_remote_lookup:
         # All possible shim stack strings are consumed and we still haven't

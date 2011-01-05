@@ -68,7 +68,9 @@ class BaseShim:
 
   def socket_recv(self, socket, bytes): 
     return self._shim_socket_recv(socket, bytes)
-  
+
+
+    
 
 
 
@@ -84,8 +86,10 @@ class BaseShim:
   # subclass
   def __init__(self, next_shim=None, optional_args=None):
 
+    # Create the next shim if there is one.
     self.shim_stack = ShimStack(next_shim)
     self._optional_args = optional_args
+
 
     # If "NO_NOT_ADVERTISE" is a part of the shim's optional arguments, then we
     # won't include this shim when advertising the shim stack.
@@ -94,26 +98,36 @@ class BaseShim:
 
     # Count instance
     mycontext['ShimInstanceCountLock'].acquire()
-    instdict = mycontext['ShimInstanceCountDict']
-    if instdict.has_key(self.name):
-      self._instance_id = instdict[self.name]
-      instdict[self.name] += 1
-    else:
-      self._instance_id = 0
-      instdict[self.name] = 1
-    mycontext['ShimInstanceCountLock'].release()
+    
+    # After acquiring the lock do everything else in a try/finally
+    # block so we are sure to release the lock in case anything 
+    # goes wrong and breaks down.
+    try:
+      instdict = mycontext['ShimInstanceCountDict']
+      if instdict.has_key(self.name):
+        self._instance_id = instdict[self.name]
+        instdict[self.name] += 1
+      else:
+        self._instance_id = 0
+        instdict[self.name] = 1
+    finally:
+      mycontext['ShimInstanceCountLock'].release()
 
  
+
+
+
   def _shim_listener_callback(self, remoteip, remoteport, socket, thiscommhandle, listencommhandle):
     return (remoteip, remoteport, socket, thiscommhandle, listencommhandle)
-
 
 
   def _shim_waitforconn(self, host, port, callback):
     return self.shim_stack.waitforconn(host, port, callback)
 
+
   def _shim_openconn(self, host, port, localhost=None, localport=None, timeout=5):
     return self.shim_stack.openconn(host, port, localhost, localport, timeout)
+
 
   def _shim_recvmess(self, host, port, callback):
     return self.shim_stack.recvmess(host, port, callback)
@@ -127,19 +141,18 @@ class BaseShim:
     return self.shim_stack.stopcomm(handle)
 
 
-
   def _shim_socket_close(self, socket):
     return self.shim_stack.socket_close(socket)
-
 
 
   def _shim_socket_send(self, socket, msg):
     return self.shim_stack.socket_send(socket, msg)
 
 
-
   def _shim_socket_recv(self, socket, bytes): 
     return self.shim_stack.socket_recv(socket, bytes)
+
+
   
 
   # ===========================================================================

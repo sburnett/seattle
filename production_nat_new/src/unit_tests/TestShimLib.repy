@@ -1,0 +1,117 @@
+"""
+<Program Name>
+  TestShimLib.repy
+
+<Author>
+  Monzur Muhammad
+  monzum@cs.washington.edu
+
+<Started>
+  December 28, 2010
+
+<Purpose>
+  This is a test library file that will be used to test
+  Shim libraries
+"""
+
+
+class TestShimLib(BaseShim):
+
+  # Keeps track of how many shims are in the stack.
+  mycontext['ShimCount'] = 0
+
+  
+  def __init__(self, next_shim=None, optional_args=None):
+
+    if next_shim:
+      mycontext['ShimCount'] += 1
+
+    BaseShim.__init__(self, next_shim, optional_args)
+
+
+
+  # Define the advertisement string.
+  def get_advertisement_string(self):
+    return ('TestShimLib') + self.shim_stack.get_advertisement_string()
+
+
+
+  # Define the listenter callback.
+  def _shim_listener_callback(self, remotehost, remoteport, socket, thiscommhandle, listencommhandle):
+    return (remotehost, remoteport, socket, thiscommhandle, listencommhandle)
+
+
+
+  # Define the waitforconn.
+  def _shim_waitforconn(self, host, port, callback):
+    #self.mock_waitforconn_call()
+    return self.shim_stack.waitforconn(host, port, callback)
+
+
+  # Define the openconn.
+  def _shim_openconn(self, host, port, localhost=None, localport=None, timeout=5):
+    return self.shim_stack.openconn(host, port, localhost, localport, timeout)
+
+
+
+  # Define recvmess.
+  def _shim_recvmess(self, host, port, callback):
+    return self.shim_stack.recvmess(host, port, callback)
+
+
+
+  # Define sendmess.
+  def _shim_sendmess(self, host, port, msg, localhost=None, localport=None):
+    return self.shim_stack.sendmess(host, port, msg, localhost, localport)
+
+
+
+  # Define stopcomm.
+  def _shim_stopcomm(self, handle):
+    return self.shim_stack.stopcomm(handle)
+
+
+
+  # Define socket_close.
+  def _shim_socket_close(self, socket):
+    return self.shim_stack.socket_close(socket)
+
+
+
+  # Define socket_send.
+  def _shim_socket_send(self, socket, msg):
+    return self.shim_stack.socket_send(socket, msg)
+
+
+  # Define socket_recv.
+  def _shim_socket_recv(self, socket, bytes): 
+    return self.shim_stack.socket_recv(socket, bytes)
+
+
+
+  # Define the copy method.
+  def copy(self):
+    return TestShimLib()
+
+
+
+
+  # =========================================================================
+  # Mock network api calls that are defined for the purpose of testing
+  # network calls made by Shim libraries.
+  # =========================================================================
+
+
+  def mock_waitforconn_call(self):
+    """ 
+    We want to simulate the waitforconn call so we don't need
+    to make an actual network call. We will simulate the 
+    different behaviours of the waitforconn call.
+    """
+
+    # The mock watiforconn function.
+    def _mock_waitforconn(*args): 
+      return "TestCommHandle"
+
+    
+    self.shim_stack.waitforconn = _mock_waitforconn

@@ -85,12 +85,11 @@ def getRandomIP():
 
 class ShimStackInterface:
 
-  def __init__(self, stack_str='', autoCoordinationShim=True):
+  def __init__(self, stack_str, localhost):
     self._stack_str = stack_str
+    
+    mycontext['localhost'] = localhost
 
-    if autoCoordinationShim:
-      if stack_str.find('CoordinationShim') < 0:
-        self._stack_str = '(CoordinationShim)' + self._stack_str
 
     # Maps handle to stack. Although handle does not have a hash function
     # defined, it is in fact hashed by its memory address. Thus, the keys in our
@@ -137,6 +136,18 @@ class ShimStackInterface:
 
 
 
+  def getmyip(self):
+    """
+    Return the hostname that is associated with the 
+    localmachine. It could be some random key or server name,
+    that was defined at initialization.
+    """
+
+    return mycontext['localhost']
+
+
+
+
 
   def waitforconn(self, host, port, callback):
     shimstack = ShimStack(self._stack_str)
@@ -148,7 +159,7 @@ class ShimStackInterface:
       raise Exception(err)
 
     self._logger.log('waitforconn on %s:%s' % (host, port))
-    self._handle_dict[handle] = shimstack
+    self._handle_dict[str(handle)] = shimstack
 
     mycontext['shim_stack_interface_instance_counter_lock'].acquire()
     mycontext['shim_stack_interface_active_listeners'] += 1
@@ -162,7 +173,7 @@ class ShimStackInterface:
 
   def stopcomm(self, handle):
     try:
-      shimstack = self._handle_dict[handle]
+      shimstack = self._handle_dict[str(handle)]
     except KeyError,e:
       raise KeyError(e)
       return False
@@ -181,7 +192,7 @@ class ShimStackInterface:
  
 
 
-  def openconn(self,host,port,localhost=None,localport=None,timeout=5):
+  def openconn(self,host,port,localhost=None,localport=None, timeout=5):
     shimstack = ShimStack(self._stack_str)
 
     try:
@@ -204,7 +215,7 @@ class ShimStackInterface:
   def recvmess(self, host, port, callback):
     shimstack = ShimStack(self._stack_str)
     handle = shimstack.recvmess(host, port, callback)
-    self._handle_dict[handle] = shimstack
+    self._handle_dict[str(handle)] = shimstack
 
     mycontext['shim_stack_interface_active_listeners'] += 1
 

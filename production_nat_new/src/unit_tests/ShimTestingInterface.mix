@@ -1,0 +1,19 @@
+"""
+<Program>
+  ShimTestingInterface.mix
+
+<Author>
+  Monzur Muhammad
+  monzum@cs.washington.edu
+
+<Purpose>
+  This is a wrapper file that includes the 
+  TestShimLib and registers it for testing 
+  purpose.
+"""
+
+include ShimStackInterface.mix
+include TestShimLib.repy
+
+# Register the TestShimLib
+register_shim('TestShimLib', TestShimLib)

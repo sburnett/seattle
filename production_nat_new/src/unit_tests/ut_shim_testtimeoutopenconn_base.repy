@@ -1,0 +1,45 @@
+#pragma repy
+#pragma error socket.timeout
+
+"""
+<Program>
+  ut_shims_testtimeoutopenconn_base.repy
+
+<Author>
+  Monzur Muhammad
+  monzum@cs.washington.edu
+
+<Purpose>
+  Testing timeout of openconn with the basic base shim.
+"""
+
+include ShimTestingInterface.mix
+
+mycontext['UsingShims'] = True
+
+
+def fail_and_exit():
+  print "ShimError: Openconn did not timeout. Exiting."
+  exitall()  
+
+
+
+
+
+if callfunc == 'initialize':
+
+  localhostname = "test.zenodotus.cs.washington.edu"
+  # Define the shim.
+  base_shim = ShimStackInterface('(CoordinationShim)(TestShimLib)', localhostname)
+
+  
+  # Set up a timer. If the openconn does not timeout
+  # then the timer will go off and the test will fail.
+  time_handle = settimer(2.5, fail_and_exit, ())  
+
+  # We expect this to raise a socket.timeout error
+  base_shim.openconn("www.google.com", 12345, timeout=2)
+
+  canceltimer(time_handle)
+
+  exitall()

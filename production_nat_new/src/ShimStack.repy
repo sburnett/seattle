@@ -80,7 +80,8 @@ class ShimStack:
   mycontext['ShimStackInstanceCountLock'] = getlock()
 
 
-  def __init__(self,shim_stack_string=None):
+  def __init__(self,shim_stack_string):
+
     # create a new shim stack
     if shim_stack_string is not None: 
       self.top_shim = self.make_stack(shim_stack_string)
@@ -99,7 +100,7 @@ class ShimStack:
   
   def push(self,shim):
     # give the new shim a shim stack that is the same as this one
-    shim.shim_stack = ShimStack()
+    shim.shim_stack = ShimStack(None)
     shim.shim_stack.top_shim = self.top_shim
     
     # change this shim stack to include the new shim
@@ -145,6 +146,7 @@ class ShimStack:
       return ""
     else:
       return self.top_shim.get_shims(get_all_shims)
+
 
 
   def __repr__(self):
