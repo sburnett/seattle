@@ -1,0 +1,77 @@
+#pragma repy restrictions.fastestnetsendfullcpu
+
+"""
+<Program>
+  ut_shims_testtimeoutopenconn_base.repy
+
+<Author>
+  Monzur Muhammad
+  monzum@cs.washington.edu
+
+<Purpose>
+  Testing timeout of openconn with the basic base shim.
+"""
+
+include advertise.repy
+include ShimTestingInterface.mix
+
+
+mycontext['UsingShims'] = True
+mycontext['maxlag'] = 0
+
+
+def sendforever(sockobj):
+  while True:
+    # send a message that is around 100 bytes
+    sockobj.send("%9f "%getruntime() + " "*90)
+
+
+
+def handleconnection(ip, port, connobj, ch, mainch):
+  while True:
+    sendtime = float(connobj.recv(100).strip().split()[0])
+    lag = getruntime() - sendtime
+
+    if mycontext['maxlag'] < lag:
+      mycontext['maxlag'] = lag
+
+
+
+
+def check_and_exit(sock_conn):
+  if mycontext['maxlag'] > 2:
+    print "TCP packets lag too long in the buffer: ", mycontext['maxlag']
+
+  if mycontext['maxlag'] == 0:
+    print "TCP packets were not received or had 0 lag"
+  
+  # Close the connection so we dont leak sockets.
+  sock_conn.close()
+  exitall()
+
+
+
+if callfunc == 'initialize':
+  mycontext['server_name'] = "test_tcpbuffer_server.zenodotus.cs.washington.edu"
+  mycontext['client_name'] = "client.zenodotus.cs.washington.edu"
+
+  # Define the shim.
+  server_shim = ShimStackInterface('(CoordinationShim)(TestShimLib)', mycontext['server_name'])
+  client_shim = ShimStackInterface('(CoordinationShim)(TestShimLib)', mycontext['server_name'])
+
+  try:
+    advertise_announce(mycontext['server_name'], getmyip(), 600)
+  except:
+    pass
+
+  # Create the server.
+  server_shim.waitforconn(server_shim.getmyip(), 12345, handleconnection)
+
+  sleep(10)
+
+  # Open a client connection to the server.
+  sock_conn = client_shim.openconn(mycontext['server_name'], 12345, timeout=5)
+
+  settimer(10.0, check_and_exit, (sock_conn,))
+  sendforever(sock_conn)
+

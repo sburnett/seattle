@@ -127,7 +127,7 @@ class CoordinationShim(BaseShim):
   # cache. Otherwise, we will do a lookup remotely. Helper for the openconn
   # operation.
   def _get_shimstack_strings(self, hostkey, port, use_cache=True):
-
+    
     # Initializes the local cache so we don't have to contact the remote
     # services all the time.
     if mycontext.has_key('shim_stack_string_cache_lock'):
@@ -151,9 +151,11 @@ class CoordinationShim(BaseShim):
 
     # Contact the remote lookup service
     for count in range(self._lookup_attempts):
-      lookup_results = advertise_lookup(lookup_key)
+      lookup_results = advertise_lookup(lookup_key, graceperiod=1, timeout=2)
+      
       if len(lookup_results) > 0 and lookup_results[0]:
         break
+      print lookup_results
       sleep(1)
 
     # Add to local cache.
@@ -176,6 +178,26 @@ class CoordinationShim(BaseShim):
 
 
   def _shim_openconn(self, hostkey, port, localhost=None, localport=None, timeout=5):
+    """
+    <Purpose>
+      This is the openconn function for the Coordination Shim. It is responsible
+      for finding out which shims the server is using and connecting to it. It also
+      sends its localhostname to the server, so the server knows what hostname to use
+      to contact back this node.
+
+    <Exception>
+      - Exception raised if we are unable to send the local hostname across the connection.
+      - Any socket.connect exceptions are raised.
+      - Socket timeout raised, if the timeout is less then the time it takes to do all the 
+        shim work.
+
+    <Side Effects>
+      None.
+
+    <Return>
+      socket like object for the connection, if successful.
+    """
+    start_time = getruntime()
 
     exception_str = ''
     sock = None
@@ -186,7 +208,7 @@ class CoordinationShim(BaseShim):
 
     # First, obtain the shim stack string from cache, or if not, from the DHT.
     shimstackstr_list = self._get_shimstack_strings(hostkey, port, use_cache=True)
-
+    
     # Try to do openconn for every possible shim stack string
     while len(shimstackstr_list) > 0:
 
@@ -198,12 +220,21 @@ class CoordinationShim(BaseShim):
         errmsg = "Unable to parse shim stack string '%s' because '%s'." % (shimstackstr, e)
         self._logger.log("openconn: " + errmsg)
         raise Exception(errmsg)
-
+      
       try:
+        # We have to take into account that some time was wasted retrieving the shim list,
+        # so we have to modify the timeout.
+        timeout = timeout - (getruntime() - start_time)
+
+        if timeout <= 0:
+          raise Exception("Connection timed out!")
+        
         sock = shim_stack.openconn(hostkey,port,localhost,localport,timeout)
+        
       except Exception,e:
         exception_str +=' || Exception: '+str(e)+' for stack '+shimstackstr
         exception_str +=' while connecting to %s:%s' % (hostkey, port)
+        raise Exception(exception_str)
       else:
         # Success in openconn. We won't try the rest of the shimstack strings.
         # Now that we have made a connection, the first message we are going 
@@ -243,6 +274,13 @@ class CoordinationShim(BaseShim):
     if sock is None:
       self._logger.log("openconn: Trying to connect to %s:%s without using the shim interface." % (hostkey, port))
       try:
+        # We have to take into account that some time was wasted retrieving the shim list,
+        # so we have to modify the timeout.
+        timeout = timeout - (getruntime() - start_time)
+
+        if timeout <= 0:
+          raise Exception("Connection timed out!")
+
         sock = openconn(hostkey,port,localhost,localport,timeout)
       except Exception,e:
         exception_str +=' || Unable to connect without using shims becase %s.' % e
