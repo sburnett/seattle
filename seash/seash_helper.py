@@ -675,7 +675,7 @@ def check_key_set(name):
   if (name in seash_global_variables.keys and 'publickey' in seash_global_variables.keys[name] and 'privatekey' in seash_global_variables.keys[name] and seash_global_variables.keys[name]['publickey'] and seash_global_variables.keys[name]['privatekey']):
 
     if not check_key_pair_compatibility(name):
-      raise UserError("Error: Mis-matched Public/Private key pair!")
+      raise seash_exceptions.UserError("Error: Mis-matched Public/Private key pair!")
 
 
 
@@ -757,8 +757,8 @@ def set_upload_timeout(filedata):
   # sets the new timeout if necessary 
   if est_upload_time > seash_global_variables.globalseashtimeout: 
  
-    for longname in vesselinfo: 
-      thisvesselhandle = vesselinfo[longname]['handle'] 
+    for longname in seash_global_variables.vesselinfo: 
+      thisvesselhandle = seash_global_variables.vesselinfo[longname]['handle'] 
       thisvesselhandledict = nmclient_get_handle_info(thisvesselhandle) 
       thisvesselhandledict['timeout'] = est_upload_time 
       nmclient_set_handle_info(thisvesselhandle,thisvesselhandledict) 
