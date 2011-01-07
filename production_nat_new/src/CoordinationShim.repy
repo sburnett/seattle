@@ -126,8 +126,8 @@ class CoordinationShim(BaseShim):
   # use_cache is set to True, then we are only doing a lookup on a local
   # cache. Otherwise, we will do a lookup remotely. Helper for the openconn
   # operation.
-  def _get_shimstack_strings(self, hostkey, port, use_cache=True):
-    
+  def _get_shimstack_strings(self, hostkey, port, timeout, use_cache=True):
+    start_time = getruntime()
     # Initializes the local cache so we don't have to contact the remote
     # services all the time.
     if mycontext.has_key('shim_stack_string_cache_lock'):
@@ -151,7 +151,12 @@ class CoordinationShim(BaseShim):
 
     # Contact the remote lookup service
     for count in range(self._lookup_attempts):
-      lookup_results = advertise_lookup(lookup_key, graceperiod=1, timeout=2)
+      # If we have exceeded the timeout time, then
+      # there is no point in doing a lookup.
+      if (getruntime() - start_time) > timeout:
+        return lookup_results
+
+      lookup_results = advertise_lookup(lookup_key, graceperiod=0.5, timeout=2)
       
       if len(lookup_results) > 0 and lookup_results[0]:
         break
@@ -207,7 +212,7 @@ class CoordinationShim(BaseShim):
     tried_using_remote_lookup = False
 
     # First, obtain the shim stack string from cache, or if not, from the DHT.
-    shimstackstr_list = self._get_shimstack_strings(hostkey, port, use_cache=True)
+    shimstackstr_list = self._get_shimstack_strings(hostkey, port, timeout, use_cache=True)
     
     # Try to do openconn for every possible shim stack string
     while len(shimstackstr_list) > 0:
@@ -258,7 +263,8 @@ class CoordinationShim(BaseShim):
         # All possible shim stack strings are consumed and we still haven't
         # found a workable one. We want to lookup the shim stack strings using
         # the remote services, instead of the local cache.
-        shimstackstr_list = self._get_shimstack_strings(hostkey, port, use_cache=False)
+        
+        shimstackstr_list = self._get_shimstack_strings(hostkey, port, timeout, use_cache=False)
         tried_using_remote_lookup = True
 
       if len(shimstackstr_list) == 0 and tried_using_remote_lookup:      

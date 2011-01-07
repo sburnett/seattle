@@ -37,8 +37,7 @@ def fail_and_exit():
   """
 
   print "Openconn should have timed out by now. Should not have reached here."
-
-  #exitall()
+  mycontext['test_fail'] = True  
 
 
 
@@ -46,6 +45,7 @@ if callfunc == 'initialize':
 
   mycontext['server_name'] = "testopenconn_timeout.zenodotus.cs.washington.edu"
   mycontext['client_name'] = "client.zenodotus.cs.washington.edu"
+  mycontext['test_fail'] = False 
 
   try:
     advertise_announce(mycontext['server_name'], getmyip(), 600)
@@ -61,11 +61,11 @@ if callfunc == 'initialize':
 
   sleep(10)
 
-  timer_handle = settimer(2.5, fail_and_exit, ())
+  timer_handle = settimer(3, fail_and_exit, ())
 
   # Open a client connection to the server.
 
-
+  mycontext['start_time'] = getruntime()
   try: 
     sock_conn = client_shim.openconn(mycontext['server_name'], 12345, timeout = 2)
   except Exception, err:
@@ -74,6 +74,8 @@ if callfunc == 'initialize':
     else:
       raise
 
+  if mycontext['test_fail']:
+    print "Time for conn: " + str(getruntime()-start_time) 
 
   canceltimer(timer_handle)  
   exitall()
