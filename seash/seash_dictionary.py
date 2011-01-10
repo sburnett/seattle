@@ -224,7 +224,13 @@ This command prints general information about vessels in the default group
 including the version, nodeID, etc.
 
 Example:
-TODO
+exampleuser@%1 !> show info
+192.x.x.178:1224:v3 has no information (try 'update' or 'list')
+exampleuser@%1 !> update
+exampleuser@%1 !> show info
+192.x.x.178:1224:v3 {'nodekey': {'e': 65537L, 'n': 929411623458072017781884599109L}, 'version': '0.1r', 'nodename': '192.x.x.175'}
+
+
 """, 'children':{}},
       'users':{'pattern':'users', 'name':'users', 'callback':command_callbacks.show_users, 'help_text':"""
 show users
@@ -233,7 +239,16 @@ This command lists the set of user keys for vessels in the default group.
 If the key has been loaded into seash as an identity, this name will be used.
 
 Example:
-TODO
+exampleuser@browsegood !> show users
+192.x.x.178:1224:v3 has no information (try 'update' or 'list')
+192.x.x.2:1224:v12 has no information (try 'update' or 'list')
+192.x.x.2:1224:v3 has no information (try 'update' or 'list')
+exampleuser@browsegood !> update
+exampleuser@browsegood !> show users
+192.x.x.178:1224:v3 (no keys)
+192.x.x.2:1224:v12 65537 136475...
+192.x.x.2:1224:v3 exampleuser
+
 """, 'children':{}},
       'ownerinfo':{'name':'ownerinfo', 'callback':command_callbacks.show_ownerinfo, 'help_text':"""
 show ownerinfo
@@ -377,8 +392,16 @@ the target.
 If the target is already in the group, an error message will be printed.
 
 Example:
+exampleuser@%1 !> on new_group
+Invalid command input: Target does not exist
+exampleuser@%1 !> add to new_group
+exampleuser@%1 !> add %2 to new_group
+exampleuser@%1 !> on new_group
+exampleuser@new_group !> list
+  ID Own                      Name     Status              Owner Information
+  %1  *        192.x.x.178:1224:v3      Fresh                               
+  %2  *         192.x.x.2:1224:v12      Fresh    
 
-TODO
 """, 'children':{
       '[TARGET]':{'name':'target', 'callback':command_callbacks.add_target, 'help_text':'', 'children':{
           'to':{'name':'to', 'callback':None, 'help_text':'', 'children':{
@@ -417,8 +440,19 @@ The short form 'remove from group' removes the default group from group.
 If the target is not in the group, an error message will be printed.
 
 Example:
+exampleuser@new_group !> list
+  ID Own                      Name     Status              Owner Information
+  %1  *        192.x.x.178:1224:v3      Fresh                               
+  %2  *         192.x.x.2:1224:v12      Fresh    
+  %3             192.x.x.2:1224:v3      Fresh      
+exampleuser@new_group !> on %1
+exampleuser@%1 !> remove from new_group
+exampleuser@%1 !> remove %2 from new_group
+exampleuser@%1 !> on new_group
+exampleuser@new_group !> list
+  ID Own                      Name     Status              Owner Information
+  %3             192.x.x.2:1224:v3      Fresh   
 
-TODO
 """, 'children':{
       '[TARGET]':{'name':'target', 'callback':command_callbacks.remove_target, 'help_text':'', 'children':{
           'from':{'name':'from', 'callback':None, 'help_text':'', 'children':{
@@ -513,7 +547,7 @@ set autosave [on/off]
 
 When turned on, the shell settings such as keys, targets, timeout value, etc.
 will all be persisted to disk after every operation.   These are saved in a
-file called TODO, which is encrypted with the default identity.   The user
+file called 'autosave_(user's keyname)', which is encrypted with the default identity.   The user
 can then restore the shell's state by typing 'loadstate identity'.
 """, 'children':{
           '[ARGUMENT]':{'name':'args', 'callback':command_callbacks.set_autosave_arg, 'help_text':'', 'children':{}},
@@ -608,7 +642,12 @@ the vessels are running programs, if the default identity is the owner or
 just a user, along with other useful information.
 
 Example:
-TODO
+exampleuser@browsegood !> list
+  ID Own                      Name     Status              Owner Information
+  %1  *        192.x.x.178:1224:v3      Fresh                               
+  %2  *         192.x.x.2:1224:v12      Fresh                               
+  %3             192.x.x.2:1224:v3      Fresh  
+
 """, 'children':{}},
 
 
