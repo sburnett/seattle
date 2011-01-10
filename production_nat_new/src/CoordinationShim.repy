@@ -1,3 +1,16 @@
+"""
+<Program>
+  CoordinationShim.repy
+
+<Author>
+  Danny Huang, Yuxing.Huang@williams.edu
+  Monzur Muhammad, monzum@cs.washington.edu
+
+<Purpose>
+  To coordinate the shims. Transfer the hostname of local machines
+  as well to announce all the shims that are being used.
+"""
+
 #include local_lookup_methods.repy
 include advertise.repy
 include session.repy
@@ -203,7 +216,7 @@ class CoordinationShim(BaseShim):
       Same as the arguments for sendmess() for Repy v1.
 
     <Exceptions>
-      None.
+      socket.error when communication errors happen
 
     <Side Effects>
       The message we send across the network is slightly modified.
@@ -219,7 +232,7 @@ class CoordinationShim(BaseShim):
     bytesent = self.shim_stack.sendmess(host, port, msg_to_send, localhost, localport)
 
     # If we were unsuccessful at sending message, that is if the value returned
-    # was 0 or negative, then we return that value.
+    # was not the expected value, then we return the bytesent value.
     if bytesent <= 0:
       return bytesent
 
