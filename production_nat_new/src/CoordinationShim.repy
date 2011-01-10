@@ -13,7 +13,8 @@ class CoordinationShim(BaseShim):
   # hostname as the first message. This message has a special header 
   # character. We define the character here.
   hostname_header = "hostname@@@"
-  
+  UDP_tag = ":::UDP_TAG:::"  
+
 
   # We will do a lookup on the DHT for at most the following number of times.
   _lookup_attempts = 4
@@ -37,7 +38,7 @@ class CoordinationShim(BaseShim):
 
 
   # ===========================================================================
-  # SERVER METHODS
+  # SERVER METHODS - TCP
   # ===========================================================================
 
   def _shim_listener_callback(self, remoteip, remoteport, socket, thiscommhandle, listencommhandle):
@@ -112,6 +113,123 @@ class CoordinationShim(BaseShim):
       sleep(self._advertise_wait_interval)
 
 
+
+
+  # ===========================================================================
+  # SERVER METHODS - UDP
+  # ===========================================================================
+
+  def _shim_recvmess_callback_wrapper(self, remoteip, remoteport, message, commhandle):
+    """
+    <Purpose>
+      This is more of a wrapper function for the recvmess callback function.
+      For the puspose of shim, we need to send some extra info across the 
+      connection. Mainly the hostname of the client node.
+
+    <Arguments>
+      The same arguments as the callback function for recvmess() for Repy v1.
+
+    <Exceptions>
+      Exception raised if the UDP message received is not in the right
+      format. If the client side is using Coordination Shim, then this
+      shouldn't be a problem.
+
+    <Side Effects>
+      The raw message received gets changed before its passed
+      to the callback function.
+
+    <Return>
+      None.
+    """
+
+    # The UDP message is sent in a certain format. The format
+    # is the hostname tag followed by the remote hostname, followed
+    # by the UDP message tag, followed by the actual message sent
+    # by the client.
+    try:
+      hostname_tag, udp_message = message.split(self.UDP_tag)  
+    except:
+      self._logger.log("Invalid format of UDP message received.")
+      raise Exception("Invalid format of UDP message received.")
+
+    # Extract the remote hostname from the message.
+    remote_hostname = hostname_tag.split(self.hostname_header)[1]
+
+    # Call the callback function provided, with the right arguments.
+    self._recvmess_callback_function(remote_hostname, remoteport, udp_message, commhandle)
+  
+
+
+
+
+  def _shim_recvmess(self, host, port, callback):
+    """
+    <Purpose>
+      This is the recvmess function for this shim level. We have to extract
+      some information from the UDP message received before we can call the
+      callback function.
+
+    <Arguments>
+      Same as the arguments for recvmess() for Repy v1
+
+    <Side Effects>
+      None.
+
+    <Exceptions>
+      None.
+
+    <Return>
+      A commhandle
+    """
+
+    self._recvmess_callback_function = callback
+
+    # We want to pass it the modified callback function.
+    return self.shim_stack.recvmess(host, port, self._shim_recvmess_callback_wrapper)
+    
+
+
+  # ===========================================================================
+  # CLIENT METHODS - UDP
+  # ===========================================================================
+
+  def _shim_sendmess(self, host, port, msg, localhost=None, localport=None):
+    """
+    <Purpose>
+      This is the sendmess() function for this layer of shim. It modifies the
+      message slightly befor sending it across.
+
+    <Arguments>
+      Same as the arguments for sendmess() for Repy v1.
+
+    <Exceptions>
+      None.
+
+    <Side Effects>
+      The message we send across the network is slightly modified.
+
+    <Return>
+      The number of bytes sent across the network.
+    """
+
+    # We want to append the hostname and the UDP tag along with the message.
+    msg_to_send = self.hostname_header + self._localhost + self.UDP_tag + msg
+
+    # Call the shimstacks sendmess()
+    bytesent = self.shim_stack.sendmess(host, port, msg_to_send, localhost, localport)
+
+    # If we were unsuccessful at sending message, that is if the value returned
+    # was 0 or negative, then we return that value.
+    if bytesent <= 0:
+      return bytesent
+
+    # Since we added extra tags in front of the message, we want to take that into
+    # account, and make sure that the application layer doesn't know about it. So
+    # we need to adjust the message length value that we return.
+    message_size = bytesent - (len(msg_to_send) - len(msg))
+
+    return message_size
+      
 
 
 
@@ -219,6 +337,8 @@ class CoordinationShim(BaseShim):
 
       try:
         # Remove the preceding @ sign in the shim stack string
+        # The first character in the string is @, which is why
+        # we take [1:] portion of the string.
         shimstackstr = shimstackstr_list.pop()[1:]
         shim_stack = ShimStack(shimstackstr)
       except Exception, e:
