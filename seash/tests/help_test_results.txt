@@ -1,0 +1,71 @@
+
+A target can be either a host:port:vesselname, %ID, or a group name.
+
+loadkeys fn [as identity]    -- Loads filename.publickey and filename.privatekey
+as keyname [command]-- Run a command using an identity (or changes the default).
+on target [command] -- Run a command on a target (or changes the default)
+add [target] [to group]      -- Adds a target to a new or existing group 
+remove [target] [from group] -- Removes a target from a group
+show                         -- Displays shell state (see 'help show')
+set                          -- Changes the shell or vessels (see 'help set')
+browse                       -- Find vessels I can control
+list                         -- Update and display information about the vessels
+upload localfn (remotefn)    -- Upload a file
+download remotefn (localfn)  -- Download a file (to multiple local files)
+cat remotefn                 -- Display the contents of a remote file
+delete remotefn              -- Delete a file
+reset                        -- Reset the vessel (clear files / log and stop)
+run file [args ...]          -- Upload a file and start executing it
+stop                         -- Stop an experiment but leave the log / files
+help [extended | set | show ]-- Try 'help extended' for more commands
+exit                         -- Exits the shell
+
+See https://seattle.cs.washington.edu/wiki/RepyTutorial for more info!
+
+show info       -- Display general information about the vessels
+show users      -- Display the user keys for the vessels
+show ownerinfo  -- Display owner information for the vessels
+show advertise  -- Display advertisement information about the vessels
+show ip [to file] -- Display the ip addresses of the nodes
+show hostname   -- Display the hostnames of the nodes
+show location   -- Display location information (countries) for the nodes
+show coordinates -- Display the latitude & longitude of the nodes
+show owner      -- Display a vessel's owner
+show targets    -- Display a list of targets
+show identities -- Display the known identities
+show keys       -- Display the known keys
+show log [to file] -- Display the log from the vessel (*)
+show files      -- Display a list of files in the vessel (*)
+show resources  -- Display the resources / restrictions for the vessel (*)
+show offcut     -- Display the offcut resource for the node (*)
+show timeout    -- Display the timeout for nodes
+show uploadrate -- Display the upload rate which seash uses to estimate
+                   the required time for a file upload
+
+(*) No need to update prior, the command contacts the nodes anew
+
+
+show info
+
+This command prints general information about vessels in the default group
+including the version, nodeID, etc.
+
+Example:
+exampleuser@%1 !> show info
+192.x.x.178:1224:v3 has no information (try 'update' or 'list')
+exampleuser@%1 !> update
+exampleuser@%1 !> show info
+192.x.x.178:1224:v3 {'nodekey': {'e': 65537L, 'n': 929411623458072017781884599109L}, 'version': '0.1r', 'nodename': '192.x.x.175'}
+
+
+
+
+show ip 
+show ip [to file]
+
+This lists the ip addresses of the vessels in the default group.   These IP
+addresses may be optionally written to a file.   
+
+Note that machines behind a NAT, mobile devices, or other systems with 
+atypical network connectivity may list a host name instead.
+

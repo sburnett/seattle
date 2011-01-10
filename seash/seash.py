@@ -94,7 +94,8 @@ import sys
 
 
 
-def command_loop():
+def command_loop(test_command_list):
+
 
   # Things that may be set herein and used in later commands.
   # Contains the local variables of the original command loop.
@@ -113,6 +114,7 @@ def command_loop():
     'autosave': False,
     'handleinfo': {}
     }
+
   
 
   # Set up the tab completion environment (Added by Danny Y. Huang)
@@ -128,15 +130,11 @@ def command_loop():
     readline.set_completer(completer.complete)
 
 
-  # exit via a return
-  while True:
-
-    try:
-      if tabcompletion:
-        # Updates the list of variable values in the tab complete class
-        completer.set_target_list()
-        completer.set_keyname_list()
-   
+  # If passed a list of commands, do not prompt for user input
+  if test_command_list:
+    time_updatetime(34612)
+    # Iterates through test_command_list in sequential order
+    for command_strings in test_command_list:
       # Saving state after each command? (Added by Danny Y. Huang)
       if environment_dict['autosave'] and environment_dict['defaultkeyname']:
         try:
@@ -151,28 +149,9 @@ def command_loop():
         except Exception, error:
           raise seash_exceptions.UserError("There is an error in autosave: '" + str(error) + "'. You can turn off autosave using the command 'set autosave off'.")
 
-
-      prompt = ''
-      if environment_dict['defaultkeyname']:
-        prompt = seash_helper.fit_string(environment_dict['defaultkeyname'],20)+"@"
-
-      # display the thing they are acting on in their prompt (if applicable)
-      if environment_dict['defaulttarget']:
-        prompt = prompt + seash_helper.fit_string(environment_dict['defaulttarget'],20)
-
-      prompt = prompt + " !> "
-      # the prompt should look like: justin@good !> 
-
-      # get the user input
-      userinput = raw_input(prompt)
-      
-      if len(userinput)==0:
-        continue
-      
       # Returns the dictionary of dictionaries that correspond to the
-      # command the user inputted
-      cmd_input = seash_dictionary.parse_command(userinput)
-      
+      # command string
+      cmd_input = seash_dictionary.parse_command(command_strings)
       
       # by default, use the target specified in the prompt
       environment_dict['currenttarget'] = environment_dict['defaulttarget']
@@ -185,36 +164,95 @@ def command_loop():
       seash_dictionary.command_dispatch(cmd_input, environment_dict)
 
 
+
+  # Otherwise launch into command loop, exit via return
+  else:
+    while True:
+      try:
+        if tabcompletion:
+          # Updates the list of variable values in the tab complete class
+          completer.set_target_list()
+          completer.set_keyname_list()
+          
+        # Saving state after each command? (Added by Danny Y. Huang)
+        if environment_dict['autosave'] and environment_dict['defaultkeyname']:
+          try:
+            # State is saved in file "autosave_username", so that user knows which
+            # RSA private key to use to reload the state.
+            autosavefn = "autosave_" + str(environment_dict['defaultkeyname'])
+            seash_helper.savestate(autosavefn, environment_dict['handleinfo'], environment_dict['host'], 
+                                   environment_dict['port'], environment_dict['expnum'], 
+                                   environment_dict['filename'], environment_dict['cmdargs'], 
+                                   environment_dict['defaulttarget'], environment_dict['defaultkeyname'], 
+                                   environment_dict['autosave'], environment_dict['defaultkeyname'])
+          except Exception, error:
+            raise seash_exceptions.UserError("There is an error in autosave: '" + str(error) + "'. You can turn off autosave using the command 'set autosave off'.")
+
+
+        prompt = ''
+        if environment_dict['defaultkeyname']:
+          prompt = seash_helper.fit_string(environment_dict['defaultkeyname'],20)+"@"
+
+        # display the thing they are acting on in their prompt (if applicable)
+        if environment_dict['defaulttarget']:
+          prompt = prompt + seash_helper.fit_string(environment_dict['defaulttarget'],20)
+
+        prompt = prompt + " !> "
+        # the prompt should look like: justin@good !> 
+        
+        # get the user input
+        userinput = raw_input(prompt)
+        
+        if len(userinput)==0:
+          continue
+      
+        # Returns the dictionary of dictionaries that correspond to the
+        # command the user inputted
+        cmd_input = seash_dictionary.parse_command(userinput)
+      
+      
+        # by default, use the target specified in the prompt
+        environment_dict['currenttarget'] = environment_dict['defaulttarget']
+        
+        # by default, use the identity specified in the prompt
+        environment_dict['currentkeyname'] = environment_dict['defaultkeyname']
+
+        # calls the command_dispatch method of seash_dictionary to execute the callback
+        # method associated with the command the user inputed
+        seash_dictionary.command_dispatch(cmd_input, environment_dict)
+
+
  
 
 # handle errors
-    except KeyboardInterrupt:
-      # print or else their prompt will be indented
-      print
-      # Make sure the user understands why we exited
-      print 'Exiting due to user interrupt'
-      return
-    except EOFError:
-      # print or else their prompt will be indented
-      print
-      # Make sure the user understands why we exited
-      print 'Exiting due to EOF (end-of-file) keystroke'
-      return
+      except KeyboardInterrupt:
+        # print or else their prompt will be indented
+        print
+        # Make sure the user understands why we exited
+        print 'Exiting due to user interrupt'
+        return
+      except EOFError:
+        # print or else their prompt will be indented
+        print
+        # Make sure the user understands why we exited
+        print 'Exiting due to EOF (end-of-file) keystroke'
+        return
 
-    except seash_exceptions.ParseError, error_detail:
-      print 'Invalid command input:', error_detail
-    except seash_exceptions.DispatchError, error_detail:
-      print error_detail
-    except seash_exceptions.UserError, error_detail: 
-      print error_detail
-    except SystemExit:
-      # exits command loop
-      return
-    except:
-      traceback.print_exc()
+      except seash_exceptions.ParseError, error_detail:
+        print 'Invalid command input:', error_detail
+      except seash_exceptions.DispatchError, error_detail:
+        print error_detail
+      except seash_exceptions.UserError, error_detail: 
+        print error_detail
+      except SystemExit:
+        # exits command loop
+        return
+      except:
+        traceback.print_exc()
       
   
   
 if __name__=='__main__':
   time_updatetime(34612)
-  command_loop()
+  # For general usage, empty list is passed to prompt for user input
+  command_loop([])
