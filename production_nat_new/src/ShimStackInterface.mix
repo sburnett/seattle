@@ -28,7 +28,7 @@ include ReverseShim.repy
 include NoopShim.repy
 include FECShim.repy
 include LZWShim.repy
-
+include DNSShimLookup.repy
 
 
 # Register all shims in the world
@@ -46,6 +46,7 @@ register_shim('ReverseShim', ReverseShim)
 register_shim('NoopShim', NoopShim)
 register_shim('FECShim', FECShim)
 register_shim('LZWShim', LZWShim)
+register_shim('DNSShimLookup', DNSShimLookup)
 
 
 
@@ -87,8 +88,11 @@ class ShimStackInterface:
 
   def __init__(self, stack_str, localhost):
     self._stack_str = stack_str
+    self._localhost = localhost
     
-    mycontext['localhost'] = localhost
+    # Need to register local ip to DNSCache. This will most likely
+    # be used by DNSShimLookup
+    mycontext[localhost] = getmyip()
 
 
     # Maps handle to stack. Although handle does not have a hash function
@@ -143,14 +147,14 @@ class ShimStackInterface:
     that was defined at initialization.
     """
 
-    return mycontext['localhost']
+    return self._localhost
 
 
 
 
 
   def waitforconn(self, host, port, callback):
-    shimstack = ShimStack(self._stack_str)
+    shimstack = ShimStack(self._stack_str, self.getmyip())
 
     try:
       handle = shimstack.waitforconn(host, port, callback)
@@ -193,7 +197,7 @@ class ShimStackInterface:
 
 
   def openconn(self,host,port,localhost=None,localport=None, timeout=5):
-    shimstack = ShimStack(self._stack_str)
+    shimstack = ShimStack(self._stack_str, self.getmyip())
 
     try:
       socket = shimstack.openconn(host,port,localhost,localport,timeout)
@@ -207,13 +211,13 @@ class ShimStackInterface:
 
 
   def sendmess(self,host,port,msg,localhost=None,localport=None):
-    shimstack = ShimStack(self._stack_str)
+    shimstack = ShimStack(self._stack_str, self.getmyip())
     return shimstack.sendmess(host,port,msg,localhost,localport)
 
  
 
   def recvmess(self, host, port, callback):
-    shimstack = ShimStack(self._stack_str)
+    shimstack = ShimStack(self._stack_str, self.getmyip())
     handle = shimstack.recvmess(host, port, callback)
     self._handle_dict[str(handle)] = shimstack
 

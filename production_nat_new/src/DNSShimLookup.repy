@@ -1,0 +1,357 @@
+"""
+<Program>
+  DNSShimLookup.repy
+
+<Author>
+  Monzur Muhammad, monzum@cs.washington.edu
+
+<Purpose>
+  Convert an ip address to the hostname and back.
+"""
+
+include session.repy
+
+
+class DNSShimLookup(BaseShim):
+
+  name = 'DNSShimLookup'
+  
+  # This will keep track of all the remote hostnames
+  # and the IP addresses associated with them.
+  DNSCache={}  
+
+
+  # When we first establish a TCP connection, the client sends over its 
+  # hostname as the first message. This message has a special header 
+  # character. We define the character here.
+  hostname_header = "hostname@@@"
+  UDP_tag = ":::UDP_TAG:::"  
+
+
+  # Override
+  def copy(self):
+    return DNSShimLookup()
+
+  def __init__(self, next_shim=None, optional_args=None):
+
+    BaseShim.__init__(self, next_shim, optional_args)
+
+    if self._localhost:
+      self.DNSCache[self._localhost] = getmyip()
+
+    if optional_args:
+      server_hostname = optional_args[0]
+      server_ip = optional_args[1]
+      self.DNSCache[server_hostname] = server_ip
+
+
+    self._logger = ShimLogger('DNSShimLookup')
+    
+
+
+  def get_advertisement_string(self):
+    return "(DNSShimLookup,%s,%s)" % (self._localhost, getmyip()) + self.shim_stack.get_advertisement_string()
+
+
+
+  # ===========================================================================
+  # SERVER METHODS - TCP
+  # ===========================================================================
+
+  def _shim_listener_callback(self, remoteip, remoteport, socket, thiscommhandle, listencommhandle):
+    """
+    <Purpose>
+      We find out what the hostname of the client thats trying to 
+      connect to this server is. Once the connection is made,
+      the client will send over its hostname as the first message
+      across the connection.
+
+    <Arguments>
+      Listener callback arguments as defined by Shims.
+
+    <Exception>
+      Exception raised if the first message we receive is not in the
+      right format or does not contain the hostname.
+    """
+
+    self._logger.log('listener_callback: new client from %s:%s' % (remoteip, remoteport))
+
+    # The first message that is received is the hostname that is associated with the remote
+    # node.
+    try:
+      received_message = session_recvmessage(socket)
+    except SessionEOF, err:
+      self._logger.log("Session closed before receiving remote hostname.")
+      raise
+    except Exception, err:
+      self._logger.log("Exception occured in listener_callback " + str(err))
+      raise
+
+    
+    # Make sure that the first message that we received is in the correct
+    # format and has the hostname in the message.
+    if self.hostname_header in received_message:
+      remote_hostname = received_message.split(self.hostname_header)[1]
+      self._logger.log("Registered remote hostname as %s" % remote_hostname)
+
+      # Register ip address in DNSCache
+      self.DNSCache[remote_hostname] = remoteip
+
+      # Change the ip address to hostname in this shim level.
+      remoteip = remote_hostname      
+  
+    # This is the case where the first message did not include the hostname
+    # header. It should never get here.
+    else:
+      self._logger.log("The client did not send the hostname across the connection.")
+      socket.close()
+      raise Exception("Could not resolve a hostname from the client node!")
+
+
+    return (remoteip, remoteport, socket, thiscommhandle, listencommhandle)
+
+
+
+
+
+  def _shim_waitforconn(self, hostkey, port, callback):
+
+    # Traverse through the stack and build the general stack, which is shared
+    # for all incoming connections. Check to see if the hostname exists in 
+    # the DNS cache, if it does then we translate it. Otherwise we pass it on.
+    
+    if hostkey in self.DNSCache:
+      hostname = self.DNSCache[hostkey]
+    else:
+      hostname = hostkey
+
+    result = self.shim_stack.waitforconn(hostname, port, callback)     
+	
+    return result
+  
+
+
+
+
+  # The socket.close() function for this layer of shim.
+  def _shim_socket_close(self, socket):
+    return self.shim_stack.socket_close(socket)
+
+
+  # The socket.send() function for this layer of shim.
+  def _shim_socket_send(self, socket, msg):
+    return self.shim_stack.socket_send(socket, msg)
+
+
+  # The socket.recv() function for this layer of shim.
+  def _shim_socket_recv(self, socket, bytes): 
+    return self.shim_stack.socket_recv(socket, bytes)
+
+
+
+  # ===========================================================================
+  # SERVER METHODS - UDP
+  # ===========================================================================
+
+  def _shim_recvmess_callback_wrapper(self, remoteip, remoteport, message, commhandle):
+    """
+    <Purpose>
+      This is more of a wrapper function for the recvmess callback function.
+      For the puspose of shim, we need to send some extra info across the 
+      connection. Mainly the hostname of the client node.
+
+    <Arguments>
+      The same arguments as the callback function for recvmess() for Repy v1.
+
+    <Exceptions>
+      Exception raised if the UDP message received is not in the right
+      format. If the client side is using Coordination Shim, then this
+      shouldn't be a problem.
+
+    <Side Effects>
+      The raw message received gets changed before its passed
+      to the callback function.
+
+    <Return>
+      None.
+    """
+    
+    # The UDP message is sent in a certain format. The format
+    # is the hostname tag followed by the remote hostname, followed
+    # by the UDP message tag, followed by the actual message sent
+    # by the client.
+    try:
+      hostname_tag, udp_message = message.split(self.UDP_tag)  
+    except:
+      self._logger.log("Invalid format of UDP message received.")
+      raise Exception("Invalid format of UDP message received.")
+
+    # Extract the remote hostname from the message.
+    remote_hostname = hostname_tag.split(self.hostname_header)[1]
+
+    # Add the hostname to the cache.
+    self.DNSCache[remote_hostname] = remoteip
+
+    # Call the callback function provided, with the right arguments.
+    self._recvmess_callback_function(remote_hostname, remoteport, udp_message, commhandle)
+  
+
+
+
+
+  def _shim_recvmess(self, host, port, callback):
+    """
+    <Purpose>
+      This is the recvmess function for this shim level. We have to extract
+      some information from the UDP message received before we can call the
+      callback function.
+
+    <Arguments>
+      Same as the arguments for recvmess() for Repy v1
+
+    <Side Effects>
+      None.
+
+    <Exceptions>
+      None.
+
+    <Return>
+      A commhandle
+    """
+
+    # Traverse through the stack and build the general stack, which is shared
+    # for all incoming connections. Check to see if the hostname exists in
+    # the DNS cache, if it does then we translate it. Otherwise we pass it on.
+
+    if host in self.DNSCache:
+      hostname = self.DNSCache[host]
+    else:
+      hostname = host
+
+    self._recvmess_callback_function = callback
+
+    # We want to pass it the modified callback function.
+    return self.shim_stack.recvmess(hostname, port, self._shim_recvmess_callback_wrapper)
+    
+
+
+
+
+  # ===========================================================================
+  # CLIENT METHODS - TCP
+  # ===========================================================================
+
+
+  def _shim_openconn(self, hostkey, port, localhost=None, localport=None, timeout=5):
+    """
+    <Purpose>
+      This is the openconn function for the Coordination Shim. It is responsible
+      for finding out which shims the server is using and connecting to it. It also
+      sends its localhostname to the server, so the server knows what hostname to use
+      to contact back this node.
+
+    <Exception>
+      - Exception raised if we are unable to send the local hostname across the connection.
+      - Any socket.connect exceptions are raised.
+      - Socket timeout raised, if the timeout is less then the time it takes to do all the 
+        shim work.
+
+    <Side Effects>
+      None.
+
+    <Return>
+      socket like object for the connection, if successful.
+    """
+
+    # Check the DNS Cache for hostname.
+    if hostkey in self.DNSCache:
+      hostname = self.DNSCache[hostkey]
+    else:
+      hostname = hostkey
+
+
+    sock = self.shim_stack.openconn(hostname,port,localhost,localport,timeout)
+
+    # Success in openconn. 
+    # Now that we have made a connection, the first message we are going 
+    # to send over is the localhostname.
+    hostname_message = self.hostname_header + self._localhost
+   
+
+    # Send the hostname across the connection. If we fail, raise an error.
+    try:
+      session_sendmessage(sock, hostname_message)
+    except Exception, err:
+      self._logger_log("openconn: Unable to send hostname across connection. " + 
+                       str(err))
+      sock.close()
+      raise 
+
+
+    return sock
+
+
+
+
+
+  # ===========================================================================
+  # CLIENT METHODS - UDP
+  # ===========================================================================
+
+  def _shim_sendmess(self, host, port, msg, localhost=None, localport=None):
+    """
+    <Purpose>
+      This is the sendmess() function for this layer of shim. It modifies the
+      message slightly befor sending it across.
+
+    <Arguments>
+      Same as the arguments for sendmess() for Repy v1.
+
+    <Exceptions>
+      socket.error when communication errors happen
+
+    <Side Effects>
+      The message we send across the network is slightly modified.
+
+    <Return>
+      The number of bytes sent across the network.
+    """
+
+    # Check DNS Cache for hostname.
+    if host in self.DNSCache:
+      hostname = self.DNSCache[host]
+    else:
+      hostname = host
+
+    # We want to append the hostname and the UDP tag along with the message.
+    msg_to_send = self.hostname_header + self._localhost + self.UDP_tag + msg
+
+    # Call the shimstacks sendmess()
+    bytesent = self.shim_stack.sendmess(hostname, port, msg_to_send, localhost, localport)
+
+    # If we were unsuccessful at sending message, that is if the value returned
+    # was not the expected value, then we return the bytesent value.
+    if bytesent <= 0:
+      return bytesent
+
+    # Since we added extra tags in front of the message, we want to take that into
+    # account, and make sure that the application layer doesn't know about it. So
+    # we need to adjust the message length value that we return.
+    message_size = bytesent - (len(msg_to_send) - len(msg))
+
+    return message_size
+      
+
+
+
+
+  # ===========================================================================
+  # Other Shim Methods
+  # ===========================================================================
+
+  # The stopcomm for this layer of shim.
+  def _shim_stopcomm(self, handle):
+    return self.shim_stack.stopcomm(handle)
+
+
+  

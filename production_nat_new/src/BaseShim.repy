@@ -12,7 +12,7 @@ class BaseShim:
   name = 'BaseShim'
   do_not_advertise = False
 
-
+  _localhost = ""
 
 
 
@@ -35,8 +35,8 @@ class BaseShim:
     (rip, rport, sock, th, lh) = selfcopy._shim_listener_callback(remoteip, remoteport, socket, thiscommhandle, listencommhandle)
     newsocket = ShimSocketWrapper(sock, selfcopy)
 
-    self._waitforconn_shim_callback(rip, rport, newsocket, th, lh)
- 
+    self._waitforconn_shim_callback(rip, rport, newsocket, th, lh) 
+
 
 
   def waitforconn(self, host, port, callback):
@@ -87,7 +87,7 @@ class BaseShim:
   def __init__(self, next_shim=None, optional_args=None):
 
     # Create the next shim if there is one.
-    self.shim_stack = ShimStack(next_shim)
+    self.shim_stack = ShimStack(next_shim, self._localhost)
     self._optional_args = optional_args
 
 

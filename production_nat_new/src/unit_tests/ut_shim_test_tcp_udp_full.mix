@@ -1,0 +1,76 @@
+#pragma repy restrictions.shim
+
+"""
+<Program>
+  ut_shims_testtimeoutopenconn_base.repy
+
+<Author>
+  Monzur Muhammad
+  monzum@cs.washington.edu
+
+<Purpose>
+  Testing timeout of openconn with the basic base shim.
+"""
+
+include advertise.repy
+include ShimTestingInterface.mix
+
+
+mycontext['UsingShims'] = True
+
+
+def test_func(remoteip, remoteport, sockobj, thiscommhandle, listencommhandle):
+  """
+  A test function that the server runs. It waits for incoming messages
+  and when it receives a message, it will print the message then exit.
+  """
+
+  while True:
+    message = sockobj.recv(1024)
+
+    if len(message) > 0:
+      assert(message == mycontext['first_message'])
+      assert(remoteip == mycontext['client_name'])
+
+      callback_shim = ShimStackInterface('(CoordinationShim)', mycontext['server_name'])
+
+      byte_returned = callback_shim.sendmess(remoteip, <connport1>, mycontext['return_message'])
+      assert(byte_returned == len(mycontext['return_message']))
+      break
+
+
+
+
+def test_func2(remoteip, remoteport, message, commhandle):
+
+  assert(remoteip == mycontext['server_name'])
+  assert(message == mycontext['return_message'])
+  exitall()
+
+
+if callfunc == 'initialize':
+
+  mycontext['server_name'] = "server_host_name"
+  mycontext['client_name'] = "client_host_name"
+  mycontext['first_message'] = "Hello World"
+  mycontext['return_message'] = "Hello World to you too!!"
+
+  # Define the shim.
+  
+  server_shim = ShimStackInterface('(CoordinationShim)(DNSShimLookup,%s,%s)(TestShimLib)' % (mycontext['server_name'], getmyip()), mycontext['server_name'])
+
+  client_shim = ShimStackInterface('(CoordinationShim)(DNSShimLookup,%s,%s)' % (mycontext['client_name'], getmyip()), mycontext['client_name'])
+
+  # Create the server.
+  server_shim.waitforconn(server_shim.getmyip(), <connport>, test_func)
+
+  # Open a client connection to the server.
+  sock_conn = client_shim.openconn(mycontext['server_name'], <connport>, timeout=10)
+
+
+  # Recvmess for callback.
+  client_shim.recvmess(client_shim.getmyip(), <connport1>, test_func2)  
+
+
+  sock_conn.send(mycontext['first_message'])
+

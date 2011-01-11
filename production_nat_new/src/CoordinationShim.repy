@@ -22,12 +22,6 @@ class CoordinationShim(BaseShim):
 
   name = 'CoordinationShim'
   
-  # When we first establish a TCP connection, the client sends over its 
-  # hostname as the first message. This message has a special header 
-  # character. We define the character here.
-  hostname_header = "hostname@@@"
-  UDP_tag = ":::UDP_TAG:::"  
-
 
   # We will do a lookup on the DHT for at most the following number of times.
   _lookup_attempts = 4
@@ -40,7 +34,6 @@ class CoordinationShim(BaseShim):
     return CoordinationShim()
 
   def __init__(self, next_shim=None, optional_args=None):
-    self._localhost = mycontext['localhost']
     BaseShim.__init__(self, next_shim, optional_args)
     self._logger = ShimLogger('CoordinationShim')
 
@@ -51,44 +44,17 @@ class CoordinationShim(BaseShim):
 
 
   # ===========================================================================
-  # SERVER METHODS - TCP
+  # SERVER METHODS
   # ===========================================================================
 
   def _shim_listener_callback(self, remoteip, remoteport, socket, thiscommhandle, listencommhandle):
     self._logger.log('listener_callback: new client from %s:%s' % (remoteip, remoteport))
-
-    # The first message that is received is the hostname that is associated with the remote
-    # node.
-    try:
-      received_message = session_recvmessage(socket)
-    except SessionEOF, err:
-      self._logger.log("Session closed before receiving remote hostname.")
-      raise
-    except Exception, err:
-      self._logger.log("Exception occured in listener_callback " + str(err))
-      raise
-
-    
-    # Make sure that the first message that we received is in the correct
-    # format and has the hostname in the message.
-    if self.hostname_header in received_message:
-      remote_hostname = received_message.split(self.hostname_header)[1]
-      self._logger.log("Registered remote hostname as %s" % remote_hostname)
-      remoteip = remote_hostname      
-  
-    # This is the case where the first message did not include the hostname
-    # header. It should never get here.
-    else:
-      self._logger.log("The client did not send the hostname across the connection.")
-      socket.close()
-      raise Exception("Could not resolve a hostname from the client node!")
- 
-
     return (remoteip, remoteport, socket, thiscommhandle, listencommhandle)
 
 
 
 
+  # Server creation for TCP connections.
   def _shim_waitforconn(self, hostkey, port, callback):
 
     # Traverse through the stack and build the general stack, which is shared
@@ -107,6 +73,32 @@ class CoordinationShim(BaseShim):
     self._logger.log('waitforconn: Listening. About to advertise <"%s","%s">' % (advertise_key, advertise_value))
 
     return handle
+
+
+
+
+
+  # Server creation for UDP connections.
+  def _shim_recvmess(self, hostkey, port, callback):
+
+    # Traverse through the stack and build the general stack, which is shared
+    # for all incoming connections.
+    handle = self.shim_stack.recvmess(hostkey, port, callback)
+
+    # Now that the stack has been built, we can advertise its content.
+    advertise_key = str(hostkey) + "," + str(port) + ",UDP"
+    advertise_value = self.shim_stack.get_advertisement_string()
+
+    # We advertise the contents of the shim stack at its first creation.
+    # Subsequent changes are on a per-connection basis (using negotiation) and
+    # are irrelevant for coordination.
+    self._listener_active = True
+    settimer(0, self._advertise_thread, [advertise_key, advertise_value])
+    self._logger.log('waitforconn: Listening. About to advertise <"%s","%s">' % (advertise_key, advertise_value))
+
+    return handle
+
+
 
 
   
@@ -129,125 +121,6 @@ class CoordinationShim(BaseShim):
 
 
   # ===========================================================================
-  # SERVER METHODS - UDP
-  # ===========================================================================
-
-  def _shim_recvmess_callback_wrapper(self, remoteip, remoteport, message, commhandle):
-    """
-    <Purpose>
-      This is more of a wrapper function for the recvmess callback function.
-      For the puspose of shim, we need to send some extra info across the 
-      connection. Mainly the hostname of the client node.
-
-    <Arguments>
-      The same arguments as the callback function for recvmess() for Repy v1.
-
-    <Exceptions>
-      Exception raised if the UDP message received is not in the right
-      format. If the client side is using Coordination Shim, then this
-      shouldn't be a problem.
-
-    <Side Effects>
-      The raw message received gets changed before its passed
-      to the callback function.
-
-    <Return>
-      None.
-    """
-
-    # The UDP message is sent in a certain format. The format
-    # is the hostname tag followed by the remote hostname, followed
-    # by the UDP message tag, followed by the actual message sent
-    # by the client.
-    try:
-      hostname_tag, udp_message = message.split(self.UDP_tag)  
-    except:
-      self._logger.log("Invalid format of UDP message received.")
-      raise Exception("Invalid format of UDP message received.")
-
-    # Extract the remote hostname from the message.
-    remote_hostname = hostname_tag.split(self.hostname_header)[1]
-
-    # Call the callback function provided, with the right arguments.
-    self._recvmess_callback_function(remote_hostname, remoteport, udp_message, commhandle)
-  
-
-
-
-
-  def _shim_recvmess(self, host, port, callback):
-    """
-    <Purpose>
-      This is the recvmess function for this shim level. We have to extract
-      some information from the UDP message received before we can call the
-      callback function.
-
-    <Arguments>
-      Same as the arguments for recvmess() for Repy v1
-
-    <Side Effects>
-      None.
-
-    <Exceptions>
-      None.
-
-    <Return>
-      A commhandle
-    """
-
-    self._recvmess_callback_function = callback
-
-    # We want to pass it the modified callback function.
-    return self.shim_stack.recvmess(host, port, self._shim_recvmess_callback_wrapper)
-    
-
-
-  # ===========================================================================
-  # CLIENT METHODS - UDP
-  # ===========================================================================
-
-  def _shim_sendmess(self, host, port, msg, localhost=None, localport=None):
-    """
-    <Purpose>
-      This is the sendmess() function for this layer of shim. It modifies the
-      message slightly befor sending it across.
-
-    <Arguments>
-      Same as the arguments for sendmess() for Repy v1.
-
-    <Exceptions>
-      socket.error when communication errors happen
-
-    <Side Effects>
-      The message we send across the network is slightly modified.
-
-    <Return>
-      The number of bytes sent across the network.
-    """
-
-    # We want to append the hostname and the UDP tag along with the message.
-    msg_to_send = self.hostname_header + self._localhost + self.UDP_tag + msg
-
-    # Call the shimstacks sendmess()
-    bytesent = self.shim_stack.sendmess(host, port, msg_to_send, localhost, localport)
-
-    # If we were unsuccessful at sending message, that is if the value returned
-    # was not the expected value, then we return the bytesent value.
-    if bytesent <= 0:
-      return bytesent
-
-    # Since we added extra tags in front of the message, we want to take that into
-    # account, and make sure that the application layer doesn't know about it. So
-    # we need to adjust the message length value that we return.
-    message_size = bytesent - (len(msg_to_send) - len(msg))
-
-    return message_size
-      
-
-
-
-
-  # ===========================================================================
   # NON-SERVER METHODS
   # ===========================================================================
 
@@ -257,7 +130,7 @@ class CoordinationShim(BaseShim):
   # use_cache is set to True, then we are only doing a lookup on a local
   # cache. Otherwise, we will do a lookup remotely. Helper for the openconn
   # operation.
-  def _get_shimstack_strings(self, hostkey, port, timeout, use_cache=True):
+  def _get_shimstack_strings(self, hostkey, port, conn_type, timeout, use_cache=True):
     start_time = getruntime()
     # Initializes the local cache so we don't have to contact the remote
     # services all the time.
@@ -269,7 +142,8 @@ class CoordinationShim(BaseShim):
       mycontext['shim_stack_string_cache'] = {}
 
     lookup_results = []
-    lookup_key = str(hostkey)+','+str(port)+',TCP'
+    lookup_key = str(hostkey)+','+str(port)+',%s' %conn_type
+
     local_lookup_cache = mycontext['shim_stack_string_cache']
 
     # Search the cache if use_cache is True. If cache returns empty, use the
@@ -288,10 +162,10 @@ class CoordinationShim(BaseShim):
         return lookup_results
 
       lookup_results = advertise_lookup(lookup_key, graceperiod=0.5, timeout=2)
-      
+
       if len(lookup_results) > 0 and lookup_results[0]:
         break
-      print lookup_results
+
       sleep(1)
 
     # Add to local cache.
@@ -311,6 +185,8 @@ class CoordinationShim(BaseShim):
     mycontext['shim_stack_string_cache_lock'].release()
 
     return lookup_results
+
+
 
 
   def _shim_openconn(self, hostkey, port, localhost=None, localport=None, timeout=5):
@@ -343,7 +219,7 @@ class CoordinationShim(BaseShim):
     tried_using_remote_lookup = False
 
     # First, obtain the shim stack string from cache, or if not, from the DHT.
-    shimstackstr_list = self._get_shimstack_strings(hostkey, port, timeout, use_cache=True)
+    shimstackstr_list = self._get_shimstack_strings(hostkey, port, 'TCP', timeout, use_cache=True)
     
     # Try to do openconn for every possible shim stack string
     while len(shimstackstr_list) > 0:
@@ -353,7 +229,7 @@ class CoordinationShim(BaseShim):
         # The first character in the string is @, which is why
         # we take [1:] portion of the string.
         shimstackstr = shimstackstr_list.pop()[1:]
-        shim_stack = ShimStack(shimstackstr)
+        shim_stack = ShimStack(shimstackstr, self._localhost)
       except Exception, e:
         errmsg = "Unable to parse shim stack string '%s' because '%s'." % (shimstackstr, e)
         self._logger.log("openconn: " + errmsg)
@@ -375,19 +251,6 @@ class CoordinationShim(BaseShim):
         raise Exception(exception_str)
       else:
         # Success in openconn. We won't try the rest of the shimstack strings.
-        # Now that we have made a connection, the first message we are going 
-        # to send over is the localhostname.
-        hostname_message = self.hostname_header + self._localhost
-
-        # Send the hostname across the connection. If we fail, raise an error.
-        try:
-          session_sendmessage(sock, hostname_message)
-        except Exception, err:
-          self._logger_log("openconn: Unable to send hostname across connection. " + 
-                           str(err))
-          sock.close()
-          raise 
-
         # Break out of whileloop because everything was successful.
         break
 
@@ -397,7 +260,7 @@ class CoordinationShim(BaseShim):
         # found a workable one. We want to lookup the shim stack strings using
         # the remote services, instead of the local cache.
         
-        shimstackstr_list = self._get_shimstack_strings(hostkey, port, timeout, use_cache=False)
+        shimstackstr_list = self._get_shimstack_strings(hostkey, port, 'TCP', timeout, use_cache=False)
         tried_using_remote_lookup = True
 
       if len(shimstackstr_list) == 0 and tried_using_remote_lookup:      
@@ -432,6 +295,84 @@ class CoordinationShim(BaseShim):
     else:
       self.shim_stack = shim_stack
       return sock
+
+
+
+
+
+  def _shim_sendmess(self, hostkey, port, message, localhost=None, localport=None):
+    """
+    <Purpose>
+      This is the sendmess function for the Coordination Shim. It is responsible
+      for finding out which shims the server is using and connecting to it. 
+
+    <Exception>
+      - Any socket.connect exceptions are raised.
+
+    <Side Effects>
+      None.
+
+    <Return>
+      Number of bytes sent.
+    """
+
+    exception_str = ''
+
+    # Indicates whether we have tried using the remote lookup services
+    # (e.g. DHT) to locate the shim stack strings of the server.
+    tried_using_remote_lookup = False
+
+    # First, obtain the shim stack string from cache, or if not, from the DHT.
+    shimstackstr_list = self._get_shimstack_strings(hostkey, port, 'UDP', timeout=5, use_cache=True)
+
+    # Try to do openconn for every possible shim stack string
+    while len(shimstackstr_list) > 0:
+
+      try:
+        # Remove the preceding @ sign in the shim stack string
+        # The first character in the string is @, which is why
+        # we take [1:] portion of the string.
+        shimstackstr = shimstackstr_list.pop()[1:]
+        
+        shim_stack = ShimStack(shimstackstr, self._localhost)
+      except Exception, e:
+        errmsg = "Unable to parse shim stack string '%s' because '%s'." % (shimstackstr, e)
+        self._logger.log("openconn: " + errmsg)
+        raise Exception(errmsg)
+
+      try:
+        # If we successfully send the message, we return the return value. 
+        return shim_stack.sendmess(hostkey,port,message,localhost,localport)
+      except Exception,e:
+        exception_str +=' || Exception: '+str(e)+' for stack '+shimstackstr
+        exception_str +=' while connecting to %s:%s' % (hostkey, port)
+        raise Exception(exception_str)
+
+
+      if len(shimstackstr_list) == 0 and not tried_using_remote_lookup:
+        # All possible shim stack strings are consumed and we still haven't
+        # found a workable one. We want to lookup the shim stack strings using
+        # the remote services, instead of the local cache.
+
+        shimstackstr_list = self._get_shimstack_strings(hostkey, port, 'UDP', timeout=5, use_cache=False)
+        tried_using_remote_lookup = True
+
+      if len(shimstackstr_list) == 0 and tried_using_remote_lookup:
+        # All possible shim stack strings are consumed. We haven't found a
+        # workable one after lookups on both the local cache and the remote
+        # services. We raise our arms and shall surrender.
+        break
+
+    # end while
+
+    # If all things fail, we will connect without the shim interface. This
+    # provides backward compatibility for older servers.
+    self._logger.log("sendmess: Trying to connect to %s:%s without using the shim interface." % (hostkey, port))
+    try:
+      return openconn(hostkey,port,localhost,message,localport,timeout)
+    except Exception,e:
+      exception_str +=' || Unable to connect without using shims becase %s.' % e
+
 
 
 

@@ -79,9 +79,11 @@ class ShimStack:
   mycontext['ShimStackInstanceCount'] = 0
   mycontext['ShimStackInstanceCountLock'] = getlock()
 
+  _localhost = ""
 
-  def __init__(self,shim_stack_string):
+  def __init__(self,shim_stack_string, localhost):
 
+    self._localhost = localhost
     # create a new shim stack
     if shim_stack_string is not None: 
       self.top_shim = self.make_stack(shim_stack_string)
@@ -100,7 +102,7 @@ class ShimStack:
   
   def push(self,shim):
     # give the new shim a shim stack that is the same as this one
-    shim.shim_stack = ShimStack(None)
+    shim.shim_stack = ShimStack(None, self._localhost)
     shim.shim_stack.top_shim = self.top_shim
     
     # change this shim stack to include the new shim
@@ -127,7 +129,7 @@ class ShimStack:
 
   def copy(self):
     if self.top_shim is None:
-      return ShimStack()
+      return ShimStack(None, self._localhost)
 
     stackcopy = self.top_shim.shim_stack.copy()
     stackcopy.push(self.top_shim.copy())
@@ -135,7 +137,7 @@ class ShimStack:
 
   def get_advertisement_string(self):
     if self.top_shim is None:
-      return ""
+      return ''
     else:
       return self.top_shim.get_advertisement_string()
 
@@ -168,6 +170,8 @@ class ShimStack:
 
     temp_str = shim_stack_str.replace('(','')
     stack_list = temp_str.split(')')
+
+    # Delete the last character which will be a ''
     del stack_list[len(stack_list)-1]
 
   
@@ -179,7 +183,6 @@ class ShimStack:
       shim_list = comma_seperated_str.split(',')
     
       shim_name = shim_list[0]
-    
 
       shim_args = shim_list[1:]
       if len(shim_args) == 0:
@@ -188,8 +191,8 @@ class ShimStack:
     
     
       # first arguemnt is always for the next shim, second argument is optional args
-      new_shim = _SHIMSTACK_LAYER_DICT[shim_name]['class'](None,shim_args)
-
+      new_shim = _SHIMSTACK_LAYER_DICT[shim_name]['class'](None,shim_args)      
+      new_shim._localhost = self._localhost
     
       if top == None: top = new_shim
     
