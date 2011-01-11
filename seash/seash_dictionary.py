@@ -230,7 +230,6 @@ exampleuser@%1 !> update
 exampleuser@%1 !> show info
 192.x.x.178:1224:v3 {'nodekey': {'e': 65537L, 'n': 929411623458072017781884599109L}, 'version': '0.1r', 'nodename': '192.x.x.175'}
 
-
 """, 'children':{}},
       'users':{'pattern':'users', 'name':'users', 'callback':command_callbacks.show_users, 'help_text':"""
 show users
@@ -271,6 +270,21 @@ addresses may be optionally written to a file.
 
 Note that machines behind a NAT, mobile devices, or other systems with 
 atypical network connectivity may list a host name instead.
+
+Example:
+exampleuser@ !> show targets
+browsegood ['192.x.x.2:1224:v12', '192.x.x.2:1224:v3', '193.x.x.42:1224:v18', '219.x.x.62:1224:v4']
+%4 ['219.x.x.62:1224:v4']
+%all ['192.x.x.2:1224:v12', '192.x.x.2:1224:v3', '193.x.x.42:1224:v18', '219.x.x.62:1224:v4']
+%1 ['192.x.x.2:1224:v12']
+%3 ['193.x.x.42:1224:v18']
+%2 ['192.x.x.2:1224:v3']
+exampleuser@ !> on browsegood
+exampleuser@browsegood !> show ip
+192.x.x.2
+193.x.x.42
+219.x.x.62
+
 """, 'children':{
           'to':{'name':'to', 'callback':None, 'help_text':'', 'children':{
               '[FILENAME]':{'name':'filename', 'callback':command_callbacks.show_ip_to_file, 'help_text':'', 'children':{}},
@@ -284,42 +298,130 @@ show hostname
 
 This lists the DNS host names for the vessels in the default group.   If this
 information is not available, this will be listed.
+
+Example:
+exampleuser@browsegood !> show ip
+192.x.x.2
+193.x.x.42
+219.x.x.62
+exampleuser@browsegood !> show hostname
+192.x.x.2 is known as Guest-Laptop.home
+193.x.x.42 is known as pl2.maskep.aerop.fr
+219.x.x.62 has unknown host information
+
 """, 'children':{}},
       'location':{'name':'location', 'callback':command_callbacks.show_location, 'help_text':"""
 show location
 
 Uses a geo-IP location service to return information about the position of the
-nodes in the current group.   
+nodes in the current group.
+
+Example:
+exampleuser@browsegood !> show ip
+192.x.x.2
+193.x.x.42
+219.x.x.62
+exampleuser@browsegood !> show location
+%1(192.x.x.2): Location unknown
+%3(193.x.x.42): Cesson-s�vign�, France
+%4(219.x.x.62): Beijing, China
+
 """, 'children':{}},
       'coordinates':{'name':'coordinates', 'callback':command_callbacks.show_coordinates, 'help_text':"""
 show coordinates
 
 Uses a geo-IP location service to get approximate latitude and longitude 
 information about nodes in the current group.
+
+Example:
+exampleuser@browsegood !> show location
+%1(192.x.x.2): Location unknown
+%3(193.x.x.42): Cesson-s�vign�, France
+%4(219.x.x.62): Beijing, China
+exampleuser@browsegood !> show coordinates
+%1(192.x.x.2): Location unknown
+%3(193.x.x.42): 48.1167, 1.6167
+%4(219.x.x.62): 39.9289, 116.3883
+
 """, 'children':{}},
       'owner':{'name':'owner', 'callback':command_callbacks.show_owner, 'help_text':"""
 show owner
 
 Displays the owner key (or identity if known) for the vessels in the default
 group.
+
+Example:
+exampleuser@ !> show targets
+browsegood ['192.x.x.2:1224:v12', '192.x.x.2:1224:v3', '193.x.x.42:1224:v18', '219.x.x.62:1224:v4']
+%4 ['219.x.x.62:1224:v4']
+%all ['192.x.x.2:1224:v12', '192.x.x.2:1224:v3', '193.x.x.42:1224:v18', '219.x.x.62:1224:v4']
+%1 ['192.x.x.2:1224:v12']
+%3 ['193.x.x.42:1224:v18']
+%2 ['192.x.x.2:1224:v3']
+exampleuser@ !> on browsegood
+exampleuser@browsegood !> show owner
+192.x.x2:1224:v12 exampleuser pubkey
+192.x.x.2:1224:v3 65537 127603...
+193.x.x.42:1224:v18 65537 163967...
+219.x.x.62:1224:v4 65537 952875...
+
 """, 'children':{}},
       'targets':{'name':'targets', 'callback':command_callbacks.show_targets, 'help_text':"""
 show targets
 
 Lists the known targets (groups and individual nodes) that commands may be 
 run on.
+
+Example:
+exampleuser@ !> show targets
+%all (empty)
+exampleuser@ !> browse
+['192.x.x.2:1224', '219.x.x.62:1224', '193.x.x.42:1224']
+Added targets: %3(193.x.x.42:1224:v18), %4(219.x.x.62:1224:v4), %1(192.x.x.2:1224:v12), %2(192.x.x.2:1224:v3)
+Added group 'browsegood' with 4 targets
+yaluen@ !> show targets
+browsegood ['192.x.x.2:1224:v12', '192.x.x.2:1224:v3', '193.x.x.42:1224:v18', '219.x.x.62:1224:v4']
+%4 ['219.x.x.62:1224:v4']
+%all ['192.x.x.2:1224:v12', '192.x.x.2:1224:v3', '193.x.x.42:1224:v18', '219.x.x.62:1224:v4']
+%1 ['192.x.x.2:1224:v12']
+%3 ['193.x.x.42:1224:v18']
+%2 ['192.x.x.2:1224:v3']
+
 """, 'children':{}},
       'identities':{'name':'identities', 'callback':command_callbacks.show_identities, 'help_text':"""
 show identities
 
 Lists the identities loaded into the shell and whether the public or private
 keys are loaded.   This does not display the keys themselves (see 'show keys').
+
+Example:
+ !> show identities
+ !> loadkeys exampleuser
+ !> loadkeys guest0
+ !> loadkeys guest1
+ !> show identities
+guest2 PRIV
+exampleuser PUB PRIV
+guest0 PUB PRIV
+guest1 PUB PRIV
+
 """, 'children':{}},
       'keys':{'name':'keys', 'callback':command_callbacks.show_keys, 'help_text':"""
 show keys
 
 List the actual keys loaded by the shell.   To see identity information, see
 'show identities'.
+
+Example:
+ !> show keys
+ !> loadkeys yaluen
+ !> loadpub guest0
+ !> loadpriv guest1
+ !> show keys
+exampleuser {'e': 65537L, 'n': 967699203053798948061567293973111925102424779L} {'q': 130841985099129780748709L, 'p': 739593793918579524787167931524344434698161314501292256851220768397231L, 'd': 9466433905223884723074560052831388470409993L}
+guest0 {'e': 65537L, 'n': 9148459067481753275566379538357634516166379961L} None
+guest1 None {'q': 121028014346935113507847L, 'p': 107361553689073802754887L, 'd': 127298628609806695961451784003754746302524139001L}
+
 """, 'children':{}},
       'log':{'name':'log', 'callback':command_callbacks.show_log, 'help_text':"""
 show log [to filename]
@@ -336,6 +438,18 @@ show files
 
 Lists the names of the files loaded into vessels in the default groups.   
 This is similar to dir or ls.
+
+Example:
+exampleuser@browsegood !> show files
+Files on '192.x.x.2:1224:v3': ''
+Files on '193.x.x.42:1224:v18': ''
+Files on '219.x.x.62:1224:v4': ''
+exampleuser@browsegood !> upload example.1.1.repy
+exampleuser@browsegood !> show files
+Files on '192.x.x.2:1224:v3': 'example.1.1.repy'
+Files on '193.x.x.42:1224:v18': 'example.1.1.repy'
+Files on '219.x.x.62:1224:v4': 'example.1.1.repy'
+
 """, 'children':{}},
       'resources':{'name':'resources', 'callback':command_callbacks.show_resources, 'help_text':"""
 show resources
@@ -355,6 +469,11 @@ show timeout
 This shows the amount of time the shell will wait for a command to timeout.   
 Note that commands like 'run' and 'upload' will use both this value and the
 uploadrate setting
+
+Example:
+ !> show timeout
+10
+
 """, 'children':{}},
       'uploadrate':{'name':'uploadrate', 'callback':command_callbacks.show_uploadrate, 'help_text':"""
 show uploadrate
@@ -362,6 +481,11 @@ show uploadrate
 This lists the minimum rate at which the shell should allow uploads to occur.
 Uploads to vessels that go slower than this will be aborted.   Note that this
 is used in combination with the timeout setting.
+
+Example:
+ !> show uploadrate
+102400
+
 """, 'children':{}},
   }},
 
@@ -372,6 +496,31 @@ run programname [arg1, arg2, ...]
 Uploads programname to a vessel and starts it running.   (This command is 
 actually just a short-cut for the 'upload' and 'start' commands).   The 
 arguments listed will be passed to the command when it is started.
+
+Example:
+exampleuser@browsegood !> show log
+Log from '192.x.x.2:1224:v3':
+
+Log from '193.x.x.42:1224:v18':
+
+Log from '219.x.x.62:1224:v4':
+
+Log from '192.x.x.2:1224:v12':
+
+exampleuser@browsegood !> run example.1.1.repy
+exampleuser@browsegood !> show log
+Log from '192.x.x.2:1224:v3':
+Hello World
+
+Log from '193.x.x.42:1224:v18':
+Hello World
+
+Log from '219.x.x.62:1224:v4':
+Hello World
+
+Log from '192.x.x.2:1224:v12':
+Hello World
+
 """, 'children':{
       '[FILENAME]':{'name':'filename', 'callback':command_callbacks.run_localfn, 'help_text':'','children':{
           '[ARGUMENT]':{'name':'args', 'callback':command_callbacks.run_localfn_arg, 'help_text':'', 'children':{}},
@@ -489,6 +638,22 @@ set users [identity1, identity2, ...]
 
 Sets the user keys for vessels in the default group.   The current identity
 must own the vessels.
+
+Example:
+exampleuser@%1 !> show owner
+192.x.x.2:1224:v12 exampleuser pubkey
+exampleuser@%1 !> show users
+192.x.x.2:1224:v12 65537 136475...
+exampleuser@%1 !> set users guest0 guest1 guest2
+exampleuser@%1 !> update
+exampleuser@%1 !> show users
+192.x.x.2:1224:v12 guest0 guest1 guest2
+exampleuser@%1 !> on %2
+exampleuser@%2 !> show owner
+192.x.x.2:1224:v3 65537 127603...
+exampleuser@%2 !> set users guest0 guest1
+Failure 'Node Manager error 'Insufficient Permissions'' on  192.x.x.2:1224:v3
+
 """, 'children':{
           '[ARGUMENT]':{'name':'args', 'callback':command_callbacks.set_users_arg, 'help_text':'', 'children':{}},
       }},
@@ -497,6 +662,21 @@ set ownerinfo 'string'
 
 This command sets the owner information for each vessel in the default group.
 The default identity must own the vessels.
+
+Example:
+exampleuser@browsegood !> show owner
+192.x.x.2:1224:v12 exampleuser pubkey
+192.x.x.2:1224:v3 65537 127603...
+exampleuser@browsegood !> show ownerinfo
+192.x.x.2:1224:v12 ''
+192.x.x.2:1224:v3 ''
+exampleuser@browsegood !> set ownerinfo Example owner info
+Failure 'Node Manager error 'Insufficient Permissions'' on  192.x.x.2:1224:v3
+Added group 'ownerinfogood' with 1 targets and 'ownerinfofail' with 1 targets
+exampleuser@browsegood !> update
+exampleuser@browsegood !> show ownerinfo
+192.x.x.2:1224:v12 'Example owner info'
+192.x.x.2:1224:v3 ''
 
 """, 'children':{
           '[ARGUMENT]':{'name':'args', 'callback':command_callbacks.set_ownerinfo_arg, 'help_text':'', 'children':{}},
@@ -508,6 +688,23 @@ This setting is changable only by the vessel owner and indicates whether or
 not the node's IP / port should be advertised under the owner and user keys.
 The default value is on.   With this turned off, the 'browse' command will
 be unable to discover the vessel.
+
+exampleuser@%1 !> show owner
+192.x.x.2:1224:v12 exampleuser pubkey
+exampleuser@%1 !> show advertise
+192.x.x.2:1224:v12 on
+exampleuser@%1 !> set advertise off
+exampleuser@%1 !> update
+exampleuser@%1 !> show advertise
+192.x.x.2:1224:v12 off
+exampleuser@%1 !> on %2
+exampleuser@%2 !> show owner
+192.x.x.2:1224:v3 65537 127603...
+exampleuser@%2 !> show advertise
+192.x.x.2:1224:v3 on
+exampleuser@%2 !> set advertise off
+Failure 'Node Manager error 'Insufficient Permissions'' on  192.x.x.2:1224:v3
+
 """, 'children':{
           '[ARGUMENT]':{'name':'args', 'callback':command_callbacks.set_advertise_arg, 'help_text':'', 'children':{}},
       }},
@@ -517,6 +714,24 @@ set owner identity
 This changes the owner key for all vessels in the default group to the
 identity specified.   This command may only be issued by the vessels' current
 owner.
+
+Example:
+exampleuser@%1 !> show identities
+exampleuser PUB PRIV
+guest0 PUB PRIV
+guest1 PUB PRIV
+exampleuser@%1 !> show owner
+192.x.x.2:1224:v12 exampleuser pubkey
+exampleuser@%1 !> set owner guest0
+exampleuser@%1 !> update
+exampleuser@%1 !> show owner
+192.x.x.2:1224:v12 guest0 pubkey
+exampleuser@%1 !> on %2
+exampleuser@%2 !> show owner
+192.x.x.2:1224:v3 65537 127603...
+exampleuser@%2 !> set owner exampleuser
+Failure 'Node Manager error 'Insufficient Permissions'' on  192.x.x.2:1224:v3
+
 """, 'children':{
           '[ARGUMENT]':{'name':'args', 'callback':command_callbacks.set_owner_arg, 'help_text':'', 'children':{}},
       }},
@@ -527,6 +742,19 @@ This sets the timeout for network related commands.   Most commands will then
 be aborted on nodes if they are not completed withing the timeoutval number of
 seconds.   Note that the upload and run commands also use the uploadrate 
 setting to determine their timeout.
+
+Example:
+exampleuser@%1 !> set timeout 1
+exampleuser@%1 !> show timeout
+1
+exampleuser@%1 !> start example.1.1.repy
+Failure 'signedcommunicate failed on session_recvmessage with error 'recv() timed out!'' uploading to 193.x.x.42:1224:v18
+exampleuser@%1 !> set timeout 10
+exampleuser@%1 !> start example.1.1.repy
+exampleuser@%1 !> show log
+Log from '193.x.x.42:1224:v18':
+Hello World
+
 """, 'children':{
           '[ARGUMENT]':{'name':'args', 'callback':command_callbacks.set_timeout_arg, 'help_text':'', 'children':{}},
       }},
@@ -539,6 +767,16 @@ upload or run command as failed.   The wait time is computed as:
 
 Thus if the timeout is 10 seconds and rate_in_bps is 102400 (100 KB / s), a 1MB 
 will attempt to upload for 20 seconds.
+
+Example:
+exampleuser@%1 !> set uploadrate 99999999999999
+exampleuser@%1 !> set timeout 1
+exampleuser@%1 !> upload example.1.1.repy
+Failure 'signedcommunicate failed on session_recvmessage with error 'recv() timed out!'' uploading to 193.x.x.42:1224:v18
+exampleuser@%1 !> set uploadrate 102400
+exampleuser@%1 !> upload example.1.1.repy
+exampleuser@%1 !> 
+
 """, 'children':{
           '[ARGUMENT]':{'name':'args', 'callback':command_callbacks.set_uploadrate_arg, 'help_text':'', 'children':{}},
       }},
@@ -549,6 +787,16 @@ When turned on, the shell settings such as keys, targets, timeout value, etc.
 will all be persisted to disk after every operation.   These are saved in a
 file called 'autosave_(user's keyname)', which is encrypted with the default identity.   The user
 can then restore the shell's state by typing 'loadstate identity'.
+
+Example:
+exampleuser@%1 !> set autosave on
+exampleuser@%1 !> exit
+(restart seash.py)
+ !> loadkeys exampleuser
+ !> as exampleuser
+exampleuser@ !> loadstate autosave_exampleuser
+exampleuser@%1 !>
+
 """, 'children':{
           '[ARGUMENT]':{'name':'args', 'callback':command_callbacks.set_autosave_arg, 'help_text':'', 'children':{}},
       }},
@@ -565,6 +813,21 @@ and add any vessels it can contact.
 
 Setting advertisetype will restrict the advertise lookup to only use that 
 service.   Some permitted values for advertisetype are central, DHT, and DOR.
+
+Example:
+exampleuser@ !> show targets
+%all (empty)
+exampleuser@ !> browse
+['192.x.x.2:1224', '193.x.x.42:1224', '219.x.x.62:1224']
+Added targets: %2(193.x.x.42:1224:v18), %3(219.x.x.62:1224:v4), %1(192.x.x.2:1224:v3)
+Added group 'browsegood' with 3 targets
+exampleuser@ !> show targets
+browsegood ['192.x.x.2:1224:v3', '193.x.x.42:1224:v18', '219.x.x.62:1224:v4']
+%3 ['219.x.x.62:1224:v4']
+%all ['192.x.x.2:1224:v3', '193.x.x.42:1224:v18', '219.x.x.62:1224:v4']
+%1 ['192.x.x.2:1224:v3']
+%2 ['193.x.x.42:1224:v18']
+
 """, 'children':{
       '[ARGUMENT]':{'name':'args', 'callback':command_callbacks.browse_arg, 'help_text':'', 'children':{}},
   }},
@@ -576,6 +839,17 @@ genkeys keyprefix [as identity]
 Generates a new set of keys, writing them to files keyprefix.publickey and
 keyprefix.privatekey.   It also adds the identity under the name given.  If
 identity is not specified, keyprefix is used.
+
+Example:
+ !> genkeys userA as userB
+Created identity 'userB'
+ !> show identities
+userB PUB PRIV
+ !> loadkeys userA
+ !> show identities
+userB PUB PRIV
+userA PUB PRIV
+
 """, 'children':{
       '[FILENAME]':{'name':'filename', 'callback':command_callbacks.genkeys_filename, 'help_text':'', 'children':{
           '[ARGUMENT]':{'name':'args', 'callback':command_callbacks.genkeys_filename_len, 'help_text':'', 'children':{
@@ -597,6 +871,14 @@ Loads a public key named keyprefix.publickey and a private key named
 keyprefix.privatekey.   This is a shortcut for the 'loadpub' and 'loadpriv'
 operations.   If identity is specified, the shell refers to the keys using
 this.   If not, keyprefix is the identity.
+
+Example:
+ !> loadkeys exampleuser
+ !> show identities
+exampleuser PUB PRIV
+ !> as exampleuser
+exampleuser@ !>
+
 """, 'children':{
       '[FILENAME]':{'name':'filename', 'callback':command_callbacks.loadkeys_keyname, 'help_text':'', 'children':{
           'as':{'name':'as', 'callback':None, 'help_text':'', 'children':{
@@ -611,6 +893,12 @@ loadpub pubkeyfile [as identity]
 
 Loads a public key named keyprefix.publickey.  If identity is specified, the 
 shell refers to the keys using this.   If not, keyprefix is the identity.
+
+Example:
+ !> loadpub exampleuser
+ !> show identities
+exampleuser PUB
+
 """, 'children':{
       '[FILENAME]':{'name':'filename', 'callback':command_callbacks.loadpub_filename, 'help_text':'', 'children':{
           'as':{'name':'as', 'callback':None, 'help_text':'', 'children':{
@@ -625,6 +913,12 @@ loadpriv privkeyfile [as identity]
 
 Loads a private key named keyprefix.privatekey.  If identity is specified, the 
 shell refers to the keys using this.   If not, keyprefix is the identity.
+
+Example:
+ !> loadpriv exampleuser
+ !> show identities
+exampleuser PRIV
+
 """, 'children':{
       '[FILENAME]':{'name':'filename', 'callback':command_callbacks.loadpriv_filename, 'help_text':'', 'children':{
           'as':{'name':'as', 'callback':None, 'help_text':'', 'children':{
@@ -656,6 +950,14 @@ upload srcfilename [destfilename]
 
 Uploads a file into all vessels in the default group.   The file name that is
 created in those vessels is destfilename (or srcfilename by default).
+
+Example:
+exampleuser@%1 !> show files
+Files on '192.x.x.2:1224:v3': ''
+exampleuser@%1 !> upload example.1.1.repy
+exampleuser@%1 !> show files
+Files on '192.x.x.2:1224:v3': 'example.1.1.repy'
+
 """, 'children':{
       '[FILENAME]':{'name':'filename', 'callback':command_callbacks.upload_filename, 'help_text':'', 'children':{
           '[ARGUMENT]':{'name':'args', 'callback':command_callbacks.upload_filename_remotefn, 'help_text':'', 'children':{}}
@@ -669,6 +971,15 @@ download srcfilename [destfilename]
 Retrieves a copy of srcfilename from every vessel in the default group.   The
 file is written as the destfilename.vesselname (with ':' replaced with '_').
 If the destfilename is not specified, srcfilename is used instead.
+
+Example:
+exampleuser@%1 !> show files
+Files on '192.x.x.2:1224:v3': 'example.1.1.repy'
+exampleuser@%1 !> download example.1.1.repy
+Wrote files: example.1.1.repy.192.x.x.2_1224_v3 
+yaluen@%1 !> download example.1.1.repy test_download
+Wrote files: test_download.192.x.x.2_1224_v3 
+
 """, 'children':{
       '[FILENAME]':{'name':'filename', 'callback':command_callbacks.download_filename, 'help_text':'', 'children':{
           '[ARGUMENT]':{'name':'args', 'callback':command_callbacks.download_filename_localfn, 'help_text':'', 'children':{}}
@@ -680,6 +991,14 @@ If the destfilename is not specified, srcfilename is used instead.
 delete filename
 
 Erases filename from every vessel in the default group.
+
+Example:
+exampleuser@%1 !> show files
+Files on '192.x.x.2:1224:v3': 'example.1.1.repy'
+exampleuser@%1 !> delete example.1.1.repy
+exampleuser@%1 !> show files
+Files on '192.x.x.2:1224:v3': ''
+
 """, 'children':{
       '[FILENAME]':{'name':'filename', 'callback':command_callbacks.delete_remotefn, 'help_text':'', 'children':{}},
   }},
@@ -688,6 +1007,16 @@ Erases filename from every vessel in the default group.
 cat filename
 
 Displays the content of filename from every vessel in the default group.
+
+Example:
+exampleuser@%1 !> show files
+Files on '192.x.x.2:1224:v3': 'example.1.1.repy'
+exampleuser@%1 !> cat example.1.1.repy
+
+File 'example.1.1.repy' on '192.168.1.2:1224:v3': 
+if callfunc == 'initialize':
+  print "Hello World"
+
 """, 'children':{
       '[FILENAME]':{'name':'filename', 'callback':command_callbacks.cat_filename, 'help_text':'', 'children':{}},
   }},
@@ -698,6 +1027,27 @@ reset
 
 Clears the log, stops any programs, and deletes all files from every vessel
 in the default group.
+
+Example:
+exampleuser@%1 !> show log
+Log from '192.x.x.2:1224:v3':
+Hello World
+
+exampleuser@%1 !> list
+  ID Own                      Name     Status              Owner Information
+  %1           192.x.x.2:1224:v3 Terminated                               
+exampleuser@%1 !> show files
+Files on '192.x.x.2:1224:v3': 'example.1.1.repy'
+exampleuser@%1 !> reset
+exampleuser@%1 !> show log
+Log from '192.x.x.2:1224:v3':
+
+exampleuser@%1 !> list
+  ID Own                      Name     Status              Owner Information
+  %1           192.x.x.2:1224:v3      Fresh                               
+exampleuser@%1 !> show files
+Files on '192.x.x.2:1224:v3': '' 
+
 """, 'children':{}},
 
 
@@ -707,6 +1057,14 @@ start programname [arg1 arg2 ...]
 Begins executing a file in the vessel named programname with the given 
 arguments.   This program must first be uploaded to the vessel (the 'run'
 command does this for the user).
+
+Example:
+exampleuser@%1 !> upload example.1.1.repy
+exampleuser@%1 !> start example.1.1.repy
+exampleuser@%1 !> show log
+Log from '192.x.x.2:1224:v3':
+Hello World
+
 """, 'children':{
       '[FILENAME]':{'name':'filename', 'callback':command_callbacks.start_remotefn, 'help_text':'', 'children':{
           '[ARGUMENT]':{'name':'args', 'callback':command_callbacks.start_remotefn_arg, 'help_text':'', 'children':{}},
@@ -720,6 +1078,17 @@ stop
 Stops executing the running program in every vessel in the default group.   
 The program will halt as though it were killed / interrupted.   The status
 for these vessels will become 'Stopped'.
+
+Example:
+exampleuser@%1 !> run endless_loop.repy 
+exampleuser@%1 !> list
+  ID Own                      Name     Status              Owner Information
+  %1             192.x.x.2:1224:v3    Started                               
+exampleuser@%1 !> stop
+exampleuser@%1 !> list
+  ID Own                      Name     Status              Owner Information
+  %1             192.x.x.2:1224:v3    Stopped                                
+
 """, 'children':{}},
 
 
@@ -761,6 +1130,16 @@ loadstate filename
 Loads state information from filename using the default identity to decrypt
 the file.   This will restore all identities, keys, groups, etc. from a 
 previous seash run.  See also 'set autosave on/off.'
+
+Example:
+exampleuser@%1 !> savestate testing_state
+exampleuser@%1 !> exit
+(restart seash.py)
+ !> loadkeys exampleuser
+ !> as exampleuser
+exampleuser@ !> loadstate testing_state
+exampleuser@%1 !>
+
 """, 'children':{
       '[FILENAME]':{'name':'filename', 'callback':command_callbacks.loadstate_filename, 'help_text':'', 'children':{}},
   }},
@@ -772,6 +1151,16 @@ savestate filename
 Saves state information into a filename, encrypting the data with the default 
 identity's private key.  This can be later used to restore the shell's 
 settings, groups, and other information.   See also 'set autosave on/off.'
+
+Example:
+exampleuser@%1 !> savestate testing_state
+exampleuser@%1 !> exit
+(restart seash.py)
+ !> loadkeys exampleuser
+ !> as exampleuser
+exampleuser@ !> loadstate testing_state
+exampleuser@%1 !>
+
 """, 'children':{
       '[FILENAME]':{'name':'filename', 'callback':command_callbacks.savestate_filename, 'help_text':'', 'children':{}},
   }},
@@ -782,6 +1171,14 @@ update
 
 Reacquire cached state from the vessels.   This state is used for many of the
 'show' commands to prevent every operation from needing to contact all vessels.
+
+Example:
+exampleuser@%1 !> show info
+192.x.x.2:1224:v3 has no information (try 'update' or 'list')
+exampleuser@%1 !> update
+exampleuser@%1 !> show info
+192.x.x.2:1224:v3 {'nodekey': {'e': 65537L, 'n': 924563171010915569497668794725930165347860823L}, 'version': '0.1t', 'nodename': '192.x.x.2'}
+
 """, 'children':{}},
 
 
@@ -791,6 +1188,11 @@ contact IP:port[:vesselname]
 Add the specified vessel to the shell.   This bypasses advertise lookups and
 directly contacts the node manager.   If the vesselname argument is omitted,
 all vessels that can be controlled by the default identity are added.
+
+Example:
+exampleuser@ !> contact 192.x.x.2:1224
+Added targets: %1(192.x.x.2:1224:v3)
+
 """, 'children':{
       '[ARGUMENT]':{'name':'args', 'callback':command_callbacks.contact, 'help_text':'', 'children':{}},
   }},

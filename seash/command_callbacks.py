@@ -1066,7 +1066,7 @@ def contact(input_dict, environment_dict):
         environment_dict['handleinfo']['vesselname'] = vesselname
         nmclient_set_handle_info(newhandle, environment_dict['handleinfo'])
 
-        id = seash_helper.add_vessel(longname,currentkeyname,newhandle)
+        id = seash_helper.add_vessel(longname,environment_dict['currentkeyname'],newhandle)
         newidlist.append('%'+str(id)+"("+longname+")")
 
 

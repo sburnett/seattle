@@ -69,3 +69,17 @@ addresses may be optionally written to a file.
 Note that machines behind a NAT, mobile devices, or other systems with 
 atypical network connectivity may list a host name instead.
 
+Example:
+exampleuser@ !> show targets
+browsegood ['192.x.x.2:1224:v12', '192.x.x.2:1224:v3', '193.x.x.42:1224:v18', '219.x.x.62:1224:v4']
+%4 ['219.x.x.62:1224:v4']
+%all ['192.x.x.2:1224:v12', '192.x.x.2:1224:v3', '193.x.x.42:1224:v18', '219.x.x.62:1224:v4']
+%1 ['192.x.x.2:1224:v12']
+%3 ['193.x.x.42:1224:v18']
+%2 ['192.x.x.2:1224:v3']
+exampleuser@ !> on browsegood
+exampleuser@browsegood !> show ip
+192.x.x.2
+193.x.x.42
+219.x.x.62
+
