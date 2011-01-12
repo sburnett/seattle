@@ -4,11 +4,6 @@ class FECShim(BaseShim):
 
   name = 'FECShim'
 
-  ip = getmyip()
-  send_lock = getlock()
-  recv_lock = getlock()
-  send_dict = {'package_id':random_nbit_int(10)}
-
 
   def __init__(self, next_shim=None, optional_args=None):
     BaseShim.__init__(self, next_shim, optional_args)
@@ -18,6 +13,11 @@ class FECShim(BaseShim):
     # dict to store incomming packets until they are put together
     # {(remote_ip,remote_port,package_id):package_fragment_list
     self.recv_dict = {}
+
+    self.ip = getmyip()
+    self.send_lock = getlock()
+    self.recv_lock = getlock()
+    self.send_dict = {'package_id':random_nbit_int(32)}
 
 
 
@@ -42,14 +42,14 @@ class FECShim(BaseShim):
     # can be put back together
       
     try:
-      (rip,id,count,message) = message.split(':',3)
+      (rip,uid,count,message) = message.split(':',3)
     except Exception, e:
       raise Exception('Bad message header in FECShim: '+str(e))
     
     if count not in ['0','1','2']: 
       raise Exception('Bad message header in FESCHim: '+count)    
 
-    package_header = rip+':'+id
+    package_header = rip+':'+uid
     
     # grab a lock to prevent concurrent access to shared state
     self.recv_lock.acquire()
@@ -112,7 +112,7 @@ class FECShim(BaseShim):
             if 'events' in str(e): 
               sleep(1) #wait and try
               print 'caught events exception in FECShim'
-            else: raise
+            else: raise Exception('caught events exception in FECShim')
           else:
             break        
       
