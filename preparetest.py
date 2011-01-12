@@ -49,7 +49,7 @@ sys.path = sys.path[1:]
 # Whether to copy files that enable shims. In case of major bugs in shims,
 # simply turn it off to revert back to the shim-less architecture. Added by
 # Danny Yuxing Huang.
-USE_SHIMS = False
+USE_SHIMS = True
 
 #define a function to use for copying the files matching the file expression to the target folder
 #file_expr may contain wildcards
@@ -228,7 +228,7 @@ def main():
 
     if USE_SHIMS:
       # Unit tests for shims
-      copy_to_target("production_nat_new/src/unit_tests/*.mix", target_dir)
+      copy_to_target("production_nat_new/src/unit_tests/*", target_dir)
 
   #set working directory to the test folder
   os.chdir(target_dir)

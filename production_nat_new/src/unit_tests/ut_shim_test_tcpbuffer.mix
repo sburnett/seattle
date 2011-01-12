@@ -56,8 +56,8 @@ if callfunc == 'initialize':
   mycontext['client_name'] = "client.zenodotus.cs.washington.edu"
 
   # Define the shim.
-  server_shim = ShimStackInterface('(CoordinationShim)(TestShimLib)', mycontext['server_name'])
-  client_shim = ShimStackInterface('(CoordinationShim)(TestShimLib)', mycontext['server_name'])
+  server_shim = ShimStackInterface('(CoordinationShim)(NOOPShim)', mycontext['server_name'])
+  client_shim = ShimStackInterface('(CoordinationShim)(NOOPShim)', mycontext['server_name'])
 
   try:
     advertise_announce(mycontext['server_name'], getmyip(), 600)

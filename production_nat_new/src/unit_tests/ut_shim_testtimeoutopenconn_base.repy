@@ -30,7 +30,7 @@ if callfunc == 'initialize':
 
   localhostname = "test.zenodotus.cs.washington.edu"
   # Define the shim.
-  base_shim = ShimStackInterface('(CoordinationShim)(TestShimLib)', localhostname)
+  base_shim = ShimStackInterface('(CoordinationShim)(NOOPShim)', localhostname)
 
   
   # Set up a timer. If the openconn does not timeout

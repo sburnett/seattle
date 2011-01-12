@@ -53,8 +53,8 @@ if callfunc == 'initialize':
     pass
 
   # Define the shim.
-  server_shim = ShimStackInterface('(CoordinationShim)(TestShimLib)', mycontext['server_name'])
-  client_shim = ShimStackInterface('(CoordinationShim)(TestShimLib)', mycontext['client_name'])
+  server_shim = ShimStackInterface('(CoordinationShim)(NOOPShim)', mycontext['server_name'])
+  client_shim = ShimStackInterface('(CoordinationShim)(NOOPShim)', mycontext['client_name'])
 
   # Create the server.
   server_shim.waitforconn(server_shim.getmyip(), 12345, test_func)

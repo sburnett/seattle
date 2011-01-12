@@ -1,6 +1,6 @@
 """
 <Program Name>
-  TestShimLib.repy
+  NOOPShim.repy
 
 <Author>
   Monzur Muhammad
@@ -15,7 +15,7 @@
 """
 
 
-class TestShimLib(BaseShim):
+class NOOPShim(BaseShim):
 
   # Keeps track of how many shims are in the stack.
   mycontext['ShimCount'] = 0
@@ -32,7 +32,7 @@ class TestShimLib(BaseShim):
 
   # Define the advertisement string.
   def get_advertisement_string(self):
-    return ('TestShimLib') + self.shim_stack.get_advertisement_string()
+    return ('NOOPShim') + self.shim_stack.get_advertisement_string()
 
 
 
@@ -91,27 +91,6 @@ class TestShimLib(BaseShim):
 
   # Define the copy method.
   def copy(self):
-    return TestShimLib()
+    return NOOPShim()
 
 
-
-
-  # =========================================================================
-  # Mock network api calls that are defined for the purpose of testing
-  # network calls made by Shim libraries.
-  # =========================================================================
-
-
-  def mock_waitforconn_call(self):
-    """ 
-    We want to simulate the waitforconn call so we don't need
-    to make an actual network call. We will simulate the 
-    different behaviours of the waitforconn call.
-    """
-
-    # The mock watiforconn function.
-    def _mock_waitforconn(*args): 
-      return "TestCommHandle"
-
-    
-    self.shim_stack.waitforconn = _mock_waitforconn

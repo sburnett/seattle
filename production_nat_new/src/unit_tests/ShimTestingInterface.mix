@@ -8,12 +8,12 @@
 
 <Purpose>
   This is a wrapper file that includes the 
-  TestShimLib and registers it for testing 
+  NOOPShim and registers it for testing 
   purpose.
 """
 
 include ShimStackInterface.mix
-include TestShimLib.repy
+include NOOPShim.repy
 
-# Register the TestShimLib
-register_shim('TestShimLib', TestShimLib)
+# Register the NOOPShim
+register_shim('NOOPShim', NOOPShim)

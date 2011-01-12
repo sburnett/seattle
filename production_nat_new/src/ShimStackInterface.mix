@@ -28,7 +28,7 @@ include ReverseShim.repy
 include NoopShim.repy
 include FECShim.repy
 include LZWShim.repy
-include DNSShimLookup.repy
+include CacheDNSEntry.repy
 
 
 # Register all shims in the world
@@ -46,7 +46,7 @@ register_shim('ReverseShim', ReverseShim)
 register_shim('NoopShim', NoopShim)
 register_shim('FECShim', FECShim)
 register_shim('LZWShim', LZWShim)
-register_shim('DNSShimLookup', DNSShimLookup)
+register_shim('CacheDNSEntry', CacheDNSEntry)
 
 
 
@@ -91,7 +91,7 @@ class ShimStackInterface:
     self._localhost = localhost
     
     # Need to register local ip to DNSCache. This will most likely
-    # be used by DNSShimLookup
+    # be used by CacheDNSEntry
     mycontext[localhost] = getmyip()
 
 

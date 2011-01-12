@@ -1,6 +1,6 @@
 """
 <Program>
-  DNSShimLookup.repy
+  CacheDNSEntry.repy
 
 <Author>
   Monzur Muhammad, monzum@cs.washington.edu
@@ -12,9 +12,9 @@
 include session.repy
 
 
-class DNSShimLookup(BaseShim):
+class CacheDNSEntry(BaseShim):
 
-  name = 'DNSShimLookup'
+  name = 'CacheDNSEntry'
   
   # This will keep track of all the remote hostnames
   # and the IP addresses associated with them.
@@ -30,7 +30,7 @@ class DNSShimLookup(BaseShim):
 
   # Override
   def copy(self):
-    return DNSShimLookup()
+    return CacheDNSEntry()
 
   def __init__(self, next_shim=None, optional_args=None):
 
@@ -45,12 +45,12 @@ class DNSShimLookup(BaseShim):
       self.DNSCache[server_hostname] = server_ip
 
 
-    self._logger = ShimLogger('DNSShimLookup')
+    self._logger = ShimLogger('CacheDNSEntry')
     
 
 
   def get_advertisement_string(self):
-    return "(DNSShimLookup,%s,%s)" % (self._localhost, getmyip()) + self.shim_stack.get_advertisement_string()
+    return "(CacheDNSEntry,%s,%s)" % (self._localhost, getmyip()) + self.shim_stack.get_advertisement_string()
 
 
 
