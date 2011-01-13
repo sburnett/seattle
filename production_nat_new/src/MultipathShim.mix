@@ -1,0 +1,128 @@
+"""
+This shim forwards every message to a list of forwarders, and discards
+duplicated incoming messages from the forwarders. Depending on the
+implementation of the forwarders, the messages may or may not be exchanged among
+the forwarders. This shim intends to reduce packet loss at the destination and
+round-trip times.
+
+Written by: Danny Y. Huang (yh1@cs.williams.edu)
+
+"""
+include advertise.repy
+
+# The maximum number of hops (forwarders) that any message can go through.
+MAX_HOP = 5
+
+
+
+class MultipathShim(BaseShim):
+
+  def __init__(self, next_shim=None, optional_args=None):
+    BaseShim.__init__(self, next_shim, optional_args)
+    self._logger = ShimLogger('MultipathShim')
+
+    # A set of all the message IDs received.
+    self._recv_set = set()
+
+    # Used to protect the recv_set
+    self._set_lock = getlock()
+
+    # Discover forwarders if not already done so
+    if 'multipath_forwarder_list' not in mycontext:
+      mycontext['multipath_forwarder_list'] = []
+      for forwarder in advertise_lookup('multipath_forwarders'):
+        host, port = forwarder.split(':')
+        mycontext['multipath_forwarder_list'].append([host, int(port)])
+
+
+  
+
+  def sendmess(self, dest_host, dest_port, payload, local_host=None, local_port=None):
+    """
+    Adds header to message and sends them to all the forwarders in
+    parallel. Each message is encoded as:
+
+    dest_host@dest_port@hops@src_host@src_port@msg_id@payload.
+
+    """
+    if local_host and local_port:
+      src_host = local_host
+      src_port = local_port
+    else:
+      # If local_host and local_port are not set by the application, we set them
+      # to zeroes in the header. The forwarder will replace them with the
+      # correct source host/port information.
+      src_host = '0'
+      src_port = 0
+
+    # Generate the header recognized by this shim. The message ID is a random string.
+    header = [dest_host, str(dest_port), str(MAX_HOP), src_host, str(src_port), str(randomfloat())+str(randomfloat())]
+
+    # Generate the new message with header and payload
+    msglist = header + [payload]
+    msg = '@'.join(msglist)
+
+    # Send the message directly
+    self.shim_stack.sendmess(dest_host, dest_port, msg, local_host, local_port) 
+
+    # Sequentially send to all forwarders. Initially, this was carried out in a
+    # separate thread, but I realized that threading actually degraded
+    # performance, especially when the client starts to flood with
+    # sendmess's. Furthermore, sendmess is a fast operation.
+    for (fwd_host, fwd_port) in mycontext['multipath_forwarder_list']:
+      try:
+        sendmess(fwd_host, fwd_port, msg, src_host, src_port)
+      except Exception, err:
+        self._logger.log('Error in sending message to forwarder %s:%s.' % (fwd_host, fwd_port))
+
+    return len(payload)
+
+
+
+
+
+  def _incoming_message(self, rip, rport, msg, handle):
+    """ 
+    Strips header information and returns the payload. Each message is encoded
+    as: dest_host@dest_port@hops@src_host@src_port@msg_id@payload. 
+
+    We also discard any duplicates by examining the forwarder_id.
+
+    """
+    # Extracts header from message
+    try:
+      (_, _, _, src_host, src_port, msg_id, payload) = msg.split('@', 6)
+      src_port = int(src_port)
+    except ValueError, error:
+      self._logger.log('Bad message received. Dropped.')
+      return
+
+    # Check for duplicates
+    try:
+      self._set_lock.acquire()
+      if msg_id in self._recv_set:
+        # Got duplicate, drop packet
+        return
+      else:
+        self._recv_set.add(msg_id)
+    finally:
+      self._set_lock.release()
+
+    # The message may have arrived directly without any forwarders. In this
+    # case, the source information may contain all zeroes. We need to set it
+    # accordingly.
+    if src_host == '0' and src_port == 0:
+      src_host = rip
+      src_port = rport
+
+    # Return the message to the application.
+    self._recvmess_callback(src_host, src_port, payload, handle)
+
+
+
+
+  def recvmess(self,host,port,callback):
+    self._recvmess_callback = callback
+    return self.shim_stack.recvmess(host, port, self._incoming_message)
+
+
