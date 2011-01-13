@@ -1,0 +1,89 @@
+
+
+class RecvQueueShim(BaseShim):
+  """
+  A shim that puts incoming messages in a queue. Normally, when a new incoming
+  message arrives, repy creates a new callback thread. However, when the system
+  is flooded with these new messages, repy cannot create threads fast enough,
+  thus causing the messages to run over the receive buffer and be
+  dropped. Furthermore, too many threads may be created at once. The Python
+  threading library can potentially raise an exception because it cannot create
+  any more threads. 
+
+  This shim is created to address these issues. It should be always be placed at
+  the bottom of the shim stack. For every callback invoked, this shim puts the
+  message on hold into a queue, thus reducing the amount of computation within
+  each thread. This has the (unproven) advantage of freeing up more system
+  resources and thus allowing more threads to be created faster. The message
+  queue is processed sequentially.
+
+  Written by Danny Y. Huang (yh1@cs.williams.edu)
+
+  """
+
+  def __init__(self, next_shim=None, optional_args=None):
+    BaseShim.__init__(self, next_shim, optional_args)
+    self._logger = ShimLogger('RecvQueueShim')
+  
+    # Queue used to hold all incoming messages
+    self._recv_queue = []
+
+    # Lock to protect the queue from race conditions
+    self._queue_lock = getlock()
+
+    # Whether we are currently processing the queue
+    self._active_queue = False
+
+
+  def recvmess(self, host, port, callback):
+
+    # Start the queue-processing thread if it is not already active.
+    if not self._active_queue:
+      self._active_queue = True
+      settimer(0, self._process_queue, [])
+
+    def recvmess_callback(rip, rport, msg, handle):
+      """ Adds the callback to the queue to be invoked later. """
+      self._queue_lock.acquire()
+      self._recv_queue.append((rip, rport, msg, handle, callback))
+      self._queue_lock.release()
+
+    return self.shim_stack.recvmess(host, port, recvmess_callback)
+
+
+
+
+  def _process_queue(self):
+    """
+    Pops incoming messages from queue and invokes the respective callbacks.
+
+    """
+    while self._active_queue:
+
+      # We do not do anything if the queue is empty.
+      if len(self._recv_queue) == 0:
+        sleep(0.001)
+        continue
+
+      try:
+        self._queue_lock.acquire()
+        (rip, rport, msg, handle, callback) = self._recv_queue.pop(0)
+      except IndexError, err:
+        # Empty queue
+        continue
+      finally:
+        self._queue_lock.release()
+
+      # Try to invoke the callback. If there are exceptions, we log them so they
+      # don't affect the rest of the queue.
+      try:
+        callback(rip, rport, msg, handle)
+      except Exception, err:
+        self._logger.log('Exception in callback: ' + str(err))
+
+
+
+
+  def stopcomm(self, handle):
+    self._active_queue = False
+    return self.shim_stack.stopcomm(handle)
