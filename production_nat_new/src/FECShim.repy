@@ -88,8 +88,6 @@ def _xorstringlist(listofstrings):
 
 # TODO: Expire bundles from the received bundle dictionary
 
-# TODO: Move recvmess callback delivery out of locked section
-
 
 include random.repy
 
@@ -153,6 +151,12 @@ class FECShim(BaseShim):
     # grab a lock to prevent concurrent access to shared state
     FECContext['recv_lock'].acquire()
 
+    # NOTE: I want to only trigger the callback after the lock is released.   
+    # To achieve this, I'll set a flag indicating whether or not to call
+    # the callback in the finally clause after releasing the lock.
+    execute_callback = False
+    args_to_callback = []
+
     # be sure to release this...
     try:
 
@@ -182,7 +186,10 @@ class FECShim(BaseShim):
       # if it's not an XOR packet, call the next level and continue
       if packetnum != FECContext['packets_per_bundle']:
         FECContext['datapacketcount'] = FECContext['datapacketcount'] + 1
-        self.prev_callback(srchostname,srcport,packetbody,handle)
+        
+        # this will trigger the callback before returning...
+        execute_callback = True
+        args_to_callback = (srchostname,srcport,recovered_packetbody,handle)
         
         return
 
@@ -220,13 +227,19 @@ class FECShim(BaseShim):
       # then add it to prevent delivery of the original data packet...
       FECContext['received_bundle_dictionary'][srcinfo][bundleid][missingpacketnum] = recovered_packetbody
 
-      self.prev_callback(srchostname,srcport,recovered_packetbody,handle)
+      # this will trigger the callback before returning...
+      execute_callback = True
+      args_to_callback = (srchostname,srcport,recovered_packetbody,handle)
       
       return
  
     finally:
       # always release the lock
       FECContext['recv_lock'].release()
+      
+      # if needed, call this *after* releasing the lock
+      if execute_callback:
+        self.prev_callback(*args_to_callback)
 
       
       
