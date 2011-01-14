@@ -189,7 +189,7 @@ class FECShim(BaseShim):
         
         # this will trigger the callback before returning...
         execute_callback = True
-        args_to_callback = (srchostname,srcport,recovered_packetbody,handle)
+        args_to_callback = (srchostname,srcport,packetbody,handle)
         
         return
 
