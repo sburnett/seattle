@@ -214,7 +214,7 @@ class FECShim(BaseShim):
       missingmessageset = allpossiblepacketnumset.difference(currentpacketnumset)
       # should only be one missing...
       assert(len(missingmessageset) == 1)
-      missingpacketnum = missingmessageset[0]
+      missingpacketnum = missingmessageset.pop()
 
       
       # then add it to prevent delivery of the original data packet...
