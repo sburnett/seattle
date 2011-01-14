@@ -78,6 +78,9 @@ def _xorstringlist(listofstrings):
 # the packets 0 - N-1 are the original packet, and the packet N is the XOR
 # of all of the previous packets in this bundle
 #
+# The XOR packet has an additional header containing a list of the packet
+# lengths so that it can reconstruct the original packet.
+#
 # The sender will keep a dictionary of destination information -> {'bundleid':
 # bundleid, 'packetlist':[packetbody1, ...]}
 # 
@@ -196,6 +199,7 @@ class FECShim(BaseShim):
       # got an XOR packet...
       FECContext['xorcount'] = FECContext['xorcount'] + 1
 
+
       # is it spurious? (we got all data packets, so no need)
       if len(FECContext['received_bundle_dictionary'][srcinfo][bundleid]) > FECContext['packets_per_bundle']:
         FECContext['spuriousxorcount'] = FECContext['spuriousxorcount'] + 1
@@ -208,8 +212,18 @@ class FECShim(BaseShim):
  
       # cool!   This is useful, let's reconstruct it and deliver!
       FECContext['usefulxorcount'] = FECContext['usefulxorcount'] + 1
-     
-      recovered_packetbody = _xorstringlist(FECContext['received_bundle_dictionary'][srcinfo][bundleid].values())
+
+
+      # strip off the length of packets list so that we know whether to 
+      # truncate
+      lengthheader, packetbody = packetbody.split(':',2)
+
+      packetlengthstrlist = lengthheader.split(',')
+
+      # let's take the previous data packets and add this packet body.
+      packetsbodies_to_xor = FECContext['received_bundle_dictionary'][srcinfo][bundleid].values()[:-1] + [packetbody]
+
+      recovered_packetbody_with_extra_junk = _xorstringlist(packetbodies_to_xor)
  
       # I should put this in the dict so that if the packet 
       # arrives late, we don't deliver a duplicate
@@ -222,7 +236,15 @@ class FECShim(BaseShim):
       # should only be one missing...
       assert(len(missingmessageset) == 1)
       missingpacketnum = missingmessageset.pop()
+ 
+      
+      # truncate the packet (if needed).   This is important if the packets
+      # in the bundle are different sizes
+      recovered_packetbody = recovered_packetbody_with_extra_junk[:int(packetlengthstrlist[missingpacketnum])]
 
+      # (also check that the extra junk is all 0s)
+      extrajunk = recovered_packetbody_with_extra_junk[int(packetlengthstrlist[missingpacketnum]):]
+      assert(extrajunk == '\x00'*len(extrajunk))
       
       # then add it to prevent delivery of the original data packet...
       FECContext['received_bundle_dictionary'][srcinfo][bundleid][missingpacketnum] = recovered_packetbody
@@ -283,9 +305,16 @@ class FECShim(BaseShim):
       # otherwise, let's send the XOR packet ...
 
       xorpacketbody = _xorstringlist(FECContext['sending_bundle_dictionary'][destinfo]['packetlist'])
+
+      # make the XOR packet contain the length of the other packets
+      xorlengthlist = []
+      for packetbody in FECContext['sending_bundle_dictionary'][destinfo]['packetlist']:
+        xorlengthlist.append(len(packetbody))
+
+      lengthheader = ','.join(xorlengthlist)
  
       # create the complete xor packet,...
-      xorpacketdata = str(bundleid)+":"+str(packetnum+1)+":"+xorpacketbody
+      xorpacketdata = str(bundleid)+":"+str(packetnum+1)+":"+lengthheader+":"+xorpacketbody
 
       # ... and send it out...
       self.shim_stack.sendmess(desthost,destport,xorpacketdata,localhost,localport)
