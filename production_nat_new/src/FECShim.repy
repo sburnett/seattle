@@ -86,9 +86,9 @@ def _xorstringlist(listofstrings):
 # previouspacket
 
 
-# TODO: Allow N to vary insted of hard coding it to 2
-
 # TODO: Expire bundles from the received bundle dictionary
+
+# TODO: Move recvmess callback delivery out of locked section
 
 
 include random.repy
@@ -179,13 +179,10 @@ class FECShim(BaseShim):
       # not a duplicate, let's add it.
       FECContext['received_bundle_dictionary'][srcinfo][bundleid][packetnum] = packetbody
 
-      # BUG: I'm ignoring the (unlikely) case where a data packet arrives 
-      # after the XOR packet...
-
       # if it's not an XOR packet, call the next level and continue
       if packetnum != FECContext['packets_per_bundle']:
         FECContext['datapacketcount'] = FECContext['datapacketcount'] + 1
-        self.prev_callback(srchostname,srcport,packetbody,handle)    
+        self.prev_callback(srchostname,srcport,packetbody,handle)
         
         return
 
@@ -207,8 +204,21 @@ class FECShim(BaseShim):
      
       recovered_packetbody = _xorstringlist(FECContext['received_bundle_dictionary'][srcinfo][bundleid].values())
  
-      # NOTE: I probably should put this in the dict so that if the packet 
+      # I should put this in the dict so that if the packet 
       # arrives late, we don't deliver a duplicate
+
+      # first figure out which message is missing...
+      currentpacketnumset = set(FECContext['received_bundle_dictionary'][srcinfo][bundleid])
+      allpossiblepacketnumset = set(range(FECContext['packets_per_bundle']))
+
+      missingmessageset = allpossiblepacketnumset.difference(currentpacketnumset)
+      # should only be one missing...
+      assert(len(missingmessageset) == 1)
+      missingpacketnum = missingmessageset[0]
+
+      
+      # then add it to prevent delivery of the original data packet...
+      FECContext['received_bundle_dictionary'][srcinfo][bundleid][missingpacketnum] = recovered_packetbody
 
       self.prev_callback(srchostname,srcport,recovered_packetbody,handle)
       
