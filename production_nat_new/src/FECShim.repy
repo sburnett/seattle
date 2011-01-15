@@ -216,12 +216,12 @@ class FECShim(BaseShim):
 
       # strip off the length of packets list so that we know whether to 
       # truncate
-      lengthheader, packetbody = packetbody.split(':',2)
+      lengthheader, packetbody = packetbody.split(':',1)
 
       packetlengthstrlist = lengthheader.split(',')
 
       # let's take the previous data packets and add this packet body.
-      packetsbodies_to_xor = FECContext['received_bundle_dictionary'][srcinfo][bundleid].values()[:-1] + [packetbody]
+      packetbodies_to_xor = FECContext['received_bundle_dictionary'][srcinfo][bundleid].values()[:-1] + [packetbody]
 
       recovered_packetbody_with_extra_junk = _xorstringlist(packetbodies_to_xor)
  
@@ -309,7 +309,7 @@ class FECShim(BaseShim):
       # make the XOR packet contain the length of the other packets
       xorlengthlist = []
       for packetbody in FECContext['sending_bundle_dictionary'][destinfo]['packetlist']:
-        xorlengthlist.append(len(packetbody))
+        xorlengthlist.append(str(len(packetbody)))
 
       lengthheader = ','.join(xorlengthlist)
  
