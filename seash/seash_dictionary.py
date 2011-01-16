@@ -1101,6 +1101,28 @@ have the remaining size, minus the size of the offcut resources.   The new
 vessels will be known to the shell. 
 
 You must be the owner of the vessel to use the split command.
+
+Example:
+exampleuser@browsegood !> show targets
+browsegood (empty)
+joingood ['192.x.x.192:1224:v3', '192.x.x.192:1224:v4']
+joinfail (empty)
+%all ['192.x.x.192:1224:v11']
+%3 ['192.x.x.192:1224:v11']
+exampleuser@browsegood !> on %3
+exampleuser@%3 !> split resources.offcut
+192.x.x.192:1224:v11 -> (192.x.x.192:1224:v12, 192.x.x.192:1224:v13)
+Added group 'split1' with 1 targets and 'split2' with 1 targets
+exampleuser@%3 !> show targets
+split2 ['192.x.x.192:1224:v13']
+split1 ['192.x.x.192:1224:v12']
+browsegood (empty)
+joingood ['192.x.x.192:1224:v3', '192.x.x.192:1224:v4']
+joinfail (empty)
+%5 ['192.x.x.192:1224:v13']
+%4 ['192.x.x.192:1224:v12']
+%all ['192.x.x.192:1224:v12', '192.x.x.192:1224:v13']
+
 """, 'children':{
       '[FILENAME]':{'name':'filename', 'callback':command_callbacks.split_resourcefn, 'help_text':'', 'children':{}},
   }},
@@ -1114,6 +1136,28 @@ resulting vessel will have a size equal to the two other vessels plus the
 offcut resource amount.  The new vessels will be known to the shell. 
 
 You must be the owner of the vessels to join them.
+
+Example:
+exampleuser@browsegood !> join
+Traceback (most recent call last):
+  File "seash.py", line 222, in command_loop
+  File "/home/user/seattle_test/seash_dictionary.py", line 1458, in command_dispatch
+  File "/home/user/seattle_test/command_callbacks.py", line 2485, in join
+KeyError: 'ownerkey'
+exampleuser@browsegood !> update
+exampleuser@browsegood !> show owner
+192.x.x.192:1224:v3 guest0 pubkey
+192.x.x.192:1224:v4 guest0 pubkey
+exampleuser@browsegood !> join
+192.x.x.192:1224:v11 <- (192.x.x.192:1224:v3, 192.x.x.192:1224:v4)
+Added group 'joingood' with 2 targets
+exampleuser@browsegood !> show targets
+browsegood (empty)
+joingood ['192.x.x.192:1224:v3', '192.x.x.192:1224:v4']
+joinfail (empty)
+%all ['192.x.x.192:1224:v11']
+%3 ['192.x.x.192:1224:v11']
+
 """, 'children':{}},
 
 
