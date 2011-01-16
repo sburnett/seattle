@@ -1,0 +1,243 @@
+"""
+To reduce the size per packet, this shim breaks down a packet into chunks. These
+chunks are grouped as a bundle. Each bundle is assigned a random and unique ID
+to faciliate assembly at the receiver.
+
+Written by: Danny Y. Huang (yh1@cs.williams.edu)
+
+"""
+import math
+include random.repy
+
+# The smallest size of a chunk. We need a lowerbound or else performance may get
+# worse.
+MIN_CHUNK_SIZE = 128
+
+# Into at least how many trunks are we dividing a packet?
+NUMBER_OF_CHUNKS = 2
+
+
+
+class BundleNotReady(Exception):
+  """
+  Raised when the bundle has not been fully assembled.
+
+  """
+  pass
+
+
+
+
+class BadChunk(Exception):
+  """
+  Raised when the chunk is corrupted.
+
+  """
+  pass
+
+
+
+
+class Bundle(object):
+  """
+  A collection of chunks with the same bundle ID. Not thread safe.
+
+  """
+
+  def __init__(self):
+
+    # Length of original message
+    self._message_length = None
+
+    # Dictionary that holds individual chunks. Maps chunk_id to the chunk content.
+    self._chunk_dict = {}
+
+
+
+  def add_chunk(self, chunkstr):
+    """
+    Adds a raw chunk string and parses the header information. The chunk should
+    be formatted as: chunk_id:msg_length:msg_part. The bundle ID should have
+    been stripped. If one chunk is corrupted, the whole bundle is considered
+    corrupted in this implementation.
+
+    """
+    # Parse header
+    try:
+      chunk_id, msg_length, msg_part = chunkstr.split(':', 2)
+      chunk_id = int(chunk_id)
+      msg_length = int(msg_length)
+    except ValueError, err:
+      # Show only the first 30 bytes of the chunk to facilitate debugging
+      raise BadChunk('Bad chunk header: %s...' % chunkstr[0:30])
+
+    # Check if the message length is consistent with that of the other
+    # chunks. If not, this is a bad chunk and we discard it.
+    if self._message_length:
+      if msg_length != self._message_length:
+        raise BadChunk('Bad chunk message length.')
+
+    # Set the message length if this is the first chunk
+    else:
+      self._message_length = msg_length
+
+    # Add chunk to dictionary. Not thread safe.
+    self._chunk_dict[chunk_id] = msg_part
+
+
+
+  def assemble_message(self):
+    """
+    Attempts to assemble the entire message. If failed, raise BundleNotReady
+    exception.
+
+    """
+    msg = ''
+
+    # Checks for continuity of the chunk IDs. 
+    chunk_id_list = self._chunk_dict.keys()
+    if (len(chunk_id_list) != max(chunk_id_list) + 1) or (min(chunk_id_list) != 0):
+      raise BundleNotReady
+
+    # Concatenates the content of the chunk dictionary following the order of the
+    # chunk ID.
+    for chunk_id in sorted(self._chunk_dict.keys()):
+      msg += self._chunk_dict[chunk_id]
+
+    if len(msg) == self._message_length:
+      return msg
+    else:
+      raise BundleNotReady
+
+
+
+
+
+class ChunkingShim(BaseShim):
+
+
+  def __init__(self, next_shim=None, optional_args=None):
+
+    BaseShim.__init__(self, next_shim, optional_args)
+    self._logger = ShimLogger('ChunkingShim')
+
+    # A dictionary that holds chunks yet to be assembled. Provides mapping from
+    # bundle_id to the Bundle object.
+    self._recv_dict = {}
+
+    # Used to protect the dictionary
+    self._dict_lock = getlock()
+
+
+  
+
+  def sendmess(self, dest_host, dest_port, payload, local_host=None, local_port=None):
+    """
+    Splits a message into chunks if the length of the message is more than the
+    chunk_size. Each bundle of chunks will have a uniquely random ID to
+    faciliate assembly at the receiving end.
+
+    A message if formatted as four bytes of bundle ID followed by
+    chunk_id:msg_length:msg. A chunk has size chunk_size or less.
+
+    """
+    # Generate bundle_id that uniquely identifies each bundle of chunks.
+    bundle_id = str(random_randombytes(4))
+
+    msg_length = len(payload)
+    remaining_msg = payload
+    chunk_id = 0
+
+    chunk_size = msg_length / NUMBER_OF_CHUNKS
+
+    if chunk_size < MIN_CHUNK_SIZE:
+      # Ensure that each trunk is restricted by a lower bound
+      chunk_size = MIN_CHUNK_SIZE
+
+    else:
+      # Find the smallest 2's power that contains the chunk size
+      chunk_size = 1 << (int(math.ceil(math.log(chunk_size, 2))))
+
+    #print msg_length,
+    
+    # Generate each chunk while there is still something to send
+    while remaining_msg:
+
+      header = bundle_id + str(chunk_id) + ':' + str(msg_length) + ':'
+
+      # Generate the chunk so that the total length, plus the header, is no more
+      # than chunk_size.
+      chunk = remaining_msg[0: chunk_size - len(header)]
+      chunk = header + chunk
+
+      # Send the whole thing
+      self.shim_stack.sendmess(dest_host, dest_port, chunk, local_host, local_port)
+
+      #print len(chunk),
+
+      # Remove the sent chunk from the original message.
+      remaining_msg = remaining_msg[chunk_size - len(header) : ]
+
+      chunk_id += 1
+    
+    #print chunk_id
+
+    return msg_length
+
+
+
+
+
+  def _incoming_message(self, rip, rport, chunk, handle):
+    """ 
+    Extracts bundle ID and places chunk into the chunk dictionary. Attempts to
+    assemble message.
+
+    """
+    # Bundle ID is the first four bytes
+    bundle_id = chunk[0:4]
+
+    # This is the main body of the chunk. It is formatted as
+    # chunk_id:msg_length:msg_part.
+    chunkstr = chunk[4:]
+
+    self._dict_lock.acquire()
+
+    # First chunk of the bundle. We initialize the Bundle object
+    if bundle_id not in self._recv_dict.keys():
+      self._recv_dict[bundle_id] = Bundle()
+
+    # Add chunkstr to dictionary
+    try:
+      this_bundle = self._recv_dict[bundle_id]
+      this_bundle.add_chunk(chunkstr)
+    except BadChunk, err:
+      # Message is corrupted. We ignore this chunk.
+      self._logger.log('Corrupted chunk: ' + str(err))
+      return
+
+    try:
+      # Attempt to assemble message
+      msg = this_bundle.assemble_message()
+
+      # Successful assembly, so we don't need this bundle in the dictionary
+      # anymore.
+      del self._recv_dict[bundle_id]
+
+    except BundleNotReady, err:
+      # Not all the chunks have arrived yet
+      return
+
+    finally:
+      self._dict_lock.release()
+
+    self._recvmess_callback(rip, rport, msg, handle)
+
+
+
+
+  def recvmess(self,host,port,callback):
+    self._recvmess_callback = callback
+    return self.shim_stack.recvmess(host, port, self._incoming_message)
+
+
