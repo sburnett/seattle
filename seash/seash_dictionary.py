@@ -323,7 +323,7 @@ exampleuser@browsegood !> show ip
 219.x.x.62
 exampleuser@browsegood !> show location
 %1(192.x.x.2): Location unknown
-%3(193.x.x.42): Cesson-s�vign�, France
+%3(193.x.x.42): Cesson-svign, France
 %4(219.x.x.62): Beijing, China
 
 """, 'children':{}},
@@ -336,7 +336,7 @@ information about nodes in the current group.
 Example:
 exampleuser@browsegood !> show location
 %1(192.x.x.2): Location unknown
-%3(193.x.x.42): Cesson-s�vign�, France
+%3(193.x.x.42): Cesson-svign, France
 %4(219.x.x.62): Beijing, China
 exampleuser@browsegood !> show coordinates
 %1(192.x.x.2): Location unknown

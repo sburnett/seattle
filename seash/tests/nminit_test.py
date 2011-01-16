@@ -2730,6 +2730,7 @@ def make_vessel(vesselname, pubkey, resourcetemplate, resourceargs):
 # lots of little things need to be initialized...   
 def initialize_state():
 
+
   # first, let's clean up any existing directory data...
   for vesseldirectoryname in glob.glob('v[0-9]*'):
     if os.path.isdir(vesseldirectoryname):

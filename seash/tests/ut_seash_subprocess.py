@@ -6,6 +6,8 @@ import subprocess
 import sys
 import harshexit
 import os
+import glob
+import shutil
 
 initproc = subprocess.Popen(["python", "nminit_test.py"])
 initproc.wait()
@@ -43,7 +45,23 @@ nmpid = int(pidportion[4:])
 # let's terminate the node manager...
 harshexit.portablekill(nmpid)
 
-# since shutdown is ran before ending subprocess, remove the remaining directory
-# created by nminit_test.py
-os.remove('v2/nodemanager.old')
-os.rmdir('v2')
+# remove the directories and files created by nminit_test.py
+# first, let's clean up any existing directory data...
+for vesseldirectoryname in glob.glob('v[0-9]*'):
+  if os.path.isdir(vesseldirectoryname):
+    print 'Removing:',vesseldirectoryname
+    shutil.rmtree(vesseldirectoryname)
+
+# remove resource files created by nminit_test.py
+for resourcefilename in glob.glob('resource.v*[0-9]'):
+  if os.path.isfile(resourcefilename):
+    os.remove(resourcefilename)
+
+# remove example repy files created from downloading from node
+for repyfiles in glob.glob('example.1.1.repy.*'):
+  if os.path.isfile(repyfiles):
+    os.remove(repyfiles)
+
+# remove other files created by nminit_test.py
+os.remove("resources.offcut")
+os.remove("vesseldict")
