@@ -1,68 +1,10 @@
 """
-A shim that compresses and decompresses data created for the purpose of the
-SIGCOMM '11 paper. 
-
-The UDP portion is fully functional and has been extensively tested.
-
-The semantics are not preserved for the TCP portion of this shim. The send()
-method guarantees to send all the input data as a compressed string, and this
-operation may only be invoked once. Subsequent calls of the send() method will
-potentially invalidate the CRC of the compression. I am not using a stream
-compressor here, because it involves complex book-keepings of the lengths of
-various buffers. For the same reason, the recv() method receives and
-decompresses all the data into an internal queue when it is invoked for the
-first time. Subsequent calls of this operation will return data from this queue.
-
-For instance, the following piece of program will work with this shim:
-
-  include ShimStackInterface.mix
-
-  shim_str = '(CompressionShim)'
-
-  server = ShimStackInterface(stack_str=shim_str)
-  client = ShimStackInterface(stack_str=shim_str)
-
-  ip = getmyip()
-  port = 41264
-
-
-  def main():
-
-      handle = server.waitforconn(ip, port, new_msg)
-
-      data = "some data to send"
-      sock = client.openconn(ip, port)
-      while data:
-          # The following method actually sends all the data, so socket.send() 
-          # won't be called again.
-          sent = sock.send(data)
-          s = s[sent:]
-
-      sock.close()
-
-
-
-  def new_msg(remoteip, remoteport, sock, thiscommhandle, listencommhandle):
-
-      msg = ''
-
-      while True:
-          buf = sock.recv(128)
-          msg += buf
-          if len(s) < 128:
-              sock.close()
-              break
-
-      print msg
-
-As future work, we should fix the problems above to turn this into a real shim.
+Compression and decompression shim for both TCP and UDP.
 
 Written by: Danny Y. Huang (yh1@williams.edu)
 
-
 """
 import zlib
-
 
 
 class CompressionShim(BaseShim):
@@ -72,9 +14,9 @@ class CompressionShim(BaseShim):
     BaseShim.__init__(self, next_shim, optional_args)
     self._logger = ShimLogger('CompressionShim')
 
-    # A dictionary that maps a socket to its receive queue, a string which
+    # A dictionary that maps a socket to its receive buffer, a string which
     # temporarily holds received TCP stream that has been decompressed.
-    self._recv_dict = {}
+    self._recv_buffer_dict = {}
 
     # Lock to guard the receive stream queue
     self._recv_lock = getlock()
@@ -87,79 +29,105 @@ class CompressionShim(BaseShim):
   # ..................................................
 
 
-  def _shim_socket_send(self, socket, longmsg):
+  def _shim_socket_send(self, socket, long_chunk):
     """
-    Compresses stream and sends the entire message, guaranteed. Returns the
-    length of the original message. For the purpose of the SIGCOMM paper, this
-    method cannot be invoked more than once, or else the CRC of the compression
-    will be invalidated.
+    Compresses the original chunk and sends it in its entirety, guaranteed. The
+    compressed chunk is prepended with with its length and a comma.
 
     """
     # Compress the entire message
-    shortmsg = zlib.compress(longmsg)
+    short_chunk = zlib.compress(long_chunk)
 
-    # Send the entire short message
-    while shortmsg:
-      sent_length = self.shim_stack.socket_send(socket, shortmsg)
-      shortmsg = shortmsg[sent_length : ]
+    # Prepend a header to the short chunk
+    short_chunk = str(len(short_chunk)) + ',' + short_chunk
 
-    return len(longmsg)
+    # Send the entire short chunk
+    while short_chunk:
+      sent_length = self.shim_stack.socket_send(socket, short_chunk)
+      short_chunk = short_chunk[sent_length : ]
+
+    return len(long_chunk)
                                        
 
+
+  def _get_next_chunk(self, socket):
+    """
+    Helper method for _shim_socket_recv. Receives as much as possible until
+    encountering the first comma. The value before the comma is the length we
+    should read next. We then read the subsequent trunk of the given
+    length. Finally, we decompress the trunk and returrn it as a string.
+
+    """
+    trunk = ''
+    trunk_header = ''
+    char = ''
+
+    # Read one character at a time until comma.
+    while char != ',':
+      trunk_header += char
+      char = self.shim_stack.socket_recv(socket, 1)
+
+    # Parse the header and obtain the length of the trunk.
+    remaining_length = int(trunk_header)
+
+    # Read up to trunk_length, up to 1024 bytes at a time
+    while remaining_length > 0:
+
+      if remaining_length >= 1024:
+        to_read = 1024
+      else:
+        to_read = remaining_length
+
+      data = self.shim_stack.socket_recv(socket, to_read)
+      remaining_length -= len(data)
+      trunk += data
+
+    # Decompress trunk and return it
+    return zlib.decompress(trunk)
 
 
 
   def _shim_socket_recv(self, socket, bytes): 
     """ 
-    Receives and decompresses stream as much as possible. Since the decompressed
-    stream is long than the number of bytes requested, we temporarily hold it
-    into a queue and return only the requested length.
+    Reads the next trunk and sticks it into the receive buffer until the receive
+    buffer is at least 'bytes' long, or the socket is closed. If the receive
+    buffer is still empty, we know that nothing has been read and we raise an
+    Exception that the socket has been closed.
 
     """
-   
     try:
-
-      # To maintain the consistency of the receive queue, we do not allow much
-      # concurrency here. 
       self._recv_lock.acquire()
 
-      # Create an entry in the dictionary that maps this socket to the receive
-      # queue and decompressor.
-      if not str(socket) in self._recv_dict:
-        self._recv_dict[str(socket)] = ''
+      # Initialize the receive buffer if not already done so.
+      if str(socket) not in self._recv_buffer_dict:
+        self._recv_buffer_dict[str(socket)] = ''
+      recv_buf = self._recv_buffer_dict[str(socket)]
 
-      recv_queue = self._recv_dict[str(socket)]
-
-      # Read as much as possible from network only if we have an empty receive queue
-      if len(recv_queue) == 0:
-
-        shortmsg = ''
-        while True:
-          buf = self.shim_stack.socket_recv(socket, 128)
-          shortmsg += buf
-          if len(buf) < 128:
+      # Keep reading the next trunk into the receive buffer, until the receive
+      # buffer has at least the requested number of bytes, or until we get a
+      # socket-closed exception.
+      while len(recv_buf) < bytes:
+        try:
+          recv_buf += self._get_next_chunk(socket)
+        except Exception, err:
+          if 'Socket closed' in str(err):
             break
+          else:
+            raise Exception(err)
 
-        longmsg = zlib.decompress(shortmsg)
+      # If the receive buffer is still empty, we haven't read anything from the
+      # network. Apparently, the application has read more than it should. We
+      # raise an exception.
+      if len(recv_buf) == 0:
+        raise Exception("Socket closed")
 
-      # Otherwise, nothing to read from network.
-      else:
-        longmsg = ''
-
-      # Stick the decompressed content into the queue, regardless of its length.
-      recv_queue += longmsg
-
-      # Remove the extracted portion from the queue
-      self._recv_dict[str(socket)] = recv_queue[bytes : ]
-
-      # Return only the requested length from the queue.
-      return recv_queue[0 : bytes]
+      # Return up to bytes from the receive buffer
+      ret_msg = recv_buf[0:bytes]
+      self._recv_buffer_dict[str(socket)] = recv_buf[bytes:]
+      return ret_msg
 
     finally:
       self._recv_lock.release()
-
-
-
 
 
 
