@@ -6,6 +6,8 @@ Written by: Danny Y. Huang (yh1@williams.edu)
 """
 import zlib
 
+# How many bytes should we receive every time we call socket.recv
+RECV_BUFFER_SIZE = 1024
 
 class CompressionShim(BaseShim):
 
@@ -21,7 +23,10 @@ class CompressionShim(BaseShim):
     # Lock to guard the receive stream queue
     self._recv_lock = getlock()
     
-
+    # The extra byte read when we called _get_next_chunk() the previous
+    # time. See the _get_next_chunk() method for why we need to read one extra
+    # byte.
+    self._recv_previous_extra_byte_dict = {}
 
 
   # ..................................................
@@ -54,36 +59,67 @@ class CompressionShim(BaseShim):
     """
     Helper method for _shim_socket_recv. Receives as much as possible until
     encountering the first comma. The value before the comma is the length we
-    should read next. We then read the subsequent trunk of the given
-    length. Finally, we decompress the trunk and returrn it as a string.
+    should read next. We then read the subsequent chunk of the given
+    length. Finally, we decompress the chunk and returrn it as a string.
+
+    This method returns a tuple (chunk, next_chunk_available), where chunk is a
+    decompressed string, and next_chunk_available indicates if there is another
+    chunk that follows the current one.
 
     """
-    trunk = ''
-    trunk_header = ''
-    char = ''
+    chunk = ''
+    chunk_header = ''
+
+    # Whether the current chunk is followed by another one.
+    next_chunk_available = True
+
+    # We initialize char as the extra byte we obtained when we called this
+    # method the last time. If this is the first invocation, we set char as an
+    # empty character.
+    if str(socket) not in self._recv_previous_extra_byte_dict:
+      self._recv_previous_extra_byte_dict[str(socket)] = ''
+    char = self._recv_previous_extra_byte_dict[str(socket)]
 
     # Read one character at a time until comma.
     while char != ',':
-      trunk_header += char
+      chunk_header += char
       char = self.shim_stack.socket_recv(socket, 1)
 
-    # Parse the header and obtain the length of the trunk.
-    remaining_length = int(trunk_header)
+    # Parse the header and obtain the length of the chunk.
+    remaining_length = int(chunk_header)
 
-    # Read up to trunk_length, up to 1024 bytes at a time
+    # Read up to chunk_length, up to RECV_BUFFER_SIZE bytes at a time
     while remaining_length > 0:
 
-      if remaining_length >= 1024:
-        to_read = 1024
+      if remaining_length >= RECV_BUFFER_SIZE:
+
+        # We are reading exactly the RECV_BUFFER_SIZE
+        data = self.shim_stack.socket_recv(socket, RECV_BUFFER_SIZE)
+
       else:
-        to_read = remaining_length
 
-      data = self.shim_stack.socket_recv(socket, to_read)
+        # We read one more byte past the end of the chunk
+        data = self.shim_stack.socket_recv(socket, remaining_length + 1)
+
+        # If we can successfully read this extra byte, there is still something
+        # to receive. We will store this extra byte into the dictionary.
+        if len(data) == remaining_length + 1:
+          self._recv_previous_extra_byte_dict[str(socket)] = data[len(data) - 1]
+          data = data[0 : len(data) - 1]
+
+        # Otherwise, there aren't any chunks that follow the current one.
+        else:
+          next_chunk_available = False
+          
+      # end-if remaining_length
+
       remaining_length -= len(data)
-      trunk += data
+      chunk += data
 
-    # Decompress trunk and return it
-    return zlib.decompress(trunk)
+    # end-while
+
+    # Decompress chunk and return it
+    return (zlib.decompress(chunk), next_chunk_available)
 
 
 
@@ -103,12 +139,17 @@ class CompressionShim(BaseShim):
         self._recv_buffer_dict[str(socket)] = ''
       recv_buf = self._recv_buffer_dict[str(socket)]
 
+      # Whether there are more chunks to read
+      next_chunk_available = True
+
       # Keep reading the next trunk into the receive buffer, until the receive
       # buffer has at least the requested number of bytes, or until we get a
-      # socket-closed exception.
-      while len(recv_buf) < bytes:
+      # socket-closed exception, or there are no more chunks to read.
+      while len(recv_buf) < bytes and next_chunk_available:
         try:
-          recv_buf += self._get_next_chunk(socket)
+          (data, next_chunk_available) = self._get_next_chunk(socket)
+          recv_buf += data
+        
         except Exception, err:
           if 'Socket closed' in str(err):
             break
