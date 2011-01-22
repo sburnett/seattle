@@ -203,7 +203,13 @@ class CompressionShim(BaseShim):
 
     # Inline closure to avoid race conditions
     def recvmess_callback(rip,rport,longmsg,handle):
-      shortmsg = zlib.decompress(longmsg)
+      try:
+        shortmsg = zlib.decompress(longmsg)
+
+      except zlib.error, err:
+        # Unable to decompress. Bad packet. We drop it.
+        return
+
       callback(rip, rport, shortmsg, handle)
 
     return self.shim_stack.recvmess(host, port, recvmess_callback)

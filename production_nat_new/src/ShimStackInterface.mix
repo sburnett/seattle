@@ -27,7 +27,11 @@ include RSABranchingShim.repy
 include ReverseShim.repy
 include NoopShim.repy
 include FECShim.repy
-include LZWShim.repy
+include CompressionShim.repy
+include MultipathShim.mix
+include RecvQueueShim.repy
+include LoggerShim.repy
+include ChunkingShim.repy
 include CacheDNSEntry.repy
 
 
@@ -45,9 +49,12 @@ register_shim('RSABranchingShim', RSABranchingShim)
 register_shim('ReverseShim', ReverseShim)
 register_shim('NoopShim', NoopShim)
 register_shim('FECShim', FECShim)
-register_shim('LZWShim', LZWShim)
+register_shim('CompressionShim', CompressionShim)
+register_shim('MultipathShim', MultipathShim)
+register_shim('RecvQueueShim', RecvQueueShim)
+register_shim('LoggerShim', LoggerShim)
+register_shim('ChunkingShim', ChunkingShim)
 register_shim('CacheDNSEntry', CacheDNSEntry)
-
 
 
 # =============================================================================
@@ -218,7 +225,13 @@ class ShimStackInterface:
 
   def recvmess(self, host, port, callback):
     shimstack = ShimStack(self._stack_str, self.getmyip())
-    handle = shimstack.recvmess(host, port, callback)
+
+    try:
+      handle = shimstack.recvmess(host, port, callback)
+    except Exception, err:
+      self._logger.log('recvmess: on %s:%s uncaught exception: %s' % (host, port, err))
+      raise Exception(err)
+
     self._handle_dict[str(handle)] = shimstack
 
     mycontext['shim_stack_interface_active_listeners'] += 1
