@@ -29,10 +29,10 @@ include NoopShim.repy
 include FECShim.repy
 include CompressionShim.repy
 include MultipathShim.mix
-include RecvQueueShim.repy
 include LoggerShim.repy
 include ChunkingShim.repy
 include CacheDNSEntry.repy
+include DeciderShim.repy
 
 
 # Register all shims in the world
@@ -51,10 +51,10 @@ register_shim('NoopShim', NoopShim)
 register_shim('FECShim', FECShim)
 register_shim('CompressionShim', CompressionShim)
 register_shim('MultipathShim', MultipathShim)
-register_shim('RecvQueueShim', RecvQueueShim)
 register_shim('LoggerShim', LoggerShim)
 register_shim('ChunkingShim', ChunkingShim)
 register_shim('CacheDNSEntry', CacheDNSEntry)
+register_shim('DeciderShim', DeciderShim)
 
 
 # =============================================================================
@@ -93,14 +93,23 @@ def getRandomIP():
 
 class ShimStackInterface:
 
-  def __init__(self, stack_str, localhost):
+  def __init__(self, stack_str="", localhost=""):
     self._stack_str = stack_str
-    self._localhost = localhost
+
+    # For backward compatibility of the interface, I'm making localhost optional
+    # here. - Danny
+    if localhost:
+      self._localhost = localhost
+    else:
+      self._localhost = getmyip()
     
     # Need to register local ip to DNSCache. This will most likely
     # be used by CacheDNSEntry
     mycontext[localhost] = getmyip()
 
+    # If no shims are supplied, we need to plug in the NoopShim.
+    if stack_str == "":
+      stack_str = "(NoopShim)"
 
     # Maps handle to stack. Although handle does not have a hash function
     # defined, it is in fact hashed by its memory address. Thus, the keys in our
