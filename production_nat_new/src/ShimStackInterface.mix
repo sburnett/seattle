@@ -20,7 +20,6 @@ include CoordinationShim.repy
 include NatForwardingShim.repy
 include NatDeciderShim.repy
 include SimpleEncryptionShim.repy
-include LogShim.repy
 include RSAShim.repy
 include NatBranchingShim.repy
 include RSABranchingShim.repy
@@ -29,8 +28,6 @@ include NoopShim.repy
 include FECShim.repy
 include CompressionShim.repy
 include MultipathShim.mix
-include LoggerShim.repy
-include ChunkingShim.repy
 include CacheDNSEntry.repy
 include DeciderShim.repy
 
@@ -42,7 +39,6 @@ register_shim('CoordinationShim', CoordinationShim)
 register_shim('NatForwardingShim', NatForwardingShim)
 register_shim('NatDeciderShim', NatDeciderShim)
 register_shim('SimpleEncryptionShim', SimpleEncryptionShim)
-register_shim('LogShim', LogShim)
 register_shim('RSAShim', RSAShim)
 register_shim('NatBranchingShim', NatBranchingShim)
 register_shim('RSABranchingShim', RSABranchingShim)
@@ -51,8 +47,6 @@ register_shim('NoopShim', NoopShim)
 register_shim('FECShim', FECShim)
 register_shim('CompressionShim', CompressionShim)
 register_shim('MultipathShim', MultipathShim)
-register_shim('LoggerShim', LoggerShim)
-register_shim('ChunkingShim', ChunkingShim)
 register_shim('CacheDNSEntry', CacheDNSEntry)
 register_shim('DeciderShim', DeciderShim)
 
