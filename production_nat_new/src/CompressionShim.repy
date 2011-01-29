@@ -164,7 +164,7 @@ class CompressionShim(BaseShim):
 
       # Return up to bytes from the receive buffer
       ret_msg = recv_buf[0:bytes]
-      self._recv_buffer_dict[str(socket)] = recv_buf[bytes:]
+      self._recv_buffer_dict[str(socket)] = recv_buf[len(ret_msg):]
       return ret_msg
 
     finally:
