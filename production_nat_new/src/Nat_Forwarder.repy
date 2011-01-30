@@ -49,7 +49,7 @@ CLT_SERVER_DICT = {} #maps clts to servers they want to connect to
 NEW_SERVER_LOCK = getlock()
 
 
-
+NAT_RECV_BUFFER_SIZE = 1<<15
 
 
 
@@ -403,17 +403,14 @@ def exchange_streams(from_sock,to_sock,do_print):
   # until an exception occurs
   while True:
     try:
-      msg = from_sock.recv(1024)
-      print "zzzz: exchanging message '%s'" % msg
-      sent = to_sock.send(msg)
-      if sent != len(msg):
-        # this is a subtle error that can occur and will violate
-        # semantics if not detected. 
+      msg = from_sock.recv(NAT_RECV_BUFFER_SIZE)
+      print "zzzz: exchanging message of %s bytes: %s..." % (len(msg), msg[0:20])
 
-        # TODO actually address the error and do the right thing
-        # for now i just detect the error and close the connection 
-        # which does perserve semantics
-        raise Exception("ERROR IN EXCHANGE:recv: "+str(len(msg))+"bytes and sent"+str(sent))
+      # Send the entire message.
+      while msg:
+        sent = to_sock.send(msg)
+        msg = msg[sent : ]
+
     except Exception,e:
       if do_print: print 'INFO: terminated a connection because, '+str(e)
       from_sock.close()
