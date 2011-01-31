@@ -1,0 +1,341 @@
+"""
+UDP Decider Shim.
+
+Written by: Danny Y. Huang (yh1@cs.williams.edu)
+
+"""
+import random
+
+# List of shim stacks on which to listen concurrently
+UDP_SHIM_STACK_LIST = ['(NoopShim)', '(CompressionShim)', '(FECShim)', '(MultipathShim)',
+                       '(CompressionShim)(FECShim)', '(FECShim)(CompressionShim)',
+                       '(CompressionShim)(FECShim)(MultipathShim)', 
+                       '(FECShim)(CompressionShim)(MultipathShim)']
+
+# Maps shim stack string to the tracker.
+TRACKER_DICT = {}
+
+# How many messages we should receive before sending an ACK back to the sender.
+MESSAGE_PER_ACK = 5
+
+# The port on which the tracker listens for incoming ACKs
+TRACKER_BASE_PORT = 65500
+
+MY_IP = getmyip()
+
+# Cache for resolving hostnames into IPs.
+DNS_RESOLUTION_DICT = {}
+
+SELECT_SHIM_STACK_THRESHOLD = 100
+SELECT_SHIM_STACK_COUNT = [0]
+
+
+
+
+def select_shim_stack(delivery_rate_list):
+  """
+  Based on a list of delivery rates, probabilistically picks the best shim stack
+  with the highest delivery rate. Returns the index of that shim stack.
+
+  """
+  sum_rate = sum(delivery_rate_list)
+  length_rate = len(delivery_rate_list)
+  SELECT_SHIM_STACK_COUNT[0] += 1
+
+  if length_rate == 1:
+    return delivery_rate_list[0]
+
+  if sum_rate == 0 or SELECT_SHIM_STACK_COUNT[0] <= SELECT_SHIM_STACK_THRESHOLD:
+    return random.randint(0, length_rate - 1)
+
+  # Highest delivery rate wins
+  max_rate = max(delivery_rate_list)
+
+  return delivery_rate_list.index(max_rate)
+
+
+
+
+class SendTracker:
+  """
+  Tracks the number of sent messages and ACKs for a given shim stack.
+
+  """
+
+  def __init__(self, shim_stack_str, port):
+
+    # Dictionaries that map the destination host to how many messages we have sent and received
+    self._sent_dict = {}
+    self._recv_dict = {}
+
+    # Prevents race condition
+    self._lock = getlock()
+
+    # Start listening for ACKs
+    self._shim_stack_str = shim_stack_str
+    self._shim_stack = ShimStackInterface(stack_str=shim_stack_str)
+    self._handle = self._shim_stack.recvmess(MY_IP, port, self._incoming_ack)
+
+    # Starts the monitor thread that kills this instance upon seeing
+    # 'ALL_SHIMS_STOP' in mycontext. This is set when the last instance of
+    # ShimStackInterface is destroyed.
+    settimer(0, self._monitor, [])
+
+
+  def _incoming_ack(self, dest_ip, dest_port, message, handle):
+    """
+    Counts how many ACKs received from a particular destination.
+
+    """
+    if message != 'ACK': 
+      return
+
+    self._lock.acquire()
+    if dest_ip not in self._recv_dict.keys():
+      self._recv_dict[dest_ip] = 0
+    self._recv_dict[dest_ip] += MESSAGE_PER_ACK
+    self._lock.release()
+
+
+  def increment_sent_counter(self, dest_ip):
+    """
+    Increments the number of messages sent for a given destination.
+
+    """
+    self._lock.acquire()
+    if dest_ip not in self._sent_dict.keys():
+      self._sent_dict[dest_ip] = 0
+    self._sent_dict[dest_ip] += 1
+    self._lock.release()
+
+
+  def get_delivery_rate(self, dest_ip):
+    """
+    Returns the ratio of ACKs received and the packets sent for a given
+    destination IP.
+
+    """
+    try:
+      self._lock.acquire()
+      rate = float(self._recv_dict[dest_ip]) / self._sent_dict[dest_ip]
+      assert rate <= 1.0
+      return rate
+
+    except (ZeroDivisionError, KeyError):
+      return 0.0
+
+    except AssertionError:
+      print "recv_dict = %s; sent_dict = %s" % (self._recv_dict, self._sent_dict)
+      raise
+
+    finally:
+      self._lock.release()
+
+
+  def stop(self):
+    """
+    Stops the tracker's recvmess listening thread.
+
+    """
+    ret = self._shim_stack.stopcomm(self._handle)
+
+
+  def _monitor(self):
+    """
+    Thread that kills this instance upon seeing 'ALL_SHIMS_STOP' in
+    mycontext. This is set when the last instance of ShimStackInterface is
+    destroyed.
+
+    """
+    while 'ALL_SHIMS_STOP' not in mycontext:
+      sleep(1)
+    self.stop()
+
+
+
+
+UDP_SEND_DICT = {}
+UDP_SEND_DICT_LOCK = getlock()
+
+class UDPDeciderShim(BaseShim):
+
+
+  def sendmess(self, dest_host, dest_port, msg, local_host=None, local_port=None):
+    """
+    Determines which shim stack to use based on the loss rate. Starts the tracker
+    that counts the number of ACKs per destination.
+
+    """
+    # Resolve dest hostname into IPs for purpose of standardization.
+    try:
+      dest_ip = DNS_RESOLUTION_DICT[dest_host]
+    except KeyError:
+      dest_ip = gethostbyname_ex(dest_host)[2][0]
+      DNS_RESOLUTION_DICT[dest_host] = dest_ip
+
+    delivery_rate_list = []
+
+    for list_index in range(len(UDP_SHIM_STACK_LIST)):
+
+      shim_stack_str = UDP_SHIM_STACK_LIST[list_index]
+
+      # Initialize the tracker dictionary if we have not done so. A tracker
+      # listens on a port equal to the sum of the TRACKER_BASE_PORT and the
+      # index of the current shim stack in the UDP_SHIM_STACK_LIST.
+      if shim_stack_str not in TRACKER_DICT.keys():
+        tracker_port = TRACKER_BASE_PORT + list_index
+        TRACKER_DICT[shim_stack_str] = SendTracker(shim_stack_str, tracker_port)
+
+      # Put all the delivery rates into a list, from which we will calculate the
+      # best shim stack to use
+      delivery_rate_list.append(TRACKER_DICT[shim_stack_str].get_delivery_rate(dest_ip))
+
+    # Probabilistically select the best shim stack
+    best_shim_stack_index = select_shim_stack(delivery_rate_list)
+
+    # Construct the best shim stack and send the message
+    best_shim_stack_str = UDP_SHIM_STACK_LIST[best_shim_stack_index]
+    best_shim_stack = ShimStackInterface(stack_str=best_shim_stack_str)
+
+    send_port = dest_port + best_shim_stack_index
+    sent_bytes = best_shim_stack.sendmess(dest_ip, send_port, msg, local_host, local_port)
+
+    TRACKER_DICT[best_shim_stack_str].increment_sent_counter(dest_ip)
+
+    # TODO debug
+    UDP_SEND_DICT_LOCK.acquire()
+    if dest_host not in UDP_SEND_DICT:
+      UDP_SEND_DICT[dest_host] = {}
+    dest_dict = UDP_SEND_DICT[dest_host]
+    if best_shim_stack_str not in dest_dict:
+      dest_dict[best_shim_stack_str] = 0
+    dest_dict[best_shim_stack_str] += 1
+    f = open('decider.log', 'a')
+    info = '[%s] UDPDecides on %s in %s.\n' % (dest_host,
+                                               UDP_SHIM_STACK_LIST[best_shim_stack_index], 
+                                               ['%.2f' % r for r in delivery_rate_list])
+    f.write(info)
+    f.close()
+    UDP_SEND_DICT_LOCK.release()
+
+
+    return sent_bytes
+      
+
+
+
+
+
+
+  def recvmess(self, host, port, application_callback):
+    """
+    Creates concurrent shim stacks and their separate connection handlers. Each
+    of these handlers keeps track of how many messages are received, sends ACKs
+    and invokes the application callback.
+
+    """
+    shim_stack_list = []
+    handle_list = []
+
+    # Starts listening on every shim stack
+    for shim_stack_index in range(len(UDP_SHIM_STACK_LIST)):
+
+      shim_stack_str = UDP_SHIM_STACK_LIST[shim_stack_index]
+
+      # Port on which recvmess listens
+      listen_port = port + shim_stack_index
+
+      # Port on which the sender's tracker listens
+      tracker_port = TRACKER_BASE_PORT + shim_stack_index
+
+      shim_stack = ShimStackInterface(stack_str=shim_stack_str)
+
+      connection_handler = ConnectionHandler(shim_stack, tracker_port, application_callback)
+      handle = shim_stack.recvmess(host, listen_port, connection_handler.new_connection)
+
+      shim_stack_list.append(shim_stack)
+      handle_list.append(handle)
+
+    # Construct the recvmess handle that includes the lists of shim stacks and
+    # handles to be used by stopcomm.
+    return ('decider-shim-recvmess-handle', shim_stack_list, handle_list)
+
+
+
+
+  def stopcomm(self, decider_handle):
+    """
+    Calls stopcomm on all shim stacks.
+
+    """
+    result = True
+
+    if len(decider_handle) == 3 and decider_handle[0] == 'decider-shim-recvmess-handle':
+      for (shim_stack, handle) in zip(decider_handle[1], decider_handle[2]):
+        ret = shim_stack.stopcomm(handle)
+        result = result and ret
+
+    else:
+      raise Exception('UDPDeciderShim: Bad handle passed into stopcomm.')      
+
+    return result
+
+
+  def __init__(self, next_shim=None, optional_args=None):
+    BaseShim.__init__(self, next_shim, optional_args)
+    self._logger = ShimLogger('UDPDeciderShim')
+
+
+
+
+
+
+class ConnectionHandler:
+  """
+  Handles incoming connection for a particular shim stack. Keeps track of the
+  number of messages received, sends back ACKs and returns the message to the
+  application.
+
+  """
+
+  def __init__(self, shim_stack, tracker_port, application_callback):
+
+    # Shim stack used to send ACKs.
+    self._shim_stack = shim_stack
+
+    # The port at which the sender's tracker listens for ACKs
+    self._sender_tracker_port = tracker_port
+
+    # How we return the message to the application
+    self._application_callback = application_callback
+
+    # How many messages received so far, modulo MESSAGE_PER_ACK, per destination
+    # IP.
+    self._message_count_dict = {}
+
+    # A lock that guards the message count
+    self._message_count_lock = getlock()
+
+
+
+  def new_connection(self, rip, rport, message, handle):
+    """
+    Returns the message back to the application. If this is the
+    MESSAGE_PER_ACK'th message, then we send an ACK back to the sender.
+
+    """
+    # Determine if we need to ACK
+    self._message_count_lock.acquire()
+    if rip not in self._message_count_dict:
+      self._message_count_dict[rip] = 0
+    msg_count = self._message_count_dict[rip]
+    msg_count += 1
+    msg_count = msg_count % MESSAGE_PER_ACK
+    self._message_count_dict[rip] = msg_count
+    self._message_count_lock.release()
+
+    # Send ACK if we have received MESSAGE_PER_ACKS messages for this IP
+    if msg_count == 0:
+      self._shim_stack.sendmess(rip, self._sender_tracker_port, 'ACK')
+
+    self._application_callback(rip, rport, message, handle)
