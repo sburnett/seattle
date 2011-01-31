@@ -13,7 +13,8 @@ include advertise.repy
 # The maximum number of hops (forwarders) that any message can go through.
 MAX_HOP = 5
 
-
+MULTIPATH_FORWARDER_LIST = [('128.119.245.136', 37201), 
+                            ('128.208.3.91',    37201)]
 
 class MultipathShim(BaseShim):
 
@@ -27,12 +28,6 @@ class MultipathShim(BaseShim):
     # Used to protect the recv_set
     self._set_lock = getlock()
 
-    # Discover forwarders if not already done so
-    if 'multipath_forwarder_list' not in mycontext:
-      mycontext['multipath_forwarder_list'] = []
-      for forwarder in advertise_lookup('multipath_forwarders'):
-        host, port = forwarder.split(':')
-        mycontext['multipath_forwarder_list'].append([host, int(port)])
 
 
   
@@ -69,7 +64,7 @@ class MultipathShim(BaseShim):
     # separate thread, but I realized that threading actually degraded
     # performance, especially when the client starts to flood with
     # sendmess's. Furthermore, sendmess is a fast operation.
-    for (fwd_host, fwd_port) in mycontext['multipath_forwarder_list']:
+    for (fwd_host, fwd_port) in MULTIPATH_FORWARDER_LIST:
       try:
         sendmess(fwd_host, fwd_port, msg, src_host, src_port)
       except Exception, err:
