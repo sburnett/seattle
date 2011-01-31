@@ -7,7 +7,7 @@ Written by: Danny Y. Huang (yh1@williams.edu)
 """
 import threading
 import traceback
-include random.repy
+#include random.repy
 
 
 # We are going to listen on these shim stacks in parallel. We can even have
@@ -17,14 +17,17 @@ SHIM_STACK_LIST = ['(NatForwardingShim,137.165.10.101,54321)', '(NatForwardingSh
                    '(CompressionShim)(NatForwardingShim,137.165.10.101,54321)', 
                    '(CompressionShim)', '(NoopShim)']
 
+#SHIM_STACK_LIST = ['(NoopShim)', '(NatForwardingShim,137.165.10.101,54321)'] 
+
 MY_IP = getmyip()
 
 # The send stream is divided into discrete chunks of the following size. Each of
 # the parallel sockets grabs one chunk and sends it.
 SEND_CHUNK_SIZE = 1<<15
 
-
-
+# Debug only. TODO.
+TCP_SEND_DICT = {}
+TCP_SEND_LOCK = getlock()
 
 class DeciderShim(BaseShim):
 
@@ -47,61 +50,40 @@ class DeciderShim(BaseShim):
     one.
 
     """
-    # A dictionary that maps connection ID to socket list
+    # A dictionary that maps connection ID to ConcurrentSockets
     connection_dict = {}
 
     # Prevents concurrent modifications of the connection dictionary.
     callback_lock = getlock()
 
-    def stack_callback(rip, rport, sock, th, lh):
-      """
-      Callback to each of the individual concurrent shim stacks. We won't call
-      the application's callback until we have heard back from all of the
-      stacks. In the stack callback, we first obtain the connection ID. The
-      number of instances per connection ID should be equal to the number of
-      concurrent shim stacks. In that way, we know that we have heard from all
-      the shim stacks from a particular client. Finally, we encapsulate all
-      these sockets into the ConcurrentSockets object and return it back to the
-      application.
+    # Closure ----------------------------------------------------------------
+    def decider_callback(rip, rport, sock, th, lh):
 
-      """
       # Obtain the connection ID
       connection_id = sock.recv(4)
 
-      callback_lock.acquire()
-
       # Create a new entry in the connection dictionary if we have never seen
       # this connection ID before.
-      if connection_id not in connection_dict.keys():
-        connection_dict[connection_id] = []
+      callback_lock.acquire()
+      new_connection = connection_id not in connection_dict.keys()
+      if new_connection:
+        connection_dict[connection_id] = ConcurrentSockets(connection_id, self)
+      callback_lock.release()
 
-      # We add this socket to the socket list
-      socket_list = connection_dict[connection_id]
-      socket_list.append(sock)
+      # We add this socket to the ConcurrentSockets
+      concurrent_sockets = connection_dict[connection_id]
+      concurrent_sockets.socket_list_lock.acquire()
+      concurrent_sockets.socket_list.append(sock)
+      concurrent_sockets.socket_list_lock.release()
 
-      # If the number of sockets in the list is equal to the number of
-      # concurrent shim stacks, all shim stacks are connected and we can return
-      # the ConcurrentSockets object to the application. 
-      if len(socket_list) == len(SHIM_STACK_LIST):
-        callback_lock.release()
+      settimer(0, self._recv_thread, [sock, concurrent_sockets])
+      settimer(0, self._send_thread, [sock, concurrent_sockets])
 
-        # Wrap all the concurrent sockets together
-        concurrent_sockets = ConcurrentSockets(connection_id, socket_list, self)
-
-        # Start the recv thread
-        for socket in socket_list:
-          settimer(0, self._recv_thread, [socket, concurrent_sockets])
-
-        # Return control back to application
-        print 'SHIM returning to application', concurrent_sockets
-        application_callback(rip, rport, concurrent_sockets, th, lh)
-
-      # Not all the sockets for this connection have been established. We don't
-      # do anything then.
-      else:
-        callback_lock.release()
+      # Return control back to application only if this is a new connection
+      if new_connection:
+        application_callback(rip, port, concurrent_sockets, th, lh)
       
-      # end def stack_callback
+    # End closure ------------------------------------------------------------
 
     # List of waitforconn handles and list of shim stacks. Used to create the
     # DeciderShim waitforconn handle.
@@ -112,10 +94,10 @@ class DeciderShim(BaseShim):
     # handles and stacks are written to the list at the same time.
     list_lock = getlock()
 
-    def parallel_waitforconn(shim_stack_str, port):
+    def parallel_waitforconn(shim_stack_str,this_port):
 
       shim_stack = ShimStackInterface(stack_str=shim_stack_str)
-      handle = shim_stack.waitforconn(host, port, stack_callback)
+      handle = shim_stack.waitforconn(host, this_port, decider_callback)
       
       list_lock.acquire()
       handle_list.append(handle)
@@ -148,7 +130,7 @@ class DeciderShim(BaseShim):
     """
     Opens connections on all the parallel shim stacks. Adds these sockets to the
     list of concurrent sockets. Sends a connection ID that identifies this
-    particular client. Starts the send thread for each socket. Returns the
+    particular client. Starts the recv thread for each socket. Returns the
     ConcurrentSockets object.
     
     """
@@ -156,41 +138,30 @@ class DeciderShim(BaseShim):
     # connection.
     connection_id = random_randombytes(4)
 
-    # List of concurrent sockets
-    socket_list = []
-
-    # Lock to protect the socket_list
-    list_lock = getlock()
+    concurrent_sockets = ConcurrentSockets(connection_id, self)
 
     # Do openconn asynchronously to reduce overhead
-    def parallel_openconn(shim_stack_str, port):
+    def parallel_openconn(shim_stack_str, this_port):
 
       shim_stack = ShimStackInterface(stack_str=shim_stack_str)
-      socket = shim_stack.openconn(host, port, localhost, localport, timeout)
+      socket = shim_stack.openconn(host, this_port, localhost, localport, timeout)
       socket.send(connection_id)
+      
+      concurrent_sockets.socket_list_lock.acquire()
+      concurrent_sockets.socket_list.append(socket)
+      concurrent_sockets.socket_list_lock.release()
 
-      list_lock.acquire()
-      socket_list.append(socket)
-      list_lock.release()
+      settimer(0, self._recv_thread, [socket, concurrent_sockets])
+      settimer(0, self._send_thread, [socket, concurrent_sockets])
 
     # Connect using all of the shim stacks and send the connection ID. 
-    thread_list = []
     for shim_stack_str in SHIM_STACK_LIST:
-      thread = threading.Thread(target=parallel_openconn,
-                                args=(shim_stack_str, port))
-      thread.start()
-      thread_list.append(thread)
+      settimer(0, parallel_openconn, [shim_stack_str, port])
       port += 1
 
-    # Wait for all the openconns to complete.
-    for thread in thread_list:
-      thread.join()
-
-    concurrent_sockets = ConcurrentSockets(connection_id, socket_list, self)
-
-    # Start the recv thread
-    for socket in socket_list:
-      settimer(0, self._recv_thread, [socket, concurrent_sockets])
+    # Wait till at least one socket is ready
+    while len(concurrent_sockets.socket_list) == 0:
+      sleep(0.1)
 
     # Return a wrapper for all these sockets
     return concurrent_sockets
@@ -198,20 +169,22 @@ class DeciderShim(BaseShim):
 
 
 
-  def _send_thread(self, socket, send_buffer):
+  def _send_thread(self, socket, concurrent_sockets):
     """
     Sends the entire send_buffer using socket.
 
     """
-    while True:
+    send_buffer = concurrent_sockets.send_buffer
 
+    while concurrent_sockets.active:
 
       send_buffer.lock()
 
-      # Quit if no more data to send
+      # Wait till there's something to send
       if len(send_buffer.data) == 0:
         send_buffer.unlock()
-        return
+        sleep(0.1)
+        continue
 
       # Create a new chunk.
       chunk_data = send_buffer.data[0 : SEND_CHUNK_SIZE]
@@ -228,6 +201,16 @@ class DeciderShim(BaseShim):
       # f.write('\n\nchunk_id="%s", chunk_length="%s"' % (chunk_id, len(chunk_data)))
       # f.close()
 
+      send_buffer.lock()
+      send_buffer.busy_counter += 1
+      send_buffer.unlock()
+
+      TCP_SEND_LOCK.acquire()
+      if str(socket) not in TCP_SEND_DICT:
+        TCP_SEND_DICT[str(socket)] = 0
+      TCP_SEND_DICT[str(socket)] += len(chunk_data)
+      TCP_SEND_LOCK.release()
+
       # Send the chunk in full. The send may block if the other threads are also
       # sending.
       while chunk:
@@ -235,35 +218,32 @@ class DeciderShim(BaseShim):
         # f = open('send.log', 'a'); f.write(chunk); f.close()
         chunk = chunk[sent_length : ]
 
+      send_buffer.lock()
+      send_buffer.busy_counter -= 1
+      send_buffer.unlock()
+
 
 
   def _shim_socket_send(self, concurrent_sockets, msg):
     """
-    Starts a send thread for each socket in the concurrent sockets. Each thread
-    grabs SEND_CHUNK_SIZE number of bytes from the send buffer and sends
-    it. This method guarantees that the entire message is sent.
+    This method guarantees that the entire message is sent.
 
     """
     # Type check
     assert isinstance(concurrent_sockets, ConcurrentSockets)
 
     send_buffer = concurrent_sockets.send_buffer
+    send_buffer.lock()
     send_buffer.data = msg
+    send_buffer.unlock()
 
-    # Start the send thread for each socket
-    send_thread_list = []
-    for socket in concurrent_sockets.socket_list:
-      send_thread = threading.Thread(target=self._send_thread,
-                                     args=(socket, send_buffer))
-      send_thread.start()
-      send_thread_list.append(send_thread)
+    # Block until everything is sent
+    while len(send_buffer.data) > 0 or send_buffer.busy_counter != 0:
+      sleep(0.1)
 
-    # Wait for everyone to finish before returning the length of the original
-    # message.
-    for send_thread in send_thread_list:
-      send_thread.join()
-    print 'SHIM: Sent up to chunk', send_buffer.chunk_counter
     return len(msg)
+
+
 
 
   def _recv_read_until_comma(self, socket):
@@ -320,9 +300,9 @@ class DeciderShim(BaseShim):
 
       except Exception, err:
         if 'Socket closed' in str(err):
-          concurrent_sockets.active_count_lock.acquire()
-          concurrent_sockets.active_count -= 1
-          concurrent_sockets.active_count_lock.release()
+          concurrent_sockets.socket_list_lock.acquire()
+          concurrent_sockets.socket_list.remove(socket)
+          concurrent_sockets.socket_list_lock.release()
           return
         else:
           raise Exception('DeciderShim: Bad chunk "%s".' % err)
@@ -344,19 +324,7 @@ class DeciderShim(BaseShim):
     # Block until there is data
     while True:
 
-      # print 'SHIM: BEFORE: next continuous chunk_id:', concurrent_sockets.recv_buffer._next_continuous_chunk_id,
-      # print '  chunk count:', len(concurrent_sockets.recv_buffer._chunks.keys()),
-      # print '  chunks:', ["%s-%s" % (k, len(concurrent_sockets.recv_buffer._chunks[k]))
-      #                     for k in concurrent_sockets.recv_buffer._chunks.keys()]
-
       data = concurrent_sockets.recv_buffer.extract(bytes)
-      # print 'SHIM: GOT data: %s bytes' % len(data)
-
-      # print 'SHIM: AFTER: next continuous chunk_id:', concurrent_sockets.recv_buffer._next_continuous_chunk_id,
-      # print '  chunk count:', len(concurrent_sockets.recv_buffer._chunks.keys()),
-      # print '  chunks:', ["%s-%s" % (k, len(concurrent_sockets.recv_buffer._chunks[k]))
-      #                     for k in concurrent_sockets.recv_buffer._chunks.keys()]
-
 
       if data:
         return data
@@ -364,11 +332,10 @@ class DeciderShim(BaseShim):
       else:
         sleep(0.1)
 
-        
         # Check if there are active sockets
-        concurrent_sockets.active_count_lock.acquire()
-        active_sockets = concurrent_sockets.active_count;
-        concurrent_sockets.active_count_lock.release()
+        concurrent_sockets.socket_list_lock.acquire()
+        active_sockets = len(concurrent_sockets.socket_list)
+        concurrent_sockets.socket_list_lock.release()
 
         if active_sockets == 0 and concurrent_sockets.recv_buffer.is_empty():
           raise Exception("Socket closed")
@@ -382,10 +349,9 @@ class DeciderShim(BaseShim):
 
     concurrent_sockets.active = False
     result = True
-    for socket in concurrent_sockets.socket_list:
+    for socket in concurrent_sockets.socket_list[:]:
       result = result and socket.close()
 
-    print 'SOCKET CLOSED: ', result
     return result
 
 
@@ -526,6 +492,7 @@ class SendBuffer:
   def __init__(self):
     self.data = ""
     self.chunk_counter = 0
+    self.busy_counter = 0
     self._lock = getlock()
 
   def lock(self):
@@ -551,7 +518,7 @@ class ConcurrentSockets:
   server-client pair. It is exchanged at the beginning of a new connection.
 
   """
-  def __init__(self, connection_id, socket_list, decider_shim):
+  def __init__(self, connection_id,  decider_shim):
     """ 
     Constructor that stores a reference to an instance to the caller decider
     shim.
@@ -560,18 +527,16 @@ class ConcurrentSockets:
     # A four-byte string that uniquely identifies this connection.
     self.connection_id = connection_id
 
-    # List of concurrent sockets
-    self.socket_list = socket_list
+    # List of concurrent sockets that are active
+    self.socket_list = []
+
+    self.socket_list_lock = getlock()
 
     # A reference to the decider shim so we can call its socket methods
     self._decider_shim = decider_shim
 
     # Whether we should wait in receiving data
     self.active = True
-
-    # How many sockets are active (i.e. not closed)
-    self.active_count = len(socket_list)
-    self.active_count_lock = getlock()
 
     # Buffer for sending and receiving data from sockets
     self.recv_buffer = RecvBuffer()
