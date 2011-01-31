@@ -12,17 +12,16 @@ include random.repy
 
 # We are going to listen on these shim stacks in parallel. We can even have
 # multiple forwarders here to evenly distributed the load. Here is an example:
-# SHIM_STACK_LIST = ['(NatForwardingShim,137.165.10.101,54321)', '(NatForwardingShim,128.208.4.97,54321)',
-#                    '(CompressionShim)(NatForwardingShim,128.208.4.97,54321)',
-#                    '(CompressionShim)(NatForwardingShim,137.165.10.101,54321)', '(CompressionShim)']
-
-SHIM_STACK_LIST = ['(CompressionShim)', '(NoopShim)', '(RSAShim)', '(CompressionShim)(RSAShim)', '(RSAShim)(CompressionShim)']
+SHIM_STACK_LIST = ['(NatForwardingShim,137.165.10.101,54321)', '(NatForwardingShim,128.208.4.97,54321)',
+                   '(CompressionShim)(NatForwardingShim,128.208.4.97,54321)',
+                   '(CompressionShim)(NatForwardingShim,137.165.10.101,54321)', 
+                   '(CompressionShim)', '(NoopShim)']
 
 MY_IP = getmyip()
 
 # The send stream is divided into discrete chunks of the following size. Each of
 # the parallel sockets grabs one chunk and sends it.
-SEND_CHUNK_SIZE = 2048
+SEND_CHUNK_SIZE = 1<<15
 
 
 
@@ -109,15 +108,32 @@ class DeciderShim(BaseShim):
     handle_list = []
     stack_list = []
 
-    # Start the listener on all shim stacks. TODO: Make this parallel.
-    for shim_stack_str in SHIM_STACK_LIST:
+    # Lock to guard the handle_list and stack list. Ensures corresponding
+    # handles and stacks are written to the list at the same time.
+    list_lock = getlock()
+
+    def parallel_waitforconn(shim_stack_str, port):
 
       shim_stack = ShimStackInterface(stack_str=shim_stack_str)
       handle = shim_stack.waitforconn(host, port, stack_callback)
-      port += 1
-
+      
+      list_lock.acquire()
       handle_list.append(handle)
       stack_list.append(shim_stack)
+      list_lock.release()
+    
+    # Start the listener on all shim stacks in parallel.
+    thread_list = []
+    for shim_stack_str in SHIM_STACK_LIST:
+      thread = threading.Thread(target=parallel_waitforconn,
+                                args=(shim_stack_str, port))
+      thread.start()
+      thread_list.append(thread)
+      port += 1
+
+    # Wait for all the waitforconns to complete.
+    for thread in thread_list:
+      thread.join()
       
     # Return the waitforconn handle to the application. 
     return ("decider-shim-waitforconn-handle", handle_list, stack_list)
@@ -143,14 +159,32 @@ class DeciderShim(BaseShim):
     # List of concurrent sockets
     socket_list = []
 
-    # Connect using all of the shim stacks and send the connection ID. TODO:
-    # Make this parallel.
-    for shim_stack_str in SHIM_STACK_LIST:
+    # Lock to protect the socket_list
+    list_lock = getlock()
+
+    # Do openconn asynchronously to reduce overhead
+    def parallel_openconn(shim_stack_str, port):
+
       shim_stack = ShimStackInterface(stack_str=shim_stack_str)
       socket = shim_stack.openconn(host, port, localhost, localport, timeout)
       socket.send(connection_id)
+
+      list_lock.acquire()
       socket_list.append(socket)
+      list_lock.release()
+
+    # Connect using all of the shim stacks and send the connection ID. 
+    thread_list = []
+    for shim_stack_str in SHIM_STACK_LIST:
+      thread = threading.Thread(target=parallel_openconn,
+                                args=(shim_stack_str, port))
+      thread.start()
+      thread_list.append(thread)
       port += 1
+
+    # Wait for all the openconns to complete.
+    for thread in thread_list:
+      thread.join()
 
     concurrent_sockets = ConcurrentSockets(connection_id, socket_list, self)
 
