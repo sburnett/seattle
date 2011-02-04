@@ -2231,7 +2231,7 @@ def start_remotefn_arg(input_dict, environment_dict):
   filename = command_key
 
   # Iterates through the dictionary to retrieve the user's argument input
-  while input_dict[command_key]['name'] is not 'filename':
+  while input_dict[command_key]['name'] is not 'args':
     input_dict = input_dict[command_key]['children']
     command_key = input_dict.keys()[0]
 
