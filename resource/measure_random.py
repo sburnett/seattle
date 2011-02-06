@@ -7,17 +7,51 @@
 
 <Author>
   Anthony Honstain
+  Modified by Steven Portzer
 
 <Purpose>
   Benchmark the time required to generate random bytes using os.urandom.
   
     
 """
+
+import nonportable
 import os
 import time
 
 class InvalidTimeMeasurementError(Exception):
   pass
+
+
+def get_time():
+  """
+  <Purpose>
+    Get a time measurement with sufficiently small granularity. 
+  
+  <Arguments>
+    None
+
+  <Exceptions>
+    None
+ 
+  <Side Effects>
+    None
+        
+  <Returns>
+    A time measurement. The difference between the return values of two
+    different calls to get_time() with be the time elapsed in seconds between
+    the calls.
+  """  
+
+  OS = nonportable.ostype
+
+  if OS == 'Linux' or OS == 'Darwin':  
+    return time.time()
+  elif OS == 'Windows' or OS == 'WindowsCE':
+    return time.clock()
+  else:
+    raise nonportable.UnsupportedSystemException("The operating system '" \
+              + OS + "' is not supported.")
 
 
 def urandom_measurement(bytes):
@@ -41,9 +75,9 @@ def urandom_measurement(bytes):
   """   
     
   #Measure time to generate
-  start = time.time()
+  starttime = get_time()
   result = os.urandom(bytes)
-  runtime = time.time() - start
+  runtime = get_time() - starttime
   
   return runtime
 
@@ -51,7 +85,7 @@ def urandom_measurement(bytes):
 def measure_random():
   """
   <Purpose>
-    Run the benchMark function the designated number of times and use the
+    Run the benchmark function the designated number of times and use the
     float value returned to calculate the median and standard deviation.
   
   <Arguments>
@@ -67,19 +101,18 @@ def measure_random():
         problem than just letting a division by zero exception propogate.
         
   <Returns>
-    The bytes per second that random numbers were generated. Result is of 
-    type Float.
+    The number of random bytes per second that were generated.
   """  
 
   # 7 is the smallest number of bytes that can be called from urandom
   # and any time.
   num_of_bytes = 7 
-  num_of_tests = 20
+  num_of_tests = 10000
 
   data = []
 
   # Fallback start time, in case OSRNG is to fast for time.time()
-  starttime = time.time()
+  starttime = get_time()
   
   for i in range(num_of_tests):
     result = urandom_measurement(num_of_bytes)  
@@ -87,7 +120,7 @@ def measure_random():
   
   # This will be used in the event no data was gathered from individual
   # tests
-  totaltime = time.time() - starttime
+  totaltime = get_time() - starttime
 
   # Attempt to get the median
   data.sort()
@@ -97,15 +130,10 @@ def measure_random():
   # On some systems the time measurement may be to inaccurate to measure
   # at this scale. Will try several ways to get valid data:
   #   1) Will use the median, if that fails
-  #   2) will use the max, if that fails
-  #   3) will use the time required for the entire test, if that fails
-  #   4) will raise an exception and the test will have failed.
+  #   2) will use the time required for the entire test, if that fails
+  #   3) will raise an exception and the test will have failed.
   if median != 0.0:
-    return int(num_of_bytes/median) 
-  
-  elif data[-1] != 0.0:
-    # use the maximum time required for a single os.urandom call
-    return int(num_of_bytes/data[-1])
+    return int(num_of_bytes/median)
   
   elif totaltime != 0.0:
     # No useful time measurement was taken for an individual tests,

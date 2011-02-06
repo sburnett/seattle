@@ -7,6 +7,7 @@
 
 <Author>
   Anthony Honstain
+  Modified by Steven Portzer
   
 <Purpose>
   Will use the file 'vesselinfo' which should already be in the directory
@@ -101,6 +102,76 @@ class InsufficientResourceError(Exception):
   """Error to indicate that vessels cannot be created with given resources."""
   pass
 
+class BenchmarkingFailureError(Exception):
+  """
+  Error to indicate that benchmarking failures occurred and installation should
+  not continue.
+  """
+  pass
+
+
+
+def log_failure(errorstring, logfileobj):
+  """
+  <Purpose>
+    To log benchmarking failures to the log file and print it so the user can
+    tell what errors occurred.
+
+    This function exists to keep run_benchmark a bit cleaner.
+       
+  <Arguments>
+    errorstring: The string describing the benchmarking failure being logged.
+
+    logfileobj: The open file object that will be used for logging
+        the benchmarking failure.
+    
+  <Exceptions>
+    None
+    
+  <Side Effects>
+    Will log failure to logfileob and print it to system output.
+  
+  <Return>
+    None
+     
+  """
+
+  logfileobj.write(errorstring + "\n")
+  print errorstring
+
+
+def prompt_user(promptstring):
+  """
+  <Purpose>
+    To receive yes or no input from the user. Capitalization is ignored and
+    y or n will also be accepted.
+       
+  <Arguments>
+    promptstring: The string to display when prompting the user for a yes or no
+      input.
+    
+  <Exceptions>
+    None
+    
+  <Side Effects>
+    Prints promptstring and waits for a yes or no input from the user.
+  
+  <Return>
+    True if the user responds with yes and false if no.
+     
+  """
+
+  userinput = raw_input(promptstring)
+
+  while True:
+    userinput = userinput.lower()
+
+    if userinput == "yes" or userinput == "y":
+      return True
+    if userinput == "no" or userinput == "n":
+      return False
+
+    userinput = raw_input("Please enter either yes or no: ")
 
 
 def run_benchmark(logfileobj):
@@ -116,12 +187,13 @@ def run_benchmark(logfileobj):
     WARNING the dictionary returned still treats cpu as an integer representing
     the number of processors (not a float like it will be later in the process).
        
-  <Arguements>
+  <Arguments>
     logfileobj: The open file object that will be used for logging
         the benchmark process and the creation of the installer state.
     
   <Exceptions>
-    None
+    BenchmarkingFailureError: Indicates that one or more benchmark failed and
+      the user opted to terminate installation.
     
   <Side Effects>
     May use the drive to measure read/write, network resources to measure
@@ -136,6 +208,7 @@ def run_benchmark(logfileobj):
   OS = nonportable.ostype
   
   max_resource_dict = None
+  benchmarking_failed = False
 
   # The imports are all done based on OS because the scripts cannot be
   # imported into a different OS. I can not import the Windows script on
@@ -146,58 +219,84 @@ def run_benchmark(logfileobj):
       import Win_WinCE_resources
       max_resource_dict = Win_WinCE_resources.measure_resources() 
     except Exception:
-      logfileobj.write("Failed to benchmark Windows OS.\n  Default values will be used.\n")
+      log_failure("Failed to benchmark Windows OS.", logfileobj)
       exceptionType, exceptionValue, exceptionTraceback = sys.exc_info()
       traceback.print_exception(exceptionType, exceptionValue, \
                                 exceptionTraceback, file=logfileobj)
-      return DEFAULT_MAX_RESOURCE_DICT.copy()
+      max_resource_dict = DEFAULT_MAX_RESOURCE_DICT.copy()
+      benchmarking_failed = True
       
   elif OS == "WindowsCE":
     try:
       import Win_WinCE_resources
       max_resource_dict = Win_WinCE_resources.measure_resources()
     except Exception:
-      logfileobj.write("Failed to benchmark WindowsCE OS.\n  Default values will be used.\n")
+      log_failure("Failed to benchmark WindowsCE OS.", logfileobj)
       exceptionType, exceptionValue, exceptionTraceback = sys.exc_info()
       traceback.print_exception(exceptionType, exceptionValue, \
                                 exceptionTraceback, file=logfileobj)
-      return DEFAULT_MAX_RESOURCE_DICT.copy()
+      max_resource_dict = DEFAULT_MAX_RESOURCE_DICT.copy()
+      benchmarking_failed = True
     
   elif OS == "Linux":
     try:
       import Linux_resources
       max_resource_dict = Linux_resources.measure_resources()
     except Exception:
-      logfileobj.write("Failed to benchmark Linux OS.\n  Default values will be used.\n")
+      log_failure("Failed to benchmark Linux OS.", logfileobj)
       exceptionType, exceptionValue, exceptionTraceback = sys.exc_info()
       traceback.print_exception(exceptionType, exceptionValue, \
                                 exceptionTraceback, file=logfileobj)
-      return DEFAULT_MAX_RESOURCE_DICT.copy()
+      max_resource_dict = DEFAULT_MAX_RESOURCE_DICT.copy()
+      benchmarking_failed = True
       
   elif OS == "Darwin":
     try:
       import Mac_BSD_resources
       max_resource_dict = Mac_BSD_resources.measure_resources()
     except Exception:
-      logfileobj.write("Failed to benchmark Darwin OS.\n  Default values will be used.\n")
+      log_failure("Failed to benchmark Darwin OS.", logfileobj)
       exceptionType, exceptionValue, exceptionTraceback = sys.exc_info()
       traceback.print_exception(exceptionType, exceptionValue, \
                                 exceptionTraceback, file=logfileobj)
-      return DEFAULT_MAX_RESOURCE_DICT.copy()
+      max_resource_dict = DEFAULT_MAX_RESOURCE_DICT.copy()
+      benchmarking_failed = True
+  else:
+    raise nonportable.UnsupportedSystemException("The operating system '" \
+              + OS + "' is not supported.")
     
   # We are going to log the benchmarked system resources, this will be
   # very useful in the event a user chooses to share the data with us.
-  logfileobj.write("Total resources measured by the script for " + OS + \
+  if not benchmarking_failed:
+    logfileobj.write("Total resources measured by the script for " + OS + \
                    " OS: " + str(max_resource_dict) + "\n")    
     
-  # The dictionary returned by the scripts will contain null values
-  # for resources that they were not able benchmark.
+  # The dictionary returned by the scripts will contain null values for
+  # resources that they were not benchmarked. If a benchmark failed, the
+  # dictionary will contain a string describing the failure that occurred.
   for resource in DEFAULT_MAX_RESOURCE_DICT:
     
-    # For all the null values, we want to set a default.
-    if max_resource_dict[resource] is None:
-      logfileobj.write("Benchmark failed for resource: " + resource + "\n")
+    # Make sure the benchmarking script actually returned something for the
+    # given resource. This should be the case, but if the scripts are
+    # changed at some point, then the problem will be caught here.
+    if resource not in max_resource_dict:
+      log_failure("Benchmark script did not return value for " + resource, \
+                         logfileobj)
       max_resource_dict[resource] = DEFAULT_MAX_RESOURCE_DICT[resource]
+      benchmarking_failed = True
+
+    # For all the null values, we want to set a default.
+    elif max_resource_dict[resource] is None:
+      max_resource_dict[resource] = DEFAULT_MAX_RESOURCE_DICT[resource]
+
+    # If the value is a string, then the benchmark failed, so we want to
+    # log the failure and use the default value.
+    elif isinstance(max_resource_dict[resource], basestring):
+      log_failure("Benchmark failed for " + resource + " resource: " +
+                    max_resource_dict[resource], logfileobj)
+      max_resource_dict[resource] = DEFAULT_MAX_RESOURCE_DICT[resource]
+      benchmarking_failed = True
+
     else:  
       # This is done for added security in case scripts gets changed or
       # modified in the future, it will get caught here if the scripts
@@ -206,14 +305,32 @@ def run_benchmark(logfileobj):
       try:
         max_resource_dict[resource] = int(max_resource_dict[resource])
       except ValueError, e:
-        logfileobj.write("Benchmark script had bad value for: " + resource \
-                           + " " + str(e) + "\n")
+        log_failure("Benchmark script had bad value for " + resource \
+                           + ": " + str(max_resource_dict[resource]), logfileobj)
         max_resource_dict[resource] = DEFAULT_MAX_RESOURCE_DICT[resource]
+        benchmarking_failed = True
       
       if max_resource_dict[resource] <= 0:
-        logfileobj.write("Benchmark script had bad value for: " + resource + "\n")
+        log_failure("Benchmark script had non-positive value for " + resource \
+                           + ": " + str(max_resource_dict[resource]), logfileobj)
         max_resource_dict[resource] = DEFAULT_MAX_RESOURCE_DICT[resource]
+        benchmarking_failed = True
        
+  # If one or more benchmark failed, then we want to give the user the option
+  # of aborting the installation
+  if benchmarking_failed:
+    print "The above benchmarking error(s) occurred."
+    print "If you choose to continue anyways then default values will be " + \
+                    "used for failed benchmarks."
+
+    if not prompt_user("Continue with installation? (yes/no) "):
+      logfileobj.write("Installation terminated by user after one or " + \
+                      "more failed benchmarks.\n")
+      raise BenchmarkingFailureError()
+
+    logfileobj.write("Installation continued by user. Default values are " + \
+                    "being used for failed benchmarks.\n")
+
   # These are the resources the script will use to calculate the donated
   # resources, I am going to log this just to be safe.     
   logfileobj.write("Final checked resources that we will use: " + \
@@ -237,7 +354,7 @@ def get_donated_from_maxresources(max_resources_dict, resource_percent):
     will be the user determined percentage of each resource in 
     max_resources_dict.
     
-  <Arguements>
+  <Arguments>
     max_resource_dict: dictionary containing the total amount of each
       resource that is available on the machine.  
   
@@ -268,7 +385,7 @@ def get_donated_from_maxresources(max_resources_dict, resource_percent):
       tmp_resource = (max_resources_dict['cpu'] * resource_percent)
       donatedresources[resource] = tmp_resource
     elif resource == 'events':
-      # Given the difficulting of accurately measuring this on
+      # Given the difficulty of accurately measuring this on
       # most systems, 500 was chosen as a reasonable value, if
       # for some reason a system has less, the node will deal
       # with that later.
@@ -287,7 +404,7 @@ def get_tenpercent_of_donated(donatedresources):
     To get ten percent of the resources that have been donated (offcut
     resources for the multiple vessels has already been removed).
     
-  <Arguements>
+  <Arguments>
     max_resource_dict: dictionary containing the total amount of each
       donated resource on the machine.  
         
@@ -326,7 +443,7 @@ def main(prog_path, resource_percent, logfileobj):
     To run the benchmarks and use the writecustominstaller to create
     the state for the vessels (resource files and directories).
     
-  <Arguements>
+  <Arguments>
     prog_path:
       Path to the directory in which seattle is being installed.
     
@@ -363,6 +480,11 @@ def main(prog_path, resource_percent, logfileobj):
     
       OSError, WindowsError: if os.mkdir is unable to create the vessel
         directories.
+
+    Installation will also fail if run_benchmark raises the following exception:
+
+      BenchmarkingFailureError: Indicates that one or more benchmark failed and
+        the user opted to terminate installation.
   
   
   <Side Effects>
@@ -429,7 +551,7 @@ def main(prog_path, resource_percent, logfileobj):
     raise InsufficientResourceError("Cost of splitting vessels resulted in " + \
                                    "negative resource values.")
     
-  # tenpercent is selected to make the job of create_installer_state as
+  # ten percent is selected to make the job of create_installer_state as
   # simple as possible, it requires vessels be alloted from the donated 
   # resources in increments of 10 percent. If we allowed vessels to be
   # alloted portions like 22% of the donated resources we would need to

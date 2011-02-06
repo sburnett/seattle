@@ -8,6 +8,19 @@
 <Author>
   Armon Dadgar
   Modified by Anthony Honstain
+  Modified by Steven Portzer
+
+<Return value notes>
+  The dictionary returned by measure_resources() is used by
+  benchmark_resources.py and contains a value for every system resource.
+  If the system resource is successfully measured, then the measured value
+  of that resource is returned as an integer. If a test fails, then a
+  string describing the failure is returned for that resource. If the
+  resource is not currently being measured, then None is returned.
+
+  Formerly, None was returned for both failed and unimplemented tests, but
+  this made it impossible to determine whether a benchmark had actually
+  failed or if it was simply not being measured.
 
 <Resource events>
   WARNING the 'events' resource is hardcoded to a value of 500
@@ -78,27 +91,35 @@ def measure_resources():
   else:
     totalMem = memInfo["totalPhysical"]
   
-  # Default to 1, for WinCE
-  numCPU = 1
+  # Default to None, for WinCE
+  numCPU = None
 
   # Don't even bother on WinCE
   if not windows_api.MobileCE:
+    import subprocess
+
+    cmd="echo %NUMBER_OF_PROCESSORS%"
     try:
-      import subprocess
-  
-      cmd="echo %NUMBER_OF_PROCESSORS%"
       proc=subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
-  
       output = proc.stdout.read()
       proc.stdout.close()
+    except Exception, e:
+      # SP: if something goes wrong, return a string giving some information
+      # on what happened. The None return value is reserved for tests that
+      # aren't implemented.
+      numCPU = "unable to read number of processors: " + str(e)
+    else:
       # Attempt to parse output for a number of CPU's
-      if len(output) != 0:
+      try:
         num=int(output)
+      except ValueError:
+        numCPU = "bad value for number of processors: " + str(output)
+      else:
         if num >= 1:
-          numCPU = num      
-      
-    except:
-      pass
+          numCPU = num
+        else:
+          numCPU = "non-positive value returned for number of processors: " \
+                      + str(num)
 
   if windows_api.MobileCE:
     threadMax = 8
@@ -106,8 +127,8 @@ def measure_resources():
     # Hard limit at 512
     # Anthony, we will have a default for all systems because
     # of the problems with measuring, using None here will trigger
-    # the default in benchmar_resources.py .
-    #threadMax = min(128*numCPU,512)
+    # the default in benchmark_resources.py .
+    # threadMax = min(128*numCPU,512)
     threadMax = None
 
   libc = ctypes.cdll.msvcrt  
@@ -115,27 +136,26 @@ def measure_resources():
 
   # Anthony - we have chosen to use the default limit except for mobile
   # using None for socketMax here will trigger the default in 
-  # benchmar_resources.py .
+  # benchmark_resources.py .
   if windows_api.MobileCE:
     socketMax = 64 / 2 # By default, only 64 sockets per app, both mobile
   else:
     socketMax = None
 
   # Measure random
-  # Some systems could fail at this test, so we catch
-  # the exception and return None to indicate a default
-  # value should be used.
+  # SP: This test should now work on all systems. For failed tests, a string
+  # describing the failure will be returned.
   try:
     randomMax = measure_random.measure_random()
-  except measure_random.InvalidTimeMeasurementError:
-    randomMax = None
+  except measure_random.InvalidTimeMeasurementError, e:
+    randomMax = str(e)
 
 
   # Measure the disk read write rate
   try:
     filewrite, fileread = measuredisk.main()
-  except Exception:
-    filewrite, fileread = None, None
+  except Exception, e:
+    filewrite, fileread = str(e), str(e)
 
 
 
@@ -148,7 +168,7 @@ def measure_resources():
 # The following are more per-process things
   resource_dict["events"] = threadMax
   resource_dict["filesopened"] = handleMax
-  # The socketMax is split between in and out allready.
+  # The socketMax is split between in and out already.
   resource_dict["insockets"] = socketMax
   resource_dict["outsockets"] = socketMax
   resource_dict["random"] = randomMax

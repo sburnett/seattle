@@ -1228,7 +1228,7 @@ def setup_nokia_startup():
 
   # Note to developers: If you need to change the path of the startup script or
   # the path of the symlink, make sure you keep it consistent with those in
-  # seattleuninstaller.py.
+  # test_seattle_is_installed() and seattleuninstaller.py.
 
   # The name of the startup script.
   startup_script_name = "nokia_seattle_startup.sh"
@@ -1743,6 +1743,14 @@ def perform_system_benchmarking():
   try:
     benchmark_resources.main(SEATTLE_FILES_DIR, RESOURCE_PERCENTAGE,
                              benchmark_logfileobj)
+  except benchmark_resources.BenchmarkingFailureError:
+    _output("Installation terminated.")
+    _output("Please email the Seattle project for additional support, and " \
+              + "attach the installer_benchmark.log and vesselinfo files, " \
+              + "found in the seattle_repy directory, in order to help us " \
+              + "diagnose the issue.")
+    benchmark_logfileobj.close()
+    return False
   except benchmark_resources.InsufficientResourceError:
     exceptionType, exceptionValue, exceptionTraceback = sys.exc_info()
     traceback.print_exception(exceptionType, exceptionValue, \
@@ -1952,6 +1960,88 @@ def prepare_installation(options,arguments):
 
 
 
+def test_seattle_is_installed():
+  """
+  <Purpose>
+    Tests to see if Seattle is already installed on this computer.
+
+  <Arguments>
+    None.
+
+  <Exceptions>
+    UnsupportedOSError if the os is not supported.
+
+  <Side Effects>
+    None.
+
+  <Returns>
+    True if Seattle is installed, False otherwise.
+  """
+  
+  if OS == "Windows" or OS == "WindowsCE":
+
+    # Tests if Seattle is set to run at user login.
+    # See comments in add_to_win_registry_Current_User_key() for details.
+    try:
+      Current_User_key = _winreg.OpenKey(_winreg.HKEY_CURRENT_USER,
+                          "Software\\Microsoft\\Windows\\CurrentVersion\\Run",
+                          0, _winreg.KEY_ALL_ACCESS)
+    except WindowsError:
+      pass
+    else:
+      Current_User_key_exists = search_value_in_win_registry_key(
+                                              Current_User_key, "seattle")
+      _winreg.CloseKey(Current_User_key)
+      if Current_User_key_exists:
+        return True
+
+    # Tests if Seattle is set to run at machine startup.
+    # See comments in add_to_win_registry_Local_Machine_key() for details.
+    try:
+      Local_Machine_key = _winreg.OpenKey(_winreg.HKEY_LOCAL_MACHINE,
+                          "Software\\Microsoft\\Windows\\CurrentVersion\\Run",
+                          0, _winreg.KEY_ALL_ACCESS)
+    except WindowsError:
+      pass
+    else:
+      Local_Machine_key_exists = search_value_in_win_registry_key(
+                                              Local_Machine_key, "seattle")
+      _winreg.CloseKey(Local_Machine_key)
+      if Local_Machine_key_exists:
+        return True
+
+    # If neither registry key is present, then test if there is a shortcut
+    # to Seattle in the startup folder to determine if Seattle is installed.
+    full_startup_file_path,file_path_exists = \
+              get_filepath_of_win_startup_folder_with_link_to_seattle()
+    return file_path_exists
+
+  elif OS == "Linux" or OS == "Darwin":
+
+    # Check to see if Seattle is being installed on a Nokia tablet.
+    if platform.machine().startswith('armv'):
+      # The full path to the startup script.
+      startup_script_path = "/etc/init.d/nokia_seattle_startup.sh"
+      # The full path to the symlink.
+      symlink_path = "/etc/rc2.d/S99startseattle"
+      
+      # If the startup script or the symlink exist, then Seattle was installed.
+      return os.path.exists(startup_script_path) or \
+                os.path.lexists(symlink_path)
+
+    else:
+      # Check to see if the crontab has been modified to run seattle.
+      crontab_contents_stdout,crontab_contents_stderr = \
+          subprocess.Popen(["crontab", "-l"], stdout=subprocess.PIPE,
+                           stderr=subprocess.PIPE).communicate()
+      return get_starter_file_name() in crontab_contents_stdout
+
+  else:
+    raise UnsupportedOSError()
+
+
+
+
 def usage():
   """
   Prints command line usage of script.
@@ -2016,76 +2106,17 @@ def main():
     return
 
 
-  #######################################################################################
-  ## We are going to try and setup the startup as the first thing. If we find out that ##
-  ## We have already added a crontab on the linux machine, then there is a good chance ##
-  ## that we have already installed Seattle on this machine. Therefore we are going to ##
-  ## stop with this installation and quit.                                             ##
-  #######################################################################################
+  # Check if Seattle is already installed. This needs to be done seperately
+  # from setting Seattle to run at startup because installation might fail
+  # during the pre-installation process.
+  if test_seattle_is_installed():
+    _output("Seattle was already installed. You must run the uninstall " \
+              + "script before reinstalling Seattle.")
+    return
+
 
   # Initialize the service logger.
   servicelogger.init('installInfo')
-
-  # Configure seattle to run at startup.
-  if not DISABLE_STARTUP_SCRIPT:
-    _output("Preparing Seattle to run automatically at startup...")
-    # This try: block attempts to install seattle to run at startup. If it
-    # fails, continue on with the rest of the install process (unless it
-    # detects that seattle has already been installed) since the seattle
-    # starter script may still be run even if seattle is not configured to run
-    # at boot.
-    try:
-      # Any errors generated while configuring seattle to run at startup will be
-      # printed in the child functions, unless an unexpected error is raised,
-      # which will be caught in the general except Exception: block below.
-      if OS == "Windows" or OS == "WindowsCE":
-        setup_win_startup()
-        _output("Seattle is setup to run at startup!")
-      elif OS == "Linux" or OS == "Darwin":
-        setup_success = setup_linux_or_mac_startup()
-        if setup_success == None:
-          # Do not print a final message to the user about setting up seattle to
-          # run automatically at startup.
-          pass
-        elif setup_success:
-          _output("Seattle is setup to run at startup!")
-        else:
-          # The reasons for which seattle was unable to be configured at startup
-          # will have been logged by the service logger in the
-          # setup_linux_or_mac_startup() function, and output for the possible
-          # reasons why configuration to run at startup failed will have already
-          # be given to the user from the setup_linux_or_mac_startup() function.
-          _output("Seattle failed to be configured to run automatically at " \
-                    + "startup.")
-      else:
-        raise UnsupportedOSError("This operating system is not supported.")
-
-    except UnsupportedOSError,u:
-      raise UnsupportedOSError(u)
-
-    except AlreadyInstalledError,a:
-      _output("seattle was already installed. " + str(a))
-      # Exit installation since seattle is already currently installed.
-      return
-
-    # If an unpredicted error is raised while setting up seattle to run at
-    # startup, it is caught here.
-    except Exception,e:
-      _output("seattle could not be installed to run automatically at " \
-                + "startup for the following reason: " + str(e))
-      _output("Continuing with the installation process now.  To manually " \
-                + "run seattle at any time, just run " \
-                + get_starter_file_name() + " from within the seattle " \
-                + "directory.")
-      _output("Please contact the seattle project for further assistance.")
-      servicelogger.log(time.strftime(" seattle was NOT installed on this " \
-                                        + "system for the following reason: " \
-                                        + str(e) + ". %m-%d-%Y  %H:%M:%S"))
-
-
-
-
-
 
   # Derek Cheng: if the user is running a Nokia N800 tablet, we require them
   # to be on root first in order to have files created in the /etc/init.d and
@@ -2141,6 +2172,57 @@ def main():
 
     
    
+  # Configure seattle to run at startup.
+  if not DISABLE_STARTUP_SCRIPT:
+    _output("Preparing Seattle to run automatically at startup...")
+    # This try: block attempts to install seattle to run at startup. If it
+    # fails, continue on with the rest of the install process since the seattle
+    # starter script may still be run even if seattle is not configured to run
+    # at boot.
+    try:
+      # Any errors generated while configuring seattle to run at startup will be
+      # printed in the child functions, unless an unexpected error is raised,
+      # which will be caught in the general except Exception: block below.
+      if OS == "Windows" or OS == "WindowsCE":
+        setup_win_startup()
+        _output("Seattle is setup to run at startup!")
+      elif OS == "Linux" or OS == "Darwin":
+        setup_success = setup_linux_or_mac_startup()
+        if setup_success == None:
+          # Do not print a final message to the user about setting up seattle to
+          # run automatically at startup.
+          pass
+        elif setup_success:
+          _output("Seattle is setup to run at startup!")
+        else:
+          # The reasons for which seattle was unable to be configured at startup
+          # will have been logged by the service logger in the
+          # setup_linux_or_mac_startup() function, and output for the possible
+          # reasons why configuration to run at startup failed will have already
+          # be given to the user from the setup_linux_or_mac_startup() function.
+          _output("Seattle failed to be configured to run automatically at " \
+                    + "startup.")
+      else:
+        raise UnsupportedOSError("This operating system is not supported.")
+
+    except UnsupportedOSError,u:
+      raise UnsupportedOSError(u)
+
+    # If an unpredicted error is raised while setting up seattle to run at
+    # startup, it is caught here.
+    except Exception,e:
+      _output("seattle could not be installed to run automatically at " \
+                + "startup for the following reason: " + str(e))
+      _output("Continuing with the installation process now.  To manually " \
+                + "run seattle at any time, just run " \
+                + get_starter_file_name() + " from within the seattle " \
+                + "directory.")
+      _output("Please contact the seattle project for further assistance.")
+      servicelogger.log(time.strftime(" seattle was NOT installed on this " \
+                                        + "system for the following reason: " \
+                                        + str(e) + ". %m-%d-%Y  %H:%M:%S"))
+
+
 
   # Generate the Node Manager keys even if configuring seattle to run
   # automatically at boot fails because Node Manager keys are needed for the

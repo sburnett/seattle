@@ -7,11 +7,24 @@
 
 <Author>
   Anthony Honstain
+  Modified by Steven Portzer
 
 <Purpose>
   Measure system resources on a Linux system, makes
   extensive use of /proc files and df command for
   disk info.
+
+<Return value notes>
+  The dictionary returned by measure_resources() is used by
+  benchmark_resources.py and contains a value for every system resource.
+  If the system resource is successfully measured, then the measured value
+  of that resource is returned as an integer. If a test fails, then a
+  string describing the failure is returned for that resource. If the
+  resource is not currently being measured, then None is returned.
+
+  Formerly, None was returned for both failed and unimplemented tests, but
+  this made it impossible to determine whether a benchmark had actually
+  failed or if it was simply not being measured.
   
 <Resource events>
   WARNING the 'events' resource is hardcoded to a value of 500
@@ -89,7 +102,7 @@ import commands
 import measure_random
 import measuredisk
 
-def count_processor(procfile):
+def count_processor(procfiledata):
   """
   <Purpose>
     count_processor will return the number of physical and virtual 
@@ -109,7 +122,7 @@ def count_processor(procfile):
     that contain the word processor.
 
   <Arguments>
-    procfile:
+    procfiledata:
            A list with each line from the /proc/cpuinfo as an element.
            
   <Exceptions>
@@ -121,16 +134,16 @@ def count_processor(procfile):
   """
   count = 0
   # Read each line of the file and look for lines containing "processor"
-  for line in procfile:
+  for line in procfiledata:
     if (line.find("processor") != -1):
       count += 1
   if(count > 0):
     return count
   else:
-    raise Exception('processor data not found')
+    raise Exception("processor data not found")
 
 
-def count_cores(procfile):
+def count_cores(procfiledata):
   """
   <Purpose>
     count_cores will return the number of cpu cores that are 
@@ -138,19 +151,18 @@ def count_cores(procfile):
     HELPER FUNCTION FOR get_cpu()
     
   <Arguments>
-    procfile:
+    procfiledata:
            A list with each line from the /proc/cpuinfo as an element.
            
   <Exceptions>
-    ValueError if invalid element for the number of cores.
     Exception raised if no lines in /proc/cpuinfo contain the
-    string 'cpu cores'.
+    string 'cpu cores' or number of cores is invalid.
     
   <Returns>
     The total number of cores for a single physical processor.
   """
   # Search each line for the desired string
-  for line in procfile:
+  for line in procfiledata:
     if (line.find("cpu cores") != -1):
       splitline = line.split()
       # example value for desired line from /proc/cpuinfo
@@ -159,10 +171,10 @@ def count_cores(procfile):
       try:
         return int(cpucores)
       except ValueError:
-        raise
-  raise Exception('cpu cores data not found')
+        raise Exception("bad value for number of cpu cores: " + str(cpucores))
+  raise Exception("cpu cores data not found")
     
-def count_processor_physical_id(procfile):
+def count_processor_physical_id(procfiledata):
   """
   <Purpose>
     count_processor_physical_id will search each line of a the
@@ -171,19 +183,19 @@ def count_processor_physical_id(procfile):
     HELPER FUNCTION FOR get_cpu()
     
   <Arguments>
-    procfile:
+    procfiledata:
            A list with each line from the /proc/cpuinfo as an element.
            
   <Exceptions>
-    ValueError is the physical id was not an integer.
     Exception raised if no lines in /proc/cpuinfo contain the
-    contained information on the 'physical id'.
+    contained information on the 'physical id' or the physical
+    id is not an integer.
     
   <Returns>
     The total number unique identifiers.
   """
   id_list = []
-  for line in procfile:
+  for line in procfiledata:
     if (line.find("physical id") != -1):
       splitline = line.split()
       # example value for desired line from /proc/cpuinfo
@@ -192,23 +204,27 @@ def count_processor_physical_id(procfile):
       try:
         phys_id = int(phys_id)
       except ValueError:
-        raise
+        raise Exception("bad value for physical id: " + str(phys_id))
       if(phys_id not in id_list):
         id_list.append(phys_id)
   
   if(len(id_list) > 0):
     return len(id_list) 
   else:      
-    raise Exception('physical id data not found')
+    raise Exception("physical id data not found")
  
 def get_cpu():
   """
   <Purpose>
     Measure the number of PHYSICAL cores and processors.
+
+  <Exceptions>
+    Exception is raised if /proc/cpuinfo cannot be opened or it's
+    contents are are insufficient for determining the the number
+    of physical processors/cores.
   
   <Returns>
-    The number of physical processors/cores, if there is insufficient
-    data a default of 1 is returned.
+    The number of physical processors/cores.
   """
   cpu_cores = 0 # Stores integer value for number of cores
   cpu_physicalid = 0 # Stores the unique id's for the processors
@@ -218,7 +234,7 @@ def get_cpu():
   try:
     openfile = open("/proc/cpuinfo", 'r') 
   except IOError:     
-    return None
+    raise Exception("unable to read cpu data from /proc/cpuinfo")
 
   # Read each line of the file and store it in a list, this is done 
   # because the contents of /proc/cpuinfo will be traversed up to 
@@ -228,16 +244,10 @@ def get_cpu():
   openfile.close()
       
   # get the number of cpu cores
-  try:
-    cpu_cores = count_cores(cpuinfo_copy)
-  except Exception:
-    return None
+  cpu_cores = count_cores(cpuinfo_copy)
   
   # get the number of physical id's 
-  try:
-    cpu_physicalid = count_processor_physical_id(cpuinfo_copy)
-  except Exception:
-    return None  
+  cpu_physicalid = count_processor_physical_id(cpuinfo_copy)
   
   # Refer to detailed explanation from program's opening comment.  
   return cpu_cores * cpu_physicalid
@@ -248,23 +258,24 @@ def get_cpu_virtual():
   <Purpose>
     Measure the number of processors, this count includes both
     physical and virtual processors.
+
+  <Exceptions>
+    Exception is raised if /proc/cpuinfo cannot be opened or it's
+    contents are are insufficient for determining the the number
+    of processors.
   
   <Returns>
-    The number of physical processors/cores, if there is insufficient
-    data a default of 1 is returned.
+    The number of processors.
   """
   cpu_processors = None # Stores the number of processors
  
   try:
     openfile = open("/proc/cpuinfo", 'r') 
-  except IOError:     
-    return None
+  except IOError:
+    raise Exception("unable to read cpu data from /proc/cpuinfo")
 
   # get the number of processors
-  try:
-    cpu_processors = count_processor(openfile)
-  except Exception:
-    return None 
+  cpu_processors = count_processor(openfile)
   
   openfile.close()
   return cpu_processors
@@ -277,17 +288,20 @@ def get_memory():
     system to find the size of RAM. Does not measure swap size
     because that has a seperate field in meminfo. 
 
+  <Exceptions>
+    Exception is raised if unable to open the file, or if no valid data
+    was retrieved.
+
   <Returns>  
     The size of RAM in bytes (converted from kB as it is stored in
-    the meminfo file. If unable to open the file, or no valid data
-    was retrieved, a default value is returned.
+    the meminfo file.
   """
   memory = ''
   
   try:
     openfile = open("/proc/meminfo", 'r') 
   except IOError:     
-    return None
+    raise Exception("unable to read memory data from /proc/meminfo")
 
   # Search each line in the file for the line containing the
   # memory total.
@@ -302,7 +316,7 @@ def get_memory():
       try:
         memory = long(memory)
       except ValueError:
-        return None
+        raise Exception("bad value for total memory: " + str(memory))
       
       #Assuming memory will be stored in kB
       #memory is converted to bytes using 1kByte = 1000 Bytes
@@ -310,7 +324,7 @@ def get_memory():
       return memory  
   
   openfile.close()
-  return None
+  raise Exception("memory data not found")
 
 
 def get_diskused():
@@ -318,6 +332,10 @@ def get_diskused():
   <Purpose>
     Returns the total size in Bytes that are available on the 
     partition that the working directory is on.
+
+  <Exceptions>
+    Exception is raised if unable to retrieve partition data.
+
   <Returns>
     The total number of Bytes available to the user on the current
     partition.
@@ -337,7 +355,7 @@ def get_diskused():
   # Test because if first element of tuple is other than 0
   # then the exit status of the linux command is an error.
   if (statresult[0] != 0):
-    return None
+    raise Exception("unable to read disk partition size")
   
   # Second element of tuple returned by commands.getstatusoutput
   # is the stdout from the command.  
@@ -345,8 +363,8 @@ def get_diskused():
 
   try:
     freeblocks = long(statresult[10])
-  except:
-    return None
+  except ValueError:
+    raise Exception("bad value for disk partition size: " + str(statresult[10]))
 
   disksize = blocksize * freeblocks 
   return disksize 
@@ -361,15 +379,15 @@ def get_events():
     error 'ulimit: 1: Illegal option -u' when it was executed by
     commands.getstatusoutput (it did not have this error when 
     run normally from the shell). I was unable to discover
-    why this error occured or why it was specific to only option -u.
+    why this error occurred or why it was specific to only option -u.
 
-    The origional method that found the maximum allowed by the kernel
+    The original method that found the maximum allowed by the kernel
     has been left it the comment, but not provided as a fallback because
     I think it is likely to be far to high, and it would be better
     that a predefined default is used, then potentially get more events
     than a user could really have. 
 
-  <Origional Method>
+  <Original Method>
     This will find the maximum number of threads that the kernel will
     allow, however the number available to a giver user will be less.
     The ulimit command has been observed to produce a number much closer
@@ -394,14 +412,14 @@ def get_events():
   """
   max_processes = 0
 
-  # Sample result of successfull getstatusoutput is 
+  # Sample result of successful getstatusoutput is 
   # (0, '16310')
   status_result = commands.getstatusoutput('ulimit -u')
    
   # Test because if first element of tuple is other than 0
   # then the exit status of the linux command is an error.
   if (status_result[0] != 0):
-    return None
+    raise Exception("unable to read maximum number of threads")
   
   # Second element of tuple returned by commands.getstatusoutput
   # is the stdout from the command, should be just a single integer.  
@@ -409,8 +427,9 @@ def get_events():
 
   try:
     max_processes = int(status_result)
-  except:
-    return None
+  except ValueError:
+    raise Exception("bad value for maximum number of threads: " + \
+                        str(status_result))
 
   return max_processes
 
@@ -420,9 +439,9 @@ def get_filesopened():
   """
   <Purpose>
     Reads the result of ulimit -n to get the number
-    of files that a inidividual user has access to.
+    of files that a individual user has access to.
 
-  <Origional Method>
+  <Original Method>
     Reads the value stored in /proc/sys/fs/file-max
     May not represent the number of file descriptors
     that a user/process is able to obtain.
@@ -445,13 +464,13 @@ def get_filesopened():
   """
   maxfile = 0
 
-  # Sample result of successfull getstatusoutput is (0, '1024')
+  # Sample result of successful getstatusoutput is (0, '1024')
   status_result = commands.getstatusoutput('ulimit -n')
    
   # Test because if first element of tuple is other than 0
   # then the exit status of the linux command is an error.
   if (status_result[0] != 0):
-    return None
+    raise Exception("unable to read maximum number of open files")
   
   # Second element of tuple returned by commands.getstatusoutput
   # is the stdout from the command.  
@@ -459,8 +478,9 @@ def get_filesopened():
 
   try:
     maxfile = int(status_result)
-  except:
-    return None
+  except ValueError:
+    raise Exception("bad value for maximum number of open files: " + \
+                        str(status_result))
 
   return maxfile
 
@@ -470,45 +490,59 @@ def measure_resources():
 
   resource_dict = {}
 
-  resource_dict["cpu"] = get_cpu()
-  resource_dict["memory"] = get_memory()
-  resource_dict["diskused"] = get_diskused()
+  # SP: If any test fails then a string describing the failure should be
+  # returned, so catch the exception and return it as a string.
+  # None is reserved for tests that aren't implemented so that failed tests and
+  # unimplemented tests can be differentiated.
+
+  try:
+    resource_dict["cpu"] = get_cpu()
+  except Exception, e:
+    resource_dict["cpu"] = str(e)
+  
+  try:
+    resource_dict["memory"] = get_memory()
+  except Exception, e:
+    resource_dict["memory"] = str(e)
+
+  try:
+    resource_dict["diskused"] = get_diskused()
+  except Exception, e:
+    resource_dict["diskused"] = str(e)
   
   # For the time being we will be using the default number
   # of events.
   #resource_dict["events"] = get_events()
   resource_dict["events"] = None
   
-  maxfiles = get_filesopened()  
   # filesopened, insockets, and outsockets are restricted by linux and all 
   # come from the same total, I do a quick check to avoid an exception being 
   # raised, it unlikely that the test would fail, but after seeing the 
   # strange behavior of ulimit for events it seems best error on the side 
-  # of safety. 
-  if maxfiles is not None:
-    resource_dict["filesopened"] = maxfiles / 3
-    resource_dict["insockets"] = maxfiles / 3
-    resource_dict["outsockets"] = maxfiles / 3
-  else: 
-    resource_dict["filesopened"] = maxfiles
-    resource_dict["insockets"] = maxfiles
-    resource_dict["outsockets"] = maxfiles
+  # of safety.
+  try:
+    maxfiles = get_filesopened() / 3
+  except Exception, e:
+    maxfiles = str(e)
 
-  # Some systems could fail at this test, so we catch
-  # the exception and return None to indicate a default
-  # value should be used.
+  resource_dict["filesopened"] = maxfiles
+  resource_dict["insockets"] = maxfiles
+  resource_dict["outsockets"] = maxfiles
+
+  # SP: this test should work on all systems now, but catch the exception just
+  # in case.
   try:
     random_max = measure_random.measure_random()
-  except measure_random.InvalidTimeMeasurementError:
-    random_max = None
+  except measure_random.InvalidTimeMeasurementError, e:
+    random_max = str(e)
       
   resource_dict["random"] = random_max
 
   # Measure the disk read write rate
   try:
     filewrite, fileread = measuredisk.main()
-  except Exception:
-    filewrite, fileread = None, None
+  except Exception, e:
+    filewrite, fileread = str(e), str(e)
 
   resource_dict["filewrite"] = filewrite
   resource_dict["fileread"] = fileread
