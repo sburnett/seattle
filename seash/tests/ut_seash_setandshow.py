@@ -13,7 +13,38 @@ orig_stdout = sys.stdout
 # dump as stdout is redirected to it
 sys.stdout = open("test_results.txt", "w")
 
-command_list = ['loadkeys guest0', 'loadkeys guest1', 'loadkeys guest2', 'as guest1', 'browse', 'on browsegood', 'show info', 'update', 'show info', 'show users', 'set users guest0 guest1 guest2', 'show users', 'show ownerinfo', 'set ownerinfo example text testing', 'show ownerinfo', 'set advertise off', 'show advertise', 'set advertise on', 'show ip', 'show ip to test_ip_file.txt', 'show hostname', 'show coordinates', 'show targets', 'show resources', 'show offcut', 'savestate testing_state', 'on %1', 'show owner', 'set owner guest2', 'show owner']
+command_list = [
+  'loadkeys guest0', 
+  'loadkeys guest1', 
+  'loadkeys guest2', 
+  'as guest1', 
+  'browse', 
+  'on browsegood', 
+  'show info', 
+  'update', 
+  'show info', 
+  'show users', 
+  'set users guest0 guest1 guest2', 
+  'show users', 
+  'show ownerinfo', 
+  'set ownerinfo example text testing', 
+  'show ownerinfo', 
+  'set advertise off', 
+  'show advertise', 
+  'set advertise on', 
+  'show ip', 
+  'show ip to test_ip_file.txt', 
+  'show hostname',
+  'show coordinates', 
+  'show targets', 
+  'show resources', 
+  'show offcut', 
+  'savestate testing_state', 
+  'on %1', 
+  'show owner', 
+  'set owner guest2', 
+  'show owner'
+  ]
 
 seash.command_loop(command_list)
 
@@ -24,7 +55,17 @@ sys.stdout.close()
 # Overwrites test_results.txt for a clean file for actual testing purposes.
 sys.stdout = open("test_results.txt", "w")
 
-command_list = ['loadkeys guest1', 'as guest1', 'loadstate testing_state', 'show timeout', 'set timeout 123', 'show timeout', 'show uploadrate', 'set uploadrate 2048', 'show uploadrate']
+command_list = [
+  'loadkeys guest1', 
+  'as guest1', 
+  'loadstate testing_state', 
+  'show timeout', 
+  'set timeout 123', 
+  'show timeout', 
+  'show uploadrate', 
+  'set uploadrate 2048', 
+  'show uploadrate'
+  ]
 
 seash.command_loop(command_list)
 

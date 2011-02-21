@@ -10,7 +10,15 @@ import sys
 orig_stdout = sys.stdout
 sys.stdout = open("test_results.txt", "w")
 
-command_list = ["genkeys joe", "genkeys bob 50", "genkeys sam as john", "loadkeys sam", "as sam", "loadkeys sam", "as john"]
+command_list = [
+  "genkeys joe", 
+  "genkeys bob 50", 
+  "genkeys sam as john", 
+  "loadkeys sam", 
+  "as sam", 
+  "loadkeys sam", 
+  "as john"
+  ]
 
 seash.command_loop(command_list)
 

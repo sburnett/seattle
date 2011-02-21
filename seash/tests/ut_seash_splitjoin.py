@@ -7,6 +7,15 @@ import seash
 import sys
 
 
-command_list = ['loadkeys guest0', 'as guest0', 'browse', 'on browsegood', 'update', 'join', 'on %3', 'split resources.offcut']
+command_list = [
+  'loadkeys guest3', 
+  'as guest3', 
+  'browse', 
+  'on browsegood', 
+  'update', 
+  'join', 
+  'on %3', 
+  'split resources.offcut'
+  ]
 
 seash.command_loop(command_list)

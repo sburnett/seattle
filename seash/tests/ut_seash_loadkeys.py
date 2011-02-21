@@ -7,7 +7,13 @@ import sys
 
 orig_stdout = sys.stdout
 sys.stdout = open("test_results.txt", "w")
-command_list = ['loadpub guest0', 'loadpriv guest1', 'loadkeys guest2', 'show keys', 'show identities']
+command_list = [
+  'loadpub guest0',
+  'loadpriv guest1', 
+  'loadkeys guest2', 
+  'show keys', 
+  'show identities'
+  ]
 
 seash.command_loop(command_list)
 

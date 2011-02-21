@@ -9,7 +9,12 @@ import sys
 
 orig_stdout = sys.stdout
 sys.stdout = open("test_results.txt", "w")
-command_list = ['help', 'help show', 'help show info', 'help show ip to file']
+command_list = [
+  'help', 
+  'help show', 
+  'help show info', 
+  'help show ip to file'
+  ]
 
 seash.command_loop(command_list)
 

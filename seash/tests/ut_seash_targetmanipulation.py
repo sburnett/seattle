@@ -12,7 +12,13 @@ orig_stdout = sys.stdout
 # dump as stdout is redirected to it
 sys.stdout = open("test_results.txt", "w")
 
-command_list = ['loadkeys guest0', 'as guest0', 'browse', 'on %1', 'savestate testing_state'] 
+command_list = [
+  'loadkeys guest0', 
+  'as guest0', 
+  'browse', 
+  'on %1', 
+  'savestate testing_state'
+  ] 
 
 seash.command_loop(command_list)
 
@@ -23,6 +29,15 @@ sys.stdout.close()
 # No output or errors should be thrown in the following series of commands
 sys.stdout = orig_stdout
 
-command_list = ['loadkeys guest0', 'as guest0', 'loadstate testing_state', 'add to test_group', 'remove %1 from test_group', 'on %2', 'move %2 to test_group']
+command_list = [
+  'loadkeys guest0', 
+  'as guest0', 
+  'loadstate testing_state', 
+  'add to test_group', 
+  'remove %1 from test_group', 
+  'add %1 to test_group_2',
+  'on %2', 
+  'move %2 to test_group'
+  ]
 
 seash.command_loop(command_list)
