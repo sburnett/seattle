@@ -15,11 +15,16 @@ oldrestrictioncalls['nanny.tattle_quantity'] = nanny.tattle_quantity
 oldrestrictioncalls['nanny.tattle_add_item'] = nanny.tattle_add_item
 oldrestrictioncalls['nanny.tattle_remove_item'] = nanny.tattle_remove_item
 oldrestrictioncalls['nanny.is_item_allowed'] = nanny.is_item_allowed
+oldrestrictioncalls['nanny.get_resource_limit'] = nanny.get_resource_limit
 oldrestrictioncalls['emulfile.assert_is_allowed_filename'] = emulfile._assert_is_allowed_filename
 
 
 def _do_nothing(*args):
   pass
+
+def _always_true(*args):
+  return True
+
 
 # Overwrite the calls so that I don't have restrictions (the default)
 def override_restrictions():
@@ -44,8 +49,10 @@ def override_restrictions():
   nanny.tattle_quantity = _do_nothing
   nanny.tattle_add_item = _do_nothing
   nanny.tattle_remove_item = _do_nothing
-  nanny.is_item_allowed = _do_nothing
+  nanny.is_item_allowed = _always_true
+  nanny.get_resource_limit = _do_nothing
   emulfile.assert_is_allowed_filename = _do_nothing
+  
 
 
 # Sets up restrictions for the program
@@ -97,6 +104,7 @@ def enable_restrictions():
   nanny.tattle_add_item = oldrestrictioncalls['nanny.tattle_add_item'] 
   nanny.tattle_remove_item = oldrestrictioncalls['nanny.tattle_remove_item'] 
   nanny.is_item_allowed = oldrestrictioncalls['nanny.is_item_allowed'] 
+  nanny.get_resource_limit = oldrestrictioncalls['nanny.get_resource_limit']
   emulfile.assert_is_allowed_filename = oldrestrictioncalls['emulfile.assert_is_allowed_filename']
   
 from virtual_namespace import VirtualNamespace
@@ -115,3 +123,4 @@ file = emulated_open
 
 # Override by default!
 override_restrictions()
+
