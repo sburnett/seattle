@@ -1,0 +1,104 @@
+/*****************************************************************
+<File Name>
+  reset.css
+
+<Started>
+  September 2010
+
+<Author>
+  Alex Hanson
+
+<Purpose>
+  Provides a clean slate for other CSS files.
+  
+  This file is based upon the Seattle web style guide and Richard Clark's HTML5
+  Reset Stylesheet (v1.6.1), licensed under the Creative Commons. His work was
+  based upon Eric Meyer's original Reset CSS, which is public domain.
+  
+  Richard Clark: http://richclarkdesign.com
+  HTML5 Reset Stylesheet: http://html5doctor.com/html-5-reset-stylesheet/
+  
+  Eric Meyer: http://meyerweb.com
+  Reset CSS: http://meyerweb.com/eric/tools/css/reset/
+*****************************************************************/
+
+html, body, div, span, applet, object, iframe,
+h1, h2, h3, h4, h5, h6, p, blockquote, pre,
+a, abbr, acronym, address, big, cite, code,
+del, dfn, em, font, img, ins, kbd, q, s, samp,
+small, strike, strong, sub, sup, tt, var,
+b, u, i, center,
+dl, dt, dd, ol, ul, li,
+fieldset, form, label, legend,
+table, caption, tbody, tfoot, thead, tr, th, td {
+	margin: 0;
+	padding: 0;
+	border: 0;
+	outline: 0;
+	font-size: 100%;
+	vertical-align: baseline;
+	background: transparent;
+}
+
+body {
+	line-height: 1;
+}
+
+ol, ul {
+	list-style: none;
+}
+
+blockquote, q {
+	quotes: none;
+}
+
+blockquote:before, blockquote:after,
+q:before, q:after {
+  content: '';
+  content: none;
+}
+
+a {
+  margin: 0;
+  padding: 0;
+  font-size: 100%;
+  vertical-align: baseline;
+  background: transparent;
+}
+
+:focus {
+	outline: 0;
+}
+
+ins {
+  background-color: #ff9;
+  color: #000;
+  text-decoration: none;
+}
+
+del {
+	text-decoration: line-through;
+}
+
+abbr[title], dfn[title] {
+  border-bottom: 1px dotted;
+  cursor: help;
+}
+
+table {
+  border-collapse: collapse;
+	border-spacing: 0;
+}
+
+hr {
+  display: block;
+  height: 1px;
+  border: 0;   
+  border-top: 1px solid #cccccc;
+  margin: 1em 0;
+  padding: 0;
+}
+
+input, select {
+  vertical-align: middle;
+}

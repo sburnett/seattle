@@ -1,0 +1,17 @@
+To set up the Custom Installer Builder, copy the 'local_template' directory to
+'local' and edit the 'local/settings.py' file to match your local
+configuration:
+
+	cp -R local_template local
+
+
+If you want to run a Django test server, simply follow the instructions given
+here:
+
+	https://seattle.cs.washington.edu/wiki/CustomInstallerBuilderTesting
+
+
+For formal deployment using a dedicated web server (e.g., Apache), follow these
+instructions instead:
+
+    https://seattle.cs.washington.edu/wiki/CustomInstallerBuilderDeployment

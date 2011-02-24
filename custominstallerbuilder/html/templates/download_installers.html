@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block head %}
+<!-- Custom -->
+<link rel="stylesheet" href="{{ MEDIA_URL }}css/download_installers.css" />
+{% endblock %}
+
+{% block content %}
+<div class="section">
+  {% if user_built %}
+    <h2>Your installers are ready!</h2>
+    <p>Bookmark this page to come back later, or share this URL with others:</p>
+    <div id="url"><span class="round_shadow"><a href="{{ share_url }}">{{ share_url }}</a></span> Right click on the URL to copy the address.</div>
+  {% else %}
+    <h2>Thanks for contributing!</h2>
+    <p>The installers below have been customized by a Seattle user. By running these installers, 10% of your computing resources will be donated to an experiment being run by that user.</p>
+  {% endif %}
+</div>
+
+<div class="section">
+  <h2>Download installers</h2>
+  <p>Installers are provided for Linux, Mac OS X, and Windows.</p>
+  
+  <table id="downloads"> 
+    <tr id="linux"> 
+      <td><a href="{{ installers.linux }}"><img src="{{ MEDIA_URL }}/img/linux.png" alt="linux" /></a><br /><a class="button" href="{{ installers.linux }}">Download installer<br />for Linux</a></td> 
+      <td>
+        <p><strong>Linux instructions</strong></p>
+        
+        <ol> 
+          <li>Download the Seattle tarball to your computer.</li> 
+          <li>Extract the tarball to the directory in which you would like to install Seattle.</li> 
+          <li>Navigate to that directory and run <code>./install.sh</code></li> 
+        </ol>
+        
+        <p>To check that Seattle is running, try running:<br /><code>ps -ef | grep nmmain.py | grep -v grep</code></p> 
+        
+        <p>Note: You must have Python 2.5 installed.</p>
+      </td>
+    </tr>
+    <tr id="mac"> 
+      <td><a href="{{ installers.mac }}"><img src="{{ MEDIA_URL }}/img/mac.png" alt="mac" /></a><br /><a class="button" href="{{ installers.mac }}">Download installer<br />for Mac</a></td> 
+      <td>
+        <p><strong>Mac instructions</strong></p>
+        
+        <ol> 
+          <li>Download the Seattle tarball to your computer.</li> 
+          <li>Extract the tarball to the directory in which you would like to install Seattle.</li> 
+          <li>Navigate to that directory and run <code>./install.sh</code></li> 
+        </ol>
+        
+        <p>To check that Seattle is running, try running:<br /><code>ps Aww | grep nmmain.py | grep -v grep</code></p> 
+        
+        <p>Note: You must have Python 2.5 installed.</p>
+      </td> 
+    </tr>
+    <tr id="win"> 
+      <td><a href="{{ installers.windows }}"><img src="{{ MEDIA_URL }}/img/windows.png" alt="windows" /></a><br /><a class="button" href="{{ installers.windows }}">Download installer<br />for Windows</a></td> 
+      <td>
+        <p><strong>Windows instructions</strong></p>
+        
+        <ol> 
+          <li>Download the Seattle ZIP file to your computer.</li> 
+          <li>Extract the ZIP file to the directory in which you would like to install Seattle.</li> 
+          <li>Double-click <code>install.bat</code> or run it from the command line.</li> 
+        </ol>
+        
+        <p>To check that Seattle is running, look in Task Manager for the process pythonw.exe.</p>
+      </td> 
+    </tr>
+  </table>
+  
+  
+</div>
+{% endblock %}

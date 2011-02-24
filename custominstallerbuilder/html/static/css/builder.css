@@ -1,0 +1,325 @@
+/*****************************************************************
+<File Name>
+  builder.css
+
+<Started>
+  September 2010
+
+<Author>
+  Alex Hanson
+
+<Purpose>
+  Provides styling for the interactive parts of the Custom Installer
+  Builder.
+*****************************************************************/
+
+/***********************
+* BUILD SUBMISSION
+* Controls on the top of the page for resetting/submitting the build.
+************************/
+
+#controls {
+  margin-left: 1em;
+}
+
+#controls button {
+  margin-left: 1em;
+  vertical-align: middle;
+}
+
+#build_loading {
+  display: none;
+  
+  margin-left: 0.5em;
+}
+
+#build_loading.active {
+  display: inline-block;
+}
+
+
+/***********************
+* USER WIDGET
+* Create and delete named users, with optional public keys.
+************************/
+
+#user_widget {
+  margin-left: 5%;
+}
+
+
+/*********** userCreator box allows new users to be created ***********/
+
+#user_creator {
+  float: left;
+    
+  width: 23%;
+}
+
+#user_creator fieldset {
+  width: 80%;
+  
+  padding: 1em;
+  
+  border: 1px solid #ddd;
+  
+  background-color: #fcfcfc;
+}
+
+#user_creator legend {
+  font-weight: bold;
+  
+  margin: 0 -0.5em;
+  padding: 0 0.5em;
+}
+
+#user_creator p {
+  margin-bottom: 1.5em;
+}
+
+#user_creator p:last-child {
+  margin-bottom: 0;
+}
+
+#user_creator label {
+  display: block;
+  
+  width: 80%;
+  
+  margin-bottom: 0.3em;
+}
+
+#user_creator input[type='text'] {
+  display: block;
+  
+  width: 70%;
+}
+
+#user_creator input[type='file'] {
+  display: block;
+  
+  width: 100%;
+}
+
+
+/*********** user_list area allows users to be dragged and deleted ***********/
+
+#user_list {
+  float: left;
+  
+  width: 77%;
+  
+  padding-top: 0.5em;
+}
+
+#user_list .user {
+  display: inline-block;
+  float: left;
+  
+  margin: 0 0.8em 0.8em 0;
+
+  border: 1px solid #f7e7ad;
+  background-color: #fdf3d0;
+  
+  vertical-align: top;
+}
+
+#user_list .user.new {
+  border: 1px solid #aee2f7;
+  background-color: #d0f0fd;
+}
+
+#user_list .user .key {
+  float: left;
+  
+  margin-right: 0.3em;
+}
+
+#user_list .user.new .key {
+  display: none;
+}
+
+#user_list .container {
+  min-height: 100%;
+   
+  margin: 2px 0;
+  padding: 0.2em 0.4em 0.2em 14px;
+  
+  background-image: url('../img/grabber.png');
+  background-repeat: repeat-y;
+}
+
+#user_list .user:hover {
+  cursor: pointer;
+}
+
+#user_list .sample {
+  display: none;
+}
+
+#user_list .user span {
+  vertical-align: middle;
+}
+
+#user_list .user .remove {
+  margin-left: 0.5em;
+}
+
+#user_list .user .remove:hover {
+  color: white;
+}
+
+#user_frame {
+  display: none;
+}
+
+
+/***********************
+* VESSEL EDITOR
+* Widget for creating/destroying vessels, assigning an owner and users to each.
+************************/
+
+
+/*********** vessel_markers allow vessels to be split ***********/
+
+#vessel_markers {
+  width: 100%;
+}
+
+#vessel_markers .marker {
+  float: left;
+  text-align: right;
+  margin-bottom: 0.5em;
+}
+
+#vessel_markers .sample {
+  display: none;
+}
+
+#vessel_markers .marker span {
+  font-size: 140%;
+  color: #aaa;
+}
+
+#vessel_markers .marker span:hover {
+  color: black;
+  cursor: pointer;
+}
+
+
+/*********** vessel_widget allows users to be assigned to vessels ***********/
+ 
+#vessel_widget {
+  display: table;
+  width: 100%;
+  
+  border: 1px solid #aaa;
+}
+
+#vessel_widget:hover {
+  cursor: default;
+}
+
+#vessel_widget .sample {
+  display: none;
+}
+
+#vessels {
+  display: table-row;
+}
+
+.vessel {
+  display: table-cell;
+  
+  border-right: 1px solid #aaa;
+}
+
+.reserved {
+  display: table-cell;
+  
+  font-size: 150%;
+  
+  width: 20%;
+  
+  background-color: #fcfcfc;
+  
+  color: #aaa;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.vessel .heading {
+  padding: 0.5em;
+  
+  background-color: #f0f0f0;
+  border-top: 1px solid #ddd;
+  border-bottom: 1px solid #ddd;
+  
+  text-align: center;
+}
+
+.vessel .heading .remove {
+  color: #888;
+  float: right;
+}
+
+.vessel .heading .remove:hover {
+  color: black;
+}
+
+.vessel.hideRemove .heading .remove {
+  display: none;
+}
+
+.vessel .user_selection {
+  background-color: #fcfcfc;
+}
+
+.vessel .user_selection.owner {
+  min-height: 2em;
+  height: 2em;
+}
+
+.vessel .user_selection.users {
+  min-height: 100px;
+}
+
+.vessel .user_selection.active {
+  background-color: #fcfcfc;
+}
+
+.vessel .user_selection.hover {
+  background-color: #fafafa;
+}
+
+.vessel .user_selection .user {
+  display: block;
+  
+  width: 100%;
+  
+  padding: 0.5em 0;
+  
+  border-bottom: 1px dotted #ddd;
+  
+  text-align: center;
+}
+
+.vessel .user_selection.owner .user {
+  height: 100%;
+}
+
+.vessel .user_selection .user .key {
+  display: none;
+}
+
+.vessel .user_selection.owner .user {
+  border-bottom: none;
+}
+
+.vessel .user_selection .user .remove {
+  margin-left: 0.5em;
+}
+
+.vessel .user_selection .user .remove:hover {
+  color: #aaa;
+}
