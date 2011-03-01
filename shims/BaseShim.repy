@@ -1,0 +1,291 @@
+"""
+<Program Name>
+  BaseShim.repy
+
+<Author>
+  Danny Y. Huang, yh1@cs.williams.edu
+
+<Date Started>
+  June 2010, refactored in Feb 2011.
+
+<Purpose> 
+  Base class for shims. Provides shim developers with a simple programming
+  interface since this class takes care of a number of interntal shim
+  operations.
+
+"""
+
+class ShimError(Exception):
+  pass
+
+
+
+
+
+
+
+class ShimSocketWrapper:
+  """ 
+  Wrapper base class for the any socket-like object. Any call to this wrapped
+  object will be directed to the corresponding public method defined in the
+  shim. Not to be used directly.
+
+  """
+  def __init__(self, socket, shim_ref):
+
+    # We are wrapping around the original socket-like object.
+    self._socket = socket
+
+    # We keep a reference to the caller shim so that we can invoke its internal
+    # methods.
+    self._shim_ref = shim_ref
+
+
+  def __str__(self):
+    return '(%s shim: %s; socket: %s)' % (repr(self), self._shim_ref, self._socket)
+  
+
+
+
+class ShimUDPServerSocket(ShimSocketWrapper):
+  """ Wraps around UDPServerSocket. """
+
+  def getmessage(self):
+    return self._shim_ref.udpserversocket_getmessage(self._socket)
+
+  def close(self):
+    return self._shim_ref.udpserversocket_close(self._socket)
+
+
+
+
+class ShimTCPServerSocket(ShimSocketWrapper):
+  """ Wraps around TCPServerSocket. """
+
+  def getconnection(self):
+    return self._shim_ref.tcpserversocket_getconnection(self._socket)
+
+  def close(self):
+    return self._shim_ref.tcpserversocket_close(self._socket)
+
+
+
+
+class ShimSocket(ShimSocketWrapper):
+  """ Wraps around the repy socket object. """
+
+  def close(self):
+    return self._shim_ref.socket_close(self._socket)
+
+  def recv(self, bytes):
+    return self._shim_ref.socket_recv(self._socket, bytes)
+
+  def send(self, message):
+    return self._shim_ref.socket_send(self._socket, message)
+
+  
+
+
+
+
+
+class BaseShim:
+
+
+  def __init__(self, shim_stack, optional_args=None):
+    """
+    Default constructor that the child classes must invoke.
+
+    """
+    # Type checking
+    if not isinstance(shim_stack, ShimStack):
+      raise ShimError('Invalid shim_stack type specified at constructor: ' + repr(shim_stack))
+
+    self._optional_args = optional_args
+    self.shim_stack = shim_stack
+
+
+
+  # ===========================================================================
+  # Public methods that the child classes must override.
+  # ===========================================================================
+
+
+  def copy(self):
+    """
+    Returns a copy of the current instance. Be sure to set internal states to be
+    copied in the new object. An example would be:
+  
+    class MyShim(BaseShim):
+      def copy(self):
+        mycopy = MyShim()
+        mycopy._internalstate = self._internalstate
+        return mycopy
+
+    """
+    raise ShimError("The copy() method is not implemented.")
+
+
+
+  def get_advertisement_string(self):
+    """
+    Returns the string used for advertisement of this shim. For example:
+
+    class MyShim(BaseShim):
+      def get_advertisement_string(self):
+        return '(MyShim,' + str(self._some_shared_state) + ')'
+
+    If the subclass shim is not meant to be public, then simply return an empty
+    string.
+
+    """
+    raise ShimError("The get_advertisement_string() method is not implemented.")
+
+
+
+  # ===========================================================================
+  # Protected methods that the shim developer may override. If not, the
+  # corresponding method in the next shim will be invoked by default. These
+  # methods call the corresponding ones in the shim below.
+  # ===========================================================================
+  
+  def _shim_sendmessage(self, destip, destport, message, localip, localport):
+    return self.shim_stack.sendmessage(destip, destport, message, localip, localport)
+
+
+
+  def _shim_listenformessage(self, localip, localport):
+    return self.shim_stack.listenformessage(localip, localport)
+
+
+
+  def _shim_openconnection(self, destip, destport, localip, localport, timeout):
+    return self.shim_stack.openconnection(destip, destport, localip, localport, timeout)
+
+
+
+  def _shim_listenforconnection(self, localip, localport):
+    return self.shim_stack.listenforconnection(localip, localport)
+
+
+
+  def _shim_socket_close(self, socket):
+    return self.shim_stack.socket_close(socket)
+
+
+
+  def _shim_socket_send(self, socket, msg):
+    return self.shim_stack.socket_send(socket, msg)
+
+
+
+  def _shim_socket_recv(self, socket, bytes):
+    return self.shim_stack.socket_recv(socket, bytes)
+
+
+
+  def _shim_tcpserversocket_getconnection(self, tcpserversocket):
+    """
+    This method is invoked within the context of a new instance of the shim,
+    which is created when we obtain a new connection. A shim developer can pass
+    internal state from the original instance to the new one through the copy()
+    method.
+
+    """
+    return self.shim_stack.tcpserversocket_getconnection(tcpserversocket)
+
+
+
+  def _shim_tcpserversocket_close(self, tcpserversocket):
+    return self.shim_stack.tcpserversocket_close(tcpserversocket)
+
+
+
+  def _shim_udpserversocket_getmessage(self, udpserversocket):
+    """
+    This method is invoked within the context of a new instance of the shim,
+    which is created when we obtain a new message. A shim developer can pass
+    internal state from the original instance to the new one through the copy()
+    method.
+
+    """
+    return self.shim_stack.udpserversocket_getmessage(udpserversocket)
+
+
+
+  def _shim_udpserversocket_close(self, udpserversocket):
+    return self.shim_stack.udpserversocket_close(udpserversocket)
+
+
+
+
+  # ===========================================================================
+  # Public methods that directly interface with the application. Do not modify
+  # any of these methods. These methods call their protected counterparts
+  # defined above.
+  # ===========================================================================
+
+  def sendmessage(self, destip, destport, message, localip, localport):
+    return self._shim_sendmessage(destip, destport, message, localip, localport)
+
+
+
+  def listenformessage(self, localip, localport):
+    repy_udp_server_socket = self._shim_listenformessage(localip, localport)
+    return ShimUDPServerSocket(repy_udp_server_socket, self)
+
+
+
+  def openconnection(self, destip, destport, localip, localport, timeout):
+    return self._shim_openconnection(destip, destport, localip, localport, timeout)
+
+
+
+  def listenforconnection(self, localip, localport):
+    repy_tcp_server_socket = self._shim_listenforconnection(localip, localport)
+    return ShimTCPServerSocket(repy_tcp_server_socket, self)
+
+
+
+  def socket_close(self, socket):
+    return self._shim_socket_close(socket)
+
+
+
+  def socket_send(self, socket, msg):
+    return self._shim_socket_send(socket, msg)
+
+
+
+  def socket_recv(self, socket, bytes):
+    return self._shim_socket_recv(socket, bytes)
+
+
+
+  def tcpserversocket_getconnection(self, tcpserversocket):
+    this_shim_copy = self.copy()
+    (remote_ip, remote_port, repy_socket) = this_shim_copy._shim_tcpserversocket_getconnection(tcpserversocket)
+    return (remote_ip, remote_port, ShimSocket(repy_socket, this_shim_copy))
+
+
+
+  def tcpserversocket_close(self, tcpserversocket):
+    return self._shim_tcpserversocket_close(tcpserversocket)
+
+
+
+  def udpserversocket_getmessage(self, udpserversocket):
+    return self.copy()._shim_udpserversocket_getmessage(udpserversocket)
+
+
+
+  def udpserversocket_close(self, udpserversocket):
+    return self._shim_udpserversocket_close(udpserversocket)
+
+
+
+
+
+
+
+

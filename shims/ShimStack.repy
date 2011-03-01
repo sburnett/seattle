@@ -1,0 +1,243 @@
+"""
+<Program Name>
+  ShimStack.repy
+
+<Author>
+  Eric Kimbrel, kimbrl@cs.washington.edu
+  Danny Y. Huang, yh1@cs.williams.edu
+
+<Date Started>
+  Jun 2009, refactored in Feb 2011.
+
+<Purpose>
+  Provide a wrapper for network shims with convenient methods for composing
+  shims together into a stack.
+
+"""
+
+
+# A dictionary that maps the names of shims to their respective classes.
+_SHIM_STACK_SHIM_DICT = {}
+
+
+
+class ShimStackError(Exception):
+  pass
+
+
+
+
+def register_shim(shim_name, shim_class):
+  """
+  Loads a shim into the context of this module, thus allowing us to instantiate
+  from it.
+
+  shim_name: A string representation of the shim, e.g. "CompressionShim".
+  
+  shim_class: A reference to the shim object (but not to any particular
+  instances of the shim).
+
+  """
+  _SHIM_STACK_SHIM_DICT[str(shim_name)] = shim_class
+                      
+
+
+
+
+
+class ShimStack:
+
+
+  # ===========================================================================
+  # Public methods that manipulate the shim stack
+  # ===========================================================================
+
+  def __init__(self,shim_stack_string='', localhost=None):
+    """
+    Constructs a shim stack based on its string representation,
+    e.g. "(ShimA)(ShimB,arg1,arg2)...", where arg1 and arg2 are the optional
+    arguments supplied to ShimB. 
+
+    """
+    self.localhost = localhost
+
+    # Parse the shim stack string
+    self.top_shim = self._make_stack(shim_stack_string)
+
+
+
+  def push(self, shim):
+    """
+    Pushes a shim to the top of the stack.
+
+    """
+    shim.shim_stack.top_shim = self.top_shim
+    shim.shim_stack.localhost = self.localhost
+    self.top_shim = shim
+
+
+
+  def pop(self):
+    """
+    Removes the top-most shim from the stack.
+
+    """
+    old_top_shim = self.top_shim
+    if old_top_shim is None:
+      raise ShimStackError('Cannot pop an empty shim stack.')
+
+    # Set the new top shim to the one below
+    self.top_shim = old_top_shim.shim_stack.top_shim
+
+    return old_top_shim
+
+
+
+  def copy(self):
+    """
+    Creates a deep copy of the shim stack by invoking the copy() method of each
+    of the constituent shims. This is a recursive method.
+
+    """
+    if self.top_shim is None:
+      return ShimStack('', self.localhost)
+
+    stack_copy = self.top_shim.shim_stack.copy()
+    stack_copy.push(self.top_shim.copy())
+    return stack_copy
+
+
+
+  def get_advertisement_string(self):
+    """
+    Recursively returns the advertisement strings of all the shims in the stack.
+    
+    """
+    if self.top_shim is None:
+      return ''
+
+    else:
+      return self.top_shim.get_advertisement_string() + self.top_shim.shim_stack.get_advertisement_string()
+
+
+
+  def __str__(self):
+    """
+    Returns a string representation of all the shims in the stack.
+
+    """
+    if self.top_shim is None:
+      return '!'
+
+    else:
+      return '(st: ' + str(self.top_shim) + ' ' + str(self.top_shim.shim_stack) + ')'
+
+
+
+  # ===========================================================================
+  # Public methods that interface with the application
+  # ===========================================================================
+
+  def sendmessage(self, destip, destport, message, localip, localport):
+    if self.top_shim is None:
+      return sendmessage(destip, destport, message, localip, localport)
+    else:
+      return self.top_shim.sendmessage(destip, destport, message, localip, localport)
+
+
+
+  def listenformessage(self, localip, localport):
+    if self.top_shim is None:
+      return listenformessage(localip, localport)
+    else:
+      return self.top_shim.listenformessage(localip, localport)
+
+
+
+  def openconnection(self, destip, destport, localip, localport, timeout):
+    if self.top_shim is None:
+      return openconnection(destip, destport, localip, localport, timeout)
+    else:
+      return self.top_shim.openconnection(destip, destport, localip, localport, timeout)
+
+
+
+  def listenforconnection(self, localip, localport):
+    if self.top_shim is None:
+      return listenforconnection(localip, localport)
+    else:
+      return self.top_shim.listenforconnection(localip, localport)
+
+
+
+  def socket_close(self, socket):
+    return socket.close()
+
+
+
+  def socket_send(self, socket, msg):
+    return socket.send(msg)
+
+
+
+  def socket_recv(self, socket, bytes):
+    return socket.recv(bytes)
+
+
+
+  def tcpserversocket_getconnection(self, tcpserversocket):
+    return tcpserversocket.getconnection()
+
+
+
+  def tcpserversocket_close(self, tcpserversocket):
+    return tcpserversocket.close()
+
+
+
+  def udpserversocket_getmessage(self, udpserversocket):
+    return udpserversocket.getmessage()
+
+
+
+  def udpserversocket_close(self, udpserversocket):
+    return udpserversocket.close()
+
+
+
+  # ===========================================================================
+  # Private helper methods
+  # ===========================================================================
+
+  def _make_stack(self, shim_stack_str):
+    """
+    Recursively parses the shim stack string representation and builds the shim
+    stack. Helper method for the constructor. Returns the top shim of the new
+    stack.
+
+    """
+    if shim_stack_str == '':
+      return None
+
+    # Extract the first shim by locating the first pair of parentheses.
+    left_pos = shim_stack_str.find('(')
+    right_pos = shim_stack_str.find(')')
+    if left_pos + 1 < right_pos:
+      shim_name_and_args = shim_stack_str[left_pos + 1 : right_pos]
+      next_shim_stack_str = shim_stack_str[right_pos + 1 : ]
+    else:
+      raise ShimStackError('Unable to parse the shim stack string "%s".' % shim_stack_str)
+
+    # Extract the shim's name and arguments, if any.
+    shim_list = shim_name_and_args.split(',')
+    shim_name = shim_list[0]
+    shim_args = shim_list[1:]
+    
+    # Make the new top shim and its shim stack recursively.
+    if shim_name in _SHIM_STACK_SHIM_DICT:
+      new_shim_stack = ShimStack(next_shim_stack_str, self.localhost)
+      top_shim = _SHIM_STACK_SHIM_DICT[shim_name](new_shim_stack, shim_args)
+    else:
+      raise ShimStackError('Invalid shim "%s".' % shim_name)
+
+    return top_shim
