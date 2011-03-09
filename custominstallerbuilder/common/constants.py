@@ -27,9 +27,9 @@ ZIP_PLATFORMS = set(['windows'])
 # For each platform listed above, provide the name of the base installer
 # archive that will be used to construct customized installers.
 PLATFORM_BUNDLES = {
-  'linux': 'seattle_linux.tar.gz',
-  'mac': 'seattle_mac.tar.gz',
-  'windows': 'seattle_windows.zip',
+  'linux': 'seattle_linux.tgz',
+  'mac': 'seattle_mac.tgz',
+  'windows': 'seattle_win.zip',
 }
 
 # The names for generated cryptographic key bundles.
