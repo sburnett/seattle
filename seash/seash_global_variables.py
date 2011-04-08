@@ -25,4 +25,4 @@ globalseashtimeout = 10
 # this is the upload rate we'll modify globalseashtimeout during 
 # file uploads to ensure completion without timeout
 # default is left at 10240 bytes/sec (10 kb/sec)
-globaluploadrate = 10240
+globaluploadrate = 5120
