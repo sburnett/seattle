@@ -16,24 +16,7 @@
 
 """
 
-include ShimStack.repy
-
-# ===========================================================================
-# Include all shims available
-# ===========================================================================
-
-include BaseShim.repy
-include NoopShim.repy
-
-
-# ===========================================================================
-# Register all shims available
-# ===========================================================================
-
-register_shim('BaseShim', BaseShim)
-register_shim('NoopShim', NoopShim)
-
-
+dy_import_module_symbols("shim_stack")
 
 
 
@@ -68,22 +51,22 @@ class ShimStackInterface:
 
   def sendmessage(self, destip, destport, message, localip, localport):
     shim_stack = ShimStack(self._stack_str, self._localhost)
-    return shim_stack.sendmessage(destip, destport, message, localip, localport)
+    return shim_stack.peek().sendmessage(destip, destport, message, localip, localport)
 
 
 
   def openconnection(self, destip, destport, localip, localport, timeout):
     shim_stack = ShimStack(self._stack_str, self._localhost)
-    return shim_stack.openconnection(destip, destport, localip, localport, timeout)
+    return shim_stack.peek().openconnection(destip, destport, localip, localport, timeout)
 
 
 
   def listenformessage(self, localip, localport):
     shim_stack = ShimStack(self._stack_str, self._localhost)
-    return shim_stack.listenformessage(localip, localport)
+    return shim_stack.peek().listenformessage(localip, localport)
 
 
 
   def listenforconnection(self, localip, localport):
     shim_stack = ShimStack(self._stack_str, self._localhost)
-    return shim_stack.listenforconnection(localip, localport)
+    return shim_stack.peek().listenforconnection(localip, localport)

@@ -1,8 +1,13 @@
 
 # I'm importing these so I can neuter the calls so that they aren't 
 # restricted...
+import safe
 import nanny
 import emulfile
+import emulmisc
+import namespace
+import nonportable
+import virtual_namespace
 
 
 # JAC: Save the calls in case I want to restore them.   This is useful if 
@@ -107,19 +112,43 @@ def enable_restrictions():
   nanny.get_resource_limit = oldrestrictioncalls['nanny.get_resource_limit']
   emulfile.assert_is_allowed_filename = oldrestrictioncalls['emulfile.assert_is_allowed_filename']
   
-from virtual_namespace import VirtualNamespace
+# from virtual_namespace import VirtualNamespace
+# We need more of the module then just the VirtualNamespace
+from virtual_namespace import *
+from safe import *
 from emulmisc import *
 from emulcomm import *
 from emulfile import *
 from emultimer import *
+
+# Buld the _context and usercontext dicts.
+# These will be the functions and variables in the user's namespace (along
+# with the builtins allowed by the safe module).
+usercontext = {'mycontext':{}}
+
+# Add to the user's namespace wrapped versions of the API functions we make
+# available to the untrusted user code.
+namespace.wrap_and_insert_api_functions(usercontext)
+
+# Convert the usercontext from a dict to a SafeDict
+usercontext = safe.SafeDict(usercontext)
+
+# Allow some introspection by providing a reference to the context
+usercontext["_context"] = usercontext
+usercontext["getresources"] = nonportable.get_resources
+usercontext["createvirtualnamespace"] = virtual_namespace.createvirtualnamespace
+usercontext["getlasterror"] = emulmisc.getlasterror
+_context = usercontext.copy()
 
 # This is needed because otherwise we're using the old versions of file and
 # open.   We should change the names of these functions when we design
 # repy 0.2
 originalopen = open
 originalfile = file
-open = emulated_open
-file = emulated_open
+openfile = emulated_open
+
+# file command discontinued in repy V2
+#file = emulated_open
 
 # Override by default!
 override_restrictions()
