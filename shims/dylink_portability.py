@@ -4,11 +4,20 @@ import nanny
 import repyportability
 import virtual_namespace
 
+
+
+
+def _do_nothing(*args):
+  pass
+
+
 def _initialize_safe_module():
     """
     A helper private function that helps initialize
     the safe module.
     """
+
+    
 
     # Allow the user to do try, except, finally, etc.
     safe._NODE_CLASS_OK.append("TryExcept")
@@ -16,11 +25,8 @@ def _initialize_safe_module():
     safe._NODE_CLASS_OK.append("Raise")
     safe._NODE_CLASS_OK.append("ExcepthandlerType")
     safe._NODE_CLASS_OK.append("Invert")
+    safe._NODE_CLASS_OK.append("Import")
     
-    # Remove support for print()
-    safe._NODE_CLASS_OK.remove("Print")
-    safe._NODE_CLASS_OK.remove("Printnl")
-
     # needed for traceback
     # NOTE: still needed for tracebackrepy
     safe._BUILTIN_OK.append("isinstance")
@@ -31,14 +37,16 @@ def _initialize_safe_module():
     # needed to allow primitive marshalling to be built
     safe._BUILTIN_OK.append("ord")
     safe._BUILTIN_OK.append("chr")
-    # should not be used!   Use exitall instead.
-    safe._BUILTIN_OK.remove("exit")
-    safe._BUILTIN_OK.remove("quit")
+    safe._BUILTIN_OK.append("__import__")
 
     safe._STR_OK.append("__repr__")
     safe._STR_OK.append("__str__")
     # allow __ in strings.   I'm 99% sure this is okay (do I want to risk it?)
     safe._NODE_ATTR_OK.append('value')
+
+    safe.serial_safe_check = _do_nothing
+    safe._check_node = _do_nothing
+
 
 
 
