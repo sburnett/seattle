@@ -1,7 +1,12 @@
 #!/bin/bash
 
-TRUNK_DIR=trunk
-DEPLOY_TO_DIR=advertiseserver_deployed
+TRUNK_DIR=$1
+DEPLOY_TO_DIR=$2
+
+if [ -z $TRUNK_DIR ] || [ -z $DEPLOY_TO_DIR ]; then
+  echo "Usage: ./deploy_advertiseserver.sh trunk_location deploy_dir"
+  exit 1
+fi
 
 if [ ! -d $TRUNK_DIR ]; then
   echo "TRUNK_DIR doesn't exist: $TRUNK_DIR"

@@ -636,7 +636,12 @@ def show_location(input_dict, environment_dict):
     # if we haven't visited this node
     if thisnodeIP not in printedIPlist:
       printedIPlist.append(thisnodeIP)
-      location_dict = geoip_record_by_addr(thisnodeIP)
+      
+      try:
+        location_dict = geoip_record_by_addr(thisnodeIP)
+      except:
+        location_dict = None
+
       if location_dict:
         print str(seash_global_variables.vesselinfo[longname]['ID'])+'('+str(thisnodeIP)+'): '+geoip_location_str(location_dict)
       else:
