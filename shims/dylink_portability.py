@@ -1,6 +1,7 @@
 import safe
-import namespace
 import nanny
+import emulmisc
+import namespace
 import repyportability
 import virtual_namespace
 
@@ -90,8 +91,10 @@ def run_unrestricted_repy_code(filename, args_list=[]):
     context = safe.SafeDict(context)
     context["_context"] = context
     context["createvirtualnamespace"] = virtual_namespace.createvirtualnamespace
+    context["getlasterror"] = emulmisc.getlasterror
     context['callfunc'] = 'initialize'
     context['callargs'] = callargs_list
+
 
     code = open("dylink.repy").read()
 
