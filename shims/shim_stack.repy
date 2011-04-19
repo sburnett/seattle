@@ -267,7 +267,7 @@ class ShimStack:
       raise ShimStackError("Shim stack is empty. Cannot pop() from stack.")
 
     # Equivalent to top_shim = top_shim.next_shim()
-    self.shim_stack_context['top_shim'] = top_shim.shim_stack.shim_stack_context['top_shim']
+    self.shim_stack_context['top_shim'] = top_shim.shim_context['shim_stack'].shim_stack_context['top_shim']
 
     # Monzur - Before we return the top_shim, should we point top_shims shim stack to None?
     # User may be able to modify the current shim stack because the top_shim that is returned

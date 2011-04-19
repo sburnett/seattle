@@ -7,7 +7,8 @@ class ShimSocketWrapper:
   """
   def __init__(self, socket, shim_object):
 
-    # We are wrapping around the original socket-like object.
+    # We are always wrapping around the original socket-like object provided by
+    # repy.
     self._socket = socket
 
     # We keep a reference to the caller shim so that we can invoke its internal
@@ -16,7 +17,7 @@ class ShimSocketWrapper:
 
 
   def __str__(self):
-    return '(%s shim: %s; socket: %s)' % (repr(self), self._shim_object, self._socket)
+    return '(%s, shim: %s, socket: %s)' % (repr(self).replace(' instance at', ''), self._shim_object, self._socket)
 
 
 
@@ -192,3 +193,14 @@ class RepyNetworkApiWrapper:
     Close the original udpserversocket.
     """
     return udpserversocket.close()
+
+
+  def get_advertisement_string(self):
+    """
+    Returns the string used for advertisement of this shim.
+	"""
+    return ''
+
+  
+  def __str__(self):
+    return '(%s)' % repr(self).replace(' instance at', '')

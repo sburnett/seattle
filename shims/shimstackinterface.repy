@@ -29,6 +29,9 @@ class ShimStackInterface:
     if stack_str == "":
       stack_str = "(NoopShim)"
 
+    if localhost == '':
+      localhost = getmyip()
+
     # Set the instance variables
     self._stack_str = stack_str
     self._localhost = localhost

@@ -1,6 +1,6 @@
 """
 <Program Name>
-  base_shim.repy
+  baseshim.repy
 
 <Author>
   Danny Y. Huang, yh1@cs.williams.edu
@@ -85,7 +85,7 @@ class BaseShim:
 
     class MyShim(BaseShim):
       def copy(self):
-        mycopy = MyShim()
+		mycopy = MyShim(self.shim_context['shim_stack'].copy(), self.shim_context['optional_args']
         mycopy._internalstate = self._internalstate
         return mycopy
 
@@ -100,7 +100,7 @@ class BaseShim:
 
     class MyShim(BaseShim):
       def get_advertisement_string(self):
-        return '(MyShim,' + str(self._some_shared_state) + ')'
+        return '(MyShim,' + str(self._some_shared_state) + ')' + self.get_next_shim_layer().get_advertisement_string()
 
     If the subclass shim is not meant to be public, then simply return an empty
     string.
@@ -179,7 +179,7 @@ class BaseShim:
 
 
   def listenforconnection(self, localip, localport):
-    # Not sure if we have to make a copy of self before retrieving
+    # TODO: Not sure if we have to make a copy of self before retrieving
     # the next layer.
     next_layer_socket = self.get_next_shim_layer().listenforconnection(localip, localport)
     return ShimTCPServerSocket(next_layer_socket, self)
@@ -223,3 +223,7 @@ class BaseShim:
 
   def udpserversocket_close(self, udpserversocket):
     return self.get_next_shim_layer().udpserversocket_close(udpserversocket)
+
+
+  def __str__(self):
+    return '(%s)' % repr(self).replace(' instance at', '') + str(self.get_next_shim_layer())
