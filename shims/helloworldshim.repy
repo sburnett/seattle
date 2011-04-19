@@ -101,4 +101,9 @@ class HelloWorldShim(BaseShim):
 
 
   def get_advertisement_string(self):
-    return '(HelloWorldShim)' + get_next_shim_layer().get_advertisement_string()
+    """ Advertises the shim's name and its private number, if any., so that the HelloWorldShim on the client gets the same information. """
+    if self.private_num:
+      shim_name = '(HelloWorldShim,' + str(self.private_num) + ')'
+    else:
+      shim_name = '(HelloWorldShim)'
+    return shim_name + self.get_next_shim_layer().get_advertisement_string()

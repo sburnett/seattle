@@ -21,8 +21,9 @@ def main():
   createthread(exit_thread)
   createthread(server_thread)
 
-  shim_object = ShimStackInterface("(HelloWorldDeciderShim)(HelloWorldShim,1)", "my_local_ip")
-
+  shim_object = ShimStackInterface("(CoordinationShim)", "my_local_ip")
+  # Sleep a while as it takes time for the server to advertise its shim stack.
+  sleep(8)
   sockobj = shim_object.openconnection(getmyip(), 12345, getmyip(), 12346, 10)
 
   while True:
@@ -41,7 +42,7 @@ def server_thread():
   
   msg="Server says Hello!"
 
-  shim_object = ShimStackInterface("(HelloWorldDeciderShim)(HelloWorldShim,1)", "my_local_ip")
+  shim_object = ShimStackInterface("(CoordinationShim)(HelloWorldShim,3)(HelloWorldDeciderShim)(HelloWorldShim,1)", "my_local_ip")
   tcp_server_sock = shim_object.listenforconnection(getmyip(), 12345)
 
   while True:
