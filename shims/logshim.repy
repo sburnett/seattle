@@ -1,0 +1,213 @@
+"""
+<Program Name>
+  logshim.repy
+
+<Author>
+  Danny Y. Huang, yh1@cs.williams.edu
+
+<Date Started>
+  April 11, 2011
+
+<Purpose>
+  Logs all data being passed through the shim. Helps debugging. As a function
+  enters, we log all the parameters. Before it returns, we log the return value
+  in a line that starts with " > ". Each log entry contains the time and the
+  string representation of the shim stack below.
+
+"""
+
+
+
+
+class LogShim(BaseShim):
+
+  _LOG_FILE_NAME = 'debug.log'
+
+  # Prevents current write.
+  _lock = createlock()
+
+  # Used to calculate the relative time from the beginning of the program.
+  _start_time = getruntime()
+
+  # Stores state of the shim.
+  _log_context = {'bytes_written' : 0}
+
+
+  def _log(self, logstr):
+    """ 
+    Writes logstr to the log file. First line states the total elapsed time and
+    the contents of the shim stack. The second line contains the log data.
+
+    """
+    try:
+      self._lock.acquire(True)
+
+      file_obj = openfile(self._LOG_FILE_NAME, True)
+
+      # Calculate the time elapsed, accurate up to two decimal places, in seconds.
+      time_str = 't = %.2f, shim stack = "' % (getruntime() - self._start_time) 
+      
+      # Write data into the log file
+      data_to_write = time_str + self.get_advertisement_string() + '"\n' + str(logstr) + '\n\n'
+      file_obj.writeat(data_to_write, self._log_context['bytes_written'])        
+      self._log_context['bytes_written'] += len(data_to_write)
+
+      file_obj.close()
+
+    finally:
+      self._lock.release()
+
+
+
+  def sendmessage(self, destip, destport, message, localip, localport):
+
+    log_info = ('sendmessage, destip = %s, destport = %s, localip = %s, localport = %s, message = %s' 
+                % (destip, destport, localip, localport, message))
+    self._log(log_info)
+
+    sent = self.get_next_shim_layer().sendmessage(destip, destport, message, localip, localport)
+
+    self._log('%s\n > return = %s' % (log_info, sent))
+    return sent
+
+
+
+  def listenformessage(self, localip, localport):
+
+    log_info = ('listenformessage, localip = %s, localport = %s' % (localip, localport))
+    self._log(log_info)
+
+    next_layer_socket = self.get_next_shim_layer.listenformessage(localip, localport)
+    sock = ShimUDPServerSocket(next_layer_socket, self)
+    self._log('%s\n > return = %s' % (log_info, sock))    
+
+    return sock
+
+
+
+  def openconnection(self, destip, destport, localip, localport, timeout):
+
+    log_info = ('openconnection, destip = %s, destport = %s, localip = %s, localport = %s, timeout = %s'
+                % (destip, destport, localip, localport, timeout))
+    self._log(log_info)
+
+    this_shim_copy = self.copy()
+    next_sockobj = self.get_next_shim_layer().openconnection(destip, destport, localip, localport, timeout)
+    sock = ShimSocket(next_sockobj, this_shim_copy)
+
+    self._log('%s\n > return = %s' % (log_info, sock))        
+    return sock
+
+
+
+  def listenforconnection(self, localip, localport):
+
+    log_info = 'listenforconnection, localip = %s, localport = %s' % (localip, localport)
+    self._log(log_info)
+
+    next_layer_socket = self.get_next_shim_layer().listenforconnection(localip, localport)
+    sock = ShimTCPServerSocket(next_layer_socket, self)
+
+    self._log('%s\n > return = %s' % (log_info, sock))        
+    return sock
+
+
+
+  def socket_close(self, socket):
+
+    log_info = 'socket_close, socket = %s' % socket
+    self._log(log_info)
+
+    value = self.get_next_shim_layer().socket_close(socket)
+
+    self._log('%s\n > return = %s' % (log_info, value))        
+    return value
+
+
+
+  def socket_send(self, socket, msg):
+
+    log_info = 'socket_send, socket = %s, msg = %s' % (socket, msg)
+    self._log(log_info)
+
+    sent = self.get_next_shim_layer().socket_send(socket, msg)
+
+    self._log('%s\n > return = %s' % (log_info, sent))
+    return sent
+
+
+
+  def socket_recv(self, socket, bytes):
+
+    log_info = 'socket_recv, socket = %s, bytes = %s' % (socket, bytes)
+    self._log(log_info)
+
+    data = self.get_next_shim_layer().socket_recv(socket, bytes)
+
+    self._log('%s\n > return = %s' % (log_info, data))
+    return data
+
+
+
+  def tcpserversocket_getconnection(self, tcpserversocket):
+
+    log_info = 'tcpserversocket_getconnection, tcpserversocket = %s' % tcpserversocket
+    self._log(log_info)
+
+    this_shim_copy = self.copy()
+    (remote_ip, remote_port, repy_socket) = this_shim_copy.get_next_shim_layer().tcpserversocket_getconnection(tcpserversocket)
+    value = (remote_ip, remote_port, ShimSocket(repy_socket, this_shim_copy))
+
+    self._log('%s\n > return = %s' % (log_info, value))    
+    return value
+
+
+
+  def tcpserversocket_close(self, tcpserversocket):
+
+    log_info = 'tcpserversocket_close, tcpserversocket = %s' % tcpserversocket
+    self._log(log_info)
+
+    value = self.get_next_shim_layer().tcpserversocket_close(tcpserversocket)
+
+    self._log('%s\n > return = %s' % (log_info, value))    
+    return value
+
+
+
+  def udpserversocket_getmessage(self, udpserversocket):
+
+    log_info = 'udpserversocket_getmessage, udpserversocket = %s' % udpserversocket
+    self._log(log_info)
+
+    value = self.copy().get_next_shim_layer().udpserversocket_getmessage(udpserversocket)
+
+    self._log('%s\n > return = %s' % (log_info, value))    
+    return value
+
+
+
+  def udpserversocket_close(self, udpserversocket):
+
+    log_info = 'udpserversocket_close, udpserversocket = %s' % udpserversocket
+    self._log(log_info)
+
+    value = self.get_next_shim_layer().udpserversocket_close(udpserversocket)
+
+    self._log('%s\n > return = %s' % (log_info, value))    
+    return value
+
+
+
+
+
+    
+
+  def copy(self):
+    return LogShim(self.shim_context['shim_stack'].copy(), self.shim_context['optional_args'])
+
+
+  
+  def get_advertisement_string(self):
+    # We do not advertise this shim.
+    return '' + self.get_next_shim_layer().get_advertisement_string()
