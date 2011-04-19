@@ -89,7 +89,7 @@ class CoordinationShim(BaseShim):
     # shim stack.
     adv_key = str(localip) + ',' + str(localport) + ',TCP'
     adv_value = self.get_next_shim_layer().get_advertisement_string()
-    log('zzzz Advertised', adv_key, adv_value, '\n')
+
     adv_handle = AdvertisePipe().add(adv_key, adv_value)
 
     # We need to save the advertisement handle to a global dictionary, so that
@@ -165,7 +165,7 @@ class CoordinationShim(BaseShim):
       # Build my shim stack
       localhost = self.shim_context['shim_stack'].shim_stack_context['localhost']
       self.shim_context['shim_stack'] = ShimStack(server_shim_stack_str, localhost)
-      log('zzzz Trying shim stack', self.get_next_shim_layer(), '\n')
+
       # Check if we have exceeded the time limit.
       time_taken = getruntime() - start_time
       if time_taken > timeout:
