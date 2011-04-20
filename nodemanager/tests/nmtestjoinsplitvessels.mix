@@ -5,7 +5,7 @@ This test splits a vessel into two, and joins the resulting vessels back togethe
 """
 
 include time.repy
-include nmclient.repy
+include fastnmclient.mix
 
 
 def get_restrictions(resourcestring):

@@ -4,7 +4,7 @@ Description:
 This test calls GetOffcutResources to verify no exceptions are thrown
 """
 
-include nmclient.repy
+include fastnmclient.mix
 
 if callfunc == 'initialize':
   nmhandle = nmclient_createhandle(getmyip(), <nodemanager_port>)

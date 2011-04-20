@@ -4,7 +4,7 @@ Description:
 This test verifies the SetRestrictions method calling it and checking if the new restrictions were set as expected.
 
 """
-include nmclient.repy
+include fastnmclient.mix
 
 
 def get_restrictions(resourcestring):

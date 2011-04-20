@@ -91,12 +91,12 @@ import traceback
 
 import servicelogger
 
+import sha
 
 
 # import the natlayer for use
 # this requires all NATLayer dependincies to be in the current directory
 repyhelper.translate_and_import('NATLayer_rpc.repy')
-repyhelper.translate_and_import('sha.repy')
 repyhelper.translate_and_import('rsa.repy')
 
 repyhelper.translate_and_import('sockettimeout.repy')
@@ -262,10 +262,10 @@ def start_accepter():
             # use the sha hash of the nodes public key with the vessel
             # number as an id for this node
             unique_id = rsa_publickey_to_string(configuration['publickey'])
-            unique_id = sha_hexhash(unique_id)
-            unique_id = unique_id+str(configuration['service_vessel'])
+            hashedunique_id = sha.new(unique_id).hexdigest()
+            advertiseid = hashedunique_id+str(configuration['service_vessel'])
             servicelogger.log("[INFO]: Trying NAT wait")
-            nat_waitforconn(unique_id, possibleport,
+            nat_waitforconn(advertiseid, possibleport,
                     nmconnectionmanager.connection_handler)
 
           # do a local waitforconn (not using a forwarder)
@@ -290,7 +290,7 @@ def start_accepter():
           # if NAT is being used NAT$ will tell the connection client
           # to use nat_openconn with unique_id to contact this node
           if use_nat:
-            myname = 'NAT$'+unique_id+":"+str(possibleport)
+            myname = 'NAT$'+advertiseid+":"+str(possibleport)
           else:
             myname = str(bind_ip) + ":" + str(possibleport)
           break

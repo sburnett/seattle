@@ -19,7 +19,7 @@ from repyportability import *
 import repyhelper
 
 # repy signeddata to protect request information
-repyhelper.translate_and_import("signeddata.repy")
+repyhelper.translate_and_import("fastsigneddata.mix")
 
 # get requests (encapsulated in session messages)
 repyhelper.translate_and_import("session.repy")

@@ -58,7 +58,8 @@ import os.path
 import sys
 import repyhelper
 
-repyhelper.translate_and_import("nmclient.repy")
+#repyhelper.translate_and_import("nmclient.repy")
+repyhelper.translate_and_import("fastnmclient.mix")
 
 repyhelper.translate_and_import("time.repy")
 

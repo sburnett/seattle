@@ -6,7 +6,7 @@ The test sends a change user request with sequence id 0 followed by a change adv
 """
 
 include time.repy
-include nmclient.repy
+include fastnmclient.mix
 
 if callfunc == 'initialize':
 

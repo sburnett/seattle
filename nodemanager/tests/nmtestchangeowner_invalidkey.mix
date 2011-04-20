@@ -4,7 +4,7 @@ Description:
 This test verifies that the method ChangeOwner does not change the owner when an invalid private key is used.
 """
 include time.repy
-include nmclient.repy
+include fastnmclient.mix
 include rsa.repy
 
 if callfunc == 'initialize':

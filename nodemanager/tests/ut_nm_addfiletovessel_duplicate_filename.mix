@@ -36,3 +36,4 @@ if callfunc == 'initialize':
 
   if data != retrieveddata:
     print "'"+data+"' != '"+retrieveddata+"'"
+

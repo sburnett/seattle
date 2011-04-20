@@ -5,7 +5,7 @@ This test calls the AddFileToVessel method twice, trying to add a file with the 
 """
 
 include time.repy
-include nmclient.repy
+include fastnmclient.mix
 include rsa.repy
 
 if callfunc == 'initialize':

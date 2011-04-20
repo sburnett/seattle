@@ -6,7 +6,7 @@ The test may not leave the vessel in its original state since all log and file d
 """
 
 include time.repy
-include nmclient.repy
+include fastnmclient.mix
 include rsa.repy
 
 if callfunc == 'initialize':

@@ -4,7 +4,7 @@ Description:
 This test verifies that the change advertise method does not chage the advertise status when an invalid sequence id that is too large is specified when creating the handle.
 """
 include time.repy
-include nmclient.repy
+include fastnmclient.mix
 
 if callfunc == 'initialize':
 

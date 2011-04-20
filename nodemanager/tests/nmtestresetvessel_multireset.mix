@@ -6,7 +6,7 @@ This test is a modified version of the nmtestresetvessel.mix. It works much like
 """
 
 include time.repy
-include nmclient.repy
+include fastnmclient.mix
 include rsa.repy
 
 def get_restrictions(resourcestring):

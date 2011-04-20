@@ -5,7 +5,7 @@ This test verifies the StartVessel and StopVessel methods by calling them and ch
 
 """
 include time.repy
-include nmclient.repy
+include fastnmclient.mix
 
 if callfunc == 'initialize':
 

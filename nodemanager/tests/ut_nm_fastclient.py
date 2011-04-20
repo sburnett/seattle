@@ -1,20 +1,19 @@
 """
-Author: Cosmin Barsan
+Author: Justin Cappos
 Description:
-This test verifies the ListFilesInVessel method by storing the list of files initially in vessel, adding a two files, deleting both, and checking if the new file list is the same as the original one
+This test verifies the ResetVessel method works by first assidng several files to a vessel, resetting the vessel, and checking if the files and log were erased.
 
 """
 
-include time.repy
-include fastnmclient.mix
-include rsa.repy
+from repyportability import *
 
-if callfunc == 'initialize':
+import repyhelper
 
-  try:
-    removefile("hello")
-  except:
-    pass
+repyhelper.translate_and_import("time.repy")
+repyhelper.translate_and_import("rsa.repy")
+repyhelper.translate_and_import("fastnmclient.mix")
+
+if __name__ == '__main__':
 
   pubkey = {'e': 1515278400394037168869631887206225761783197636247636149274740854708478416229147500580877416652289990968676310353790883501744269103521055894342395180721167L, 'n': 8811850224687278929671477591179591903829730117649785862652866020803862826558480006479605958786097112503418194852731900367494958963787480076175614578652735061071079458992502737148356289391380249696938882025028801032667062564713111819847043202173425187133883586347323838509679062142786013585264788548556099117804213139295498187634341184917970175566549405203725955179602584979965820196023950630399933075080549044334508921319264315718790337460536601263126663173385674250739895046814277313031265034275415434440823182691254039184953842629364697394327806074576199279943114384828602178957150547925812518281418481896604655037L}
   time_updatetime(34612)
@@ -30,17 +29,32 @@ if callfunc == 'initialize':
 
   # get the vessel to use...
   myvessel = nmclient_listaccessiblevessels(nmhandle,pubkey)[0][0]
-  
-  originalfilelist = nmclient_signedsay(nmhandle, "ListFilesInVessel", myvessel)
 
   nmclient_signedsay(nmhandle, "AddFileToVessel", myvessel, "hello","hellodata")
+  nmclient_signedsay(nmhandle, "AddFileToVessel", myvessel, "helloworld.repy","print 'hello world'\nwhile True: sleep(.1)")
   nmclient_signedsay(nmhandle, "AddFileToVessel", myvessel, "hello2","hellodata")
 
+  nmclient_signedsay(nmhandle, "StartVessel", myvessel, "helloworld.repy")
+  
 
-  nmclient_signedsay(nmhandle, "DeleteFileInVessel", myvessel, "hello")
-  nmclient_signedsay(nmhandle, "DeleteFileInVessel", myvessel, "hello2")
-  newfilelist = nmclient_signedsay(nmhandle, "ListFilesInVessel", myvessel)
+  # okay, now let's reset!
+  nmclient_signedsay(nmhandle, "ResetVessel", myvessel)
 
-  if len(originalfilelist) != len(newfilelist):
-    raise Exception, "Original and new file lists do not match:" + originalfilelist + "," + newfilelist
+  
+  filelist = nmclient_signedsay(nmhandle, "ListFilesInVessel", myvessel)
+  if filelist:
+    raise Exception("Filelist is not empty after reset!")
+  vessellog = nmclient_signedsay(nmhandle, "ReadVesselLog", myvessel)
+  if vessellog:
+    raise Exception("Vessellog is not empty after reset!")
+  nmclient_signedsay(nmhandle, "AddFileToVessel", myvessel, "helloworld.repy","print 'hello world'\nwhile True: sleep(.1)")
+
+  try:
+    # this should succeed.   The previously started version should have been 
+    # stopped by the reset.
+    nmclient_signedsay(nmhandle, "StartVessel", myvessel, "helloworld.repy")
+  finally:
+    # always stop at the end...
+    nmclient_signedsay(nmhandle, "StopVessel", myvessel)
+
 
