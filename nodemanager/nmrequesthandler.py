@@ -102,6 +102,13 @@ def handle_request(socketobj):
  
     # send the output of the command...
     session_sendmessage(socketobj,retstring)
+
+  except Exception, e:
+    #JAC: Fix for the exception logging observed in #992
+    if 'Socket closed' in str(e) or 'SocketTimeoutError' in str(e):
+      servicelogger.log('Connection abruptly closed')
+    else:
+      raise
   
   finally:
     # Prevent leaks
