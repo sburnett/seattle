@@ -123,24 +123,34 @@ connection_dict = {}
 
 # get the first request
 def pop_request():
-  if len(connection_dict)==0:
-    raise ValueError, "Internal Error: Popping a request for an empty connection_dict"
 
-  # get the first item of the connection_dict_order... 
-  nextIP = connection_dict_order[0]
-  del connection_dict_order[0]
+  # Acquire a lock to prevent a race (#993)...
+  connectionlock.acquire()
 
-  # ...and the first item of this list
-  therequest = connection_dict[nextIP][0]
-  del connection_dict[nextIP][0]
+  # ...but always release it.
+  try:
+    if len(connection_dict)==0:
+      raise ValueError, "Internal Error: Popping a request for an empty connection_dict"
 
-  # if this is the last connection from this IP, let's remove the empty list 
-  # from the dictionary
-  if len(connection_dict[nextIP]) == 0:
-    del connection_dict[nextIP]
-  else:
-    # there are more.   Let's append the IP to the end of the dict_order
-    connection_dict_order.append(nextIP)
+    # get the first item of the connection_dict_order... 
+    nextIP = connection_dict_order[0]
+    del connection_dict_order[0]
+
+    # ...and the first item of this list
+    therequest = connection_dict[nextIP][0]
+    del connection_dict[nextIP][0]
+
+    # if this is the last connection from this IP, let's remove the empty list 
+    # from the dictionary
+    if len(connection_dict[nextIP]) == 0:
+      del connection_dict[nextIP]
+    else:
+      # there are more.   Let's append the IP to the end of the dict_order
+      connection_dict_order.append(nextIP)
+
+  finally:
+    # if there is a bug in the above code, we still want to prevent deadlock...
+    connectionlock.release()
 
   # and return the request we removed.
   return therequest
