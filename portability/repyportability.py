@@ -17,7 +17,7 @@ oldrestrictioncalls['nanny.tattle_add_item'] = nanny.tattle_add_item
 oldrestrictioncalls['nanny.tattle_remove_item'] = nanny.tattle_remove_item
 oldrestrictioncalls['nanny.tattle_check'] = nanny.tattle_check
 oldrestrictioncalls['restrictions.assertisallowed'] = restrictions.assertisallowed
-oldrestrictioncalls['emulfile.assert_is_allowed_filename'] = emulfile.assert_is_allowed_filename
+oldrestrictioncalls['emulfile._assert_is_allowed_filename'] = emulfile._assert_is_allowed_filename
 
 
 def _do_nothing(*args):
@@ -48,7 +48,7 @@ def override_restrictions():
   nanny.tattle_remove_item = _do_nothing
   nanny.tattle_check = _do_nothing
   restrictions.assertisallowed = _do_nothing
-  emulfile.assert_is_allowed_filename = _do_nothing
+  emulfile._assert_is_allowed_filename = _do_nothing
 
 
 # Sets up restrictions for the program
@@ -103,7 +103,7 @@ def enable_restrictions():
   nanny.tattle_remove_item = oldrestrictioncalls['nanny.tattle_remove_item'] 
   nanny.tattle_check = oldrestrictioncalls['nanny.tattle_check'] 
   restrictions.assertisallowed = oldrestrictioncalls['restrictions.assertisallowed'] 
-  emulfile.assert_is_allowed_filename = oldrestrictioncalls['emulfile.assert_is_allowed_filename']
+  emulfile._assert_is_allowed_filename = oldrestrictioncalls['emulfile._assert_is_allowed_filename']
   
 from virtual_namespace import VirtualNamespace
 from emulmisc import *

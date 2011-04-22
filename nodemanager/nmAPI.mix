@@ -27,7 +27,7 @@ class BadRequest(Exception):
 
 # used to check file names in addfiletovessel, retrievefilefromvessel, and
 # deletefileinvessel
-from emulfile import assert_is_allowed_filename
+from emulfile import how_is_filename_incorrect
 
 # needed for path.exists and remove
 import os 
@@ -346,10 +346,9 @@ def addfiletovessel(vesselname,filename, filedata):
   if currentsize + len(filedata) > resourcedata['diskused']:
     raise BadRequest("Not enough free disk space")
   
-  try:
-    assert_is_allowed_filename(filename)
-  except TypeError, e:
-    raise BadRequest(str(e))
+  problem = how_is_filename_incorrect(filename)
+  if problem:
+    raise BadRequest(problem)
     
   if filename=="":
     raise BadRequest("Filename is empty")
@@ -383,10 +382,9 @@ def retrievefilefromvessel(vesselname,filename):
   if vesselname not in vesseldict:
     raise BadRequest, "No such vessel"
 
-  try:
-    assert_is_allowed_filename(filename)
-  except TypeError, e:
-    raise BadRequest(str(e))
+  problem = how_is_filename_incorrect(filename)
+  if problem:
+    raise BadRequest(problem)
 
   try:
     readfo = open(vesselname+"/"+filename)
@@ -410,10 +408,9 @@ def deletefileinvessel(vesselname,filename):
   if vesselname not in vesseldict:
     raise BadRequest, "No such vessel"
   
-  try:
-    assert_is_allowed_filename(filename)
-  except TypeError, e:
-    raise BadRequest(str(e))
+  problem = how_is_filename_incorrect(filename)
+  if problem:
+    raise BadRequest(problem)
 
   if not os.path.exists(vesselname+"/"+filename):
     raise BadRequest("File not found")
