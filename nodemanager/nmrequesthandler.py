@@ -77,10 +77,15 @@ def handle_request(socketobj):
     # which we were catching previously.
     except Exception, e:
 
-      # I can't handle this, let's exit
-      # BUG: REMOVE LOGGING IN PRODUCTION VERSION (?)
-      servicelogger.log_last_exception()
-      return
+      #JAC: Fix for the exception logging observed in #992
+      if 'Socket closed' in str(e) or 'timed out!' in str(e):
+        servicelogger.log('Connection abruptly closed during recv')
+        return
+      else:
+        # I can't handle this, let's exit
+        # BUG: REMOVE LOGGING IN PRODUCTION VERSION (?)
+        servicelogger.log_last_exception()
+        return
 
 
 
@@ -105,8 +110,9 @@ def handle_request(socketobj):
 
   except Exception, e:
     #JAC: Fix for the exception logging observed in #992
-    if 'Socket closed' in str(e) or 'SocketTimeoutError' in str(e):
-      servicelogger.log('Connection abruptly closed')
+    if 'Socket closed' in str(e) or 'timed out!' in str(e):
+      servicelogger.log('Connection abruptly closed in send')
+      return
     else:
       raise
   
