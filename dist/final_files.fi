@@ -43,6 +43,8 @@ req emulfile.py
 req emulmisc.py
 req emultimer.py
 req fakelinecache.py
+req fastnmclient.py
+req fastsigneddata.py
 req httpretrieve.repy
 req httpserver.repy
 req idhelper.py
@@ -87,6 +89,7 @@ req signeddata.repy
 req sockettimeout.repy
 req softwareupdater.py
 req statusstorage.py
+req tab_completer.py
 req time.repy
 req tracebackrepy.py
 req createnodekeys.py
@@ -153,3 +156,5 @@ req AdvertiseObjects.repy
 req metainfo
 req resources.offcut
 req nodeman.cfg
+
+
