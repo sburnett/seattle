@@ -8,15 +8,14 @@
 <Date Started>
   April 11, 2011
 
-<Purpose>
-  Logs all data being passed through the shim. Helps debugging. As a function
-  enters, we log all the parameters. Before it returns, we log the return value
-  in a line that starts with " > ". Each log entry contains the time and the
-  string representation of the shim stack below.
+<Purpose> Logs all data being passed through the shim. Helps debugging. As a
+  function enters, we log all the parameters. Before it returns, we log the
+  return value in a line that starts with " > ". Each log entry contains the
+  epoch time and the string representation of the shim stack below.
 
 """
 
-
+import time
 
 
 class LogShim(BaseShim):
@@ -25,9 +24,6 @@ class LogShim(BaseShim):
 
   # Prevents current write.
   _lock = createlock()
-
-  # Used to calculate the relative time from the beginning of the program.
-  _start_time = getruntime()
 
   # Stores state of the shim.
   _log_context = {'bytes_written' : 0}
@@ -44,8 +40,8 @@ class LogShim(BaseShim):
 
       file_obj = openfile(self._LOG_FILE_NAME, True)
 
-      # Calculate the time elapsed, accurate up to two decimal places, in seconds.
-      time_str = 't = %.2f, shim stack = "' % (getruntime() - self._start_time) 
+      # Record the epoch time, accurate up to two decimal places, in seconds.
+      time_str = 't = %.2f, shim stack = "' % time.time()
       
       # Write data into the log file
       data_to_write = time_str + self.get_advertisement_string() + '"\n' + str(logstr) + '\n\n'
@@ -65,7 +61,11 @@ class LogShim(BaseShim):
                 % (destip, destport, localip, localport, message))
     self._log(log_info)
 
-    sent = self.get_next_shim_layer().sendmessage(destip, destport, message, localip, localport)
+    try:
+      sent = self.get_next_shim_layer().sendmessage(destip, destport, message, localip, localport)
+    except Exception, err:
+      self._log('%s\n > Exception = %s, %s\n' % (log_info, repr(err), str(err)))
+      raise err
 
     self._log('%s\n > return = %s' % (log_info, sent))
     return sent
@@ -77,7 +77,12 @@ class LogShim(BaseShim):
     log_info = ('listenformessage, localip = %s, localport = %s' % (localip, localport))
     self._log(log_info)
 
-    next_layer_socket = self.get_next_shim_layer.listenformessage(localip, localport)
+    try:
+      next_layer_socket = self.get_next_shim_layer.listenformessage(localip, localport)
+    except Exception, err:
+      self._log('%s\n > Exception = %s, %s\n' % (log_info, repr(err), str(err)))
+      raise err
+
     sock = ShimUDPServerSocket(next_layer_socket, self)
     self._log('%s\n > return = %s' % (log_info, sock))    
 
@@ -92,7 +97,13 @@ class LogShim(BaseShim):
     self._log(log_info)
 
     this_shim_copy = self.copy()
-    next_sockobj = self.get_next_shim_layer().openconnection(destip, destport, localip, localport, timeout)
+
+    try:
+      next_sockobj = self.get_next_shim_layer().openconnection(destip, destport, localip, localport, timeout)
+    except Exception, err:
+      self._log('%s\n > Exception = %s, %s\n' % (log_info, repr(err), str(err)))
+      raise err
+
     sock = ShimSocket(next_sockobj, this_shim_copy)
 
     self._log('%s\n > return = %s' % (log_info, sock))        
@@ -105,7 +116,12 @@ class LogShim(BaseShim):
     log_info = 'listenforconnection, localip = %s, localport = %s' % (localip, localport)
     self._log(log_info)
 
-    next_layer_socket = self.get_next_shim_layer().listenforconnection(localip, localport)
+    try:
+      next_layer_socket = self.get_next_shim_layer().listenforconnection(localip, localport)
+    except Exception, err:
+      self._log('%s\n > Exception = %s, %s\n' % (log_info, repr(err), str(err)))
+      raise err
+
     sock = ShimTCPServerSocket(next_layer_socket, self)
 
     self._log('%s\n > return = %s' % (log_info, sock))        
@@ -118,7 +134,11 @@ class LogShim(BaseShim):
     log_info = 'socket_close, socket = %s' % socket
     self._log(log_info)
 
-    value = self.get_next_shim_layer().socket_close(socket)
+    try:
+      value = self.get_next_shim_layer().socket_close(socket)
+    except Exception, err:
+      self._log('%s\n > Exception = %s, %s\n' % (log_info, repr(err), str(err)))
+      raise err
 
     self._log('%s\n > return = %s' % (log_info, value))        
     return value
@@ -130,7 +150,11 @@ class LogShim(BaseShim):
     log_info = 'socket_send, socket = %s, msg = %s' % (socket, msg)
     self._log(log_info)
 
-    sent = self.get_next_shim_layer().socket_send(socket, msg)
+    try:
+      sent = self.get_next_shim_layer().socket_send(socket, msg)
+    except Exception, err:
+      self._log('%s\n > Exception = %s, %s\n' % (log_info, repr(err), str(err)))
+      raise err
 
     self._log('%s\n > return = %s' % (log_info, sent))
     return sent
@@ -142,7 +166,11 @@ class LogShim(BaseShim):
     log_info = 'socket_recv, socket = %s, bytes = %s' % (socket, bytes)
     self._log(log_info)
 
-    data = self.get_next_shim_layer().socket_recv(socket, bytes)
+    try:
+      data = self.get_next_shim_layer().socket_recv(socket, bytes)
+    except Exception, err:
+      self._log('%s\n > Exception = %s, %s\n' % (log_info, repr(err), str(err)))
+      raise err
 
     self._log('%s\n > return = %s' % (log_info, data))
     return data
@@ -155,7 +183,11 @@ class LogShim(BaseShim):
     self._log(log_info)
 
     this_shim_copy = self.copy()
-    (remote_ip, remote_port, repy_socket) = this_shim_copy.get_next_shim_layer().tcpserversocket_getconnection(tcpserversocket)
+    try:
+      (remote_ip, remote_port, repy_socket) = this_shim_copy.get_next_shim_layer().tcpserversocket_getconnection(tcpserversocket)
+    except Exception, err:
+      self._log('%s\n > Exception = %s, %s\n' % (log_info, repr(err), str(err)))
+      raise err
     value = (remote_ip, remote_port, ShimSocket(repy_socket, this_shim_copy))
 
     self._log('%s\n > return = %s' % (log_info, value))    
@@ -168,7 +200,11 @@ class LogShim(BaseShim):
     log_info = 'tcpserversocket_close, tcpserversocket = %s' % tcpserversocket
     self._log(log_info)
 
-    value = self.get_next_shim_layer().tcpserversocket_close(tcpserversocket)
+    try:
+      value = self.get_next_shim_layer().tcpserversocket_close(tcpserversocket)
+    except Exception, err:
+      self._log('%s\n > Exception = %s, %s\n' % (log_info, repr(err), str(err)))
+      raise err
 
     self._log('%s\n > return = %s' % (log_info, value))    
     return value
@@ -180,7 +216,11 @@ class LogShim(BaseShim):
     log_info = 'udpserversocket_getmessage, udpserversocket = %s' % udpserversocket
     self._log(log_info)
 
-    value = self.copy().get_next_shim_layer().udpserversocket_getmessage(udpserversocket)
+    try:
+      value = self.copy().get_next_shim_layer().udpserversocket_getmessage(udpserversocket)
+    except Exception, err:
+      self._log('%s\n > Exception = %s, %s\n' % (log_info, repr(err), str(err)))
+      raise err
 
     self._log('%s\n > return = %s' % (log_info, value))    
     return value
@@ -192,7 +232,11 @@ class LogShim(BaseShim):
     log_info = 'udpserversocket_close, udpserversocket = %s' % udpserversocket
     self._log(log_info)
 
-    value = self.get_next_shim_layer().udpserversocket_close(udpserversocket)
+    try:
+      value = self.get_next_shim_layer().udpserversocket_close(udpserversocket)
+    except Exception, err:
+      self._log('%s\n > Exception = %s, %s\n' % (log_info, repr(err), str(err)))
+      raise err
 
     self._log('%s\n > return = %s' % (log_info, value))    
     return value
@@ -209,5 +253,4 @@ class LogShim(BaseShim):
 
   
   def get_advertisement_string(self):
-    # We do not advertise this shim.
-    return '' + self.get_next_shim_layer().get_advertisement_string()
+    return '(LogShim)' + self.get_next_shim_layer().get_advertisement_string()

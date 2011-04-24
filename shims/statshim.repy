@@ -9,10 +9,13 @@
   April 18, 2011
 
 <Purpose>
-  A shim logs how much TCP data is sent/received and time in the comma-separated
-  form: time in seconds, bytes sent, and bytes received.
+  A shim logs how much TCP data is sent/received and time in the space-separated
+  form: epoch time in seconds, bytes sent, and bytes received.
 
 """
+
+# We need to obtain the absolute time to extract the relevant statistics.
+import time
 
 class StatShim(BaseShim):
 
@@ -27,9 +30,6 @@ class StatShim(BaseShim):
   # file.
   _stat_dict = {'sent': 0, 'received': 0, 'bytes_written': 0}
   
-  # Used to calculate relative time.
-  _start_time = getruntime()
-
 
 
   def _write_stat_to_log(self):
@@ -38,10 +38,10 @@ class StatShim(BaseShim):
 
     """
     # Record time to two decimal places.
-    log_info = '%.2f,' % (getruntime() - self._start_time)
+    log_info = '%.2f ' % time.time()
 
     # Record how many bytes have been sent and received so far.
-    log_info += '%d,%d\n' % (self._stat_dict['sent'], self._stat_dict['received'])
+    log_info += '%d %d\n' % (self._stat_dict['sent'], self._stat_dict['received'])
 
     # Write the info to file
     fileobj = openfile(self._STAT_FILE, True)
@@ -90,4 +90,4 @@ class StatShim(BaseShim):
 
   
   def get_advertisement_string(self):
-    return '' + self.get_next_shim_layer().get_advertisement_string()
+    return '(StatShim)' + self.get_next_shim_layer().get_advertisement_string()
