@@ -399,7 +399,6 @@ class ShimStack:
     # percolate up. This may raise a ShimConfigError
     top_shim_name, shim_args, leftover_shim_str = self.parse_shim_string(shim_str)
 
-
     # Create a shim stack for the rest of the shims below us, 
     # make that our current shim stack. After we create the shim 
     # stack with the leftover shim_str we are going to copy over
@@ -407,18 +406,17 @@ class ShimStack:
     # After we have copied it, we can now push on the top shim on top
     # of it.
     new_stack_object = ShimStack(leftover_shim_str, self.shim_stack_context['localhost'])
-    
 
     # Ensure the first argument is a legit string. If it is, we are going to load
     # the shim file if we find it.
     assert(isinstance(top_shim_name, str)), "Bad arg type. First arg in shim tuple must be string."
     find_and_register_shim(top_shim_name)
 
+
     # Create the new shim object.
     # The new stack will have a copy of the shimstack before this 
     # layer is added. So if this is the first layer, then the 
     # Underlying stack beneath it would be None.
-
     top_shim = self.create_shim_object(top_shim_name, shim_args, new_stack_object)
 
 
@@ -440,7 +438,7 @@ class ShimStack:
 
   
 
-  def create_shim_object(self, shim_name, shim_args, top_shim):
+  def create_shim_object(self, shim_name, shim_args, shim_stack_object):
     """
     <Purpose>
       Create a shim object given a shim name and its arguments.
@@ -450,7 +448,7 @@ class ShimStack:
 
       shim_args - the arguments to use to create the shim.
 
-      top_shim - the shim stack that will be below the new shim
+      shim_stack_object - the shim stack that will be below the new shim
           object that we are creating.
 
     <Side Effects>
@@ -470,6 +468,7 @@ class ShimStack:
     # Sanity check.
     assert(isinstance(shim_name, str)), "Bad arg type. shim_name must be a string."
     assert(isinstance(shim_args, list)), "Bad arg type. shim_args must be a list."
+    assert(isinstance(shim_stack_object, ShimStack)), "Bad arg type. shim_stack_object must be a ShimStack."
 
     if shim_name not in SHIM_CLASS_DICT.keys():
       raise ShimNotFoundError("Shim '%s' has not been registered yet." % shim_name)
@@ -477,7 +476,7 @@ class ShimStack:
     # Create a new shim object from the name and arguments provided.
     shim_object_class = SHIM_CLASS_DICT[shim_name]
 
-    new_shim_object = shim_object_class(top_shim, shim_args)
+    new_shim_object = shim_object_class(shim_stack_object, shim_args)
 
     return new_shim_object
 
@@ -515,7 +514,6 @@ class ShimStack:
     assert(shim_str)
     assert(isinstance(shim_str, str)), "Bad arg type. shim_str must be string."
 
-
     open_paren_count = 0
     cur_shim_config = ""
 
@@ -525,13 +523,22 @@ class ShimStack:
       shim_str = shim_str[1:]
 
       if chr == '(':
+        # The case where one of the arguments for the shim includes
+	# parentheses..
+        if open_paren_count != 0:
+	  cur_shim_config += chr
         open_paren_count += 1
+        
 
       elif chr == ')':
         open_paren_count -= 1
 
+	# If there is a closed parentheses as part of the argument.
+	if open_paren_count > 0:
+	  cur_shim_config += chr
+
         # If we have uncovered a full shim config.
-        if open_paren_count == 0:
+        elif open_paren_count == 0:
 	  break
 
         # For the case of an extra close parentheses.
@@ -549,7 +556,9 @@ class ShimStack:
         # '(ShimA, arg_a)foo(ShimB)', where 'foo' is not in the
         # shim config.
         else:
-          raise ShimConfigError("Incorrect shim string format.")
+	  err = "Incorrect shim string format."
+	  err += " Shim string provided: " + shim_str
+          raise ShimConfigError(err)
 
 
     # The case where we have finished parsing the shim string and 

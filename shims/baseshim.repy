@@ -62,7 +62,9 @@ class BaseShim:
     try:
       assert(isinstance(shim_stack, ShimStack))
     except:
-      raise ShimArgumentError("Bad arg provided. shim_stack must be of type ShimStack")
+      err = "Bad arg provided. shim_stack must be of type ShimStack."
+      err += " Type provided: '%s'" % str(type(shim_stack))
+      raise ShimArgumentError(err)
 
     self.shim_context['optional_args'] = optional_args
     
@@ -164,7 +166,7 @@ class BaseShim:
 
 
   def listenformessage(self, localip, localport):
-    next_layer_socket = self.get_next_shim_layer.listenformessage(localip, localport)
+    next_layer_socket = self.get_next_shim_layer().listenformessage(localip, localport)
     return ShimUDPServerSocket(next_layer_socket, self)
 
 
@@ -172,9 +174,10 @@ class BaseShim:
   def openconnection(self, destip, destport, localip, localport, timeout):
     # We make a copy of ourselves before we do anything as we may have multiple
     # openconnection calls that return multiple real sockets.
-    this_shim_copy = self.copy()
+    #this_shim_copy = self.copy()
     next_sockobj = self.get_next_shim_layer().openconnection(destip, destport, localip, localport, timeout)
-    return ShimSocket(next_sockobj, this_shim_copy)
+    
+    return ShimSocket(next_sockobj, self)
 
 
 
@@ -205,9 +208,10 @@ class BaseShim:
     # We make a copy of ourselves before doing a getconnection
     # as this function may be invoked multiple times and they 
     # may each modify the shim stack below it differently. 
-    this_shim_copy = self.copy()
-    (remote_ip, remote_port, repy_socket) = this_shim_copy.get_next_shim_layer().tcpserversocket_getconnection(tcpserversocket)
-    return (remote_ip, remote_port, ShimSocket(repy_socket, this_shim_copy))
+    #this_shim_copy = self.copy()
+    (remote_ip, remote_port, repy_socket) = self.get_next_shim_layer().tcpserversocket_getconnection(tcpserversocket)
+
+    return (remote_ip, remote_port, ShimSocket(repy_socket, self))
 
 
 
