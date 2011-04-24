@@ -516,7 +516,7 @@ class ShimStack:
 
     open_paren_count = 0
     cur_shim_config = ""
-
+    
     while shim_str:
       # Extract the first character of shim string.
       chr = shim_str[0]
@@ -569,9 +569,46 @@ class ShimStack:
 
 
     # Split the name and the arguments.
-    shim_config_split = cur_shim_config.split(',')
-    if '' in shim_config_split:
-      raise ShimConfigError("Invalid shim configuration:(%s)" % cur_shim)
+    shim_name = ''
+    shim_arg_list = []
+    paren_count = 0
+    
+    # Get the name out.
+    while cur_shim_config:
+      chr = cur_shim_config[0]
+      cur_shim_config = cur_shim_config[1:]
+    
+      if chr != ',':
+        shim_name += chr
+      else:
+        break
+
+    # Split the arguments. Cant use the split command.
+    cur_argument = ''
+    while cur_shim_config:
+      chr = cur_shim_config[0]
+      cur_shim_config = cur_shim_config[1:]
+
+      if chr == '(':
+        paren_count += 1
+      elif chr == ')':
+        paren_count -= 1
+      elif chr == ',':
+        # If we are outside a shim.
+        if paren_count == 0:
+          # We have uncovered an argument. Add it to the
+	  # list and clear the current argument.
+          shim_arg_list.append(cur_argument)     
+          cur_argument = ''
+          continue
+
+      # Add the character to the current argument string.
+      cur_argument += chr
+
+    # If there was a leftover last argument.
+    if cur_argument:
+      shim_arg_list.append(cur_argument)
+      
 
     # Return format is: (shim_name, shim_args_list, rest_of_shim_string)
-    return (shim_config_split[0], shim_config_split[1:], shim_str)
+    return (shim_name, shim_arg_list, shim_str)
