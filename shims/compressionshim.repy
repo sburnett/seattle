@@ -17,7 +17,6 @@
 
 import zlib
 
-dy_import_module_symbols("baseshim")
 dy_import_module_symbols("shim_exceptions")
 
 
