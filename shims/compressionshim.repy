@@ -54,13 +54,41 @@ class CompressionShim(BaseShim):
 
 
 
+  def __init__(self, shim_stack, optional_args=None):
+    """
+    One can specify the size of the send/recv block in the optional
+    arguments. For a send/recv block size of 1024 bytes, the shim string would
+    be '(CompressionShim,1024)'. If it is not specified, the default block size
+    will be used.
+
+    """
+    if optional_args:
+      block_size = int(optional_args[0])
+      self._SEND_BLOCK_SIZE = block_size
+      self._RECV_BLOCK_SIZE = block_size
+
+    BaseShim.__init__(self, shim_stack, optional_args)
+
+
+
   def copy(self):
     return CompressionShim(self.shim_context['shim_stack'].copy(), self.shim_context['optional_args'])
 
 
   
   def get_advertisement_string(self):
-    return '(CompressionShim)' + self.get_next_shim_layer().get_advertisement_string()
+
+    # If an optional argument is specified (i.e. block size), we advertise it.
+
+    optional_args = self.shim_context['optional_args']
+    shim_name = '(CompressionShim'
+
+    if optional_args:
+      shim_name += ',' + str(optional_args[0]) + ')'
+    else:
+      shim_name += ')'
+
+    return shim_name + self.get_next_shim_layer().get_advertisement_string()
 
 
 
