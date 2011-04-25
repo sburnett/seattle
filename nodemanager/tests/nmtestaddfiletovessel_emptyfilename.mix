@@ -6,7 +6,7 @@ This test verifies the AddFileToVessel method throws an exception when passing i
 """
 
 include time.repy
-include fastnmclient.mix
+include nmclient.repy
 include rsa.repy
 
 if callfunc == 'initialize':

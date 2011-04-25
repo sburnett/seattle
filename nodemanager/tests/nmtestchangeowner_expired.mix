@@ -5,7 +5,7 @@ This test attempts to call the ChangeOwner method, but uses an expired handle.Th
 """
 
 include time.repy
-include fastnmclient.mix
+include nmclient.repy
 include rsa.repy
 
 if callfunc == 'initialize':

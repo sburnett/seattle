@@ -6,7 +6,7 @@ This test verifies the DeleteFileInVessel method by adding a file, deleting it, 
 """
 
 include time.repy
-include fastnmclient.mix
+include nmclient.repy
 include rsa.repy
 
 if callfunc == 'initialize':

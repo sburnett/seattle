@@ -6,7 +6,7 @@ This test verifies the ListFilesInVessel method by adding a two files, storing t
 """
 
 include time.repy
-include fastnmclient.mix
+include nmclient.repy
 include rsa.repy
 
 if callfunc == 'initialize':

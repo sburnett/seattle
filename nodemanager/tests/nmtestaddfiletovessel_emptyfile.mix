@@ -4,7 +4,7 @@ Description:
 This test verifies the behavior of the AddFileToVessel method for when adding a file that is empty.
 """
 include time.repy
-include fastnmclient.mix
+include nmclient.repy
 include rsa.repy
 
 if callfunc == 'initialize':

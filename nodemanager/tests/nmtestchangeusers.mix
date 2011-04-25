@@ -5,7 +5,7 @@ This test verifies the ChangeUsers method by removing previous users and adding 
 """
 
 include time.repy
-include fastnmclient.mix
+include nmclient.repy
 include rsa.repy
 
 if callfunc == 'initialize':

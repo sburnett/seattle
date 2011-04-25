@@ -59,7 +59,7 @@ import sys
 import repyhelper
 
 #repyhelper.translate_and_import("nmclient.repy")
-repyhelper.translate_and_import("fastnmclient.mix")
+import fastnmclient
 
 repyhelper.translate_and_import("time.repy")
 
@@ -641,6 +641,7 @@ def show_location(input_dict, environment_dict):
       try:
         location_dict = geoip_record_by_addr(thisnodeIP)
       except:
+        raise
         location_dict = None
 
       if location_dict:
@@ -668,6 +669,7 @@ def show_coordinates(input_dict, environment_dict):
     # if we haven't visited this node
     if thisnodeIP not in printedIPlist:
       printedIPlist.append(thisnodeIP)
+      print printedIPlist
       location_dict = geoip_record_by_addr(thisnodeIP)
 
       if location_dict:
@@ -1025,8 +1027,8 @@ def contact(input_dict, environment_dict):
 
 
   # get information about the node's vessels
-  thishandle = nmclient_createhandle(environment_dict['host'], environment_dict['port'], privatekey = seash_global_variables.keys[environment_dict['currentkeyname']]['privatekey'], publickey = seash_global_variables.keys[environment_dict['currentkeyname']]['publickey'], vesselid = vesselname, timeout = seash_global_variables.globalseashtimeout)
-  ownervessels, uservessels = nmclient_listaccessiblevessels(thishandle,seash_global_variables.keys[environment_dict['currentkeyname']]['publickey'])
+  thishandle = fastnmclient.nmclient_createhandle(environment_dict['host'], environment_dict['port'], privatekey = seash_global_variables.keys[environment_dict['currentkeyname']]['privatekey'], publickey = seash_global_variables.keys[environment_dict['currentkeyname']]['publickey'], vesselid = vesselname, timeout = seash_global_variables.globalseashtimeout)
+  ownervessels, uservessels = fastnmclient.nmclient_listaccessiblevessels(thishandle,seash_global_variables.keys[environment_dict['currentkeyname']]['publickey'])
 
   newidlist = []
   # determine if we control the specified vessel...
@@ -1050,10 +1052,10 @@ def contact(input_dict, environment_dict):
         # set the vesselname
         # NOTE: we leak handles (no cleanup of thishandle).   
         # I think we don't care...
-        newhandle = nmclient_duplicatehandle(thishandle)
-        environment_dict['handleinfo'] = nmclient_get_handle_info(newhandle)
+        newhandle = fastnmclient.nmclient_duplicatehandle(thishandle)
+        environment_dict['handleinfo'] = fastnmclient.nmclient_get_handle_info(newhandle)
         environment_dict['handleinfo']['vesselname'] = vesselname
-        nmclient_set_handle_info(newhandle, environment_dict['handleinfo'])
+        fastnmclient.nmclient_set_handle_info(newhandle, environment_dict['handleinfo'])
 
         id = seash_helper.add_vessel(longname,environment_dict['currentkeyname'],newhandle)
         newidlist.append('%'+str(id)+"("+longname+")")
@@ -1067,10 +1069,10 @@ def contact(input_dict, environment_dict):
         # set the vesselname
         # NOTE: we leak handles (no cleanup of thishandle).   
         # I think we don't care...
-        newhandle = nmclient_duplicatehandle(thishandle)
-        environment_dict['handleinfo'] = nmclient_get_handle_info(newhandle)
+        newhandle = fastnmclient.nmclient_duplicatehandle(thishandle)
+        environment_dict['handleinfo'] = fastnmclient.nmclient_get_handle_info(newhandle)
         environment_dict['handleinfo']['vesselname'] = vesselname
-        nmclient_set_handle_info(newhandle, environment_dict['handleinfo'])
+        fastnmclient.nmclient_set_handle_info(newhandle, environment_dict['handleinfo'])
 
         id = seash_helper.add_vessel(longname,environment_dict['currentkeyname'],newhandle)
         newidlist.append('%'+str(id)+"("+longname+")")
@@ -2756,9 +2758,9 @@ def set_timeout_arg(input_dict, environment_dict):
   # let's reset the timeout for existing handles...
   for longname in seash_global_variables.vesselinfo:
     thisvesselhandle = seash_global_variables.vesselinfo[longname]['handle']
-    thisvesselhandledict = nmclient_get_handle_info(thisvesselhandle)
+    thisvesselhandledict = fastnmclient.nmclient_get_handle_info(thisvesselhandle)
     thisvesselhandledict['timeout'] = seash_global_variables.globalseashtimeout
-    nmclient_set_handle_info(thisvesselhandle,thisvesselhandledict)
+    fastnmclient.nmclient_set_handle_info(thisvesselhandle,thisvesselhandledict)
 
 
           

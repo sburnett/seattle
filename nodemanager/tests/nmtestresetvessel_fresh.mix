@@ -6,7 +6,7 @@ This test verifies the ResetVessel method works by first assidng several files t
 """
 
 include time.repy
-include fastnmclient.mix
+include nmclient.repy
 include rsa.repy
 
 if callfunc == 'initialize':

@@ -19,13 +19,16 @@ from repyportability import *
 import repyhelper
 
 # repy signeddata to protect request information
-repyhelper.translate_and_import("fastsigneddata.mix")
+import fastsigneddata 
 
 # get requests (encapsulated in session messages)
 repyhelper.translate_and_import("session.repy")
 
 # for using time_updatetime
 repyhelper.translate_and_import("time.repy")
+
+# For using rsa key conversion
+repyhelper.translate_and_import("rsa.repy")
 
 # the API for the node manager
 import nmAPI
@@ -47,7 +50,7 @@ def initialize(myip, publickey, version):
   # public key which should be unique)
   #BUG FIX: we are storing rsa_publickey_to_string(publickey) instead of str(publickey) so that the entry is in the same format as 
   #the way the data is stored and used by the client
-  signeddata_set_identity(rsa_publickey_to_string(publickey))
+  fastsigneddata.signeddata_set_identity(rsa_publickey_to_string(publickey))
 
   # init the node manager's API (mostly for information it returns when a call
   # gets generic node information)
@@ -198,7 +201,7 @@ def process_API_call(fullrequest):
 
   else:
     # strip off the signature and get the requestdata
-    requestdata, requestsignature = signeddata_split_signature(fullrequest)
+    requestdata, requestsignature = fastsigneddata.signeddata_split_signature(fullrequest)
     
 
     # NOTE: the first argument *must* be the vessel name!!!!!!!!!!!
@@ -246,7 +249,7 @@ def ensure_is_correctly_signed(fullrequest, allowedkeys, oldmetadata):
   # this code has been added to resolve an issue where we are not checking of the request is expired in the case that there is no old metadata
   thesigneddata, signature = fullrequest.rsplit('!',1)
   junk, rawpublickey, junktimestamp, expiration, sequencedata, junkdestination = thesigneddata.rsplit('!',5)
-  if not signeddata_iscurrent(float(expiration)):
+  if not fastsigneddata.signeddata_iscurrent(float(expiration)):
     raise nmAPI.BadRequest,"Bad Signature on '"+fullrequest+"'"
     
   
@@ -259,12 +262,12 @@ def ensure_is_correctly_signed(fullrequest, allowedkeys, oldmetadata):
         raise nmAPI.BadRequest, "Illegal sequence id on '"+fullrequest+"'"
     
   # ensure it's correctly signed, if not report this and exit
-  if not signeddata_issignedcorrectly(fullrequest):
+  if not fastsigneddata.signeddata_issignedcorrectly(fullrequest):
     raise nmAPI.BadRequest,"Bad Signature on '"+fullrequest+"'"
 
-  request, requestsignature = signeddata_split_signature(fullrequest)
+  request, requestsignature = fastsigneddata.signeddata_split_signature(fullrequest)
 
-  signingpublickey = signeddata_split(fullrequest)[1]
+  signingpublickey = fastsigneddata.signeddata_split(fullrequest)[1]
 
   # If they care about the key, do they have a valid key?
   if allowedkeys and signingpublickey not in allowedkeys:
@@ -283,9 +286,9 @@ def ensure_is_correctly_signed(fullrequest, allowedkeys, oldmetadata):
   
   #BUG FIX: only signature should be passed in for oldmetadata since full request may take extensive space
   if metadata_is_fullrequest:
-    (shouldtrust, reasons) = signeddata_shouldtrust(oldmetadata, fullrequest)
+    (shouldtrust, reasons) = fastsigneddata.signeddata_shouldtrust(oldmetadata, fullrequest)
   else:
-    (shouldtrust, reasons) = signeddata_shouldtrustmeta(oldmetadata, fullrequest)
+    (shouldtrust, reasons) = fastsigneddata.signeddata_shouldtrustmeta(oldmetadata, fullrequest)
     
   if not shouldtrust:
     # let's tell them what is wrong.

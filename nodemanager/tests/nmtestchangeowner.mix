@@ -6,7 +6,7 @@ This test verifies the ChangeOwner method by changing the owner credentials and 
 """
 
 include time.repy
-include fastnmclient.mix
+include nmclient.repy
 include rsa.repy
 
 if callfunc == 'initialize':

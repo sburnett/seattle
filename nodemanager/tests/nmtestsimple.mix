@@ -5,7 +5,7 @@ This test verifies the GetVessels method does not generate an exception.
 
 """
 
-include fastnmclient.mix
+include nmclient.repy
 
 if callfunc == 'initialize':
   nmhandle = nmclient_createhandle(getmyip(), <nodemanager_port>)

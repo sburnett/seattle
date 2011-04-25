@@ -5,7 +5,7 @@ This test verifies the ChangeOwnerInformation method by calling the method and p
 """
 
 include time.repy
-include fastnmclient.mix
+include nmclient.repy
 
 if callfunc == 'initialize':
 

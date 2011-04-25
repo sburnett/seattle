@@ -6,7 +6,7 @@ This test verifies the ChangeAdvertise method cy calling it and then verifying i
 """
 
 include time.repy
-include fastnmclient.mix
+include nmclient.repy
 
 if callfunc == 'initialize':
 
