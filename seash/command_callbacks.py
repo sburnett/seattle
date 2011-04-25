@@ -641,7 +641,6 @@ def show_location(input_dict, environment_dict):
       try:
         location_dict = geoip_record_by_addr(thisnodeIP)
       except:
-        raise
         location_dict = None
 
       if location_dict:
@@ -669,7 +668,6 @@ def show_coordinates(input_dict, environment_dict):
     # if we haven't visited this node
     if thisnodeIP not in printedIPlist:
       printedIPlist.append(thisnodeIP)
-      print printedIPlist
       location_dict = geoip_record_by_addr(thisnodeIP)
 
       if location_dict:
