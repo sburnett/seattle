@@ -91,7 +91,6 @@ import traceback
 
 import servicelogger
 
-import sha
 
 
 # import the natlayer for use
@@ -105,6 +104,10 @@ repyhelper.translate_and_import('sockettimeout.repy')
 # Armon: To handle user preferrences with respect to IP's and Interfaces
 # I will re-use the code repy uses in emulcomm
 import emulcomm
+
+# JAC: Fix for #1000: This needs to be after ALL repyhhelper calls to prevent 
+# sha from being replaced
+import sha
 
 
 # One problem we need to tackle is should we wait to restart a failed service
