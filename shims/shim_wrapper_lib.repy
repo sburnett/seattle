@@ -130,6 +130,13 @@ class RepyNetworkApiWrapper:
     """
     The original repy openconnection call.
     """
+    # The destip can be a zenodotus name. We need to translate it to IP, because
+    # openconnection requires the destination IP address.
+    if destip.endswith('.zenodotus.cs.washington.edu'):
+      try:
+        destip = gethostbyname(destip)
+      except NetworkAddressError:
+        raise ConnectionRefusedError('Unable to resolve ' + destip)
     return openconnection(destip, destport, localip, localport, timeout)
 
 

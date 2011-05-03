@@ -21,6 +21,12 @@
   advertisement value is the string representation of the CoordinationShim's
   shim stack.
 
+  If a zenodotus name is provided to listenforconn, this shim will also
+  advertise the mapping of the name to the current IP address of the host. Any
+  change in the IP address will cause the mapping to be updated, but unless used
+  along with the mobility shim, the listener will not be able to accept new
+  connections because it is bound to the old IP address.
+
   The coordination shim should always sit on top of an application's shim stack,
   so that it can see the content of the rest of the stack.
 
@@ -30,6 +36,8 @@ dy_import_module_symbols("advertise_objects")
 dy_import_module_symbols("shim_exceptions")
 
 
+# Whether we want to print debug statements.
+_COORDINATION_SHIM_DEBUG_MODE = True
 
 
 class CoordinationShim(BaseShim):
@@ -45,6 +53,11 @@ class CoordinationShim(BaseShim):
   # Protects the dictionary above from concurrent modification.
   _adv_handle_dict_lock = createlock()
 
+  # Whether we are actively advertising the zenodotus name -> IP mapping.
+  _zenodotus_advertise_active = False
+
+  # How long a zenodotus to IP mapping may remain valid (time-to-live).
+  _ZENODOTUS_NAME_TTL = 15
 
 
   def copy(self):
@@ -63,7 +76,7 @@ class CoordinationShim(BaseShim):
 
 
 
-  def listenforconnection(self, localip, localport):
+  def listenforconnection(self, localhost, localport):
     """
     <Purpose>
       Listens for incoming connections. Advertises the shim stack when the
@@ -82,22 +95,40 @@ class CoordinationShim(BaseShim):
       Same as the network API in repy v2.    
 
     """
+    # If we are listening on a zenodotus name, first translate it to the local
+    # IP and start the advertisement thread that constantly announces the
+    # zenodotus name -> IP mapping.
+    if localhost.endswith('.zenodotus.cs.washington.edu'):
+      try:
+        localip = getmyip()
+      except InternetConnectivityError:
+        raise AddressBindingError('Coordination Shim: Not connected to the network.')
+      self._zenodotus_start_advertise(localhost)
+    else:
+      localip = localhost
+
     # Start listening so we have a complete view of the shim stack below us.
     tcpserversocket = self.get_next_shim_layer().listenforconnection(localip, localport)
 
     # The underlying shim stack has been built completely. We can advertise the
     # shim stack.
-    adv_key = str(localip) + ',' + str(localport) + ',TCP'
+    adv_key = str(localhost) + ',' + str(localport) + ',TCP'
     adv_value = self.get_next_shim_layer().get_advertisement_string()
-
+    if _COORDINATION_SHIM_DEBUG_MODE:
+      log('CoordinationShim: Advertised', adv_key, adv_value, '\n')
     adv_handle = AdvertisePipe().add(adv_key, adv_value)
 
     # We need to save the advertisement handle to a global dictionary, so that
     # we can keep a reference to the handle. Later on, when we stop listening,
     # we can conveniently remove this key value pair from the advertisement
     # service by using this handle.
+    if isinstance(tcpserversocket, ShimTCPServerSocket):
+      adv_handle_key = repr(tcpserversocket._socket)
+    else:
+      adv_handle_key = repr(tcpserversocket)
+
     self._adv_handle_dict_lock.acquire(True)
-    self._adv_handle_dict[repr(tcpserversocket)] = adv_handle
+    self._adv_handle_dict[adv_handle_key] = adv_handle
     self._adv_handle_dict_lock.release()
 
     return ShimTCPServerSocket(tcpserversocket, self)
@@ -165,7 +196,8 @@ class CoordinationShim(BaseShim):
       # Build my shim stack
       localhost = self.shim_context['shim_stack'].shim_stack_context['localhost']
       self.shim_context['shim_stack'] = ShimStack(server_shim_stack_str, localhost)
-
+      if _COORDINATION_SHIM_DEBUG_MODE:
+        log('CoordinationShim: Trying shim stack', self.get_next_shim_layer(), '\n')
       # Check if we have exceeded the time limit.
       time_taken = getruntime() - start_time
       if time_taken > timeout:
@@ -187,7 +219,8 @@ class CoordinationShim(BaseShim):
     # stacks works. Thus, we contact it without shims.
     time_taken = getruntime() - start_time
     if time_taken < timeout:
-      sock = openconnection(destip, destport, localip, localport, timeout - time_taken)
+      empty_shim_stack = ShimStack('(NoopShim)', '')
+      sock = empty_shim_stack.openconnection(destip, destport, localip, localport, timeout - time_taken)
       return ShimSocket(sock, self.copy())
 
     # Piggyback the failure information on the TimeoutError.
@@ -311,9 +344,6 @@ class CoordinationShim(BaseShim):
     both sockets.
 
     """
-    # Sanity check.
-    assert isinstance(serversocket, UDPServerSocket) or isinstance(serversocket, TCPServerSocket)
-
     # Retrieve the advertisement handle associated with the current socket and
     # stop the advertisement.
     try:
@@ -326,11 +356,60 @@ class CoordinationShim(BaseShim):
     except KeyError:
       pass
 
-    # Stop advertising.
+    # Stop advertising both our shim stack and the zenodotus name -> IP mapping.
     else:
       AdvertisePipe().remove(adv_handle)
+      self._zenodotus_advertise_active = False
 
     finally:
       self._adv_handle_dict_lock.release()
 
 
+
+
+  def _zenodotus_start_advertise(self, zenodotus_name):
+    """
+    Constantly advertises the zenodotus name -> IP mapping in a thread.
+
+    """
+    def _thread_function():
+
+      # Enables the thread
+      self._zenodotus_advertise_active = True
+
+      # Keeps track of the IP changes.
+      my_ip = ''
+
+      # Keeps track of when we last updated the mappings.
+      last_update_time = getruntime()
+
+      while self._zenodotus_advertise_active: 
+
+        try:
+          current_ip = getmyip()
+        except InternetConnectivityError:
+          sleep(1)
+          continue
+
+        current_time = getruntime()
+
+        # Advertises the mappings when the IP has changed, or when we haven't
+        # updated the mappings for 2/3 of the TTL of the zenodotus name. Ignore
+        # all exceptions during advertisement.
+        if (current_ip != my_ip) or (current_time - last_update_time > self._ZENODOTUS_NAME_TTL * 0.67):
+
+          if _COORDINATION_SHIM_DEBUG_MODE and current_ip != my_ip:
+            log('CoordinationShim: IP changed from', my_ip, '->', current_ip)
+            log('for', zenodotus_name, '\n')
+
+          my_ip = current_ip
+          last_update_time = current_time
+
+          try:
+            advertise_announce(zenodotus_name, my_ip, self._ZENODOTUS_NAME_TTL)
+          except:
+            pass
+
+        sleep(2)
+
+    createthread(_thread_function)
