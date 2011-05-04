@@ -219,7 +219,7 @@ class CoordinationShim(BaseShim):
     # stacks works. Thus, we contact it without shims.
     time_taken = getruntime() - start_time
     if time_taken < timeout:
-      empty_shim_stack = ShimStack('(NoopShim)', '')
+      empty_shim_stack = ShimStackInterface()
       sock = empty_shim_stack.openconnection(destip, destport, localip, localport, timeout - time_taken)
       return ShimSocket(sock, self.copy())
 
@@ -385,9 +385,15 @@ class CoordinationShim(BaseShim):
 
       while self._zenodotus_advertise_active: 
 
+        # Also store the IP address in a global cache, so that others
+        # (particularly the mobility shim) don't have to always call getmyip().
+        # This is for efficiency. Store None in the global cache if the
+        # network is down.
         try:
           current_ip = getmyip()
+          mycontext['coordination_shim_getmyip_cache'] = current_ip
         except InternetConnectivityError:
+          mycontext['coordination_shim_getmyip_cache'] = None
           sleep(1)
           continue
 
@@ -411,5 +417,8 @@ class CoordinationShim(BaseShim):
             pass
 
         sleep(2)
+
+      # Clears the IP cache when the loop stops
+      del mycontext['coordination_shim_getmyip_cache']
 
     createthread(_thread_function)
