@@ -18,8 +18,16 @@
 """
 
 #dy_import_module_symbols("shim_stack")
-dy_import_module_symbols("msg_chunk_lib")
-import sys
+while True:
+  try:
+    dy_import_module_symbols("msg_chunk_lib")
+  except FileInUseError, err:
+    sleep(0.01)
+  except:
+    raise ShimInternalError("Unable to import msg_chunk_lib for MultiPathShim." + str(err))
+  else:
+    break
+
 DATA_CHUNK_SEND_SIZE = 2**16
 DATA_CHUNK_RECV_SIZE = 2**20
 
