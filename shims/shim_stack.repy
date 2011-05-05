@@ -62,7 +62,6 @@
 # Import the shim exceptions.
 dy_import_module_symbols("shim_exceptions")
 
-
 # A dictionary that holds all the shim objects that have been
 # registered. This dictionary is shared globally by all ShimStacks
 # because we need to register each shim only once.
@@ -111,14 +110,23 @@ def find_and_register_shim(shim_name):
   if shim_name in SHIM_CLASS_DICT.keys():
     return
 
-  # Try to import the shim file. We convert the name to 
-  # lower case before importing.
-  try:
-    if shim_name not in _context.keys():
-      dy_import_module_symbols(shim_name.lower())
-  except Exception, err:
-    err_str = "Unable to import the shim: %s. %s" % (shim_name, str(err))
-    raise ShimNotFoundError(err_str)
+  # We have to do the import in a while loop in case we get the 
+  # FileInUseError. This error occurs when multiple shim stacks
+  # may be trying to load the shim.
+  while True:
+    # Try to import the shim file. We convert the name to 
+    # lower case before importing.
+    try:
+      if shim_name not in _context.keys():
+        dy_import_module_symbols(shim_name.lower())
+    except FileInUseError, err:
+      sleep(0.01)
+    
+    except Exception, err:
+      err_str = "Unable to import the shim: %s. %s" % (shim_name, str(err))
+      raise ShimNotFoundError(err_str)
+    else:
+      break
 
   # Register the shim.
   SHIM_CLASS_DICT[shim_name] = _context.copy()[shim_name]    

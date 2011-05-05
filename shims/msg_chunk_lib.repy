@@ -13,7 +13,7 @@
 """
 
 dy_import_module_symbols("shim_exceptions")
-
+import sys
 class ChunkMessage():
 
   def __init__(self, send_blk_size = 2**11, recv_blk_size = 2**11):
@@ -71,12 +71,26 @@ class ChunkMessage():
 
 
 
-  def data_sent_distribution(self):
+  def get_recv_buffer(self):
+    """
+    Returns the local recv buffer for all the sockets.
+    """
+    return self._recv_buf_dict.copy()
+
+
+  def get_send_buffer(self):
+    """
+    Returns the local send buffer for all the sockets.
+    """
+    return self._send_buf_dict.copy()
+
+
+  def get_data_sent_distribution(self):
     """
     Return the dictionary that keeps track of how
     much data was sent through each of the sockets.
     """
-    return self._data_sent_dict
+    return self._data_sent_dict.copy()
 
 
 
@@ -154,7 +168,6 @@ class ChunkMessage():
     while send_buf:
       sent_bytes = socket.send(send_buf)
       self.total_sent += sent_bytes
-      sys.stdout.flush()
       send_buf = send_buf[sent_bytes : ]
       self._send_buf_dict[repr(socket)] = send_buf
 
@@ -212,7 +225,6 @@ class ChunkMessage():
       Same as repy v2 socket API.
 
     """
-
     # We make a copy of the active socket set, in case the 
     # set changes during iteration.
     active_socket_set_copy = self._active_socket_set.copy()
@@ -235,7 +247,19 @@ class ChunkMessage():
         # Note that if this raises any error, we will raise it.
         # If the socket is closed before the buffer is emptied,
         # then there isn't much we can do.
-        self._send_pending_data(socket)
+        try:
+          self._send_pending_data(socket)
+        except SocketWouldBlockError:
+          sockets_blocking_set.add(socket)
+          continue
+        except (SocketClosedLocal, SocketClosedRemote), err:
+          # Note the error.
+          self._send_exception_dict[repr(socket)] = err
+          # Mark this socket as inactive. We discard it from the original
+          # set rather then the copy
+          self._active_socket_set.discard(socket)
+          continue
+       
 
         if not msg:
           continue
@@ -268,23 +292,23 @@ class ChunkMessage():
             sent = socket.send(block_data[block_bytes_sent : ])
             self.total_sent += sent
             block_bytes_sent += sent
-          sockets_blocking_set.discard(repr(socket))
+          sockets_blocking_set.discard(socket)
         # Looks like we've partially sent this block. The next time socket.send()
         # is called, we will send a padding (if applicable) followed by an 'F' tag
         # to indicate that this block is to be ignored.
         except SocketWouldBlockError:
+          # Add the socket to the blocking set.
+          sockets_blocking_set.add(socket)
+
           # We didn't send any data so we don't have to add anything
           # to the buffer.
           if block_bytes_sent == 0:
             continue
 
-          # Add the socket to the blocking set.
-          sockets_blocking_set.add(repr(socket))
 
           # Since we have only sent part of the message, we are going to add
           # F on the end of the buffer and send it, so we put the msg back.
           msg = original_block_msg + msg
-
           # If the exception occurs before the header is completely transmitted,
           # we put an 'F' right after the incomplete header. We write it to the
           # send buffer so it will be sent the next time send() is invoked.
@@ -337,7 +361,6 @@ class ChunkMessage():
       elif self._active_socket_set.issubset(sockets_blocking_set):
         raise SocketWouldBlockError
        
-
     return total_original_bytes_sent                             
 
 
