@@ -306,8 +306,12 @@ class CompressionShim(BaseShim):
     # Reconstruct all the blocks of compressed messages from the raw TCP
     # stream we received in the receive buffer. For each block, decompress
     # it and add it to the result buffer.
-    for compressed_block in self._reconstruct_blocks(socket):
-      result_buf += zlib.decompress(compressed_block)
+    while True:
+      compressed_block = self._reconstruct_blocks(socket)
+      if compressed_block is None:
+        break
+      elif len(compressed_block) > 0:
+        result_buf += zlib.decompress(compressed_block)
 
     # If there is nothing in the result buffer, we have received all the data.
     if result_buf == '':
@@ -334,17 +338,20 @@ class CompressionShim(BaseShim):
 
   def _reconstruct_blocks(self, socket):
     """
-    Helper method for the socket_recv method. Reconstructs complete blocks
-    starting from the head of the receive buffer and returns them as a list of
-    strings. For instance, we may have received the following stream into the
+    Helper method for the socket_recv method. Reconstructs and returns the
+    leftmost complete block starting from the head of the receive buffer. If
+    there are no more blocks to reconstruct, returns None. Returns an empty
+    string if the block is to be discarded.
+
+    For instance, we may have received the following stream into the
     receive buffer (the '>' sign denotes the beginning of the receive buffer):
     
     > 11,HelloWorldT6,pandaT7,googxxF10,micxxx
 
-    This method is recursive. We start from the beginning and parse the
-    header. We read 11 bytes. The last byte is a 'T', so we know the block is
-    complete. We have reconstructed 'HelloWorld' and we move on. Now the buffer
-    becomes:
+    We start from the beginning and parse the header. We read 11 bytes. The last
+    byte is a 'T', so we know the block is complete. We have reconstructed
+    'HelloWorld' and we move on (because this method is probably used in a while
+    loop). Now the buffer becomes:
 
     > 6,pandaT7,googxxF10,micxxx
 
@@ -360,8 +367,8 @@ class CompressionShim(BaseShim):
 
     We expect that the block has 10 bytes of data, but the buffer ends before
     that. We assume more data is coming in, so we leave the data on the buffer
-    and return all the good blocks we have read so far as ['HelloWorld',
-    'panda'].    
+    and return all the good blocks we have read so far as 'HelloWorld' and
+    'panda'.
 
     """
     # Get the receive buffer. 
@@ -369,7 +376,7 @@ class CompressionShim(BaseShim):
 
     # Base case: empty receive buffer. Return no blocks.
     if recv_buf == '':
-      return []
+      return None
 
     # Stores the length of the block as a string.
     block_length_str = ''
@@ -394,7 +401,7 @@ class CompressionShim(BaseShim):
       # form a complete header. For now, there is nothing we can do. We keep all
       # the data in the buffer and exit.
       except IndexError:
-        return []
+        return None
 
       cur_position += 1
 
@@ -409,7 +416,7 @@ class CompressionShim(BaseShim):
       # from a position after the 'F' tag.
       elif char == 'F':
         self._recv_buf_dict[repr(socket)] = recv_buf[cur_position : ]
-        return self._reconstruct_blocks(socket)
+        return ''
 
       # The character is neither a comma or 'F', so we must be still reading the
       # integers in the header.
@@ -433,7 +440,7 @@ class CompressionShim(BaseShim):
     # block. For now, there is nothing we can do. We keep all the data in the
     # buffer and exit.
     if cur_position + block_length > len(recv_buf):
-      return []
+      return None
 
     # At this point, we know that we have a complete block. Read block_length of
     # bytes from the receive buffer to form a block and remove it from the
@@ -445,13 +452,13 @@ class CompressionShim(BaseShim):
     # after the 'F' tag.
     if block_body.endswith('F'):
       self._recv_buf_dict[repr(socket)] = recv_buf[cur_position : ]
-      return self._reconstruct_blocks(socket)
+      return ''
 
     # It's a good block! Remove it from the buffer, return it (minus the 'T')
     # and keep reading the other blocks recursively.
     elif block_body.endswith('T'):
       self._recv_buf_dict[repr(socket)] = recv_buf[cur_position : ]
-      return [block_body[0 : len(block_body) - 1]] + self._reconstruct_blocks(socket)
+      return block_body[0 : len(block_body) - 1]
 
     # The block should not end with anything else!
     else:
