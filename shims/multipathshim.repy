@@ -374,6 +374,7 @@ class MultiShimTCPSocket():
 
 class MultiPathShim(BaseShim):
 
+  _localip = getmyip()
 
   def __init__(self, shim_stack=ShimStack(), optional_args=None):
     """
