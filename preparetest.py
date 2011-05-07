@@ -176,6 +176,7 @@ def main():
     copy_to_target("seattlelib/tests/*", target_dir)
     #copy_to_target("keydaemon/tests/*", target_dir)
     copy_to_target("dist/update_crontab_entry.py", target_dir)
+    copy_to_target("shims/tests/*", target_dir)
 
     # The web server is used in the software updater tests
     #copy_to_target("assignments/webserver/*", target_dir)

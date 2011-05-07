@@ -90,7 +90,7 @@ def launch_test():
   try:
     sockobj = openconnection(SERVER_IP, SERVER_PORT, SERVER_IP, SERVER_PORT+1, 10)
   except Exception, err:
-    print "Error occured making connection" + str(err)
+    log("\nError occured making connection" + str(err))
     exitall()
 
 

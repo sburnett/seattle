@@ -55,13 +55,24 @@ class MultiShimSocket():
     """
 
     distribution_dict = {}
-    data_distribution = self._chunk_object.get_data_sent_distribution()
+    data_distribution_send = self._chunk_object.get_data_sent_distribution()
+    data_distribution_recv = self._chunk_object.get_data_recv_distribution()
 
     # Convert the data distibution from the chunk object to a dictionary that
     # has the shim stack name instead of the socket instance name.
-    for sock_key in data_distribution.keys():
-      distribution_dict[self._sock_to_shim_dict[sock_key]] = data_distribution[sock_key]
+    for sock_key in data_distribution_send.keys():
+      if self._sock_to_shim_dict[sock_key] not in distribution_dict.keys():
+        distribution_dict[self._sock_to_shim_dict[sock_key]] = {}
 
+      distribution_dict[self._sock_to_shim_dict[sock_key]]['send'] = data_distribution_send[sock_key]
+                        
+    for sock_key in data_distribution_recv.keys():
+      if self._sock_to_shim_dict[sock_key] not in distribution_dict.keys():
+        distribution_dict[self._sock_to_shim_dict[sock_key]] = {}
+
+      distribution_dict[self._sock_to_shim_dict[sock_key]]['recv'] = data_distribution_recv[sock_key]
+
+                        
     return distribution_dict
 
 
@@ -229,7 +240,7 @@ class MultiShimSocket():
         self._chunk_object.add_socket(sockobj)
 
     self._connection_dict.clear()
-
+    
     # Close all the sockets.
     self._chunk_object.close()
     
@@ -328,6 +339,12 @@ class MultiShimTCPSocket():
         all_connected = True
 
         for cur_tcp_socket in self.tcpsocket_dict.keys():
+          # If a new connection was made after this thread was launched
+          # then we have to add the new connection to the connection dict.
+          if cur_tcp_socket not in connection_dict.keys():
+            connection_dict[cur_tcp_socket] = {}
+            connection_dict[cur_tcp_socket]['sockobj'] = None
+
           # Check to see if we are already connected.
           if connection_dict[cur_tcp_socket]['sockobj']:
             continue
@@ -425,20 +442,20 @@ class MultiPathShim(BaseShim):
         cur_stack = ShimStack(shim_str, localhost)
         self.shim_stack_dict[shim_str] = cur_stack
 
-
+    BaseShim.__init__(self, shim_stack, optional_args)
 
     # Make sure that all the stacks have at least one shim beneath it.
     # If it does not then we will create and push a NoopShim on it.
     for cur_shim in self.shim_stack_dict.keys():
       try:
-        self.shim_stack_dict[cur_shim].peek()
+        peek_copy = self.shim_stack_dict[cur_shim].peek()
       except ShimStackError:
         find_and_register_shim('NoopShim')
         shim_object = self.shim_stack_dict[cur_shim].create_shim_object('NoopShim', [], ShimStack())
         self.shim_stack_dict[cur_shim].push(shim_object)
     
-    
-    BaseShim.__init__(self, shim_stack, optional_args)
+        
+
 
 
 
@@ -481,7 +498,7 @@ class MultiPathShim(BaseShim):
     """
 
     self._destip = destip
-    self._locaip = localip
+    self._localip = localip
     self._timeout = timeout
 
     # A dictionary that holds all the connections.
@@ -711,10 +728,10 @@ class MultiPathShim(BaseShim):
     Make and return a copy of self.
     """
 
-    mycopy = MultiPathShim()
+    shim_stack_copy = self.shim_context['shim_stack'].copy()
+    optional_args_copy = self.shim_context['optional_args']
 
-    mycopy.shim_stack_dict = self.shim_stack_dict.copy()
-    mycopy.shim_str_list = self.shim_str_list[:]
+    mycopy = MultiPathShim(shim_stack_copy, optional_args_copy)
 
     return mycopy
 
@@ -726,7 +743,17 @@ class MultiPathShim(BaseShim):
     Return the advertisement string for this shim.
     """
     my_name = '(MultiPathShim,%s)' % ','.join(self.shim_str_list)
-    return my_name + self.get_next_shim_layer().get_advertisement_string()
+    next_layer_name = self.get_next_shim_layer().get_advertisement_string()
+
+    # If we have shims that are not advertising below us, for example
+    # just a logging shim. We want to append a NoopShim on the advertisement
+    # since we are still sending data through a socket.
+    if not next_layer_name:
+      next_layer_name = "(NoopShim)"
+
+    full_advertise_string = my_name + next_layer_name
+
+    return full_advertise_string
 
 
 

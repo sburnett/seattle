@@ -229,9 +229,9 @@ def assert_server_msg(msg_dict):
       raise Exception("Send socket should not have been closed remotely.")
     else:
       log("[ FAIL ]")
-      raise Exception("Failed at closing socket for first server")
+      raise Exception("Failed at closing socket for %s" % node)
 
-    log("\nChecking NodeA recv_socket closed: ")
+    log("\nChecking %s recv_socket closed: " % node)
     try:
       msg_dict[node]['recv_socket'].recv(1024)
     except SocketClosedRemote:
@@ -241,38 +241,37 @@ def assert_server_msg(msg_dict):
       raise Exception("Recv socket should not have been closed locally.")
     else:
       log("[ FAIL ]")
-      raise Exception("Failed at closing socket for first server")
+      raise Exception("Failed at closing socket for %s" % node)
 
-  log("\nChecking NodeB send_socket closed: ")
-  try:
-    second_server['send_socket'].send("randomword")
-  except (SocketClosedLocal, SocketClosedRemote):
-    log("[ PASS ]")
-  else:
-    log("[ FAIL ]")
-    raise Exception("Failed at closing socket for second server")
 
-  log("\nChecking NodeB recv_socket closed: ")
-  try:
-    second_server['recv_socket'].recv(1024)
-  except (SocketClosedLocal, SocketClosedRemote):
-    log("[ PASS ]")
-  else:
-    log("[ FAIL ]")
-    raise Exception("Failed at closing socket for second server")
 
 
 
   for node in msg_dict.keys():
-    log("\nChecking data distribution for %s: " % node)
-    data_distribution = msg_dict[node]['send_socket'].get_stats()
-
+    log("\nChecking data distribution send for %s: " % node)
+    data_distribution_send = msg_dict[node]['send_socket'].get_stats()
     total_sent = 0
-    for cur_shim_socket in data_distribution.keys():
-      total_sent += data_distribution[cur_shim_socket]
+
+    for cur_shim_socket in data_distribution_send.keys():
+      total_sent += data_distribution_send[cur_shim_socket]['send']
 
     try:
       assert(total_sent == len(MSG_TO_SEND))
+    except AssertionError:
+      log("[ FAIL ]")
+      raise
+    else:
+      log("[ PASS ]")
+
+    log("\nChecking data distribution recv for %s: " % node)
+    data_distribution_recv = msg_dict[node]['recv_socket'].get_stats()
+    total_recv = 0
+
+    for cur_shim_socket in data_distribution_recv.keys():
+      total_recv += data_distribution_recv[cur_shim_socket]['recv']
+    
+    try:
+      assert(total_recv == len(MSG_TO_SEND))
     except AssertionError:
       log("[ FAIL ]")
       raise
@@ -295,4 +294,5 @@ def display_node(msg_dict):
     log("\nRemoteport: " + str(msg_dict[node]['remoteport']))
     log("\nSend length: " + str(msg_dict[node]['sent']))
     log("\nRecv length: " + str(len(msg_dict[node]['recv'])))
-    log("\nData distribution: " + str(msg_dict[node]['send_socket'].get_stats()))
+    log("\nData distribution send: " + str(msg_dict[node]['send_socket'].get_stats()))
+    log("\nData distribution recv: " + str(msg_dict[node]['recv_socket'].get_stats()))
