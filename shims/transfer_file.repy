@@ -43,12 +43,22 @@ dy_import_module_symbols('random')
 
 
 # Server and client shim stacks.
-SERVER_SHIM_STACK_STR = '(CoordinationShim)(CompressionShim)(StatShim)'
+#SERVER_SHIM_STACK_STR = '(CoordinationShim)(StatShim)(MultiPathShim,(CompressionShim,8192),(CompressionShim,512),(NoopShim))'
+#SERVER_SHIM_STACK_STR = '(CoordinationShim)(MultiPathShim,(AsciiShiftingShim)(AsciiShiftingShim),(AsciiShiftingShim),(NoopShim))'
+#SERVER_SHIM_STACK_STR = '(CoordinationShim)(LogShim)(MobilityShim)(LogShim)'
+SERVER_SHIM_STACK_STR = '(CoordinationShim)(StatShim)(MultiPathShim,(StatShim)(CompressionShim,8192),(StatShim)(CompressionShim,512),(StatShim)(NoopShim))'
 CLIENT_SHIM_STACK_STR = '(CoordinationShim)'
 
 # Buffer size.
-RECV_BLOCK_SIZE = 2**21 # 2 MB
-SEND_BLOCK_SIZE = 2**21 # 2 MB
+RECV_BLOCK_SIZE = 2**15
+SEND_BLOCK_SIZE = 2**15
+
+# How long do we sleep when the socket blocks
+BLOCKING_SLEEP_TIME = 0.001
+
+# Whether to check md5.
+CHECK_MD5 = False
+
 
 
 class BadCheckSum(Exception):
@@ -99,7 +109,7 @@ class HandleClient:
       log('Got bytes', length, '\n')
 
     # Compare checksum. 
-    if recv_checksum != hashobj.digest():
+    if CHECK_MD5 and recv_checksum != hashobj.digest():
       raise BadCheckSum('Bad checksum for received string of length ' + str(length))
     else:
       log('Received %s bytes from %s:%s.\n' % (str(length), self._client_ip, self._client_port))
@@ -111,13 +121,13 @@ class HandleClient:
     Wrapper to _handle_client to deal with unexpected exceptions.
 
     """
-    try:
-      self._handle_client()
 
-    except Exception, err:
-      info = 'Exceptions in %s:%s %s: ' % (self._client_ip, self._client_port, self._sock)
-      info += repr(err) + ',' + str(err) + '\n'
-      log(info)
+    self._handle_client()
+
+    # except Exception, err:
+    #   info = 'Exceptions in %s:%s %s: ' % (self._client_ip, self._client_port, self._sock)
+    #   info += repr(err) + ',' + str(err) + '\n'
+    #   log(info)
 
 
 
@@ -133,22 +143,27 @@ def server_mode(server_port):
   Starts the main listening loop.
   
   """
-  shim = ShimStackInterface(SERVER_SHIM_STACK_STR)
+  shim = ShimStackInterface(SERVER_SHIM_STACK_STR, 'pandas.zenodotus.cs.washington.edu')
   server_ip = shim.getmyip()
 
   log('Listening on', server_ip, ':', server_port, '...\n')
   tcpsock = shim.listenforconnection(server_ip, server_port)
 
-  # Accept connections in new threads.
+  # Accept connections in new threads, until the user presses Control + C.
   while True:
     
     log('Waiting for connections using', str(tcpsock), '\n')
 
-    (rip, rport, sock) = block_call(tcpsock.getconnection)
+    try:
+      (rip, rport, sock) = block_call(tcpsock.getconnection)
+    except KeyboardInterrupt:
+      break
+
     client = HandleClient(rip, rport, sock)
     client.start()
 
-
+  tcpsock.close()
+  log('Server exits.\n')
 
 
 
@@ -164,15 +179,23 @@ def client_mode(server_ip, server_port, filename):
   hashobj = md5py_MD5()
   offset = 0
 
-  log('Computing md5.\n')
+  if CHECK_MD5:
 
-  while True:
-    data = fileobj.readat(128, offset)
-    if data:
-      hashobj.update(data)
-      offset += len(data)
-    else:
-      break
+    log('Computing md5.\n')
+
+    while True:
+      data = fileobj.readat(128, offset)
+      if data:
+        hashobj.update(data)
+        offset += len(data)
+      else:
+        break
+
+    checksum = hashobj.digest()
+
+  # Do not compute checksum. Send a dummy value of 16 bytes.
+  else:
+    checksum = '0' * 16 
 
   log('Connecting to server.\n')
 
@@ -181,9 +204,6 @@ def client_mode(server_ip, server_port, filename):
   sock = shim.openconnection(server_ip, server_port, shim.getmyip(), int(random_randint(10000, 65535)), 30)
 
   log('Sending checksum.\n')
-
-  # Send the 16-byte checksum first.
-  checksum = hashobj.digest()
   while checksum:
     sent = block_call(sock.send, checksum)
     checksum = checksum[sent:]
@@ -231,7 +251,7 @@ def block_call(func, *p, **q):
     try:
       return func(*p, **q)
     except SocketWouldBlockError:
-      continue
+      sleep(BLOCKING_SLEEP_TIME)
 
 
 

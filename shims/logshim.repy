@@ -55,6 +55,23 @@ class LogShim(BaseShim):
 
 
 
+  def _abbrev(self, input_str):
+    """
+    Abbreviates the input string. Returns the first 100 bytes, followed by
+    elipses, and then the last 100 bytes.
+
+    """
+    # TODO abbreviation disabled.
+    return input_str
+
+    length = len(input_str)
+    if length < 200:
+      return input_str
+    else:
+      return input_str[0:100] + ' ... (' + str(length - 200) + ' bytes omitted) ... ' + input_str[length-100 : ]
+
+
+
   def sendmessage(self, destip, destport, message, localip, localport):
 
     log_info = ('sendmessage, destip = %s, destport = %s, localip = %s, localport = %s, message = %s' 
@@ -83,8 +100,8 @@ class LogShim(BaseShim):
       self._log('%s\n > Exception = %s, %s\n' % (log_info, repr(err), str(err)))
       raise err
 
+    self._log('%s\n > return = %s' % (log_info, next_layer_socket))    
     sock = ShimUDPServerSocket(next_layer_socket, self)
-    self._log('%s\n > return = %s' % (log_info, sock))    
 
     return sock
 
@@ -104,9 +121,9 @@ class LogShim(BaseShim):
       self._log('%s\n > Exception = %s, %s\n' % (log_info, repr(err), str(err)))
       raise err
 
+    self._log('%s\n > return = %s' % (log_info, next_sockobj))        
     sock = ShimSocket(next_sockobj, this_shim_copy)
 
-    self._log('%s\n > return = %s' % (log_info, sock))        
     return sock
 
 
@@ -122,9 +139,9 @@ class LogShim(BaseShim):
       self._log('%s\n > Exception = %s, %s\n' % (log_info, repr(err), str(err)))
       raise err
 
+    self._log('%s\n > return = %s' % (log_info, next_layer_socket))        
     sock = ShimTCPServerSocket(next_layer_socket, self)
 
-    self._log('%s\n > return = %s' % (log_info, sock))        
     return sock
 
 
@@ -147,7 +164,7 @@ class LogShim(BaseShim):
 
   def socket_send(self, socket, msg):
 
-    log_info = 'socket_send, socket = %s, msg = %s' % (socket, msg)
+    log_info = 'socket_send, socket = %s, msg = %s' % (socket, self._abbrev(msg))
     self._log(log_info)
 
     try:
@@ -172,7 +189,7 @@ class LogShim(BaseShim):
       self._log('%s\n > Exception = %s, %s\n' % (log_info, repr(err), str(err)))
       raise err
 
-    self._log('%s\n > return = %s' % (log_info, data))
+    self._log('%s\n > return = %s' % (log_info, self._abbrev(data)))
     return data
 
 
@@ -188,9 +205,10 @@ class LogShim(BaseShim):
     except Exception, err:
       self._log('%s\n > Exception = %s, %s\n' % (log_info, repr(err), str(err)))
       raise err
+
+    self._log('%s\n > return = %s' % (log_info, (remote_ip, remote_port, repy_socket)))
     value = (remote_ip, remote_port, ShimSocket(repy_socket, this_shim_copy))
 
-    self._log('%s\n > return = %s' % (log_info, value))    
     return value
 
 

@@ -30,7 +30,8 @@ dy_import_module_symbols('shimstackinterface')
 
 
 # The shim stack strings of the server and the client.
-SERVER_SHIM_STACK_STR = '(CoordinationShim)(StatShim)(MultiPathShim,(StatShim)(CompressionShim,8192),(StatShim)(CompressionShim,512),(StatShim)(NoopShim))'
+SERVER_SHIM_STACK_STR = '(CoordinationShim)(StatShim)(MultiPathShim,(StatShim)(CompressionShim,512),(StatShim)(CompressionShim,2048),(StatShim)(CompressionShim,8192),(StatShim)(CompressionShim,32768))(StatShim)'
+#SERVER_SHIM_STACK_STR = '(CoordinationShim)(MultiPathShim,(AsciiShiftingShim),(AsciiShiftingShim)(AsciiShiftingShim),(AsciiShiftingShim)(AsciiShiftingShim)(AsciiShiftingShim))'
 CLIENT_SHIM_STACK_STR = '(CoordinationShim)'
 
 # Buffer size.
@@ -39,7 +40,7 @@ SEND_BLOCK_SIZE = 2**14
 
 
 # How long do we sleep when the socket blocks
-BLOCKING_SLEEP_TIME = 0.001
+BLOCKING_SLEEP_TIME = 0.010
 
 
 
@@ -51,7 +52,7 @@ def client():
   """
   # Parse command line
   try:
-    dest_host = gethostbyname(callargs[1])
+    dest_host = callargs[1]
     dest_port = int(callargs[2])
     N = int(callargs[3])
   except (IndexError, ValueError):
@@ -99,50 +100,65 @@ def server():
     exitall()
 
   # Accept client.
-  shim = ShimStackInterface(SERVER_SHIM_STACK_STR)
-  handle = shim.listenforconnection(getmyip(), listen_port)
+  shim = ShimStackInterface(SERVER_SHIM_STACK_STR, 'pandas.zenodotus.cs.washington.edu')
+  handle = shim.listenforconnection(shim.getmyip(), listen_port)
   log('Listening...\n')
-  _, _, sock = block_call(handle.getconnection)
 
-  recv_buffer = ''
-  last_number = -1
-
-  # Save the received stream into a buffer and parse individual numbers.
   while True:
+    _, _, sock = block_call(handle.getconnection)
+    handle_client_thread(sock)
 
-    try:
-      recv_buffer += block_call(sock.recv, RECV_BLOCK_SIZE)
-      #log('STATS:', sock._socket.get_stats(), '\n')
-    except SocketClosedRemote:
-      exitall()
 
-    # Parse individual numbers from the buffer and check if they're continuous.
-    while recv_buffer:
 
-      # Extract the first number from the left of the buffer.
-      comma_pos = recv_buffer.find(',')
 
-      # Got a number. Check for continuity.
-      if comma_pos > 0:
-        number_str = recv_buffer[0 : comma_pos]
-        number = int(number_str)
-        if number == last_number + 1:
-          last_number = number
-          recv_buffer = recv_buffer[comma_pos + 1 : ]
+def handle_client_thread(sock):
+
+  def handle_client():
+
+    recv_buffer = ''
+    last_number = -1
+
+    # Save the received stream into a buffer and parse individual numbers.
+    while True:
+
+      try:
+        recv_buffer += block_call(sock.recv, RECV_BLOCK_SIZE)
+        #log('STATS:', sock._socket.get_stats(), '\n')
+      except SocketClosedRemote,err:
+        log('Socket closed:', repr(err), err, '\n')
+        exitall()
+
+      # Parse individual numbers from the buffer and check if they're continuous.
+      while recv_buffer:
+
+        # Extract the first number from the left of the buffer.
+        comma_pos = recv_buffer.find(',')
+
+        # Got a number. Check for continuity.
+        if comma_pos > 0:
+          number_str = recv_buffer[0 : comma_pos]
+          try:
+            number = int(number_str)
+          except ValueError:
+            log('ERROR: Bad number:', number_str, 'from recv_buffer', recv_buffer, '\n')
+          if number == last_number + 1:
+            last_number = number
+            recv_buffer = recv_buffer[comma_pos + 1 : ]
+          else:
+            log('ERROR: Got number', number, 'but the previous number is', last_number, '\n')
+            sock.close()
+            exitall()
+
+        # No numbers found; probably it's incomplete.
         else:
-          log('ERROR: Got number', number, 'but the previous number is', last_number, '\n')
-          sock.close()
-          exitall()
+          break
 
-      # No numbers found; probably it's incomplete.
-      else:
-        break
+      log('Last number so far:', last_number, '\n')
 
-    log('Last number so far:', last_number, '\n')
+    log('Server done.\n')
+    exitall()
 
-
-
-
+  createthread(handle_client)
           
 
 

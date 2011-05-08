@@ -411,10 +411,13 @@ class CoordinationShim(BaseShim):
           my_ip = current_ip
           last_update_time = current_time
 
-          try:
-            advertise_announce(zenodotus_name, my_ip, self._ZENODOTUS_NAME_TTL)
-          except:
-            pass
+          # Advertise till success.
+          while True:
+            try:
+              advertise_announce(zenodotus_name, my_ip, self._ZENODOTUS_NAME_TTL, timeout=10)
+              break
+            except:
+              sleep(1)
 
         sleep(2)
 

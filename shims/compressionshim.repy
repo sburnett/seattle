@@ -20,6 +20,23 @@ import zlib
 dy_import_module_symbols("shim_exceptions")
 
 
+_compression_shim_global_lock = createlock()
+
+def _compression_shim_atomic_operation(target_func):
+  """
+  Function decorator. The target function is invoked atomically.
+
+  """
+  def wrapper(*args, **kwargs):
+    try:
+      _compression_shim_global_lock.acquire(True)
+      return target_func(*args, **kwargs)
+    finally:
+      _compression_shim_global_lock.release()
+
+  return wrapper
+
+
 
 class CompressionShim(BaseShim):
 
@@ -119,6 +136,7 @@ class CompressionShim(BaseShim):
 
 
 
+  @_compression_shim_atomic_operation
   def socket_send(self, socket, msg):
     """ 
     <Purpose>
@@ -235,7 +253,7 @@ class CompressionShim(BaseShim):
 
 
 
-
+  @_compression_shim_atomic_operation
   def socket_recv(self, socket, bytes):
     """ 
     <Purpose>
