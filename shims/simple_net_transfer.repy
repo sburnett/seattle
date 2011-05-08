@@ -30,8 +30,7 @@ dy_import_module_symbols('shimstackinterface')
 
 
 # The shim stack strings of the server and the client.
-SERVER_SHIM_STACK_STR = '(CoordinationShim)(StatShim)(MultiPathShim,(StatShim)(CompressionShim,512),(StatShim)(CompressionShim,2048),(StatShim)(CompressionShim,8192),(StatShim)(CompressionShim,32768))(StatShim)'
-#SERVER_SHIM_STACK_STR = '(CoordinationShim)(MultiPathShim,(AsciiShiftingShim),(AsciiShiftingShim)(AsciiShiftingShim),(AsciiShiftingShim)(AsciiShiftingShim)(AsciiShiftingShim))'
+SERVER_SHIM_STACK_STR = '(CoordinationShim)(StatShim)(MultiPathShim,(StatShim)(CompressionShim))(StatShim)'
 CLIENT_SHIM_STACK_STR = '(CoordinationShim)'
 
 # Buffer size.
