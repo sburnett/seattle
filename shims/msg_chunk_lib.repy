@@ -165,7 +165,7 @@ class ChunkMessage():
     out of the active socket set.
     """
     self._closed_local = True
-    for socket in self._active_socket_set:
+    for socket in self._active_socket_set.copy():
       try:
         socket.close()
       except:
