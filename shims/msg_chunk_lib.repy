@@ -314,8 +314,6 @@ class ChunkMessage():
         block_body = msg[ : self._SEND_BLOCK_SIZE]
         original_block_msg = block_body
         block_size = len(block_body)
-        
-        msg = msg[self._SEND_BLOCK_SIZE : ]
 
     
         # We assume that the block will be sent completely, so we set the boolean
@@ -335,7 +333,6 @@ class ChunkMessage():
         # msg and continue on to the next socket.
         lock_acquired = self._socket_locks[repr(socket)].acquire(False)
         if not lock_acquired:
-          msg = original_block_msg + msg
           sockets_blocking_set.add(socket)
           continue
 
@@ -345,6 +342,8 @@ class ChunkMessage():
             sent = socket.send(block_data[block_bytes_sent : ])
             self.total_sent += sent
             block_bytes_sent += sent
+          # If the entire block was sent, then we remove the socket
+          # from the blocking set.
           sockets_blocking_set.discard(socket)
         except SocketWouldBlockError:
           # Add the socket to the blocking set.
@@ -355,9 +354,6 @@ class ChunkMessage():
           if block_bytes_sent == 0:
             continue
 
-          # Since we have only sent part of the message, we are going to add
-          # F on the end of the buffer and send it, so we put the msg back.
-          msg = original_block_msg + msg
           # If the exception occurs before the header is completely transmitted,
           # we put an 'F' right after the incomplete header. We write it to the
           # send buffer so it will be sent the next time send() is invoked.
@@ -374,10 +370,7 @@ class ChunkMessage():
             self._send_buf_dict[repr(socket)] += 'x' * (len(block_data) - block_bytes_sent - 1) + 'F'
         except (SocketClosedLocal, SocketClosedRemote), err:
           # This is the case where we may have partially sent a chunk,
-          # or haven't sent any bit of it. Either way, we just put the
-          # chunk back into the message as from the receiver side it will
-          # discard any partial chunk.
-          msg = original_block_msg + msg
+          # or haven't sent any bit of it. 
 
           # Note the error.
           self.send_exception_dict[repr(socket)] = err
@@ -388,6 +381,7 @@ class ChunkMessage():
         # next block, while keeping track of how much of the original data has
         # been sent. We also increment the global chunk id.
         else:
+          msg = msg[self._SEND_BLOCK_SIZE : ]
           total_original_bytes_sent += block_size
           self._data_sent_dict[repr(socket)] += block_size
           self._send_chunk_id += 1
@@ -407,7 +401,7 @@ class ChunkMessage():
       # Closeing While loop
 
     # If there are no active sockets 
-    if total_original_bytes_sent == 0 and len(msg) > 0:
+    if total_original_bytes_sent == 0:
       exception_socket_list = self.send_exception_dict.keys()
       if len(self._active_socket_set) == 0 and len(exception_socket_list) != 0:
         # Pick one of the sockets, and return its error.
@@ -415,11 +409,12 @@ class ChunkMessage():
         raise self.send_exception_dict[repr(socket)]
       
       # If all the active sockets are being blocked right now.
-      elif self._active_socket_set.issubset(sockets_blocking_set):
+      elif active_socket_set_copy.issubset(sockets_blocking_set):
         raise SocketWouldBlockError
 
       else:
         raise ShimInternalError("Unexpected error occured in send()")
+
 
     return total_original_bytes_sent                             
 
