@@ -22,14 +22,14 @@ while True:
   try:
     dy_import_module_symbols("msg_chunk_lib")
   except FileInUseError, err:
-    sleep(0.01)
+    sleep(0.001)
   except:
     raise ShimInternalError("Unable to import msg_chunk_lib for MultiPathShim." + str(err))
   else:
     break
 
-DATA_CHUNK_SEND_SIZE = 2**16
-DATA_CHUNK_RECV_SIZE = 2**20
+DATA_CHUNK_SEND_SIZE = 2**15
+DATA_CHUNK_RECV_SIZE = 2**15
 
 
 
@@ -113,7 +113,14 @@ class MultiShimSocket():
     # in case new connections get added during iteration.
     connection_dict_copy = self._connection_dict.copy()
     for cur_shim in connection_dict_copy:
-      sockobj = self._connection_dict[cur_shim]['sockobj']
+      # It is possible that the current connection is being made,
+      # which means there is a very brief moment when sockobj may
+      # not have been inserted in the connection dict for the 
+      # current shim.
+      if 'sockobj' not in connection_dict_copy[cur_shim].keys():
+        continue
+
+      sockobj = connection_dict_copy[cur_shim]['sockobj']
 
       if sockobj:
         # Add the socket to the chunk object if not there already.
@@ -175,7 +182,7 @@ class MultiShimSocket():
     # in case the connection dict changes during iteration.
     connection_dict_copy = self._connection_dict.copy()
     for cur_shim in connection_dict_copy:
-      sockobj = self._connection_dict[cur_shim]['sockobj']
+      sockobj = connection_dict_copy[cur_shim]['sockobj']
 
       if sockobj:
         # Add the socket to the chunk object if not there already.
@@ -391,7 +398,6 @@ class MultiShimTCPSocket():
 
 class MultiPathShim(BaseShim):
 
-  _localip = getmyip()
 
   def __init__(self, shim_stack=ShimStack(), optional_args=None):
     """
