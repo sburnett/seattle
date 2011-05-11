@@ -44,10 +44,9 @@ implementing new commands.
 import checkpythonversion
 checkpythonversion.ensure_python_version_is_supported()
 
-# Armon: Prevent all warnings
+# Warnings are turned on to display the tab completion warning
 import warnings
-# Ignores all warnings
-warnings.simplefilter("ignore")
+warnings.simplefilter("default")
 
 # simple client.   A better test client (but nothing like what a real client
 # would be)
@@ -58,7 +57,6 @@ from repyportability import *
 
 tabcompletion = True
 try:
-
   # Even we can import the readline module successfully, we still disable tab
   # completion in Windows, in response to Ticket #891.
   import os
@@ -70,7 +68,6 @@ try:
   import readline
   import tab_completer
 except ImportError:
-  print "Auto tab completion is off, because it is not available on your operating system."
   tabcompletion = False
   
 
@@ -95,6 +92,11 @@ import sys
 
 
 def command_loop(test_command_list):
+  
+  # If a test command list is passed, filter the tab completion warning
+  if test_command_list:
+    warnings.filterwarnings("ignore", "Auto tab completion is off, because it is not available on your operating system.",
+                            ImportWarning)
 
 
   # Things that may be set herein and used in later commands.
@@ -128,6 +130,8 @@ def command_loop(test_command_list):
     readline.set_completer_delims("")
     # Sets the completer function that readline will utilize
     readline.set_completer(completer.complete)
+  else:
+    warnings.warn("Auto tab completion is off, because it is not available on your operating system.",ImportWarning)
 
 
   # If passed a list of commands, do not prompt for user input
