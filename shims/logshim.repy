@@ -20,13 +20,28 @@ import time
 
 class LogShim(BaseShim):
 
-  _LOG_FILE_NAME = 'debug.log'
+  
+  def __init__(self, shim_stack = ShimStack(), optional_args = None):
+    """
+    Define the log file name if defined.
+    """
 
-  # Prevents current write.
-  _lock = createlock()
+    self._LOG_FILE_NAME = 'debug.log'
 
-  # Stores state of the shim.
-  _log_context = {'bytes_written' : 0}
+    # Prevents current write.
+    self._lock = createlock()
+
+    # Stores state of the shim.
+    self._log_context = {'bytes_written' : 0}
+      		         
+    if optional_args:
+      # If option is provided, use it as the log name.
+      assert(isinstance(optional_args[0], str)), "Optional arg provided must be string"
+
+      self._LOG_FILE_NAME = optional_args[0]
+
+
+    BaseShim.__init__(self, shim_stack, optional_args)    
 
 
   def _log(self, logstr):

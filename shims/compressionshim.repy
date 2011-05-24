@@ -282,6 +282,24 @@ class CompressionShim(BaseShim):
       Same as repy v2 socket API.
 
     """
+
+    # Initialize the result buffer, which stores the uncompressed original TCP
+    # stream that the sender has.
+    try:
+      result_buf = self._result_buf_dict[repr(socket)]
+    except KeyError:
+      self._result_buf_dict[repr(socket)] = ''
+      result_buf = ''
+
+
+    # If our buffer already has data, then we just return it.
+    if len(result_buf) > bytes:
+      requested_data = result_buf[0 : bytes]
+      self._result_buf_dict[repr(socket)] = result_buf[len(requested_data) : ]
+
+      return requested_data
+
+
     # Initialize the receive buffer that stores the raw TCP stream, from which
     # we reconstruct the compressed blocks. Also, because it is the first time
     # that recv() is called, we assume that the socket is active and we add it
@@ -297,6 +315,11 @@ class CompressionShim(BaseShim):
       try:
         self._recv_buf_dict[repr(socket)] += self.get_next_shim_layer().socket_recv(socket, self._RECV_BLOCK_SIZE)
 
+	# If we have atleast lenght of bytes of compressed data, then most likely we
+	# already have bytes length uncompressed data. We do this so the application 
+	# doesn't have to wait for CompressionShim to block before returning data.
+	if len(self._recv_buf_dict[repr(socket)]) > bytes:
+          break
       # No more data to read from socket.
       except SocketWouldBlockError:
         break
@@ -313,13 +336,6 @@ class CompressionShim(BaseShim):
 
     # end-while
 
-    # Initialize the result buffer, which stores the uncompressed original TCP
-    # stream that the sender has.
-    try:
-      result_buf = self._result_buf_dict[repr(socket)]
-    except KeyError:
-      self._result_buf_dict[repr(socket)] = ''
-      result_buf = ''
 
     # Reconstruct all the blocks of compressed messages from the raw TCP
     # stream we received in the receive buffer. For each block, decompress
