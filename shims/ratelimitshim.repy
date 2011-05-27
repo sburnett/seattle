@@ -45,11 +45,11 @@ class RateLimitShim(BaseShim):
     # a time, so we don't accidentally go over the upload/download limit.
     self.net_resources = {'netsend' : {'resource_limit' : 1024 * 1024 * 64, # 64MB/s
                                        'update_time' : 0.0,
-                                       'consumption' : 0.0,
+                                       'consumption' : 1024 * 1024 * 64 * 1.0,
                                        'lock' : createlock()},
                           'netrecv' : {'resource_limit' : 1024 * 1024 * 64, # 64MB/s
                                        'update_time' : 0.0,
-                                       'consumption' : 0.0,
+                                       'consumption' : 1024 * 1024 * 64 * 1.0,
                                        'lock' : createlock()}
                           }
 
@@ -71,6 +71,21 @@ class RateLimitShim(BaseShim):
         self.net_resources['netrecv']['resource_limit'] = int(optional_args[1])
       except ValueError:
         raise ShimInternalError("Download rate provided is not of type int.")
+
+      # We set the consumption to the limit in order to avoid a burst of data at the beginning.
+      # Here is an example scenario that we want to avoid:
+      #
+      # Scenario:
+      # * Actual bandwidth is 10MB/s download
+      # * We set the limit to 5MB/s
+      # * We download 4MB of data, which takes 0.4s to download.
+      # * We don't sleep since we did not download more then 5MB.
+      # * We return to application layer.
+      # * Thus the application perceives a download rate of 10MB/s 
+      #   rather then 5MB/s
+
+      self.net_resources['netsend']['consumption'] = 1.0 * self.net_resources['netsend']['resource_limit']
+      self.net_resources['netrecv']['consumption'] = 1.0 * self.net_resources['netrecv']['resource_limit']
 
     BaseShim.__init__(self, shim_stack, optional_args)
 
@@ -131,6 +146,8 @@ class RateLimitShim(BaseShim):
 
     data_sent = self.get_next_shim_layer().socket_send(socket, msg)
 
+    # Consume amount of netsend equal to the amount of data sent
+    # plus 64.
     self.consume_resource('netsend', data_sent + 64)
     self.consume_resource('netrecv', 64)
 
@@ -151,6 +168,8 @@ class RateLimitShim(BaseShim):
 
     data_recv = self.get_next_shim_layer().socket_recv(socket, bytes)
 
+    # Consume the amount of netrecv equal to the amount of data received
+    # plus 64.
     self.consume_resource('netsend', 64)
     self.consume_resource('netrecv', len(data_recv) + 64)
 
