@@ -230,4 +230,4 @@ class DataLimitShim(BaseShim):
     The DataLimitShim is an one sided shim, which means it
     doesn't need to advertise itself.
     """
-    return get_next_shim_layer().get_advertisement_string()
+    return self.get_next_shim_layer().get_advertisement_string()
