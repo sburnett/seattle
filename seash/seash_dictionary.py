@@ -1244,6 +1244,26 @@ Added targets: %1(192.x.x.2:1224:v3)
 }
 
 
+# A dictionary to be built to keep track of the different variations of commands users will input
+commandvariationdict = {
+  'users':['user'],
+  'hostname':['hostnames'],
+  'location':['locations'],
+  'coordinates':['coordinate'],
+  'owner':['owners'],
+  'timeout':['timeouts'],
+  'targets':['target'],
+  'uploadrate':['uploadrates'],
+  'identities':['identity'],
+  'ip':['ips'],
+  'keys':['key'],
+  'files':['file'],
+  'resources':['resource'],
+  'offcut':['offcuts'],
+  'genkeys':['genkey'],
+  'loadkeys':['loadkey'],
+  'exit':['quit']
+}
 
 
 ##### All methods that adds to the seash command dictionary #####
@@ -1348,7 +1368,7 @@ def parse_command(userinput):
     # First, an initial check to see if user's input matches a specified command word
     for cmd_pattern in seash_dict_mark.iterkeys():
 
-      if user_string == cmd_pattern:
+      if user_string == cmd_pattern or (cmd_pattern in commandvariationdict.keys() and user_string in commandvariationdict[cmd_pattern]):
 
         # Appends a copy to avoid changing the master list of dictionaries
         input_dict_builder[cmd_pattern] = _shallow_copy(seash_dict_mark[cmd_pattern])
