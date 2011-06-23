@@ -1891,6 +1891,8 @@ def prepare_installation(options,arguments):
   repy_user_preference = []
   nm_restricted = False
   nm_user_preference = []
+  repy_prepend = []
+  repy_prepend_dir = None
 
   # Iterate through and process the arguments, checking for IP/Iface
   # restrictions.
@@ -1933,6 +1935,10 @@ def prepare_installation(options,arguments):
     elif flag == "--usage":
       usage()
       return False
+    elif flag == "--repy-prepend":
+      repy_prepend.extend(value.split())
+    elif flag == "--repy-prepend-dir":
+      repy_prepend_dir = value
 
   # Print this notification after having processed all the arguments in case one
   # of the arguments specifies silent mode.
@@ -1951,6 +1957,8 @@ def prepare_installation(options,arguments):
   # Armon: Inject the configuration information.
   configuration = persist.restore_object("nodeman.cfg")
   configuration['networkrestrictions'] = config
+  configuration['repy_prepend'] = repy_prepend
+  configuration['repy_prepend_dir'] = repy_prepend_dir
   persist.commit_object(configuration,"nodeman.cfg")
 
   # Tell the parent function that the passed-in arguments allow it to continue
@@ -2058,7 +2066,7 @@ def usage():
       + "[--disable-startup-script] [--percent float] " \
       + "[--nm-key-bitsize bitsize] [--nm-ip ip] [--nm-iface iface] " \
       + "[--repy-ip ip] [--repy-iface iface] [--repy-nootherips] " \
-      + "[--onlynetwork]"
+      + "[--onlynetwork] [--repy-prepend args] [--repy-prepend-dir dir]"
   print "Info:"
   print "-s\t\t\t\tSilent mode: does not print output."
   print "--disable-startup-script\tDoes not install the Seattle startup " \
@@ -2080,6 +2088,14 @@ def usage():
       + "explicit IP's and interfaces."
   print "--onlynetwork\t\t\tDoes not install Seattle, but updates the " \
       + "network restrictions information."
+  print "--repy-prepend args\t\tSpecifies a list of arguments to be " \
+      + "prepended to any repy program run by the user. If multiple argment " \
+      + "lists are specified, they will be concatenated."
+  print "--repy-prepend-dir dir\t\tSpecifies a directory containing files to " \
+      + "be copied to newly created vessels."
+  print "See https://seattle.cs.washington.edu/wiki/SecurityLayers for " \
+      + "details on using --repy-prepend and --repy-prepend-dir to " \
+      + "construct custom security layers."
 
 
 
@@ -2099,7 +2115,8 @@ def main():
                                ["percent=", "nm-key-bitsize=","nm-ip=",
                                 "nm-iface=","repy-ip=","repy-iface=",
                                 "repy-nootherips","onlynetwork",
-                                "disable-startup-script","usage"])
+                                "disable-startup-script","usage",
+                                "repy-prepend=", "repy-prepend-dir="])
   except getopt.GetoptError, err:
     print str(err)
     usage()
