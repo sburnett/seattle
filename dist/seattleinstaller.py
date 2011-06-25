@@ -2089,7 +2089,7 @@ def usage():
   print "--onlynetwork\t\t\tDoes not install Seattle, but updates the " \
       + "network restrictions information."
   print "--repy-prepend args\t\tSpecifies a list of arguments to be " \
-      + "prepended to any repy program run by the user. If multiple argment " \
+      + "prepended to any repy program run by the user. If multiple argument " \
       + "lists are specified, they will be concatenated."
   print "--repy-prepend-dir dir\t\tSpecifies a directory containing files to " \
       + "be copied to newly created vessels."
