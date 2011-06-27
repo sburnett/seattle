@@ -116,13 +116,6 @@ class RepyNetworkApiWrapper:
     """
     The original repy sendmessage call.
     """
-    return sendmessage(destip, destport, message, localip, localport)
-
-
-  def listenformessage(self, localip, localport):
-    """
-    The original repy listenformessage call.
-    """
     # The destip can be a zenodotus name. We need to translate it to IP, because
     # openconnection requires the destination IP address.
     if destip.endswith('.zenodotus.cs.washington.edu'):
@@ -130,6 +123,13 @@ class RepyNetworkApiWrapper:
         destip = gethostbyname(destip)
       except NetworkAddressError:
         raise AddressBindingError('Unable to resolve ' + destip)
+    return sendmessage(destip, destport, message, localip, localport)
+
+
+  def listenformessage(self, localip, localport):
+    """
+    The original repy listenformessage call.
+    """
     return listenformessage(localip, localport)
 
 
