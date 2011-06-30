@@ -3,13 +3,52 @@
 """
 Author: Steven Portzer
 Description:
-This test verifies the RetrieveFileFromVessel method doesn't work for files starting with 'private_'.
-
+This test verifies that new vessels are initialized with the security files
+and will be run with the security layer restrictions in place.
 """
 
 include time.repy
 include nmclient.repy
 include rsa.repy
+
+
+# this will print output and cause the test to fail if the security layers
+# aren't working in the given vessel
+def check_secure(nmhandle, vessel):
+
+  # it's more likely the program will fail to run since the neccessary
+  # 'private_*' files don't exist, but we should check that the security
+  # layers are in place if the user program can be run
+  program = """
+if callfunc == 'initialize':
+  try:
+    open('private_foo', 'w')
+  except Exception:
+    pass
+  else:
+    print "security layers not enabled"
+"""
+
+  # upload and run program
+  nmclient_signedsay(nmhandle, "AddFileToVessel", vessel, "program.repy", program)
+
+  nmclient_signedsay(nmhandle, "StartVessel", vessel, "program.repy")
+
+  sleep(5)
+
+  # get any log output
+  logstring = nmclient_signedsay(nmhandle, "ReadVesselLog", vessel)
+
+  # make sure the test passed
+  if logstring:
+    print logstring
+
+  # make sure the vessel is not longer running
+  try:
+    nmclient_signedsay(nmhandle, "StopVessel", vessel)
+  except Exception:
+    pass
+
 
 if callfunc == 'initialize':
 
@@ -26,31 +65,44 @@ if callfunc == 'initialize':
 
   nmclient_set_handle_info(nmhandle, myhandleinfo)
 
+  resourcedata = """
+resource cpu .01
+resource memory 10000000   # 10 MiB
+resource diskused 8000000 # 8 MiB
+resource events 5
+resource filewrite 10000
+resource fileread 10000
+resource filesopened 2
+resource insockets 2
+resource outsockets 2
+resource netsend 10000
+resource netrecv 10000
+resource loopsend 100000
+resource looprecv 100000
+resource lograte 3000
+resource random 10
+resource messport 11111
+resource messport 12222
+resource connport 11111
+resource connport 12222
+"""
+
+
   # get the vessel to use...
   myvessel = nmclient_listaccessiblevessels(nmhandle,pubkey)[0][0]
 
-  # reset vessel
-  nmclient_signedsay(nmhandle, "ResetVessel", myvessel)
+  nmclient_signedsay(nmhandle, "SplitVessel", myvessel, resourcedata)
 
-  # create an empty file named 'private_foo'
-  addfilestring = "open('private_foo', 'w')"
+  mynewvessels = nmclient_listaccessiblevessels(nmhandle,pubkey)[0][:2]
 
-  # upload and run program
-  nmclient_signedsay(nmhandle, "AddFileToVessel", myvessel, "bar.repy", addfilestring)
-
-  nmclient_signedsay(nmhandle, "StartVessel", myvessel, "bar.repy")
+  check_secure(nmhandle, mynewvessels[0])
+  check_secure(nmhandle, mynewvessels[1])
 
   sleep(5)
 
-  # Get any log output
-  logstring = nmclient_signedsay(nmhandle, "ReadVesselLog", myvessel)
-  if logstring != "":
-    print "Unexpected output:",logstring
+  nmclient_signedsay(nmhandle, "JoinVessels", mynewvessels[0], mynewvessels[1])
 
-  try:
-    nmclient_signedsay(nmhandle, "RetrieveFileFromVessel", myvessel, "private_foo")
-  except NMClientException:
-    pass
-  else:
-    print "Able to retrieve file starting with 'private_'  from vessel"
+  mynewestvessel = nmclient_listaccessiblevessels(nmhandle,pubkey)[0][0]
+
+  check_secure(nmhandle, mynewestvessel)
 

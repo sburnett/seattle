@@ -29,6 +29,9 @@ if callfunc == 'initialize':
   # get the vessel to use...
   myvessel = nmclient_listaccessiblevessels(nmhandle,pubkey)[0][0]
 
+  # reset vessel
+  nmclient_signedsay(nmhandle, "ResetVessel", myvessel)
+
   # create an empty file named 'private_foo'
   addfilestring = "open('private_foo', 'w')"
 

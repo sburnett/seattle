@@ -250,6 +250,7 @@ def main():
     print "Chosen random nodemanager port: " + str(random_nodemanager_port)
     print '-'*50 + "\n"
     replace_string("<nodemanager_port>", str(random_nodemanager_port), "*nm*")
+    replace_string("<nodemanager_port>", str(random_nodemanager_port), "*securitylayers*")
     
   else:
     # if this isn't specified, just use the default ports...
@@ -257,6 +258,7 @@ def main():
 
     # Use default port 1224 for the nodemanager port if --random flag is not provided.
     replace_string("<nodemanager_port>", '1224', "*nm*")
+    replace_string("<nodemanager_port>", '1224', "*securitylayers*")
 
 
 

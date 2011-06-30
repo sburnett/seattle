@@ -3,7 +3,8 @@
 """
 Author: Steven Portzer
 Description:
-This test verifies the RetrieveFileFromVessel method doesn't work for files starting with 'private_'.
+This test verifies that the private_hideprivate_layer.repy security layer
+doesn't prevent programs from removing files not starting with 'private_'.
 
 """
 
@@ -32,25 +33,26 @@ if callfunc == 'initialize':
   # reset vessel
   nmclient_signedsay(nmhandle, "ResetVessel", myvessel)
 
-  # create an empty file named 'private_foo'
-  addfilestring = "open('private_foo', 'w')"
+  program = """
+if callfunc == 'initialize':
+  open('foo', 'w').close()
+  removefile('foo')
+  filenames = listdir()
+  if 'foo' in filenames:
+    print "file not actually removed"
+"""
 
   # upload and run program
-  nmclient_signedsay(nmhandle, "AddFileToVessel", myvessel, "bar.repy", addfilestring)
+  nmclient_signedsay(nmhandle, "AddFileToVessel", myvessel, "program.repy", program)
 
-  nmclient_signedsay(nmhandle, "StartVessel", myvessel, "bar.repy")
+  nmclient_signedsay(nmhandle, "StartVessel", myvessel, "program.repy")
 
   sleep(5)
 
-  # Get any log output
+  # get any log output
   logstring = nmclient_signedsay(nmhandle, "ReadVesselLog", myvessel)
-  if logstring != "":
-    print "Unexpected output:",logstring
 
-  try:
-    nmclient_signedsay(nmhandle, "RetrieveFileFromVessel", myvessel, "private_foo")
-  except NMClientException:
-    pass
-  else:
-    print "Able to retrieve file starting with 'private_'  from vessel"
+  # make sure the test passed
+  if logstring:
+    print logstring
 
