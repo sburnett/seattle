@@ -3,7 +3,7 @@
   node_monitor.py
 
 <Started>
-  Febuary 14, 2011
+  February 14, 2011
 
 <Author>
   Steven Portzer
@@ -30,7 +30,7 @@
 <Log Format>
   This script produces two logs. The first, "node_events.log", contains a line
   for every time a node starts or stops advertising or being contactable. Each
-  line contains the following elements seperated by spaces:
+  line contains the following elements separated by spaces:
 
     time:
         approximately when the event was detected
@@ -49,7 +49,7 @@
         of the node's nodeid
 
   The log "node_dicts.log" contains a node dictionary on each line. Whenever a
-  node is successfully contacted, it's dictionary is appened to this log. For
+  node is successfully contacted, it's dictionary is appended to this log. For
   information on the format of the dictionaries, see the documentation for
   browse_node(location).
 """
@@ -77,7 +77,7 @@ ONLY_ADVERTISING_POLLING_INTERVAL = 5*60   # every 5 minutes
 ONLY_CONTACTABLE_POLLING_INTERVAL = 5*60   # every 5 minutes
 
 
-# The name fo the file where advertising and contactability events are logged
+# The name of the file where advertising and contactability events are logged
 NODE_LOG = "node_events.log"
 # The name of the file where information retrieved from browsing nodes is logged
 VESSEL_LOG = "node_dicts.log"
@@ -115,14 +115,14 @@ def browse_node(location):
     None.
 
   <Returns>
-    A dictionary of node and lookup properties of the node at loacted at
+    A dictionary of node and lookup properties of the node at located at
     location. The dictionary contains the following values:
       'nodeid': the md5 hash of the node's id
       'location': the location of the node, almost certainly the passed location
           argument
       'version': the version of seattle running on the node
-      'time': when the node information was recieved
-      'latancy': the time taken to retrieve the information
+      'time': when the node information was received
+      'latency': the time taken to retrieve the information
       'vesseldicts': a list of vessel dictionaries containing 'vesselname',
           'status', 'ownerkey', and 'userkeys' keys. The 'ownerkey' and
           'userkeys' are hashed using md5 to conserve space and improve human
@@ -186,7 +186,7 @@ def advertising_lookup(identity, retries):
         An Experiment Library identity for looking up node locations.
 
     retries:
-        An interger giving the number of times to retry the lookup if it fails
+        An integer giving the number of times to retry the lookup if it fails
         or returns an empty list.
 
   <Exceptions>
@@ -196,7 +196,7 @@ def advertising_lookup(identity, retries):
     None.
 
   <Returns>
-    None if all trys result in exceptions, and a list of the nodes advertising
+    None if all tries result in exceptions, and a list of the nodes advertising
     under the given identity otherwise.
   """
 
@@ -205,7 +205,7 @@ def advertising_lookup(identity, retries):
   # all the nodes suddenly stopped advertising when this obviously isn't the
   # case, so we should retry the lookup when the returned list is empty.
   # However, some lookups may legitimately return an empty list, so the calling
-  # function should pick a resonable value for the maximum number of retries.
+  # function should pick a reasonable value for the maximum number of retries.
 
   locationlist = None
 
@@ -431,7 +431,7 @@ def load_identities(directory):
 
   <Exceptions>
     If directory isn't a valid directory or one of the publickey files is
-    inproperly formated, an exception will be raised.
+    improperly formated, an exception will be raised.
 
   <Side Effects>
     None.
