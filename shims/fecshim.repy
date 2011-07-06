@@ -120,13 +120,13 @@ class FECShim(BaseShim):
   def udpserversocket_getmessage(self, udpserversocket):
     # collect packets, recovering lost ones if possible
 
+    srcip, srcport, packetstring = self.get_next_shim_layer().udpserversocket_getmessage(udpserversocket)
+
     # grab a lock to prevent concurrent access to shared state
     FECContext['recv_lock'].acquire(True)
 
     # be sure to release this...
     try:
-
-      srcip, srcport, packetstring = self.get_next_shim_layer().udpserversocket_getmessage(udpserversocket)
 
       # NOTE: I don't want to use the srcport because it may vary.   
       #srcinfo = srchostname+':'+str(srcport)
