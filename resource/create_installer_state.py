@@ -304,6 +304,17 @@ def main(vesselcreationlist, tenpercentdict, targetdirectory):
     usedpercent = usedpercent + percentcount
 
 
+  # Get the directory, if any, that is used for security layers.
+  configuration = persist.restore_object("nodeman.cfg")
+  repy_prepend_dir = None
+  if 'repy_prepend_dir' in configuration:
+    repy_prepend_dir = configuration['repy_prepend_dir']
+
+  # Get the list of files in the security layer directory
+  repy_prepend_files = []
+  if repy_prepend_dir is not None:
+    repy_prepend_files = os.listdir(repy_prepend_dir)
+
   # make the directories...
   for num in range(len(vesselcreationlist)):
     vesselname = 'v'+str(num+1)
@@ -332,6 +343,10 @@ def main(vesselcreationlist, tenpercentdict, targetdirectory):
           pass
         else:
           raise
+
+    # Copy all the security layer files to the new vessel.
+    for filename in repy_prepend_files:
+      shutil.copy(os.path.join(repy_prepend_dir,filename), targetdirectory+"/"+vesselname)
 
 
   # and we're done!
