@@ -36,6 +36,8 @@ class ShimStackInterface:
     self._stack_str = stack_str
     self._localhost = localhost
 
+    self._shim_stack = ShimStack(self._stack_str, self._localhost)
+
     
     
 
@@ -53,23 +55,19 @@ class ShimStackInterface:
   # ...........................................................................
 
   def sendmessage(self, destip, destport, message, localip, localport):
-    shim_stack = ShimStack(self._stack_str, self._localhost)
-    return shim_stack.peek().sendmessage(destip, destport, message, localip, localport)
+    return self._shim_stack.peek().sendmessage(destip, destport, message, localip, localport)
 
 
 
   def openconnection(self, destip, destport, localip, localport, timeout):
-    shim_stack = ShimStack(self._stack_str, self._localhost)
-    return shim_stack.peek().openconnection(destip, destport, localip, localport, timeout)
+    return self._shim_stack.peek().openconnection(destip, destport, localip, localport, timeout)
 
 
 
   def listenformessage(self, localip, localport):
-    shim_stack = ShimStack(self._stack_str, self._localhost)
-    return shim_stack.peek().listenformessage(localip, localport)
+    return self._shim_stack.peek().listenformessage(localip, localport)
 
 
 
   def listenforconnection(self, localip, localport):
-    shim_stack = ShimStack(self._stack_str, self._localhost)
-    return shim_stack.peek().listenforconnection(localip, localport)
+    return self._shim_stack.peek().listenforconnection(localip, localport)
