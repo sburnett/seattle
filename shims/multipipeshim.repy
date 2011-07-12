@@ -16,17 +16,14 @@
 dy_import_module_symbols("random")
 dy_import_module_symbols("shim_exceptions")
 
-MuliPipeContext = {}
-MuliPipeContext['received_msg_dict'] = {}
-MuliPipeContext['recv_lock'] = createlock()
-
 
 
 class MultiShimUDPServerSocket():
 
-  def __init__(self, udpsocket_list):
+  def __init__(self, udpsocket_list, multipipe_context):
     self.udpsocket_list = udpsocket_list
     self._udpsocket_open = True
+    self.multipipe_context = multipipe_context
 
 
   def getmessage(self):
@@ -48,14 +45,14 @@ class MultiShimUDPServerSocket():
         srcport -= portoffset
 
         # Acquire lock to prevent concurrent access to shared state.
-        MuliPipeContext['recv_lock'].acquire(True)
+        self.multipipe_context['recv_lock'].acquire(True)
 
         # Make sure to release lock!
         try:
           srcinfo = (srcip, srcport)
 
-          if srcinfo not in MuliPipeContext['received_msg_dict']:
-            MuliPipeContext['received_msg_dict'][srcinfo] = set()
+          if srcinfo not in self.multipipe_context['received_msg_dict']:
+            self.multipipe_context['received_msg_dict'][srcinfo] = set()
 
           try:
             messageid, messagebody = message.split(":", 1)
@@ -64,15 +61,15 @@ class MultiShimUDPServerSocket():
             # remaining sockets since one of them may have received a message.
             continue
 
-          if messageid in MuliPipeContext['received_msg_dict'][srcinfo]:
+          if messageid in self.multipipe_context['received_msg_dict'][srcinfo]:
             # Duplicate message, so discard it.
             continue
           else:
-            MuliPipeContext['received_msg_dict'][srcinfo].add(messageid)
+            self.multipipe_context['received_msg_dict'][srcinfo].add(messageid)
             return (srcip, srcport, messagebody)
 
         finally:
-          MuliPipeContext['recv_lock'].release()
+          self.multipipe_context['recv_lock'].release()
 
     # No message was received on any listening port.
     raise SocketWouldBlockError("No messages currently available!")
@@ -123,6 +120,10 @@ class MultiPipeShim(BaseShim):
     <Return>
       None
     """
+
+    self.multipipe_context = {}
+    self.multipipe_context['received_msg_dict'] = {}
+    self.multipipe_context['recv_lock'] = createlock()
 
     self.shim_str_list = optional_args
 
@@ -183,7 +184,7 @@ class MultiPipeShim(BaseShim):
     # sockets, but if all the listenformessage invocations failed, then we
     # should let the user know.
     if udpsocket_list:
-      return MultiShimUDPServerSocket(udpsocket_list)
+      return MultiShimUDPServerSocket(udpsocket_list, self.multipipe_context)
     else:
       raise exception_list[0]
 
@@ -238,6 +239,7 @@ class MultiPipeShim(BaseShim):
     optional_args_copy = self.shim_context['optional_args']
 
     mycopy = MultiPipeShim(shim_stack_copy, optional_args_copy)
+    mycopy.multipipe_context = self.multipipe_context
 
     return mycopy
 
