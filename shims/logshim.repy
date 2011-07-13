@@ -110,7 +110,7 @@ class LogShim(BaseShim):
     self._log(log_info)
 
     try:
-      next_layer_socket = self.get_next_shim_layer.listenformessage(localip, localport)
+      next_layer_socket = self.get_next_shim_layer().listenformessage(localip, localport)
     except Exception, err:
       self._log('%s\n > Exception = %s, %s\n' % (log_info, repr(err), str(err)))
       raise err

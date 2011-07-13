@@ -9,7 +9,7 @@ SERVER_PORT = 35742
 SEND_PORT = 35779
 
 NUM_MSG_TO_SEND = 2**10
-MAX_MSG_LENGTH = 2**12
+MAX_MSG_LENGTH = 2**10
 
 
 msg_sent_set = set()

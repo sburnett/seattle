@@ -20,10 +20,11 @@ dy_import_module_symbols("shim_exceptions")
 
 class MultiShimUDPServerSocket():
 
-  def __init__(self, udpsocket_list, multipipe_context):
+  def __init__(self, udpsocket_list, multipipe_context, localport):
     self.udpsocket_list = udpsocket_list
     self._udpsocket_open = True
     self.multipipe_context = multipipe_context
+    self.localport = localport
 
 
   def getmessage(self):
@@ -49,10 +50,10 @@ class MultiShimUDPServerSocket():
 
         # Make sure to release lock!
         try:
-          srcinfo = (srcip, srcport)
+          msginfo = (srcip, self.localport)
 
-          if srcinfo not in self.multipipe_context['received_msg_dict']:
-            self.multipipe_context['received_msg_dict'][srcinfo] = set()
+          if msginfo not in self.multipipe_context['received_msg_dict']:
+            self.multipipe_context['received_msg_dict'][msginfo] = set()
 
           try:
             messageid, messagebody = message.split(":", 1)
@@ -61,11 +62,11 @@ class MultiShimUDPServerSocket():
             # remaining sockets since one of them may have received a message.
             continue
 
-          if messageid in self.multipipe_context['received_msg_dict'][srcinfo]:
+          if messageid in self.multipipe_context['received_msg_dict'][msginfo]:
             # Duplicate message, so discard it.
             continue
           else:
-            self.multipipe_context['received_msg_dict'][srcinfo].add(messageid)
+            self.multipipe_context['received_msg_dict'][msginfo].add(messageid)
             return (srcip, srcport, messagebody)
 
         finally:
@@ -184,7 +185,7 @@ class MultiPipeShim(BaseShim):
     # sockets, but if all the listenformessage invocations failed, then we
     # should let the user know.
     if udpsocket_list:
-      return MultiShimUDPServerSocket(udpsocket_list, self.multipipe_context)
+      return MultiShimUDPServerSocket(udpsocket_list, self.multipipe_context, localport)
     else:
       raise exception_list[0]
 
