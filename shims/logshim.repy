@@ -15,7 +15,7 @@
 
 """
 
-import time
+logshim_locks = {}
 
 
 class LogShim(BaseShim):
@@ -28,11 +28,6 @@ class LogShim(BaseShim):
 
     self._LOG_FILE_NAME = 'debug.log'
 
-    # Prevents current write.
-    self._lock = createlock()
-
-    # Stores state of the shim.
-    self._log_context = {'bytes_written' : 0}
       		         
     if optional_args:
       # If option is provided, use it as the log name.
@@ -40,8 +35,13 @@ class LogShim(BaseShim):
 
       self._LOG_FILE_NAME = optional_args[0]
 
+    # Prevents current write.
+    if self._LOG_FILE_NAME not in logshim_locks.keys():
+      logshim_locks[self._LOG_FILE_NAME] = createlock()
+
 
     BaseShim.__init__(self, shim_stack, optional_args)    
+
 
 
   def _log(self, logstr):
@@ -50,23 +50,57 @@ class LogShim(BaseShim):
     the contents of the shim stack. The second line contains the log data.
 
     """
+    logshim_locks[self._LOG_FILE_NAME].acquire(True)	
     try:
-      self._lock.acquire(True)
-
       file_obj = openfile(self._LOG_FILE_NAME, True)
 
       # Record the epoch time, accurate up to two decimal places, in seconds.
-      time_str = 't = %.2f, shim stack = "' % time.time()
+      time_str = 't = %.2f, shim stack = "' % getruntime()
       
       # Write data into the log file
       data_to_write = time_str + self.get_advertisement_string() + '"\n' + str(logstr) + '\n\n'
-      file_obj.writeat(data_to_write, self._log_context['bytes_written'])        
-      self._log_context['bytes_written'] += len(data_to_write)
+      file_obj.writeat(data_to_write, self._find_file_location(file_obj))        
+      
 
       file_obj.close()
 
     finally:
-      self._lock.release()
+      logshim_locks[self._LOG_FILE_NAME].release()
+
+
+
+
+  def _find_file_location(self, file_obj):
+    """
+    Find out where to write in a file. Returns the offset of the file.
+    """
+
+    min = 0
+    max = 10 * 1024 * 1024 * 1024 # Assume that the max file size is 1 GB
+
+    while min <= max :
+      mid = (min + max) / 2
+      try:
+        file_obj.readat(1, mid)
+      except SeekPastEndOfFileError:
+        # If we got an error that means we are seeking past file size,
+	# so the file size is smaller then mid.
+        max = mid - 1
+      else:
+        # If we did not get an error, then the file is bigger then size mid.
+        min = mid + 1
+
+    # We may get out of the loop in two different cases, and we have to check
+    # if we found the right mid, or just one over.
+    try:
+      file_obj.readat(1, mid)
+    except SeekPastEndOfFileError:
+      return mid - 1
+    else:
+      return mid
+
+
+
 
 
 
@@ -77,13 +111,13 @@ class LogShim(BaseShim):
 
     """
     # TODO abbreviation disabled.
-    return input_str
+    #return input_str
 
     length = len(input_str)
-    if length < 200:
+    if length < 100:
       return input_str
     else:
-      return input_str[0:100] + ' ... (' + str(length - 200) + ' bytes omitted) ... ' + input_str[length-100 : ]
+      return input_str[0:50] + ' ... (' + str(length - 100) + ' bytes omitted) ... ' + input_str[length-500 : ]
 
 
 
@@ -110,7 +144,7 @@ class LogShim(BaseShim):
     self._log(log_info)
 
     try:
-      next_layer_socket = self.get_next_shim_layer().listenformessage(localip, localport)
+      next_layer_socket = self.get_next_shim_layer.listenformessage(localip, localport)
     except Exception, err:
       self._log('%s\n > Exception = %s, %s\n' % (log_info, repr(err), str(err)))
       raise err
@@ -128,8 +162,6 @@ class LogShim(BaseShim):
                 % (destip, destport, localip, localport, timeout))
     self._log(log_info)
 
-    this_shim_copy = self.copy()
-
     try:
       next_sockobj = self.get_next_shim_layer().openconnection(destip, destport, localip, localport, timeout)
     except Exception, err:
@@ -137,7 +169,7 @@ class LogShim(BaseShim):
       raise err
 
     self._log('%s\n > return = %s' % (log_info, next_sockobj))        
-    sock = ShimSocket(next_sockobj, this_shim_copy)
+    sock = ShimSocket(next_sockobj, self)
 
     return sock
 
@@ -212,17 +244,16 @@ class LogShim(BaseShim):
   def tcpserversocket_getconnection(self, tcpserversocket):
 
     log_info = 'tcpserversocket_getconnection, tcpserversocket = %s' % tcpserversocket
-    self._log(log_info)
 
-    this_shim_copy = self.copy()
     try:
-      (remote_ip, remote_port, repy_socket) = this_shim_copy.get_next_shim_layer().tcpserversocket_getconnection(tcpserversocket)
+      (remote_ip, remote_port, repy_socket) = self.get_next_shim_layer().tcpserversocket_getconnection(tcpserversocket)
     except Exception, err:
-      self._log('%s\n > Exception = %s, %s\n' % (log_info, repr(err), str(err)))
+      #self._log('%s\n > Exception = %s, %s\n' % (log_info, repr(err), str(err)))
       raise err
 
+    self._log(log_info)
     self._log('%s\n > return = %s' % (log_info, (remote_ip, remote_port, repy_socket)))
-    value = (remote_ip, remote_port, ShimSocket(repy_socket, this_shim_copy))
+    value = (remote_ip, remote_port, ShimSocket(repy_socket, self))
 
     return value
 
@@ -250,7 +281,7 @@ class LogShim(BaseShim):
     self._log(log_info)
 
     try:
-      value = self.copy().get_next_shim_layer().udpserversocket_getmessage(udpserversocket)
+      value = self.get_next_shim_layer().udpserversocket_getmessage(udpserversocket)
     except Exception, err:
       self._log('%s\n > Exception = %s, %s\n' % (log_info, repr(err), str(err)))
       raise err
