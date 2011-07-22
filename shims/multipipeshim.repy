@@ -80,6 +80,9 @@ class MultiShimUDPServerSocket():
     """
     Closes all the udp socket objects that it has open.
     """
+    # socket already closed
+    if not self._udpsocket_open:
+      return False
 
     self._udpsocket_open = False
 
@@ -89,6 +92,7 @@ class MultiShimUDPServerSocket():
     # Wipe out the udp socket list, so we can't do
     # anything with it anymore.
     self.udpsocket_list = []
+    return True
 
 
 
