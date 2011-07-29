@@ -393,22 +393,19 @@ class Overlord:
         vessel_handlers = self.init_vessels_func(self, fresh_handlers, vessel_handlers, *args)
 
       # Weed out any vessels based on the remove vessels function
-      final_vessel_handlers = self.remove_vessels_func(self, vessel_handlers)
+      vessel_handlers = self.remove_vessels_func(self, vessel_handlers)
 
       # Perform any maintenance on the vessels, including renewals if needed,
       # and return the relevant information needed for next maintenance.
       # Currently coded to fit with default behavior, but should somehow be made a
       # little more flexible for user's function overrides?
-      last_renewal = self.maintenance_func(self, renewal_delay, last_renewal, final_vessel_handlers)
+      last_renewal = self.maintenance_func(self, renewal_delay, last_renewal, vessel_handlers)
 
-      # If any vessels have been weeded or released, repeat the loop again
-      # until all the vessels the user owns are running correctly
-      if self.list_difference(fresh_handlers, vessel_handlers) or self.list_difference(vessel_handlers, final_vessel_handlers):
+      # If the list of running vessels does not match the requested vessel count,
+      # repeat the loop until it does
+      if not len(vessel_handlers) == self.config['vessel_count']:
         continue
-
-      # Finally, set the vessel_handlers to final_vessel_handlers list, acting
-      # as the master list of vessels currently owned
-      vessel_handlers = final_vessel_handlers
+      
 
       # Sleep between polling vessel statuses.
       time.sleep(self.VESSEL_POLLING_PERIOD)
