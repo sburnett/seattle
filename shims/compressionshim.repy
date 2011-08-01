@@ -41,36 +41,6 @@ def _compression_shim_atomic_operation(target_func):
 class CompressionShim(BaseShim):
 
 
-
-  # The size of each block into which the original uncompressed stream is broken
-  # up.
-  _SEND_BLOCK_SIZE = 2 ** 11
-
-  # How many bytes we should receive per socket.recv().
-  _RECV_BLOCK_SIZE = 2 ** 11
-
-  # A dictionary that maps a socket to its send buffer, which stores any
-  # temporary data pending to be transmitted.
-  _send_buf_dict = {}
-
-  # A dictionary that maps a socket to its receive buffer, which stores
-  # the compressed TCP stream.
-  _recv_buf_dict = {}
-
-  # A dictionary that maps a socket to any exception it raises while we try to
-  # receive as much as possible.
-  _recv_exception_dict = {}
-
-  # A dictionary that maps a socket to the stream of uncompressed data.
-  _result_buf_dict = {}
-
-  # A set that stores all the active sockets used in socket_send. If a socket
-  # raises an exception other than SocketWouldBlockError, it is considered
-  # inactive and thus removed from the set.
-  _active_recv_socket_set = set()
-
-
-
   def __init__(self, shim_stack, optional_args=None):
     """
     One can specify the size of the send/recv block in the optional
@@ -79,10 +49,39 @@ class CompressionShim(BaseShim):
     will be used.
 
     """
+
+    # A dictionary that maps a socket to its send buffer, which stores any
+    # temporary data pending to be transmitted.
+    self._send_buf_dict = {}
+
+    # A dictionary that maps a socket to its receive buffer, which stores
+    # the compressed TCP stream.
+    self._recv_buf_dict = {}
+
+    # A dictionary that maps a socket to any exception it raises while we try to
+    # receive as much as possible.
+    self._recv_exception_dict = {}
+
+    # A dictionary that maps a socket to the stream of uncompressed data.
+    self._result_buf_dict = {}
+
+    # A set that stores all the active sockets used in socket_send. If a socket
+    # raises an exception other than SocketWouldBlockError, it is considered
+    # inactive and thus removed from the set.
+    self._active_recv_socket_set = set()
+
+
+    # If optional args is provided, use them as the block sizes.
+    # SEND_BLOCK_SIZE determines the size of each block into which the original 
+    # uncompressed stream is broken up into.
+    # The RECV_BLOCK_SIZE determines how many bytes we should receive per socket.recv()
     if optional_args:
       block_size = int(optional_args[0])
       self._SEND_BLOCK_SIZE = block_size
       self._RECV_BLOCK_SIZE = block_size
+    else:
+      self._SEND_BLOCK_SIZE = 2 ** 11
+      self._RECV_BLOCK_SIZE = 2 ** 11
 
     BaseShim.__init__(self, shim_stack, optional_args)
 
@@ -109,6 +108,57 @@ class CompressionShim(BaseShim):
 
 
 
+  # =========================================================
+  # Initializing the proper dicts during new socket creation.
+  # =========================================================
+
+
+  def tcpserversocket_getconnection(self, tcpserversocket):
+    # Call the next layer of tcpserver_getconnection()
+    (remote_ip, remote_port, repy_socket) = self.get_next_shim_layer().tcpserversocket_getconnection(tcpserversocket)
+
+    if isinstance(repy_socket, ShimSocket):
+      sockobj = repy_socket._socket
+    else:
+      sockobj = repy_socket
+
+    # Initialize all the necessary dictionaries and sets.
+    self._send_buf_dict[repr(sockobj)] = ''
+    self._recv_buf_dict[repr(sockobj)] = ''
+    self._recv_exception_dict[repr(sockobj)] = None
+    self._result_buf_dict[repr(sockobj)] = ''
+    self._active_recv_socket_set.add(repr(sockobj))
+
+    return (remote_ip, remote_port, ShimSocket(repy_socket, self))
+
+
+
+
+
+  def openconnection(self, destip, destport, localip, localport, timeout):
+    # Call the next layer of openconnection.
+    next_sockobj = self.get_next_shim_layer().openconnection(destip, destport, localip, localport, timeout)
+
+    if isinstance(next_sockobj, ShimSocket):
+      sockobj = next_sockobj._socket
+    else:
+      sockobj = next_sockobj
+
+    # Initialize all the necessary dictionaries and sets.
+    self._send_buf_dict[repr(sockobj)] = ''
+    self._recv_buf_dict[repr(sockobj)] = ''
+    self._recv_exception_dict[repr(sockobj)] = None
+    self._result_buf_dict[repr(sockobj)] = ''
+    self._active_recv_socket_set.add(repr(sockobj))
+
+    return ShimSocket(next_sockobj, self)
+
+
+
+
+
+
+
   # ===================================================
   # Compression and decompression of TCP streams
   # ===================================================
@@ -120,13 +170,8 @@ class CompressionShim(BaseShim):
     Helper method for socket_send(). Sends any pending data in the send buffer.
 
     """
-    # Initialize the send buffer
-    try:
-      send_buf = self._send_buf_dict[repr(socket)]
 
-    except KeyError:
-      self._send_buf_dict[repr(socket)] = ''
-      send_buf = ''
+    send_buf = self._send_buf_dict[repr(socket)]
 
     # Send everything in the send buffer and remove it from the buffer.
     while send_buf:
@@ -283,14 +328,8 @@ class CompressionShim(BaseShim):
 
     """
 
-    # Initialize the result buffer, which stores the uncompressed original TCP
-    # stream that the sender has.
-    try:
-      result_buf = self._result_buf_dict[repr(socket)]
-    except KeyError:
-      self._result_buf_dict[repr(socket)] = ''
-      result_buf = ''
-
+    # Get the result buffer out of the dictionary.
+    result_buf = self._result_buf_dict[repr(socket)]
 
     # If our buffer already has data, then we just return it.
     if len(result_buf) > bytes:
@@ -299,14 +338,6 @@ class CompressionShim(BaseShim):
 
       return requested_data
 
-
-    # Initialize the receive buffer that stores the raw TCP stream, from which
-    # we reconstruct the compressed blocks. Also, because it is the first time
-    # that recv() is called, we assume that the socket is active and we add it
-    # to the active socket set.
-    if not self._recv_buf_dict.has_key(repr(socket)):
-      self._recv_buf_dict[repr(socket)] = ''
-      self._active_recv_socket_set.add(repr(socket))
 
     # Receive as much as possible into the receive buffer, as long as the socket
     # is active (i.e. not closed remotely or locally).
@@ -352,7 +383,7 @@ class CompressionShim(BaseShim):
 
       # If we have saved exceptions, we raise them now, as these exceptions
       # occurred at the end of the received stream.
-      if self._recv_exception_dict.has_key(repr(socket)):
+      if self._recv_exception_dict[repr(socket)]:
         raise self._recv_exception_dict[repr(socket)]
 
       # We simply run out of data without any other exceptions.
