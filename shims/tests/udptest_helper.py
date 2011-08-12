@@ -71,6 +71,7 @@ def launch_test(shim_str):
         message = generate_message()
       send_shim_obj.sendmessage(SERVER_IP, SERVER_PORT, message, SERVER_IP, SEND_PORT)
       msg_sent_set.add(message)
+      sleep(0.01)
       
     sleep(2)
 
