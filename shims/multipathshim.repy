@@ -228,8 +228,10 @@ class MultiShimSocket():
       None
 
     <Return>
-      None
+      True if this is the first close call to this socket, False otherwise.
     """
+
+    return_value = self._sockets_open
 
     # Mark the sockets as being closed.
     self._sockets_open = False
@@ -250,6 +252,8 @@ class MultiShimSocket():
     
     # Close all the sockets.
     self._chunk_object.close()
+
+    return return_value
     
 
 
@@ -382,14 +386,18 @@ class MultiShimTCPSocket():
     Closes all the tcp socket objects that it has open.
     """
 
+    return_value = self._tcpsocket_open
+
     self._tcpsocket_open = False
 
     for cur_tcp_socket in self.tcpsocket_dict.keys():      
-      self.tcpsocket_dict[cur_tcp_socket].close()  
+      self.tcpsocket_dict[cur_tcp_socket]['tcpsockobj'].close()  
 
     # Wipe out the tcp socket dictionary, so we can't do
     # anything with it anymore.
     self.tcpsocket_dict.clear()
+
+    return return_value
 
 
 
