@@ -681,8 +681,8 @@ def get_total_time_advertising(eventlist, endtime=None):
   if endtime is None:
     endtime = get_last_value(eventlist, 'time')
 
-  advertisinglist = filter_by_value(eventlist, ["advertising"])
-  notadvertisinglist = filter_by_value(eventlist, ["not_advertising"])
+  advertisinglist = filter_by_value(eventlist, "event_type", ["advertising"])
+  notadvertisinglist = filter_by_value(eventlist, "event_type", ["not_advertising"])
 
   total = 0
 
@@ -697,7 +697,7 @@ def get_total_time_advertising(eventlist, endtime=None):
 
 # Returns the total number of times some nodes in eventlist started advertising.
 def get_number_times_advertising(eventlist):
-  return len(filter_by_value(eventlist, ["advertising"]))
+  return len(filter_by_value(eventlist, "event_type", ["advertising"]))
 
 # Returns the average time spent between starting and stopping advertising by
 # the nodes in eventlist over the period of time ending with endtime.
@@ -712,8 +712,8 @@ def get_total_time_contactable(eventlist, endtime=None):
   if endtime is None:
     endtime = get_last_value(eventlist, 'time')
 
-  contactablelist = filter_by_value(eventlist, ["contactable"])
-  notcontactablelist = filter_by_value(eventlist, ["not_contactable"])
+  contactablelist = filter_by_value(eventlist, "event_type", ["contactable"])
+  notcontactablelist = filter_by_value(eventlist, "event_type", ["not_contactable"])
 
   total = 0
 
@@ -728,7 +728,7 @@ def get_total_time_contactable(eventlist, endtime=None):
 
 # Returns the number of times some nodes in eventlist started being contactable.
 def get_number_times_contactable(eventlist):
-  return len(filter_by_value(eventlist, ["contactable"]))
+  return len(filter_by_value(eventlist, "event_type", ["contactable"]))
 
 # Returns the average time spent between starting and stopping being contactable
 # by the nodes in eventlist over the period of time ending with endtime.
