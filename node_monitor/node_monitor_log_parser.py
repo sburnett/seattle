@@ -686,7 +686,7 @@ def get_total_time_advertising(eventlist, endtime=None):
 
   total = 0
 
-  for event in advertisinglist:
+  for event in notadvertisinglist:
     total += event['time']
   for event in advertisinglist:
     total -= event['time']
@@ -717,7 +717,7 @@ def get_total_time_contactable(eventlist, endtime=None):
 
   total = 0
 
-  for event in contactablelist:
+  for event in notcontactablelist:
     total += event['time']
   for event in contactablelist:
     total -= event['time']
