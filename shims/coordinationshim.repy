@@ -315,7 +315,7 @@ class CoordinationShim(BaseShim):
 
     # Now we obtain the server's shim stack string representation from which we
     # will construct the client's shim stack. 
-    lookup_result_list = LookupCache().lookup()
+    lookup_result_list = LookupCache().lookup(server_key)
 
     if lookup_result_list:
 
