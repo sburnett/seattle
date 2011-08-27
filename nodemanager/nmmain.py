@@ -94,7 +94,7 @@ import servicelogger
 
 # import the natlayer for use
 # this requires all NATLayer dependincies to be in the current directory
-repyhelper.translate_and_import('NATLayer_rpc.repy')
+repyhelper.translate_and_import('natlayer_rpc.repy')
 repyhelper.translate_and_import('sha.repy')
 repyhelper.translate_and_import('rsa.repy')
 
