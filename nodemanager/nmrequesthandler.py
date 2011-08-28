@@ -84,6 +84,9 @@ def handle_request(socketobj):
       if 'Socket closed' in str(e) or 'timed out!' in str(e):
         servicelogger.log('Connection abruptly closed during recv')
         return
+      elif 'Bad message size' in str(e):
+        servicelogger.log('Received bad message size')
+        return
       else:
         # I can't handle this, let's exit
         # BUG: REMOVE LOGGING IN PRODUCTION VERSION (?)
