@@ -1,0 +1,184 @@
+"""
+<Program>
+  udp_proxy.repy
+
+<Author>
+  Steven Portzer
+
+<Purpose>
+  Proxy server for non-shim-compatible applications using udp.
+
+"""
+
+USAGE = """
+  The command-line arguments are:
+  [outgoing IP] [incoming IP] [outgoing port] [incoming port] [shim'ed port]
+
+  The shim'ed port must be either the outgoing openconnection port, or the
+  incoming listen port; it designates the usage of shims on either ports.
+
+  An example usage might be:
+  - on host A: proxy.repy host_A_ip host_A_ip port_A shim_port shim_port
+  - on host B: proxy.repy host_A_ip host_B_ip shim_port port_B shim_port
+  This will forward traffic to host B on port_B to host A on port_A.
+
+"""
+
+dy_import_module_symbols('shimstackinterface')
+dy_import_module_symbols('random')
+
+# Number of seconds to sleep when encountering the SocketWouldBlockError.
+SLEEP_TIME = 0.001
+
+# List of shim stacks for connections with shims. See the documentation of
+# start_server() for how ports are assigned to each of the shim stacks.
+SHIM_STACK_LIST = ['(FECShim)', '(FECShim)']
+
+# How we are going to send a new outgoing message.
+outgoing_ip = None
+outgoing_port = None
+
+# How we listen for incoming messages.
+incoming_ip = None
+incoming_port = None
+
+# Which of the port above should use shims.
+shim_port = None
+
+
+
+
+def start_server():
+  """
+  <Purpose>
+    Launches a server that continuously waits for incoming messages.
+    Once a message is received, it forwards it to the outgoing location.
+
+  <Arguments>
+    None
+
+  <Side Effects>
+    Sends and receives UDP datagrams.
+
+  <Exception>
+    None
+
+  <Return>
+    None
+
+  """
+
+  incoming_shim_stack_list = []
+  outgoing_shim_stack_list = []
+  udp_server_socket_list = []
+
+  # Begin listening for messages. We use several shim stacks in parallel for
+  # both the shim side of the proxy and the non-shim side to facilitate the bulk
+  # testing of several shims and applications which use multiple consecutive udp
+  # ports. For shim stack with index i, we listen on port p + i, where p is the
+  # main listen port specified in the command line.
+  for index in range(len(SHIM_STACK_LIST)):
+    shim_stack_str = SHIM_STACK_LIST[index]
+
+    # For simplicity, we are using the NoopShim to simulate having no shim stack.
+    if incoming_port == shim_port:
+      incoming_shim_stack = ShimStackInterface(shim_stack_str)
+      outgoing_shim_stack = ShimStackInterface("(NoopShim)")
+    else:
+      incoming_shim_stack = ShimStackInterface("(NoopShim)")
+      outgoing_shim_stack = ShimStackInterface(shim_stack_str)
+
+    incoming_shim_stack_list.append(incoming_shim_stack)
+    outgoing_shim_stack_list.append(outgoing_shim_stack)
+
+    udp_server_socket = incoming_shim_stack.listenformessage(incoming_ip, incoming_port + index)
+    udp_server_socket_list.append(udp_server_socket)
+
+  log('Ready to receive messages.\n')
+
+  index = 0
+  local_port = None
+
+  # Wait for a message to be received on any listening port and forward it.
+  while True:
+
+    try:
+      (remoteip, remoteport, message) = udp_server_socket_list[index].getmessage()
+
+    except SocketWouldBlockError:
+      sleep(SLEEP_TIME)
+      index = (index + 1) % len(udp_server_socket_list)
+
+    else:
+      # Forward the message to the outgoing location.
+
+      # Keep trying until we find an allowable random local port
+      while True:
+
+        try:
+          remote_port = outgoing_port + index
+          if local_port is None:
+            log('Started receiving...\n')
+            local_port = random_randint(10000, 59999)
+          outgoing_shim_stack_list[index].sendmessage(outgoing_ip, remote_port, message, incoming_ip, local_port)
+          break
+
+        except (DuplicateTupleError, ResourceForbiddenError), err:
+          log('Local port', local_port, 'is not allowed; retrying another one:', repr(err), err, '\n')
+          local_port = random_randint(10000, 59999)
+
+
+
+
+def main():
+  """
+  <Purpose>
+
+    Parses the command-line arguments. Listens for incoming messages.
+
+  <Arguments>
+    None.
+
+  <Exceptions>
+    None.
+
+  <Return>
+    None.
+
+  """
+
+  global outgoing_ip
+  global incoming_ip
+  global outgoing_port
+  global incoming_port
+  global shim_port
+
+  try:
+
+    outgoing_ip = callargs[0]
+    incoming_ip = callargs[1]
+    outgoing_port = int(callargs[2])
+    incoming_port = int(callargs[3])
+    shim_port = int(callargs[4])
+
+    # The shim port must be either the outgoing or incoming port.
+    if shim_port not in (outgoing_port, incoming_port):
+      raise ValueError('The shim port must be either the outgoing or incoming port.')
+    
+  except (ValueError, IndexError), err:
+    
+    err_info = 'Bad command-line arguments: ' + str(err)
+    err_info += USAGE
+    log(err_info)
+
+    return
+
+  start_server()
+
+
+
+
+if callfunc == 'initialize':
+  main()
+
+
