@@ -166,8 +166,18 @@ def safe_download(serverpath, filename, destdir, filesize):
   try:
     urllib.urlretrieve(serverpath+filename,destdir+filename)
     return True
+
   except Exception,e:
-    safe_log_last_exception()
+    # Steven: these errors are common enough that they don't merit tracebacks
+    if 'timed out' in str(e):
+      safe_log('Retrieve timed out')
+    elif 'Name or service not known' in str(e):
+      safe_log('[Error] Name or service not known')
+    elif 'Temporary failure in name resolution' in str(e):
+      safe_log('[Error] Temporary failure in name resolution')
+    else:
+      safe_log_last_exception()
+
     safe_log('[safe_download] Failed to download ' + serverpath + filename)
     return False
  
@@ -245,7 +255,12 @@ def do_rsync(serverpath, destdir, tempdir):
   """
 
   # get the metainfo (like a directory listing)
-  safe_download(serverpath, "metainfo", tempdir, 1024*32)
+  metainfo_downloaded = safe_download(serverpath, "metainfo", tempdir, 1024*32)
+
+  # if downloading the new metainfo failed, then we can't really do anything
+  if not metainfo_downloaded:
+    safe_log("[do_rsync] Failed to download metainfo. Not updating.")
+    return []
 
   # read the file data into a string
   newmetafileobject = file(tempdir+"metainfo")
@@ -262,7 +277,7 @@ def do_rsync(serverpath, destdir, tempdir):
     oldmetafileobject = file(destdir+"metainfo")
     oldmetafiledata = oldmetafileobject.read()
     oldmetafileobject.close()
-  except:
+  except Exception:
     # The old file has problems.   We'll use the new one since it's signed
     pass
 
@@ -270,8 +285,14 @@ def do_rsync(serverpath, destdir, tempdir):
     try:
       # Armon: Update our time via NTP, before we check the meta info
       time_updatetime(TIME_PORT)
-    except:
-      time_updatetime(TIME_PORT_2)
+    except Exception:
+      try:
+        time_updatetime(TIME_PORT_2)
+      except Exception:
+        # Steven: Sometimes we can't successfully update our time, so this is
+        # better than generating a traceback.
+        safe_log("[do_rsync] Unable to update ntp time. Not updating.")
+        return []
     
     # they're both good.   Let's compare them...
     shoulduse, reasons = signeddata_shouldtrust(oldmetafiledata,newmetafiledata,softwareupdatepublickey)
