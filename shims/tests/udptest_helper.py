@@ -33,7 +33,7 @@ def launch_server(udpserver_socket):
       try:
         rip, rport, message = udpserver_socket.getmessage()
       except SocketWouldBlockError:
-        pass
+        sleep(0.001)
       except SocketClosedLocal:
         break
 

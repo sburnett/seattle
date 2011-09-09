@@ -18,13 +18,17 @@ dy_import_module_symbols("shim_exceptions")
 
 
 
-class MultiShimUDPServerSocket():
+class MultiPipeSocket():
 
-  def __init__(self, udpsocket_list, multipipe_context, localport):
-    self.udpsocket_list = udpsocket_list
-    self._udpsocket_open = True
-    self.multipipe_context = multipipe_context
+  def __init__(self, localip_dict, localip, localport):
+    """
+    Creates a new UDP server socket bound to localip and localport, using
+    localip_dict as its context
+    """
+    self.localip_dict = localip_dict
+    self.localip = localip
     self.localport = localport
+    self._udpsocket_open = True
 
 
   def getmessage(self):
@@ -35,44 +39,63 @@ class MultiShimUDPServerSocket():
     if not self._udpsocket_open:
       raise SocketClosedLocal("UDPServerSocket has been closed locally.")
 
-    for cur_udp_socket, portoffset in self.udpsocket_list:
-      try:
-        (srcip, srcport, message) = cur_udp_socket.getmessage()
-      except SocketWouldBlockError:
-        pass
-      else:
-        # Adjust the remote port number from the one actually used to the one
-        # the client MultiPipeShim was told to send on.
-        srcport -= portoffset
+    # This is nicer to access than the full path from self, at least in terms
+    # of code appearence.
+    localip_context = self.localip_dict[self.localip]
 
-        # Acquire lock to prevent concurrent access to shared state.
-        self.multipipe_context['recv_lock'].acquire(True)
+    # Acquire lock to prevent concurrent access to shared state.
+    localip_context['recv_lock'].acquire(True)
 
-        # Make sure to release lock!
+    # Make sure to release lock.
+    try:
+      # Check to see if we already have an unreturned message we can return.
+      if localip_context['unreturned_msg_dict'][self.localport]:
+        return localip_context['unreturned_msg_dict'][self.localport].pop(0)
+
+      udpsocket_list = localip_context['udpsocket_list']
+
+    finally:
+      localip_context['recv_lock'].release()
+
+    for port, udpsocket in udpsocket_list:
+
+      while True:
         try:
-          msginfo = (srcip, self.localport)
+          (srcip, srcport, message) = udpsocket.getmessage()
+        except SocketWouldBlockError:
+          break
 
-          if msginfo not in self.multipipe_context['received_msg_dict']:
-            self.multipipe_context['received_msg_dict'][msginfo] = set()
+        else:
+          # Acquire lock to prevent concurrent access to shared state.
+          localip_context['recv_lock'].acquire(True)
 
+          # Make sure to release lock.
           try:
-            messageid, messagebody = message.split(":", 1)
-          except Exception:
-            # If we have to discard this message, then we should try the
-            # remaining sockets since one of them may have received a message.
-            continue
+            destport, messageid, messagebody = message.split(":", 2)
+            destport = int(destport)
 
-          if messageid in self.multipipe_context['received_msg_dict'][msginfo]:
-            # Duplicate message, so discard it.
-            continue
-          else:
-            self.multipipe_context['received_msg_dict'][msginfo].add(messageid)
-            return (srcip, srcport, messagebody)
+            # Check if we are listening for messages to this local port.
+            if destport not in localip_context['received_msg_dict']:
+              continue
 
-        finally:
-          self.multipipe_context['recv_lock'].release()
+            # Check if this message is a duplicate.
+            if messageid in localip_context['received_msg_dict'][destport]:
+              continue
 
-    # No message was received on any listening port.
+            # Add this message to the set of received ones.
+            localip_context['received_msg_dict'][destport].add(messageid)
+
+            # If this message is not directed at this socket's local port,
+            # remember the message for later.
+            if destport == self.localport:
+              return (srcip, srcport, messagebody)
+            else:
+              localip_context['unreturned_msg_dict'][destport].append((srcip, srcport, messagebody))
+
+          finally:
+            localip_context['recv_lock'].release()
+
+    # No message was received on any listening port for this socket's local port.
     raise SocketWouldBlockError("No messages currently available!")
 
 
@@ -86,12 +109,24 @@ class MultiShimUDPServerSocket():
 
     self._udpsocket_open = False
 
-    for cur_udp_socket, portoffset in self.udpsocket_list:      
-      cur_udp_socket.close()  
+    self.localip_dict[self.localip]['recv_lock'].acquire(True)
 
-    # Wipe out the udp socket list, so we can't do
-    # anything with it anymore.
-    self.udpsocket_list = []
+    del self.localip_dict[self.localip]['received_msg_dict'][self.localport]
+    del self.localip_dict[self.localip]['unreturned_msg_dict'][self.localport]
+
+    # If this is the only socket attached to this IP, then we should close
+    # all the udp server sockets for this IP since we don't need them.
+    if not self.localip_dict[self.localip]['received_msg_dict']:
+      for udpsocket in self.localip_dict[self.localip]['udpsocket_list']:
+        try:
+          udpsocket.close()
+        except Exception:
+          pass
+      del self.localip_dict[self.localip]
+
+    else:
+      self.localip_dict[self.localip]['recv_lock'].release()
+
     return True
 
 
@@ -106,12 +141,17 @@ class MultiPipeShim(BaseShim):
 
     <Arguments>
       shim_stack - the shim stack that will be initially beneath
-          us. If optional_args is provided then it will be used
-          to create the shim stacks that will be used, but this
-          will be the default shim stack.
+          us. If multiple optional_args are provided then they will
+          be used to create additional shim stacks that will be used,
+          but this will be the default shim stack.
 
-      optional_args - If any optional args is provided, then it will
-          be used to create shim stacks.
+      optional_args - The first argument is the port to use for
+          first shim stack. The second argument, if provided, is
+          first shim stack to use. The third and forth arguments,
+          if provided are the port and shim string for the second
+          shim stack, and so on. The last argument provided must
+          be the port used by the default shim stack (the layer
+          defined below this one).
           
     <Side Effects>
       Multiple shim stack objects are created.
@@ -120,41 +160,40 @@ class MultiPipeShim(BaseShim):
       ShimArgumentError will be raised if the arguments provided
       is of not the right form or are incorrect.
 
-      Assertion error if optional args is not type of list.
-
     <Return>
       None
     """
 
-    self.multipipe_context = {}
-    self.multipipe_context['received_msg_dict'] = {}
-    self.multipipe_context['recv_lock'] = createlock()
+    self.listen_lock = createlock()
+    self.localip_dict = {}
 
     self.shim_str_list = optional_args
 
-    # If optional args was provided, make sure it was a list type.
-    if optional_args:
-      assert(isinstance(optional_args, list))
-
+    # We require an odd number of arguments to be provided.
+    if not isinstance(optional_args, list) or len(optional_args)%2 == 0:
+      raise ShimArgumentError("An odd number of optional arguments must be provided for MultiPipeShim")
 
     # Everything that is beneath the MultiPipeShim becomes the default
     # shim stack, and becomes one of the paths.
-    self.shim_stack_list = [shim_stack]
+    self.shim_stack_list = [(int(optional_args[-1]), shim_stack)]
 
-    # If any optional args are provided, we assume that they are different
-    # shims, and we will add them to the shim stack dict for the 
-    # MultiPipeShim.
-    if optional_args:
-      for shim_str in optional_args:
-        localhost = shim_stack.shim_stack_context['localhost']
-        cur_stack = ShimStack(shim_str, localhost)
-        self.shim_stack_list.append(cur_stack)
+    # If multiple optional args are provided, we will use them to construct
+    # additional paths.
+    extra_paths = len(optional_args)/2
+
+    for index in range(extra_paths):
+      port = int(optional_args[index*2])
+      shim_str = optional_args[index*2+1]
+      localhost = shim_stack.shim_stack_context['localhost']
+
+      cur_stack = ShimStack(shim_str, localhost)
+      self.shim_stack_list.append((port, cur_stack))
 
     BaseShim.__init__(self, shim_stack, optional_args)
 
     # Make sure that all the stacks have at least one shim beneath it.
     # If it does not then we will create and push a NoopShim on it.
-    for cur_shim in self.shim_stack_list:
+    for port, cur_shim in self.shim_stack_list:
       try:
         peek_copy = cur_shim.peek()
       except ShimStackError:
@@ -165,33 +204,48 @@ class MultiPipeShim(BaseShim):
 
   def listenformessage(self, localip, localport):
     """
-    Listens for connections on all avaliable shim stacks. Each shim uses a port
-    number offset from localport by it's index in shim_stack_list. There's
-    probably a better way of doing this...
+    Listens for connections on all avaliable shim stacks. Each shim uses the
+    port it was assigned in the optional arguments.
     """
 
-    exception_list = []
-    udpsocket_list = []
+    self.listen_lock.acquire(True)
 
-    portoffset = 0
+    try:
+      if localip in self.localip_dict:
+        if localport in self.localip_dict[localip]['received_msg_dict']:
+          raise AlreadyListeningError("There is a MultiPipeSocket already listening on that IP and port")
 
-    for cur_shim in self.shim_stack_list:
-      try:
-        udpsocket = cur_shim.peek().listenformessage(localip, localport + portoffset)
-      except Exception, e:
-        exception_list.append(e)
       else:
-        udpsocket_list.append((udpsocket, portoffset))
+        exception_list = []
+        udpsocket_list = []
 
-      portoffset += 1
-    
-    # It doesn't matter so much if we failed to create one or more of the
-    # sockets, but if all the listenformessage invocations failed, then we
-    # should let the user know.
-    if udpsocket_list:
-      return MultiShimUDPServerSocket(udpsocket_list, self.multipipe_context, localport)
-    else:
-      raise exception_list[0]
+        for port, cur_shim in self.shim_stack_list:
+          try:
+            udpsocket = cur_shim.peek().listenformessage(localip, port)
+          except Exception, e:
+            exception_list.append(e)
+          else:
+            udpsocket_list.append((port, udpsocket))
+        
+        # It doesn't matter so much if we failed to create one or more of the
+        # sockets, but if all the listenformessage invocations failed, then we
+        # should let the user know.
+        if not udpsocket_list:
+          raise exception_list[0]
+
+        self.localip_dict[localip] = {}
+        self.localip_dict[localip]['udpsocket_list'] = udpsocket_list
+        self.localip_dict[localip]['recv_lock'] = createlock()
+        self.localip_dict[localip]['received_msg_dict'] = {}
+        self.localip_dict[localip]['unreturned_msg_dict'] = {}
+
+    finally:
+      self.listen_lock.release()
+
+    self.localip_dict[localip]['received_msg_dict'][localport] = set()
+    self.localip_dict[localip]['unreturned_msg_dict'][localport] = []
+
+    return MultiPipeSocket(self.localip_dict, localip, localport)
 
 
   def sendmessage(self, destip, destport, messagebody, localip, localport):
@@ -201,20 +255,15 @@ class MultiPipeShim(BaseShim):
 
     # Give each message a random message id so we can tell when multiple copies
     # of a given message have been received.
-    message = str(randomfloat()) + ":" + messagebody
+    message = str(destport) + ":" + str(randomfloat()) + ":" + messagebody
 
     exception_list = []
 
-    portoffset = 0
-
-    for cur_shim in self.shim_stack_list:
+    for port, cur_shim in self.shim_stack_list:
       try:
-        cur_shim.peek().sendmessage(destip, destport + portoffset, message, \
-                                    localip, localport + portoffset)
+        cur_shim.peek().sendmessage(destip, port, message, localip, localport)
       except Exception, e:
         exception_list.append(e)
-
-      portoffset += 1
 
     # It's ok if some of the sends failed, but if all of them failed then we
     # should pass an exception on to the user.
@@ -244,7 +293,8 @@ class MultiPipeShim(BaseShim):
     optional_args_copy = self.shim_context['optional_args']
 
     mycopy = MultiPipeShim(shim_stack_copy, optional_args_copy)
-    mycopy.multipipe_context = self.multipipe_context
+    mycopy.listen_lock = self.listen_lock
+    mycopy.localip_dict = self.localip_dict
 
     return mycopy
 
