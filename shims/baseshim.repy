@@ -151,7 +151,11 @@ class BaseShim:
 
 
 
-
+  def getshimstack(self):
+    return self.shim_context['shim_stack']
+    
+  def gethostname(self):
+    return self.getshimstack().gethostname()
 
   # ============================================================================
   # Public methods that directly interface with the application. The methods may

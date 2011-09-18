@@ -356,6 +356,8 @@ class ShimStack:
 
 
 
+  def gethostname(self):
+    return self.shim_stack_context['localhost']
 
 # =========================== End of Public Methods ================================
 
