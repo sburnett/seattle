@@ -72,8 +72,8 @@ class RateLimitShim(BaseShim):
       except ValueError:
         raise ShimInternalError("Download rate provided is not of type int.")
 
-      # We set the consumption to the limit in order to avoid a burst of data at the beginning.
-      # Here is an example scenario that we want to avoid:
+      # There is a particular scenario that we want to avoid. For which
+      # parts of the ratelimitshim has been re-written.
       #
       # Scenario:
       # * Actual bandwidth is 10MB/s download
@@ -84,8 +84,8 @@ class RateLimitShim(BaseShim):
       # * Thus the application perceives a download rate of 10MB/s 
       #   rather then 5MB/s
 
-      self.net_resources['netsend']['consumption'] = 1.0 * self.net_resources['netsend']['resource_limit']
-      self.net_resources['netrecv']['consumption'] = 1.0 * self.net_resources['netrecv']['resource_limit']
+      self.net_resources['netsend']['consumption'] = 0
+      self.net_resources['netrecv']['consumption'] = 0
 
     BaseShim.__init__(self, shim_stack, optional_args)
 
@@ -229,9 +229,17 @@ class RateLimitShim(BaseShim):
       raise SocketWouldBlockError
 
     try:
+      # MMM: NOTE - The Next code line has been commented out because the 
+      # way we handle sleeping has changed now. Now whenever we consume
+      # any netsend or netrecv, we sleep and drain because we want to 
+      # constantly keep the download/upload rate below the specified value.
+      #
+      # -------------------------------------------------------------------
       # Update the resource consumption as some time has passed since last
       # consumption of resource.
-      self.update_resource_consumption(resource)
+      #self.update_resource_consumption(resource)
+      # -------------------------------------------------------------------
+      
 
       # Consume the resource.
       self.net_resources[resource]['consumption'] += quantity
@@ -270,12 +278,18 @@ class RateLimitShim(BaseShim):
       raise ShimInternalError("The limit for resource '%s' is 0." % resource)
 
 
-    while self.net_resources[resource]['consumption'] > self.net_resources[resource]['resource_limit']:
-        
+    # We have modified this and now we sleep until consumption has hit back to 0.
+    #while self.net_resources[resource]['consumption'] > self.net_resources[resource]['resource_limit']:
+    while self.net_resources[resource]['consumption'] > 0:
       consumed = self.net_resources[resource]['consumption']
       limit = self.net_resources[resource]['resource_limit']
       # Sleep for the amount of time that we expect we need to sleep for.
-      sleeptime = 1.0 * (consumed - limit) / limit
+      # MMM: We have changed how the sleeptime is calculated. Since now we
+      # drain until the consumption goes below 0, the sleeptime is calculated
+      # by taking the amount of netsend/netrecv that has been consumed and
+      # divide it by what the limit for those resources are.
+      #sleeptime = 1.0 * (consumed - limit) / limit
+      sleeptime = 1.0 * consumed / limit
 
       sleep(sleeptime)
 
@@ -350,4 +364,4 @@ class RateLimitShim(BaseShim):
     The RateLimitShim is an one sided shim, which means it
     doesn't need to advertise itself.
     """
-    return get_next_layer().get_advertisement_string()
+    return self.get_next_shim_layer().get_advertisement_string()
