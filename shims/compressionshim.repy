@@ -4,7 +4,6 @@
 
 <Author>
   Danny Y. Huang (yh1@cs.williams.edu)
-  (with some modifications by Fraida Fund in September 2011)
 
 <Date Started>
   March 23, 2011.
@@ -71,12 +70,6 @@ class CompressionShim(BaseShim):
     # inactive and thus removed from the set.
     self._active_recv_socket_set = set()
 
-    # FF: A dictionary that maps a socket to the locks used to synchronize the 
-    # socket's sending thread and compression thread
-    self._full_lock = {}
-    self._empty_lock = {}
-    self._mutex_lock = {}
-
 
     # If optional args is provided, use them as the block sizes.
     # SEND_BLOCK_SIZE determines the size of each block into which the original 
@@ -136,23 +129,7 @@ class CompressionShim(BaseShim):
     self._result_buf_dict[repr(sockobj)] = ''
     self._active_recv_socket_set.add(repr(sockobj))
 
-    # FF: locks for synchronizing threads
-    self._full_lock[repr(sockobj)] = createlock()
-    self._empty_lock[repr(sockobj)] = createlock()
-    self._mutex_lock[repr(sockobj)] = createlock()
-
-
-    # FF: The "full" lock is initialized to locked, so that the sending thread  
-    # will sleep until there is data to send (the lock will be released by the 
-    # compression thread after it places data in the send buffer)
-    self._full_lock[repr(sockobj)].acquire(True)
-
-    # FF: Create the sending thread for this connection
-    def _send_wrapper():
-      self._send_pending_data(sockobj)
-    createthread(_send_wrapper)  
-
-    return (remote_ip, remote_port, ShimSocket(sockobj, self))
+    return (remote_ip, remote_port, ShimSocket(repy_socket, self))
 
 
 
@@ -174,21 +151,7 @@ class CompressionShim(BaseShim):
     self._result_buf_dict[repr(sockobj)] = ''
     self._active_recv_socket_set.add(repr(sockobj))
 
-    self._full_lock[repr(sockobj)] = createlock()
-    self._empty_lock[repr(sockobj)] = createlock()
-    self._mutex_lock[repr(sockobj)] = createlock()
-
-    # FF: The "full" lock is initialized to locked, so that the sending thread  
-    # will sleep until there is data to send (the lock will be released by the 
-    # compression thread after it places data in the send buffer)
-    self._full_lock[repr(sockobj)].acquire(True)
-
-    # FF: Create the sending thread for this connection
-    def _send_wrapper():
-      self._send_pending_data(sockobj)
-    createthread(_send_wrapper)  
-
-    return ShimSocket(sockobj, self)
+    return ShimSocket(next_sockobj, self)
 
 
 
@@ -202,43 +165,58 @@ class CompressionShim(BaseShim):
 
 
 
-  def _send_pending_data(self,socket):
+  def _send_pending_data(self, socket):
     """
-    FF: Sending thread. When there is data in the send buffer (signaled by the "full"
-    lock becoming available), it keeps trying to send until the buffer is empty, 
-    at which point it signals to the compression thread by releasing the "empty" lock.
+    Helper method for socket_send(). Sends any pending data in the send buffer.
+
     """
 
-    while True:
-      self._full_lock[repr(socket)].acquire(True)
-      self._mutex_lock[repr(socket)].acquire(True)
-      send_buf = self._send_buf_dict[repr(socket)]
-      bytes_to_send = len(send_buf)
-      
-      # Send everything in the send buffer and remove it from the buffer.
-      while send_buf:
-        sent_bytes = 0
-        try:
-          sent_bytes = self.get_next_shim_layer().socket_send(socket, send_buf)
-        except (SocketWouldBlockError, SocketClosedLocal, SocketClosedRemote), err:
-          pass
-        send_buf = send_buf[sent_bytes : ]
+    send_buf = self._send_buf_dict[repr(socket)]
 
-      # When the send buffer is empty, release the locks and sleep until there
-      # is more data to send
-      self._mutex_lock[repr(socket)].release()
-      self._empty_lock[repr(socket)].release()
+    # Send everything in the send buffer and remove it from the buffer.
+    while send_buf:
+      sent_bytes = self.get_next_shim_layer().socket_send(socket, send_buf)
+      send_buf = send_buf[sent_bytes : ]
+      self._send_buf_dict[repr(socket)] = send_buf
+
 
 
   @_compression_shim_atomic_operation
   def socket_send(self, socket, msg):
     """ 
     <Purpose>
-      FF: Compression thread. Breaks up the original stream into blocks of 
-      _SEND_BLOCK_SIZE and compresses individual blocks. Prepends the length to 
-      each block as the header, adds a 'T' to the end of each block (so that I 
-      don't have the change the recv part) and adds these blocks to the send
-      buffer sequentially if the send buffer is empty. 
+
+      Breaks up the original stream into blocks of _SEND_BLOCK_SIZE and
+      compresses individual blocks. Prepends the length to each block as the
+      header and sends these blocks sequentially. Thus, each block looks like
+      'n,dataB' where n == len(data + B), where B is a one-byte
+      boolean value ('T' or 'F') that indicates whether the block is 'good'.
+
+      The B value defaults to 'T' as we are to send a block, e.g. '6,pandaT'. If
+      the entire block is sent, the receiver is able to accept the block because
+      it terminates with 'T'. 
+
+      There are two scenarios in which a block may be sent partially before the
+      socket is interrupted by the SocketWouldBlockError:
+
+      (1) The exception can happen as the header is being sent. We append the
+      'F' right after the incomplete header, e.g. '2F'. The original block could
+      have been '21,HelloWorldPandaJingT' or '2,AT'.
+
+      (2) The exception can happen as the body is being sent. For a block of n
+      bytes, for instance, s bytes have been sent before the exception
+      occurs. We send (n-s-1) bytes of junk followed by 'F' to denote a bad
+      block. If '11,HelloWorldT' is interrupted, we could be sending
+      '11,HelloWxxxxF' instead, where 'x' is the padding character.
+
+      Under the following situations is a block partially sent:
+
+      (1) If SocketWouldBlockException occurs when the first block is being
+      sent, then we simply re-raise the exception.
+
+      (2) If, on the other hand, the exception occurs during the transmission of
+      the subsequent blocks, we ignore the exception and return the length of
+      the original data whose compressed blocks have been sent completely.
 
     <Arguments>
       Same as repy v2 socket API.
@@ -253,6 +231,9 @@ class CompressionShim(BaseShim):
       Same as repy v2 socket API.
 
     """
+    # Transmit any residual data in the send buffer.
+    self._send_pending_data(socket)
+
     # How much of the original uncompressed data has been sent successfully.
     total_original_bytes_sent = 0
 
@@ -264,29 +245,47 @@ class CompressionShim(BaseShim):
       msg = msg[len(uncompressed_block) : ]
       block_body = zlib.compress(uncompressed_block)
 
-      # Set the boolean tag as 'T'.
+      # We assume that the block will be sent completely, so we set the boolean
+      # tag as 'T'.
       block_body += 'T'
 
       # Append header information to indicate the length of the block.
       block_header = str(len(block_body)) + ','
       block_data = block_header + block_body
 
+      # Number of bytes of this block that have been sent.
+      block_bytes_sent = 0
 
-      # If the send buffer is empty, place this block in the send buffer
-      empty = self._empty_lock[repr(socket)].acquire(False)
-      mutex = self._mutex_lock[repr(socket)].acquire(False)
-      if mutex and empty:
-        self._send_buf_dict[repr(socket)] = block_data
-        self._mutex_lock[repr(socket)].release()
-        self._full_lock[repr(socket)].release()
-        total_original_bytes_sent += len(uncompressed_block)
-      else:
-        # Release any lock we may have successfully acquired:
-        if empty:
-          self._empty_lock[repr(socket)].release()
-        if mutex:
-          self._mutex_lock[repr(socket)].release()
+      # Try to send this block entirely.
+      try:
+        while block_bytes_sent < len(block_data):
+          sent = self.get_next_shim_layer().socket_send(socket, block_data[block_bytes_sent : ])
+          block_bytes_sent += sent
+
+      # Looks like we've partially sent this block. The next time socket.send()
+      # is called, we will send a padding (if applicable) followed by an 'F' tag
+      # to indicate that this block is to be ignored.
+      except SocketWouldBlockError:
+        
+        # If the exception occurs before the header is completely transmitted,
+        # we put an 'F' right after the incomplete header. We write it to the
+        # send buffer so it will be sent the next time send() is invoked.
+        if block_bytes_sent < len(block_header):  
+          self._send_buf_dict[repr(socket)] = 'F'
+
+        # If the exception occurs in the body of the data, we pad it with junk
+        # data (all x's) such that the length of the block matches that
+        # indicated by the header.
+        else:
+          self._send_buf_dict[repr(socket)] = 'x' * (len(block_data) - block_bytes_sent - 1) + 'F'
+
         break
+
+      # Otherwise, we have successfully sent the entire block. We move onto the
+      # next block, while keeping track of how much of the original data has
+      # been sent.
+      else:
+        total_original_bytes_sent += len(uncompressed_block)
 
     # If we have not sent any data, the system's send buffer must be full.
     if total_original_bytes_sent == 0 and len(msg) > 0:
@@ -347,10 +346,10 @@ class CompressionShim(BaseShim):
       try:
         self._recv_buf_dict[repr(socket)] += self.get_next_shim_layer().socket_recv(socket, self._RECV_BLOCK_SIZE)
 
-        # If we have atleast lenght of bytes of compressed data, then most likely we
-        # already have bytes length uncompressed data. We do this so the application 
-        # doesn't have to wait for CompressionShim to block before returning data.
-        if len(self._recv_buf_dict[repr(socket)]) > bytes:
+	# If we have atleast lenght of bytes of compressed data, then most likely we
+	# already have bytes length uncompressed data. We do this so the application 
+	# doesn't have to wait for CompressionShim to block before returning data.
+	if len(self._recv_buf_dict[repr(socket)]) > bytes:
           break
       # No more data to read from socket.
       except SocketWouldBlockError:
@@ -538,87 +537,80 @@ class CompressionShim(BaseShim):
 
 
 
+  # ===================================================
+  # Compression and decompression of UDP messages
+  # ===================================================
+
+  def sendmessage(self, destip, destport, message, localip, localport):
+    """ 
+    <Purpose>
+      Sends a compressed UDP message in its entirety.
+
+    <Arguments>
+      Same as repy v2 socket API.
+
+    <Exceptions>
+      Same as repy v2 socket API.
+
+    <Side Effects>
+      None.
+
+    <Returns>     
+      If the entire compressed message is sent, returns the length of the
+      original message; otherwise, returns zero.
+
+    """
+    short_msg = zlib.compress(message)
+    sent_length = self.get_next_shim_layer().sendmessage(destip, destport, short_msg, localip, localport)
+
+    # Return the length of the original message only if it is sent in its
+    # entirety.
+    if sent_length == len(short_msg):
+      return sent_length
+    else:
+      return 0
 
 
 
 
 
+  def udpserversocket_getmessage(self, udpserversocket):
+    """ 
+    <Purpose>
+      Receives a UDP message and decompress it.
 
+    <Arguments>
+      Same as repy v2 socket API.
 
+    <Exceptions>
+      Same as repy v2 socket API.
 
- # ===================================================
- # Compression and decompression of UDP messages
- # ===================================================
+    <Side Effects>
+      None.
 
- def sendmessage(self, destip, destport, message, localip, localport):
-   """
-   <Purpose>
-     Sends a compressed UDP message in its entirety.
+    <Returns>     
+      Returns the decompressed message.
 
-   <Arguments>
-     Same as repy v2 socket API.
+    """
+    while True:
 
-   <Exceptions>
-     Same as repy v2 socket API.
+      (remote_ip, remote_port, compressed_msg) = self.get_next_shim_layer().udpserversocket_getmessage(udpserversocket)
 
-   <Side Effects>
-     None.
+      try:
+        return (remote_ip, remote_port, zlib.decompress(compressed_msg))
 
-   <Returns>
-     If the entire compressed message is sent, returns the length of the
-     original message; otherwise, returns zero.
+      except zlib.error, err:
+        # MMM: We don't need to log anything here.
+        # Unable to decompress. Bad packet. 
+        #logstr = 'CompressionShim: Cannot decompress message:'
+        #logstr += ' remote_ip = ' + str(remote_ip)
+        #logstr += ' remote_port = ' + str(remote_port)
+        #logstr += ' compressed_msg = ' + str(compressed_msg)
+        #self._log(logstr)
 
-   """
-   short_msg = zlib.compress(message)
-   sent_length = self.get_next_shim_layer().sendmessage(destip, destport, short_msg, localip, localport)
+        # Drop packet and retry
+        raise SocketWouldBlockError("No UDP messages available now")
 
-   # Return the length of the original message only if it is sent in its
-   # entirety.
-   if sent_length == len(short_msg):
-     return sent_length
-   else:
-     return 0
-
-
-
-
-
-
- def udpserversocket_getmessage(self, udpserversocket):
-   """
-   <Purpose>
-     Receives a UDP message and decompress it.
-
-   <Arguments>
-     Same as repy v2 socket API.
-
-   <Exceptions>
-     Same as repy v2 socket API.
-
-   <Side Effects>
-     None.
-
-   <Returns>
-     Returns the decompressed message.
-
-   """
-   while True:
-
-     (remote_ip, remote_port, compressed_msg) = self.get_next_shim_layer().udpserversocket_getmessage(udpserversocket)
-
-     try:
-       return (remote_ip, remote_port, zlib.decompress(compressed_msg))
-
-     except zlib.error, err:
-       # MMM: We don't need to log anything here.
-       # Unable to decompress. Bad packet.
-       #logstr = 'CompressionShim: Cannot decompress message:'
-       #logstr += ' remote_ip = ' + str(remote_ip)
-       #logstr += ' remote_port = ' + str(remote_port)
-       #logstr += ' compressed_msg = ' + str(compressed_msg)
-       #self._log(logstr)
-
-       # Drop packet and retry
-       raise SocketWouldBlockError("No UDP messages available now")  
+  
 
 
