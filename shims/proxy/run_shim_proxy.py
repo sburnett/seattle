@@ -2,7 +2,7 @@ import sys
 import dylink_portability
 
 if len(sys.argv) < 7:
-    print "Usage: \n\t$> python run_shim_proxy.py server_address, server_port, listening_port, shim_port, shim_string"
+    print "Usage: \n\t$> python run_shim_proxy.py server_address, server_port, listening_addr, listening_port, shim_port, shim_string"
     sys.exit()
 
 server_address = sys.argv[1]
