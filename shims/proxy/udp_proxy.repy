@@ -32,7 +32,7 @@ SLEEP_TIME = 0.001
 
 # List of shim stacks for connections with shims. See the documentation of
 # start_server() for how ports are assigned to each of the shim stacks.
-SHIM_STACK_LIST = ['(FECShim)', '(FECShim)']
+SHIM_STACK_LIST = []
 
 # How we are going to send a new outgoing message.
 outgoing_ip = None
@@ -68,6 +68,10 @@ def start_server():
 
   """
 
+  if len(SHIM_STACK_LIST) == 0:
+    log("No shim stacks provided for proxy!\n")
+    exitall()
+
   # Begin listening for messages. We use several shim stacks in parallel for
   # both the shim side of the proxy and the non-shim side to facilitate the bulk
   # testing of several shims and applications which use multiple consecutive udp
@@ -88,7 +92,10 @@ def start_server():
 
     createthread(forwarder_function)
 
-    log('Listening on port '+str(incoming_port + index)+'\n')
+    if shim_port == incoming_port:
+      log("Listening on port %d with shim string '%s'\n" % ((incoming_port + index), shim_stack_str))
+    else:
+      log("Listening on port %d with no shims\n" % (incoming_port + index))
 
   log('Ready to receive messages\n')
 
@@ -191,7 +198,10 @@ def main():
     # The shim port must be either the outgoing or incoming port.
     if shim_port not in (outgoing_port, incoming_port):
       raise ValueError('The shim port must be either the outgoing or incoming port.')
-    
+
+    for shim_str in callargs[5:]:
+      SHIM_STACK_LIST.append( shim_str)
+          
   except (ValueError, IndexError), err:
     
     err_info = 'Bad command-line arguments: ' + str(err)
