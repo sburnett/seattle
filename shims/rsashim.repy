@@ -18,6 +18,7 @@
 
 
 dy_import_module_symbols("rsa")
+dy_import_module_symbols("session")
 
 
 # Tags
@@ -26,9 +27,10 @@ NEW_SHARE_TAG="NEWKEY:::"
 
 
 # How many bits to use for RSA keys.
-BITSIZE = 1024
+BITSIZE = 512
 SLEEP_TIME = 0.001
-RECV_SIZE = 2**12
+RECV_SIZE_BYTE = 2**14
+RSA_CHUNK_SIZE = 2**8
 
 class RSAShim(BaseShim):
 
@@ -128,7 +130,8 @@ class RSAShim(BaseShim):
                                                 'recv_encrypted_buffer' : '',
                                                 'recv_buffer' : '',
                                                 'send_lock' : createlock(),
-                                                'recv_lock' : createlock()}
+                                                'recv_lock' : createlock(),
+                                                'recv_encrypt_lock' : createlock()}
     else:
       raise ConnectionRefusedError("Unable to complete handshake with server and " +
                                    "agree on RSA key.")
@@ -197,7 +200,8 @@ class RSAShim(BaseShim):
                                                 'recv_encrypted_buffer' : '',
                                                 'recv_buffer' : '',
                                                 'send_lock' : createlock(),
-                                                'recv_lock' : createlock()}
+                                                'recv_lock' : createlock(),
+                                                'recv_encrypt_lock' : createlock()}
 
       # Send back the new set of keys, encrypted with the pubkey
       # provided by the client initially.
@@ -252,6 +256,7 @@ class RSAShim(BaseShim):
     # Keep track of the original msg size, as it will change.
     original_data_size = len(msg)
 
+
     # Encrypt the data and put a little buffer.
     while msg:
       # We try to break up the entire msg into little portions
@@ -262,17 +267,23 @@ class RSAShim(BaseShim):
       # break it up into little sections so we can send little 
       # encrypted message so the receiver can constantly receive 
       # messages.
-      sub_msg = msg[:1024]
-      msg = msg[1024:]
+      sub_msg = msg[:RSA_CHUNK_SIZE]
+      msg = msg[RSA_CHUNK_SIZE:]
 
+      s=getruntime()
       encrypt_msg = rsa_encrypt(sub_msg, self.rsa_key_dict[repr(socket)]['pub_key'])
+      e=getruntime() - s
       header = str(len(encrypt_msg)) + '\n'
 
+      # Now that we are done encrypting everything, we add it to the send buffer
+      # in order for it to be sent across the network.
       self.rsa_buffer_context[repr(socket)]['send_lock'].acquire(True)
       try:
         self.rsa_buffer_context[repr(socket)]['send_buffer'] += header + encrypt_msg
       finally:
         self.rsa_buffer_context[repr(socket)]['send_lock'].release()
+
+
 
     return original_data_size
 
@@ -309,10 +320,10 @@ class RSAShim(BaseShim):
 
 
     # Extract the data
-    self.rsa_buffer_context[repr(socket)]['recv_lock'].acquire(True)
+    msg_to_return = self.rsa_buffer_context[repr(socket)]['recv_buffer'][:bytes]
 
+    self.rsa_buffer_context[repr(socket)]['recv_lock'].acquire(True)
     try:
-      msg_to_return = self.rsa_buffer_context[repr(socket)]['recv_buffer'][:bytes]
       self.rsa_buffer_context[repr(socket)]['recv_buffer'] = self.rsa_buffer_context[repr(socket)]['recv_buffer'][bytes:]
     finally:
       self.rsa_buffer_context[repr(socket)]['recv_lock'].release()
@@ -373,7 +384,7 @@ class RSAShim(BaseShim):
             # Update the buffer to how much data was sent already.
             self.rsa_buffer_context[repr(sockobj)]['send_lock'].acquire(True)
             try:
-              self.rsa_buffer_context[repr(sockobj)]['send_buffer'] = msg[data_sent:]
+              self.rsa_buffer_context[repr(sockobj)]['send_buffer'] = self.rsa_buffer_context[repr(sockobj)]['send_buffer'][data_sent:]
             finally:
               self.rsa_buffer_context[repr(sockobj)]['send_lock'].release()
         else:
@@ -394,11 +405,14 @@ class RSAShim(BaseShim):
       decrypted.
     """
 
+    # Launch the decrypter.
+    createthread(self._decrypt_msg(sockobj))
+
     def _receiving_helper():
       # Keep receiving data and decrypting it.
       while repr(sockobj) in self.active_sock_set:
         try:
-          encrypt_msg = self.get_next_shim_layer().socket_recv(sockobj, RECV_SIZE)
+          encrypt_msg = self.get_next_shim_layer().socket_recv(sockobj, RECV_SIZE_BYTE)
         except SocketWouldBlockError:
           pass
         except (SocketClosedLocal, SocketClosedRemote):
@@ -409,20 +423,11 @@ class RSAShim(BaseShim):
             pass
           break
         else:
-          self.rsa_buffer_context[repr(sockobj)]['recv_encrypted_buffer'] += encrypt_msg
-
-          # Try to decrypt as much as possible
-          while True:
-            if not self._decrypt_msg(sockobj):
-              break
-    
-
-      # If we have broken out of the loop because the socket has been closed,
-      # then we try to decrypt whatever is remaining in the recv_encrypt_buffer
-      # and return.
-      while True:
-        if not self._decrypt_msg(sockobj):
-          break
+          self.rsa_buffer_context[repr(sockobj)]['recv_encrypt_lock'].acquire(True)
+          try:
+            self.rsa_buffer_context[repr(sockobj)]['recv_encrypted_buffer'] += encrypt_msg
+          finally:
+            self.rsa_buffer_context[repr(sockobj)]['recv_encrypt_lock'].release()
 
     return _receiving_helper
 
@@ -437,47 +442,61 @@ class RSAShim(BaseShim):
     otherwise we return true.
     """
 
-    # First index of the character '\n'. It is used to determine
-    # upto which index in the recv_encrypt_buffer do we have the 
-    # header for that particular packet that denotes the size of
-    # the message.
-    # Example of two packets hello and world would be: '5\nhello5\nworld'
-    header_index = self.rsa_buffer_context[repr(sockobj)]['recv_encrypted_buffer'].find('\n')
+    def _decrypt_msg_helper():
+      while True:
+        # First index of the character '\n'. It is used to determine
+        # upto which index in the recv_encrypt_buffer do we have the 
+        # header for that particular packet that denotes the size of
+        # the message.
+        # Example of two packets hello and world would be: '5\nhello5\nworld'
+        header_index = self.rsa_buffer_context[repr(sockobj)]['recv_encrypted_buffer'].find('\n')
           
-    # We don't have a full encrypted message yet.
-    if header_index == -1:
-      return False
+        # We don't have a full encrypted message yet.
+        if header_index == -1:
+          if repr(sockobj) not in self.active_sock_set:
+            break
+          sleep(0.001)
+          continue
 
-    try:
-      message_length = int(self.rsa_buffer_context[repr(sockobj)]['recv_encrypted_buffer'][:header_index])
-    except ValueError:
-      raise ShimInternalError("Unable to decrypt receiving message due to bad header in recv_encrypt_buffer")
+        try:
+          message_length = int(self.rsa_buffer_context[repr(sockobj)]['recv_encrypted_buffer'][:header_index])
+        except ValueError:
+          raise ShimInternalError("Unable to decrypt receiving message due to bad header in recv_encrypt_buffer")
 
-    # Get the actual message out.
-    packet_end_index = header_index + message_length + 1
+        # Get the actual message out.
+        packet_end_index = header_index + message_length + 1
 
-    # If we haven't received the entire package, then we can't decrypt.
-    if len(self.rsa_buffer_context[repr(sockobj)]['recv_encrypted_buffer']) < packet_end_index:
-      return False
+        # If we haven't received the entire package, then we can't decrypt.
+        if len(self.rsa_buffer_context[repr(sockobj)]['recv_encrypted_buffer']) < packet_end_index:
+          if repr(socket) not in self.active_socket_set:
+            break
+          sleep(0.001)
+          continue
 
-    total_data = self.rsa_buffer_context[repr(sockobj)]['recv_encrypted_buffer'][:packet_end_index]
-    encrypt_msg = total_data[header_index + 1 : ]
-    self.rsa_buffer_context[repr(sockobj)]['recv_encrypted_buffer'] = self.rsa_buffer_context[repr(sockobj)]['recv_encrypted_buffer'][packet_end_index:]
-          
-    # decrypt the message.
-    try:
-      actual_msg = rsa_decrypt(encrypt_msg, self.rsa_key_dict[repr(sockobj)]['priv_key'])
-    except ValueError:
-      raise ShimInternalError("Invalid private key being used for decryption!")
+        total_data = self.rsa_buffer_context[repr(sockobj)]['recv_encrypted_buffer'][:packet_end_index]
+        encrypt_msg = total_data[header_index + 1 : ]
 
-    self.rsa_buffer_context[repr(sockobj)]['recv_lock'].acquire(True)
-    try:
-      self.rsa_buffer_context[repr(sockobj)]['recv_buffer'] += actual_msg
-    finally:
-      self.rsa_buffer_context[repr(sockobj)]['recv_lock'].release()
+        self.rsa_buffer_context[repr(sockobj)]['recv_encrypt_lock'].acquire(True)
+        try:
+          self.rsa_buffer_context[repr(sockobj)]['recv_encrypted_buffer'] = self.rsa_buffer_context[repr(sockobj)]['recv_encrypted_buffer'][packet_end_index:]
+        finally:
+          self.rsa_buffer_context[repr(sockobj)]['recv_encrypt_lock'].release()
+
+        # decrypt the message.
+        try:
+          actual_msg = rsa_decrypt(encrypt_msg, self.rsa_key_dict[repr(sockobj)]['priv_key'])
+        except ValueError:
+          raise ShimInternalError("Invalid private key being used for decryption!")
+
+        # Add the unencrypted data to the recv buffer.
+        self.rsa_buffer_context[repr(sockobj)]['recv_lock'].acquire(True)
+        try:
+          self.rsa_buffer_context[repr(sockobj)]['recv_buffer'] += actual_msg
+        finally:
+          self.rsa_buffer_context[repr(sockobj)]['recv_lock'].release()
 
       
-    return True
+    return _decrypt_msg_helper
 
 
 
