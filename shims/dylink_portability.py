@@ -39,9 +39,23 @@ def _initialize_safe_module():
     safe._BUILTIN_OK.append("ord")
     safe._BUILTIN_OK.append("chr")
     safe._BUILTIN_OK.append("__import__")
+    safe._BUILTIN_OK.append("open")
+    safe._BUILTIN_OK.append("eval")
+
+
+    # Include everything
+    for builtin_type in dir(__builtins__):
+      if builtin_type not in safe._BUILTIN_OK:
+        safe._BUILTIN_OK.append(builtin_type)
+
 
     safe._STR_OK.append("__repr__")
     safe._STR_OK.append("__str__")
+    
+    for str_type in dir(__name__):
+      if str_type not in safe._STR_OK:
+        safe._STR_OK.append(str_type)
+
     # allow __ in strings.   I'm 99% sure this is okay (do I want to risk it?)
     safe._NODE_ATTR_OK.append('value')
 
