@@ -18,7 +18,7 @@ dy_import_module_symbols("shim_exceptions")
 
 
 
-class MultiPipeSocket():
+class UdpMultiPipeSocket():
 
   def __init__(self, localip_dict, localip, localport):
     """
@@ -131,12 +131,12 @@ class MultiPipeSocket():
 
 
 
-class MultiPipeShim(BaseShim):
+class UdpMultiPipeShim(BaseShim):
 
   def __init__(self, shim_stack=ShimStack(), optional_args=None):
     """
     <Purpose>
-      Initialize the MultiPipeShim. Creates all the different
+      Initialize the UdpMultiPipeShim. Creates all the different
       shimstacks that it needs to use.
 
     <Arguments>
@@ -171,9 +171,9 @@ class MultiPipeShim(BaseShim):
 
     # We require an odd number of arguments to be provided.
     if not isinstance(optional_args, list) or len(optional_args)%2 == 0:
-      raise ShimArgumentError("An odd number of optional arguments must be provided for MultiPipeShim")
+      raise ShimArgumentError("An odd number of optional arguments must be provided for UdpMultiPipeShim")
 
-    # Everything that is beneath the MultiPipeShim becomes the default
+    # Everything that is beneath the UdpMultiPipeShim becomes the default
     # shim stack, and becomes one of the paths.
     self.shim_stack_list = [(int(optional_args[-1]), shim_stack)]
 
@@ -213,7 +213,7 @@ class MultiPipeShim(BaseShim):
     try:
       if localip in self.localip_dict:
         if localport in self.localip_dict[localip]['received_msg_dict']:
-          raise AlreadyListeningError("There is a MultiPipeSocket already listening on that IP and port")
+          raise AlreadyListeningError("There is a UdpMultiPipeSocket already listening on that IP and port")
 
       else:
         exception_list = []
@@ -245,7 +245,7 @@ class MultiPipeShim(BaseShim):
     self.localip_dict[localip]['received_msg_dict'][localport] = set()
     self.localip_dict[localip]['unreturned_msg_dict'][localport] = []
 
-    return MultiPipeSocket(self.localip_dict, localip, localport)
+    return UdpMultiPipeSocket(self.localip_dict, localip, localport)
 
 
   def sendmessage(self, destip, destport, messagebody, localip, localport):
@@ -292,7 +292,7 @@ class MultiPipeShim(BaseShim):
     shim_stack_copy = self.shim_context['shim_stack'].copy()
     optional_args_copy = self.shim_context['optional_args']
 
-    mycopy = MultiPipeShim(shim_stack_copy, optional_args_copy)
+    mycopy = UdpMultiPipeShim(shim_stack_copy, optional_args_copy)
     mycopy.listen_lock = self.listen_lock
     mycopy.localip_dict = self.localip_dict
 
@@ -303,7 +303,7 @@ class MultiPipeShim(BaseShim):
     """
     Return the advertisement string for this shim.
     """
-    my_name = '(MultiPipeShim,%s)' % ','.join(self.shim_str_list)
+    my_name = '(UdpMultiPipeShim,%s)' % ','.join(self.shim_str_list)
     next_layer_name = self.get_next_shim_layer().get_advertisement_string()
 
     # If we have shims that are not advertising below us, for example
