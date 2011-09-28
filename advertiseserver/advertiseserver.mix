@@ -344,4 +344,4 @@ if callfunc=='initialize':
   print "Detailed logging has been disabled, see write_to_log to enable it"
   
   timeout_waitforconn(getmyip(),legacyserverport,handlelegacyrequest)
-  timeout_waitforconn(getmyip(),serverport,handlerequest)
+  timeout_waitforconn(getmyip(),serverport,handlerequest, timeout=10)
