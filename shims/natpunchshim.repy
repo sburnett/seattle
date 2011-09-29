@@ -18,6 +18,7 @@
 
 
 dy_import_module_symbols("random")
+dy_import_module_symbols("session")
 dy_import_module_symbols("advertise_objects")
 dy_import_module_symbols("nat_forwarder_common_lib")
 
@@ -26,6 +27,8 @@ dy_import_module_symbols("nat_forwarder_common_lib")
 # when doing listenforconnection.
 DEFAULT_TIMEOUT = 10
 
+# The shim string to use to connect to Nat Forwarder.
+NAT_SHIM_STRING="(CoordinationShim)"
 
 
 
@@ -132,7 +135,9 @@ class NatPunchShim(BaseShim):
     # Make a connection to the forwarder. Exceptions may be raised, if they are then we raise them.
     forwarder_ip, forwarder_port = self.default_forwarder
     print "Connecting with %s, %d, %s, %d" % (forwarder_ip, forwarder_port, localip, localport)
-    sockobj = openconnection(forwarder_ip, forwarder_port, localip, localport, timeout)
+
+    shim_stack_object = ShimStackInterface(NAT_SHIM_STRING)
+    sockobj = shim_stack_object.openconnection(forwarder_ip, forwarder_port, localip, localport, timeout)
     print "Conencted properly."
 
     # Let the forwarder know which server we want to connect to.
@@ -177,8 +182,8 @@ class NatPunchShim(BaseShim):
     <Return>
       NATServerSocket object.
     """
-    hostname = self.gethostname()
-    server_id = "%s:%d" % (hostname, localport)
+
+    server_id = "%s:%d" % (localip, localport)
 
     # Try to connect to a forwarder so we can receive connections 
     # in the future.
@@ -284,7 +289,8 @@ class NatPunchShim(BaseShim):
     random_localport = self.retrieve_random_tcp_port()
     
     # Connect to the forwarder.
-    new_sockobj = openconnection(forwarder_ip, forwarder_port, getmyip(), random_localport, DEFAULT_TIMEOUT)
+    shim_stack_object = ShimStackInterface(NAT_SHIM_STRING)
+    new_sockobj = shim_stack_object.openconnection(forwarder_ip, forwarder_port, getmyip(), random_localport, DEFAULT_TIMEOUT)
         
     # Request the Nat Forwarder to connect a client to this new socket that
     # we just opened up. Then we check if we were successfully connected to
@@ -324,9 +330,9 @@ class NatPunchShim(BaseShim):
       A socket like object that can be used for communication.
     """
 
-    # We use the hostname and localport provided to create an ID for
+    # We use the localip and localport provided to create an ID for
     # the server connecting to the forwarder.
-    server_id = self.gethostname() + ':' + str(localport)
+    server_id = localip + ':' + str(localport)
 
     # If a default forwarder is provided then we only try to use it.
     # Otherwise we do a lookup for all the forwarders that are available.
@@ -350,7 +356,8 @@ class NatPunchShim(BaseShim):
       forwarder_port = int(forwarder_port_str)
 
       try:
-        sockobj = openconnection(forwarder_ip, forwarder_port, localip, localport, DEFAULT_TIMEOUT)
+        shim_stack_object = ShimStackInterface(NAT_SHIM_STRING)
+        sockobj = shim_stack_object.openconnection(forwarder_ip, forwarder_port, localip, localport, DEFAULT_TIMEOUT)
       # MMM: Should we also catch RepyArgumentError and AddressbindingError here? Currently we raise those.
       except (DuplicateTupleError, AlreadyListeningError, CleanupInProgressError, 
               ConnectionRefusedError, TimeoutError, InternetConnectivityError):

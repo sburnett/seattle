@@ -63,7 +63,7 @@ def launchserver():
       break
     
 
-  while msg_received > 0:
+  while msg_received:
     try:
       data_sent = sockobj.send(msg_received)
       msg_received = msg_received[data_sent : ]
@@ -103,11 +103,9 @@ def launch_test():
       data_sent = sockobj.send(msg_to_send)
     except SocketWouldBlockError, err:
       sleep(SLEEP_TIME)
-      log("BS")
     else:
       msg_to_send = msg_to_send[data_sent:]
       cur_data_sent += data_sent
-      print "Sent so far: " + str(cur_data_sent)
 
   print "Sent the entire message"
 
@@ -119,7 +117,6 @@ def launch_test():
   while True:
     try:
       data_received = sockobj.recv(RECV_SIZE)
-      log("R")
     except SocketWouldBlockError, err:
       sleep(SLEEP_TIME)
     else:

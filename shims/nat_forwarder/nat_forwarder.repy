@@ -21,7 +21,11 @@
 
 dy_import_module_symbols("session")
 dy_import_module_symbols("advertise_objects")
+dy_import_module_symbols("shimstackinterface")
 dy_import_module_symbols("nat_forwarder_common_lib")
+
+# The shim string that the NAT Forwarder will use.
+NAT_SHIM_STRING = "(CoordinationShim)(NoopShim)"
 
 # Time to sleep if socket is blocking.
 SLEEP_TIME = 0.001
@@ -60,10 +64,12 @@ register_lock = createlock()
 def tcp_forwarder_listener():
 
   # Create a TCP server socket.
-  tcp_forwarder_sock = listenforconnection(getmyip(), mycontext['listenport_tcp'])
+  shim_stack_object = ShimStackInterface(NAT_SHIM_STRING)
+  tcp_forwarder_sock = shim_stack_object.listenforconnection(getmyip(), mycontext['listenport_tcp'])
   
   logmsg("Started TCP NAT Forwarder listener on '%s' port '%d'" % 
          (getmyip(), mycontext['listenport_tcp']), INFO_MSG)
+  logmsg("NAT Forwarder using shim string '%s'." % NAT_SHIM_STRING, INFO_MSG)
 
   while True:
     try:
@@ -447,7 +453,6 @@ def launch_server_communication_thread(sockobj, server_id):
         if request_type == CHECK_SERVER_CONN:
           if len(registered_server[server_id]['waiting_clients']) > 0:
             session_sendmessage(sockobj, CLIENT_AVAILABLE)
-            logmsg("Response sent back with available", INFO_MSG)
           else:
             session_sendmessage(sockobj, CLIENT_UNAVAILABLE)
       except (SocketClosedRemote, SocketClosedLocal, SessionEOF), err:
@@ -494,9 +499,13 @@ def logmsg(message, msg_type):
 if callfunc == 'initialize':
 
   if len(callargs) < 1:
-    raise Exception("Usage:\n\tpython repy.py RESTRICTION_FILE nat_forwarder.repy TCP_PORT")
+    raise Exception("Usage:\n\tpython repy.py RESTRICTION_FILE nat_forwarder.repy TCP_PORT [NAT_SHIM_STRING]")
 
   mycontext['listenport_tcp'] = int(callargs[0])
+
+  if len(callargs) >= 2:
+    global NAT_SHIM_STRING
+    NAT_SHIM_STRING = callargs[1]
   
   # Launch the TCP Forwarder.
   createthread(tcp_forwarder_listener)
