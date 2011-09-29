@@ -315,9 +315,14 @@ class ShimStack:
     # Monzur - Should we return a copy here or should we return the original
     # shim object? Right now I am returning a copy so peek() cannot be used
     # to modify anything below this shim.    
-    copy_top_shim = self.shim_stack_context['top_shim'].copy()
+    #copy_top_shim = self.shim_stack_context['top_shim'].copy()
 
-    return copy_top_shim
+    #return copy_top_shim
+
+    # Monzur - I decided to send the reference to the actual shim stack
+    # as it seems reasonable that peek should be able to be used to modify
+    # the shim stack below it.
+    return self.shim_stack_context['top_shim']
 
 
 
@@ -354,10 +359,9 @@ class ShimStack:
 
     return new_stack
 
-
-
-  def gethostname(self):
+  def gethostname(self): 
     return self.shim_stack_context['localhost']
+
 
 # =========================== End of Public Methods ================================
 
@@ -416,7 +420,7 @@ class ShimStack:
     # After we have copied it, we can now push on the top shim on top
     # of it.
     new_stack_object = ShimStack(leftover_shim_str, self.shim_stack_context['localhost'])
-
+    
     # Ensure the first argument is a legit string. If it is, we are going to load
     # the shim file if we find it.
     assert(isinstance(top_shim_name, str)), "Bad arg type. First arg in shim tuple must be string."
