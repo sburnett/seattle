@@ -271,7 +271,7 @@ class MultiShimTCPSocket():
 
   def getconnection(self):
     if not self._tcpsocket_open:
-      raise SoccketClosedLocal("TCPServerSocket has been closed locally.")
+      raise SocketClosedLocal("TCPServerSocket has been closed locally.")
 
     connection_dict = {}
     exception_list = []
