@@ -575,7 +575,7 @@ class CompressionShim(BaseShim):
     # Return the length of the original message only if it is sent in its
     # entirety.
     if sent_length == len(short_msg):
-      return sent_length
+      return len(message)
     else:
       return 0
 
