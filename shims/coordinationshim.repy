@@ -350,7 +350,7 @@ class CoordinationShim(BaseShim):
     try:
 
       self._adv_handle_dict_lock.acquire(True)
-      adv_handle = self._adv_handle_dict[repr(serversocket)]
+      adv_handle = self._adv_handle_dict.pop(repr(serversocket))
 
     # Cannot find the handle, so we must have removed it when the close() method
     # was previously invoked. We quietly ignore the error.
