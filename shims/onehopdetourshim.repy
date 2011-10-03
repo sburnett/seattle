@@ -297,7 +297,7 @@ class OneHopDetourShim(BaseShim):
 
     (node_ip, node_port) = node_info.split(',')
 
-    return (node_ip, node_port, msg)
+    return (node_ip, int(node_port), msg)
     
     
     
