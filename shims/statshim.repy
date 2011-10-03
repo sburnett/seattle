@@ -69,6 +69,10 @@ class StatShim(BaseShim):
     sent = self.get_next_shim_layer().socket_send(socket, data)
 
     shim_stack_str = self.get_next_shim_layer().get_advertisement_string()
+
+    if not shim_stack_str:
+      shim_stack_str = "(NoopShim)"
+
     if shim_stack_str not in self._stat_dict.keys():
       self._stat_dict[shim_stack_str] = {'sent': 0, 'received': 0}
     stat_dict = self._stat_dict[shim_stack_str]

@@ -27,7 +27,7 @@ NEW_SHARE_TAG="NEWKEY:::"
 
 
 # How many bits to use for RSA keys.
-BITSIZE = 512
+BITSIZE = 128
 SLEEP_TIME = 0.001
 RECV_SIZE_BYTE = 2**14
 RSA_CHUNK_SIZE = 2**8
@@ -319,6 +319,7 @@ class RSAShim(BaseShim):
         raise SocketWouldBlockError("No data to be received.")
 
 
+    
     # Extract the data
     msg_to_return = self.rsa_buffer_context[repr(socket)]['recv_buffer'][:bytes]
 
@@ -328,6 +329,7 @@ class RSAShim(BaseShim):
     finally:
       self.rsa_buffer_context[repr(socket)]['recv_lock'].release()
 
+    
     return msg_to_return
 
 
@@ -468,14 +470,14 @@ class RSAShim(BaseShim):
 
         # If we haven't received the entire package, then we can't decrypt.
         if len(self.rsa_buffer_context[repr(sockobj)]['recv_encrypted_buffer']) < packet_end_index:
-          if repr(socket) not in self.active_socket_set:
+          if repr(sockobj) not in self.active_socket_set:
             break
           sleep(0.001)
           continue
 
         total_data = self.rsa_buffer_context[repr(sockobj)]['recv_encrypted_buffer'][:packet_end_index]
         encrypt_msg = total_data[header_index + 1 : ]
-
+        
         self.rsa_buffer_context[repr(sockobj)]['recv_encrypt_lock'].acquire(True)
         try:
           self.rsa_buffer_context[repr(sockobj)]['recv_encrypted_buffer'] = self.rsa_buffer_context[repr(sockobj)]['recv_encrypted_buffer'][packet_end_index:]
