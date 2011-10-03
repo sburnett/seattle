@@ -178,8 +178,7 @@ class DataLimitShim(BaseShim):
       # If we haven't exceeded our limit yet.
       if self.data_limit_context['data_downloaded'] < self.data_limit_context['download_limit']:
         download_max_limit = self.data_limit_context['download_limit'] - self.data_limit_context['data_downloaded']
-        
-        sys.stdout.flush()
+
         # Set the download bytes appropriately.
         if download_max_limit < bytes:
           bytes = download_max_limit
