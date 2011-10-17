@@ -125,7 +125,7 @@ def secure_listenforconnection(localip, localport):
 
 
 CHILD_CONTEXT_DEF["getmyip"] = {TYPE:FUNC,ARGS:None,RETURN:str,EXCP:RepyException,TARGET:secure_getmyip}
-CHILD_CONTEXT_DEF["gethostbyname"] = {TYPE:FUNC,ARGS:str,RETURN:str,EXCP:RepyException,TARGET:secure_gethostbyname}
+CHILD_CONTEXT_DEF["gethostbyname"] = {TYPE:FUNC,ARGS:(str,),RETURN:str,EXCP:RepyException,TARGET:secure_gethostbyname}
 CHILD_CONTEXT_DEF["sendmessage"] = {TYPE:FUNC,ARGS:(str,int,str,str,int),RETURN:int,
                                     EXCP:RepyException,TARGET:secure_sendmessage}
 CHILD_CONTEXT_DEF["listenformessage"] = {TYPE:OBJC,ARGS:(str,int),RETURN:sec_udp_def,
@@ -146,7 +146,7 @@ def secure_removefile(file):
   BUFFER.append("removefile")
   return removefile(file)
 
-CHILD_CONTEXT_DEF["removefile"] = {TYPE:FUNC,ARGS:(str,),EXCP:Exception,RETURN:(bool,None),TARGET:secure_removefile}
+CHILD_CONTEXT_DEF["removefile"] = {TYPE:FUNC,ARGS:(str,),EXCP:Exception,RETURN:None,TARGET:secure_removefile}
 
 def secure_getruntime():
   BUFFER.append("getruntime")
@@ -240,7 +240,7 @@ class SecureFile():
 sec_file_def = {"obj-type":SecureFile,
                 "name":"SecureFile",
                 "readat":{TYPE:FUNC,ARGS:((int,long),(int,long)),EXCP:Exception,RETURN:str,TARGET:SecureFile.readat},
-                "writeat":{TYPE:FUNC,ARGS:(str,(int,long)),EXCP:Exception,RETURN:(int,long),TARGET:SecureFile.writeat},
+                "writeat":{TYPE:FUNC,ARGS:(str,(int,long)),EXCP:Exception,RETURN:None,TARGET:SecureFile.writeat},
                 "close":{TYPE:FUNC,ARGS:None,EXCP:None,RETURN:(bool,type(None)),TARGET:SecureFile.close}
                }
 
