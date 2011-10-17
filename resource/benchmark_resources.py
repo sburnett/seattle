@@ -87,8 +87,9 @@ DEFAULT_OFFCUT_DICT =  {'cpu':.002,
                         'random':0 }
 
 if platform.machine().startswith('armv'):
-  # there is not enough filewrite/fileread resources on the Nokia so their requirements 
-  # should be decreased
+  # there is not enough filewrite/fileread resources on the Nokia so their 
+  # requirements should be decreased.
+  # AR: This also catches Android and iDevices.
   DEFAULT_OFFCUT_DICT['filewrite'] = 800
   DEFAULT_OFFCUT_DICT['fileread'] = 800
 
@@ -323,7 +324,34 @@ def run_benchmark(logfileobj):
     print "If you choose to continue anyways then default values will be " + \
                     "used for failed benchmarks."
 
-    if not prompt_user("Continue with installation? (yes/no) "):
+    # AR: Detect Android -- we'll display a GUI dialog in case of errors.
+    try:
+      import android
+      is_android = True
+    except ImportError:
+      is_android = False
+
+    if not is_android:
+      continue_install = prompt_user("Continue with installation? (yes/no) ")
+
+    # AR: This pops up the actual dialog on the screen on Android 
+    else:
+      droid = android.Android()
+      droid.dialogCreateAlert("Benchmarking error(s) occurred",
+        "If you choose to continue, then default values will be used for failed benchmarks.")
+      droid.dialogSetPositiveButtonText("Continue")
+      droid.dialogSetNegativeButtonText("Cancel")
+      droid.dialogShow()
+      response = droid.dialogGetResponse().result
+      droid.dialogDismiss()
+      if response.has_key("which"):
+        result = response["which"]
+        if result == "positive":
+          continue_install = True
+        else:
+          continue_install = False
+
+    if not continue_install:
       logfileobj.write("Installation terminated by user after one or " + \
                       "more failed benchmarks.\n")
       raise BenchmarkingFailureError()

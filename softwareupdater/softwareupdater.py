@@ -20,6 +20,14 @@ Updated 1/23/2009 use servicelogger to log errors - Xuanhua (Sean)s Ren
 import sys
 import os
 
+# AR: Determine whether we're running on Android
+try:
+  import android
+  is_android = True
+except ImportError:
+  is_android = False
+
+
 import daemon
 
 import repyhelper
@@ -199,6 +207,18 @@ def safe_download(serverpath, filename, destdir, filesize):
 #      safefo.close()
 #    except:
 #      pass
+
+
+
+def _copy(filename):
+  # AR: Wrap Android-specific shutil.copy() quirks. They seem to have a problem 
+  # setting the file access mode bits there, and shutil.copyfile() suffices 
+  # for the task at hand.
+
+  if not is_android:
+    shutil.copy(filename, filename+'.tmp')
+  else:
+    shutil.copyfile(filename+'.new', filename+'.tmp')
 
 
 
@@ -394,7 +414,7 @@ def do_rsync(serverpath, destdir, tempdir):
   # copy the files to the local dir...
   safe_log("[do_rsync] Updating files: " + str(updatedfiles))
   for filename in updatedfiles:
-    shutil.copy(tempdir+filename, destdir+filename)
+    _copy(tempdir+filename, destdir+filename)
     
   # done!   We updated the files
   return updatedfiles
@@ -793,12 +813,20 @@ def main():
       clientlist.remove('softwareupdater.py')
 
     # if the client software changed, let's update it!
+    # AR: On Android, the native app takes care of starting/restarting 
+    # the client and/or updater, depending on the exit code we return here.
     if clientlist != []:
-      restart_client(clientlist)
+      if not is_android:
+        restart_client(clientlist)
+      else:
+        sys.exit(200) # Native app should restart both client and updater
 
     # oh! I've changed too.   I should restart...   search for MUTEX for info
     if restartme:
-      restart_software_updater()
+      if not is_android:
+        restart_software_updater()
+      else:
+        sys.exit(201) # Native app should restart the updater
 
 
 

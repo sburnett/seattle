@@ -70,7 +70,6 @@ DISABLE_INSTALL = False
 # Specify the directory containing all seattle files.
 SEATTLE_FILES_DIR = os.path.realpath(".")
 
-
 # Import subprocess if not in WindowsCE
 subprocess = None
 if OS != "WindowsCE":
@@ -86,6 +85,8 @@ _winreg = None
 if OS == "Windows" or OS == "WindowsCE":
   import _winreg
 
+
+IS_ANDROID = False
 
 
 
@@ -2135,19 +2136,32 @@ def main():
   # Initialize the service logger.
   servicelogger.init('installInfo')
 
-  # Derek Cheng: if the user is running a Nokia N800 tablet, we require them
-  # to be on root first in order to have files created in the /etc/init.d and
-  # /etc/rc2.d directories. 
+  # This catches Nokias/Androids/iPhones/iPads
   if platform.machine().startswith('armv'):
-    _output('Seattle is being installed on a Nokia N800/900 Internet Tablet.')
-    # JAC: I can't import this on Windows, so will do it here...
-    import pwd
-    # if the current user name is not 'root'
-    if pwd.getpwuid(os.getuid())[0] != 'root':
-      _output('Please run the installer as root. This can be done by ' \
-                + 'installing/using the rootsh or openssh package.')
-      return
+    # AR: The Android installer is a GUI, stdout/stderr are redirected to files.
+    try:
+      import android
+      global IS_ANDROID
+      IS_ANDROID = True
+      sys.stdout = open('installerstdout.log', 'w')
+      sys.stderr = open('installerstderr.log', 'w')
+      _output('Seattle is being installed on an Android compatible handset.')
 
+    except ImportError:
+       pass
+
+     # Derek Cheng: if the user is running a Nokia N800 tablet, we require them
+     # to be on root first in order to have files created in the /etc/init.d and
+     # /etc/rc2.d directories. 
+     if IS_ANDROID == False:
+       _output('Seattle is being installed on a Nokia N800/900 Internet Tablet.')
+       # JAC: I can't import this on Windows, so will do it here...
+       import pwd
+       # if the current user name is not 'root'
+       if pwd.getpwuid(os.getuid())[0] != 'root':
+         _output('Please run the installer as root. This can be done by ' \
+                   + 'installing/using the rootsh or openssh package.')
+         return
 
   # Pre-install: process the passed-in arguments, and set up the configuration
   #   dictionary.
@@ -2264,9 +2278,12 @@ def main():
 
   # Everything has been installed, so start seattle and print concluding output
   # messages.
-  _output("Starting seattle...")
+  # AR: On Android, the native installer/app takes care of starting Seattle 
+  # after this script ends. (It collects our logs as well).
   try:
-    start_seattle()
+    if not IS_ANDROID:
+      _output("Starting seattle...")
+      start_seattle()
   except Exception,e:
     _output("seattle could not be started for the following reason: " + str(e))
     _output("Please contact the seattle project immediately for assistance.")
