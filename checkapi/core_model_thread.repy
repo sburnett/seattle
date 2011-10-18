@@ -1,0 +1,230 @@
+"""
+<Program Name>
+  core_model_thread.repy
+
+<Author>
+  Jeff Rasley
+  jeffra45@cs.washington.edu
+
+<Purpose>
+  Thread model for Repy Core Model. Used to model the following API calls:
+    createlock
+    lock_acquire
+    lock_release
+    createthread
+
+<Modified Model State>
+  * objects_max_id_list
+      createlock
+      createthread
+  * thread_lock_dict
+      createlock
+      lock_acquire
+      lock_release
+  * thread_blocked_threads
+      lock_acquire
+      lock_release
+"""
+
+
+
+
+def assert_thread_ok(threadname):
+  """
+  <Purpose>
+    Simple function to check if a unique thread name actually exists and is not
+    currently blocking.
+
+  <Arguments>
+    threadname
+      The unique thread name in question.
+
+  <Exceptions>
+    InternalModelError
+      If the thread in question is found to not exist or is blocking this error
+      will be raised.
+
+  <Side Effects>
+    None.
+
+  <Returns>
+    None.
+  """
+  if threadname != "MainThread":
+    assert THREAD_NAME_PREFIX in threadname, "Thread name should match %s" % \
+        THREAD_NAME_PREFIX
+    _, thread_num = threadname.split(THREAD_NAME_PREFIX)
+    maxid = mycontext['model_state']['objects_max_id_map'][THREAD_NAME_PREFIX]
+    if int(thread_num) >= maxid:
+      raise InternalModelError("Thread: %s referenced, does not exist!" % \
+          threadname)
+
+  if threadname in mycontext['model_state']['blocked_threads']:
+    raise InternalModelError("Thread: %s is currently blocked from running!" % \
+        threadname)
+
+
+
+
+def model_createthread(threadname, function):
+  """
+  <Purpose>
+    Creates a new thread of execution.
+
+  <Arguments>
+    function:
+      The function to invoke on entering the new thread.
+
+  <Exceptions>
+    RepyArgumentError is raised if the function is not callable.
+    ResourceExhaustedError is raised if there are no available events.
+
+  <Side Effects>
+    Launches a new thread.
+
+  <Resource Consumption>
+    Consumes an event.
+
+  <Returns>
+    None
+  """
+  # Check to ensure the calling thread is ok to run.
+  assert_thread_ok(threadname)
+
+  # Consult the oracle to see if we should let the function execute.
+  not_callable = RepyArgumentError("Provided function is not callable!")
+  resource_error = ResourceExhaustedError("Resource 'events' limit exceeded!!")
+  value, error = oracle_getter("None", [not_callable, resource_error])
+  if error != None:
+    raise error
+  
+  # Create a new thread name and add it to the active threads list.
+  new_thread_id = model_state_create_thread()
+
+  # Tattle an event to the resource manager.
+  #tattle_add_item('events', new_thread_id)
+
+  return new_thread_id
+
+
+
+
+def model_createlock(threadname):
+  """
+  <Purpose>
+    Returns a lock object to the user program. A lock object supports
+    two functions: acquire and release.
+
+  <Arguments>
+    None.
+
+  <Exceptions>
+    None.
+
+  <Side Effects>
+    None.
+
+  <Returns>
+    The lock object.
+  """
+
+  # Check to ensure thread is ok to run.
+  assert_thread_ok(threadname)
+
+  # Create new lock.
+  unique_lock_name = model_state_create_lock()
+
+  return unique_lock_name
+
+
+
+
+def model_lock_acquire(threadname, lockname, blocking):
+  """
+  <Purpose>
+    Acquires the lock.
+
+  <Arguments>
+    blocking:
+      If False, returns immediately instead of waiting to acquire the lock.
+
+  <Exceptions>
+    None.
+
+  <Side Effects>
+    If successful, locks the object which prevents other threads from 
+
+  <Returns>
+  True if the lock was acquired.
+  """
+
+  # Check to ensure thread is ok to run.
+  assert_thread_ok(threadname)
+
+  # Check to make sure the lock referenced was actually created.
+  model_state_assert_objid_against_max(lockname)
+
+  # If the valid lock name doesn't exist, it is not held...so grab it!
+  if lockname not in mycontext['model_state']['lock_info_dict']:
+    grabbed = model_state_acquire_lock(lockname, threadname)
+    assert grabbed, "We should have grabbed the lock."
+    return True
+
+  # A lock name exists, is it currently held by someone?
+  else:
+    held, blocked_list = mycontext['model_state']['lock_info_dict'][lockname]
+    if held is None:
+      grabbed = model_state_acquire_lock(lockname, threadname)
+      assert grabbed, "We should have grabbed the lock."
+      return True
+
+    # Someone is holding the lock, we will block if we continue.
+    else:
+      if blocking:
+        grabbed = model_state_acquire_lock(lockname, threadname)
+        assert not grabbed, "We shouldn't have the lock."
+        # Indicate to the caller that this thread is now blocked, by returning
+        # None instead of a boolean.
+        return None
+      else:
+        # We would block if we tried to grab the lock and we dont want that!
+        return False
+
+
+  
+
+def model_lock_release(threadname, lockname):
+  """
+  <Purpose>
+    Releases the lock.
+
+  <Arguments>
+    None
+
+  <Exceptions>
+    LockDoubleReleaseError if release is called on an unlocked lock.
+
+  <Side Effects>
+    Unlocks the object and puts any waiting threads back on the active 
+    threads list.
+
+  <Returns>
+    None
+  """
+
+  # Check to ensure thread is ok to run.
+  assert_thread_ok(threadname)
+
+  # Check to make sure the lock referenced was actually created.
+  model_state_assert_objid_against_max(lockname)
+    
+  # Make sure that the lock is actually held by someone.
+  try:
+    held, blocked_list = mycontext['model_state']['lock_info_dict'][lockname]
+    if held is None:
+      raise LockDoubleReleaseError("Releasing an un-locked lock!")
+  except KeyError:
+    raise LockDoubleReleaseError("Releasing an un-locked lock!")
+
+  model_state_release_lock(lockname)
+
