@@ -80,15 +80,15 @@ except ImportError:
   is_android = False
 
 
-def _copy(filename):
+def _copy(orig_filename, copy_filename):
   # AR: Wrap Android-specific shutil.copy() quirks. They seem to have a problem 
   # setting the file access mode bits there, and shutil.copyfile() suffices 
   # for the task at hand.
 
   if not is_android:
-    shutil.copy(filename, filename+'.tmp')
+    shutil.copy(orig_filename, copy_filename)
   else:
-    shutil.copyfile(filename+'.new', filename+'.tmp')
+    shutil.copyfile(filename, copy_filename)
 
 
 
