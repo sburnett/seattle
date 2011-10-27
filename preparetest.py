@@ -7,6 +7,7 @@
 
   Conrad Meyer, Thu Nov 26 2009: Move dynamic ports code from run_tests.py
   to preparetest.py.
+
 <Start Date>
   October 3, 2008
 
@@ -101,7 +102,7 @@ def exec_command(command):
   return (theout, theerr)
 
 
-helpstring = """python preparetest.py [-t] <foldername>"""
+helpstring = """python preparetest.py [-t -randombports -checkapi] <foldername>"""
 
 # Prints the given error message and the help string, then exits
 def help_exit(errMsg):
@@ -112,7 +113,8 @@ def help_exit(errMsg):
 def main():
   repytest = False
   RANDOMPORTS = False
-	
+  copy_checkapi = False
+
   target_dir = None
   for arg in sys.argv[1:]:
     # -t means we will copy repy tests
@@ -122,6 +124,9 @@ def main():
     # The user wants us to fill in the port numbers randomly.
     elif arg == '-randomports':
       RANDOMPORTS = True
+
+    elif arg == "-checkapi":
+      copy_checkapi = True
 
     # Not a flag? Assume it's the target directory
     else:
@@ -164,6 +169,10 @@ def main():
   copy_to_target("keydaemon/*", target_dir)
   # The license must be included in anything we distribute.
   copy_to_target("LICENSE.TXT", target_dir)
+
+  # CheckAPI source
+  if copy_checkapi:
+    copy_to_target("checkapi/*", target_dir)
   
   if repytest:
     # Only copy the tests if they were requested.
