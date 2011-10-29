@@ -41,6 +41,9 @@ import optparse
 
 import repyhelper #used to bring in NAT Layer
 
+# needed to log OS / python type
+import platform
+
 # I need to make a cachedir for repyhelper...
 if not os.path.exists('nodemanager.repyhelpercache'):
   os.mkdir('nodemanager.repyhelpercache')
@@ -412,6 +415,11 @@ def main():
       return
 
 
+
+  # Feature add for #1031: Log information about the system in the nm log...
+  servicelogger.log('[INFO]:platform.python_version(): "'+str(platform.python_version())+'"')
+  servicelogger.log('[INFO]:platform.platform(): "'+str(platform.platform())+'"')
+  servicelogger.log('[INFO]:platform.uname(): "'+str(platform.uname())+'"')
 
   # I'll grab the necessary information first...
   servicelogger.log("[INFO]:Loading config")
