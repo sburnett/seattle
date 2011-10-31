@@ -41,7 +41,7 @@ import optparse
 
 import repyhelper #used to bring in NAT Layer
 
-# needed to log OS / python type
+# needed to log OS type / Python version
 import platform
 
 # I need to make a cachedir for repyhelper...
@@ -417,9 +417,18 @@ def main():
 
 
   # Feature add for #1031: Log information about the system in the nm log...
-  servicelogger.log('[INFO]:platform.python_version(): "'+str(platform.python_version())+'"')
-  servicelogger.log('[INFO]:platform.platform(): "'+str(platform.platform())+'"')
-  servicelogger.log('[INFO]:platform.uname(): "'+str(platform.uname())+'"')
+  servicelogger.log('[INFO]:platform.python_version(): "' + 
+    str(platform.python_version())+'"')
+  servicelogger.log('[INFO]:platform.platform(): "' + 
+    str(platform.platform())+'"')
+
+  # uname on Android only yields 'Linux', let's be more specific.
+  try:
+    import android
+    servicelogger.log('[INFO]:platform.uname(): Android / "' + 
+      str(platform.uname())+'"')
+  except ImportError:
+    servicelogger.log('[INFO]:platform.uname(): "'+str(platform.uname())+'"')
 
   # I'll grab the necessary information first...
   servicelogger.log("[INFO]:Loading config")
