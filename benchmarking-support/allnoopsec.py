@@ -210,7 +210,7 @@ sec_file_def = {"obj-type":SecureFile,
                 "name":"SecureFile",
                 "readat":{TYPE:FUNC,ARGS:((int,long,type(None)),(int,long)),EXCP:Exception,RETURN:str,TARGET:SecureFile.readat},
                 "writeat":{TYPE:FUNC,ARGS:(str,(int,long)),EXCP:Exception,RETURN:None,TARGET:SecureFile.writeat},
-                "close":{TYPE:FUNC,ARGS:None,EXCP:None,RETURN:(bool,type(None)),TARGET:SecureFile.close}
+                "close":{TYPE:FUNC,ARGS:None,EXCP:Exception,RETURN:(bool,type(None)),TARGET:SecureFile.close}
                }
 
 def secure_openfile(filename, create):
