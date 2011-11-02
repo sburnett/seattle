@@ -374,6 +374,7 @@ def systolic_disambiguate_and_verify():
   status_okay = create_tree(sigma_list, mycontext['condition_dict'])
   if status_okay:
     clear_verification_globals()
-  write_str_to_log("VERIFIED\n")
+  if WRITE_OUT_TRACE:
+    write_str_to_log("VERIFIED\n")
   return status_okay
 
