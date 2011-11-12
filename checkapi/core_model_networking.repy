@@ -463,6 +463,10 @@ def model_udpserver_close(threadname, objid):
   if not open_status:
     return open_status
 
+  # Cleanup/close insocket.
+  identity = mycontext['model_state']['network_open_obj_identity_map'][objid]
+  tattle_remove_item('insockets', identity)
+
   # Close/remove object.
   model_state_close_net_obj(objid)
 
@@ -696,7 +700,9 @@ def model_socket_close(threadname, objid):
 
   # Grab identity and check if it's loopback.
   identity = mycontext['model_state']['network_open_obj_identity_map'][objid]
-  on_loopback = _is_loopback_ipaddr(identity[3])
+
+  # Cleanup/remove outsocket.
+  tattle_remove_item('outsockets',identity)
 
   # Close/remove object.
   model_state_close_net_obj(objid)
