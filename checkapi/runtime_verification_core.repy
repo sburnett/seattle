@@ -119,7 +119,7 @@ def log_finish_action(finish_tuple, start_action_number):
   mycontext['finished_actions'].append(start_action_number)
   if WRITE_OUT_TRACE:
     write_out_action(finish_tuple, start_action_number)
-
+  return finish_action_number
 
 
 
@@ -155,6 +155,12 @@ def exec_model_impl(fnc_name, threadname, model_func, impl_func, args_list, obj_
   mycontext['action_lock'].acquire(True)
   start_tuple = (fnc_name, 'start', threadname, obj_id, tuple(args_list), model_func)
   start_action_number = log_start_action(start_tuple)
+  finish_action_number = None
+  if fnc_name == "createthread":
+    # Assume createthread finished just fine. This way a finish action will be 
+    # logged, so that it can create a new threadid in the model.
+    finish_tuple = (fnc_name, 'finish', threadname, obj_id, tuple([None, None]), None)
+    finish_action_number = log_finish_action(finish_tuple, start_action_number)
   mycontext['action_lock'].release()
 
   # Execute in the implementation.
@@ -171,14 +177,20 @@ def exec_model_impl(fnc_name, threadname, model_func, impl_func, args_list, obj_
 
   # Log finish action.
   mycontext['action_lock'].acquire(True)
-  finish_tuple = (fnc_name, 'finish', threadname, obj_id, tuple([impl_ret, impl_error]), None)
-  log_finish_action(finish_tuple, start_action_number)
+  if fnc_name != "createthread":
+    finish_tuple = (fnc_name, 'finish', threadname, obj_id, tuple([impl_ret, impl_error]), None)
+    log_finish_action(finish_tuple, start_action_number)
+  elif impl_error != None and finish_action_number != None:
+    # We assumed wrong, there was an error. Patch up trace with what actually happended.
+    finish_tuple = mycontext['trace_dict'][finish_action_number]
+    num, fnc_name1, finish1, threadname1, obj_id1, ret_tuple, none = finish_tuple
+    new_finish_tuple = (num, fnc_name1, finish1, threadname1, obj_id1, tuple([impl_ret, impl_error]), none)
+    mycontext['trace_dict'][finish_action_number] = new_finish_tuple
 
   # Done with basics, should we verify and/or return?
   try:
     if len(mycontext['trace_dict']) > SYSTOLIC_LEVELS:
       status_okay = systolic_disambiguate_and_verify()
-
       if not status_okay:
         for fail in mycontext['failure_messages']: log(fail,'\n')
         for action_num in mycontext['trace_dict']: log(mycontext['trace_dict'][action_num], '\n')
