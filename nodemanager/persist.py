@@ -88,7 +88,7 @@ def _copy(orig_filename, copy_filename):
   if not is_android:
     shutil.copy(orig_filename, copy_filename)
   else:
-    shutil.copyfile(filename, copy_filename)
+    shutil.copyfile(orig_filename, copy_filename)
 
 
 
