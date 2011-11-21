@@ -243,6 +243,19 @@ def run_benchmark(logfileobj):
     try:
       import Linux_resources
       max_resource_dict = Linux_resources.measure_resources()
+      try:
+        import android
+        is_android = True
+        import os
+        # Use environmental variables to pass data from Java->Python on Android
+        cores = long(os.environ.get('SEATTLE_AVAILABLE_CORES', 0))
+        if cores > 0:
+          max_resource_dict["cpu"] = cores
+        diskused = long(os.environ.get('SEATTLE_AVAILABLE_SPACE', 0))
+        if diskused > 0:
+          max_resource_dict["diskused"] = diskused
+      except ImportError:
+        is_android = False
     except Exception:
       log_failure("Failed to benchmark Linux OS.", logfileobj)
       exceptionType, exceptionValue, exceptionTraceback = sys.exc_info()
@@ -323,13 +336,6 @@ def run_benchmark(logfileobj):
     print "The above benchmarking error(s) occurred."
     print "If you choose to continue anyways then default values will be " + \
                     "used for failed benchmarks."
-
-    # AR: Detect Android -- we'll display a GUI dialog in case of errors.
-    try:
-      import android
-      is_android = True
-    except ImportError:
-      is_android = False
 
     if not is_android:
       continue_install = prompt_user("Continue with installation? (yes/no) ")
