@@ -2148,20 +2148,20 @@ def main():
       _output('Seattle is being installed on an Android compatible handset.')
 
     except ImportError:
-       pass
+      IS_ANDROID = False
 
-     # Derek Cheng: if the user is running a Nokia N800 tablet, we require them
-     # to be on root first in order to have files created in the /etc/init.d and
-     # /etc/rc2.d directories. 
-     if IS_ANDROID == False:
-       _output('Seattle is being installed on a Nokia N800/900 Internet Tablet.')
-       # JAC: I can't import this on Windows, so will do it here...
-       import pwd
-       # if the current user name is not 'root'
-       if pwd.getpwuid(os.getuid())[0] != 'root':
-         _output('Please run the installer as root. This can be done by ' \
-                   + 'installing/using the rootsh or openssh package.')
-         return
+    # Derek Cheng: if the user is running a Nokia N800 tablet, we require them
+    # to be on root first in order to have files created in the /etc/init.d and
+    # /etc/rc2.d directories. 
+    if IS_ANDROID == False:
+      _output('Seattle is being installed on a Nokia N800/900 Internet Tablet.')
+      # JAC: I can't import this on Windows, so will do it here...
+      import pwd
+      # if the current user name is not 'root'
+      if pwd.getpwuid(os.getuid())[0] != 'root':
+        _output('Please run the installer as root. This can be done by ' \
+                  + 'installing/using the rootsh or openssh package.')
+        return
 
   # Pre-install: process the passed-in arguments, and set up the configuration
   #   dictionary.
