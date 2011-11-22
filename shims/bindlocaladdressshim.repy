@@ -63,38 +63,6 @@ class BindLocalAddressShim(BaseShim):
 
 
 
-
-  def listenforconnection(self, localip, localport):
-    """
-    <Purpose>
-      If a different localip and port has been specified, then 
-      we want to bind to the alternate IP:Port rather then the
-      one called on by the application layer.
-
-    <Arguments>
-      Same as the RepyV2 api.
-
-    <Side Effects>
-      None
-
-    <Exceptions>
-      Same as the RepyV2 api.
-
-    <Return>
-      A TCPServerSocket
-    """
-
-    # Check if an alternate localip and port has been specified
-    if self.bind_localip and self.bind_localport:
-      next_layer_sock = self.get_next_shim_layer().listenforconnection(self.bind_localip, self.bind_localport)
-    else:
-      next_layer_sock = self.get_next_shim_layer().listenforconnection(localip, localport)
-
-    return ShimTCPServerSocket(next_layer_sock, self)
-
-
-
-
   def openconnection(self, destip, destport, localip, localport, timeout):
     """
     <Purpose>
@@ -117,7 +85,7 @@ class BindLocalAddressShim(BaseShim):
 
     # Check if an alternate localip and port has been specified
     if self.bind_localip and self.bind_localport:
-      next_sockobj = self.get_next_shim_layer().openconnection(self.bind_localip, self.bind_localport, localip, localport, timeout)
+      next_sockobj = self.get_next_shim_layer().openconnection(destip, destport, self.bind_localip, self.bind_localport, timeout)
     else:
       next_sockobj = self.get_next_shim_layer().openconnection(destip, destport, localip, localport, timeout)
 
@@ -144,14 +112,8 @@ class BindLocalAddressShim(BaseShim):
 
   def get_advertisement_string(self):
     """
-    The BindLocalAddressShim will advertise the particular local shim it
-    is binding to. This way if the server binds to an alternate ip:port
-    the client is still able to connect to it.
+    The BindLocalAddressShim is an one sided shim, so it does not need
+    to advertise itself.
     """
 
-    if self.bind_localip and self.bind_localport:
-      ad_string = "(BindLocalAddressShim,%s:%d)" % (self.bind_localip, self.bind_localport)
-    else:
-      ad_string = "(BindLocalAddressShim)"
-
-    return ad_string + self.get_next_shim_layer().get_advertisement_string() 
+    return self.get_next_shim_layer().get_advertisement_string() 

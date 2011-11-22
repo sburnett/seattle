@@ -3,11 +3,11 @@ dy_import_module_symbols("testgeneralshim_helper")
 # Choose a random ip address and use BindLocalAddressShim to change to 
 # the correct ip address, and it should work.
 
-SERVER_IP = "145.65.8.245"
-SERVER_PORT = 72689
+CLIENT_IP = "145.65.8.245"
+CLIENT_PORT = 72689
 
-SERVER_SHIM_STRING = "(CoordinationShim)(BindLocalAddressShim,%s:%d)" % (getmyip(), 34256)
-CLIENT_SHIM_STRING = "(CoordinationShim)"
+SERVER_SHIM_STRING = "(NoopShim)"
+CLIENT_SHIM_STRING = "(BindLocalAddressShim,%s:%d)" % (getmyip(), 34256)
 
 
 # Test data size of 10 MB
