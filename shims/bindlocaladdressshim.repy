@@ -1,0 +1,157 @@
+#!python
+"""
+<Program Name>
+  bindlocaladdressshim.repy
+
+<Author>
+  Monzur Muhammad
+  monzum@cs.washington.edu
+
+<Date Started>
+  November 22nd, 2011.
+
+<Purpose>
+  The purpose of this shim is to bind a socket to an alternate
+  address then the one that is called by the application. An
+  example when this would be useful would be when we want to 
+  bind to a local ip address that is associated with a different
+  network interface then the local interface. For example if you
+  want to bind to the wifi network card instead of the ethernet.
+"""
+
+class BindLocalAddressShim(BaseShim):
+
+  def __init__(self, shim_stack, optional_args=None):
+    """
+    <Purpose>
+      Initialize the BindLocalAddressShim.
+
+    <Arguments>
+      shim_stack - This is the shim stack that lies
+        beneath this particular shim.
+
+      optional_args - If provided, this should contain one
+        string that has the ip address and port we want to
+        bind to in the format IP:Port
+   
+    <Side Effects>
+      None
+
+    <Exceptions>
+      Exception raised if optional arguments provided is of
+      the wrong format.
+    """
+
+    # Check if optional arguments are provided.
+    if optional_args:
+      assert(isinstance(optional_args, list))
+      assert(len(optional_args) == 1), "Bad optional args. Optional arg must contain one value. (IP:Port)"
+
+      try:
+        localip, localport = optional_args[0].split(':')
+      except ValueError:
+        raise ShimInternalError("Optional arg provided is not of valid format. Must be IP:Port")
+
+      self.bind_localip = localip
+      self.bind_localport = int(localport)
+    else:
+      self.bind_localip = None
+      self.bind_localport = None
+
+    BaseShim.__init__(self, shim_stack, optional_args)
+
+
+
+
+
+  def listenforconnection(self, localip, localport):
+    """
+    <Purpose>
+      If a different localip and port has been specified, then 
+      we want to bind to the alternate IP:Port rather then the
+      one called on by the application layer.
+
+    <Arguments>
+      Same as the RepyV2 api.
+
+    <Side Effects>
+      None
+
+    <Exceptions>
+      Same as the RepyV2 api.
+
+    <Return>
+      A TCPServerSocket
+    """
+
+    # Check if an alternate localip and port has been specified
+    if self.bind_localip and self.bind_localport:
+      next_layer_sock = self.get_next_shim_layer().listenforconnection(self.bind_localip, self.bind_localport)
+    else:
+      next_layer_sock = self.get_next_shim_layer().listenforconnection(localip, localport)
+
+    return ShimTCPServerSocket(next_layer_sock, self)
+
+
+
+
+  def openconnection(self, destip, destport, localip, localport, timeout):
+    """
+    <Purpose>
+      If a different localip and port has been specified, then 
+      we want to use to the alternate IP:Port of the server to 
+      connect.
+
+    <Arguments>
+      Same as the RepyV2 api.
+
+    <Side Effects>
+      None
+
+    <Exceptions>
+      Same as the RepyV2 api.
+
+    <Return>
+      A TCPServerSocket
+    """
+
+    # Check if an alternate localip and port has been specified
+    if self.bind_localip and self.bind_localport:
+      next_sockobj = self.get_next_shim_layer().openconnection(self.bind_localip, self.bind_localport, localip, localport, timeout)
+    else:
+      next_sockobj = self.get_next_shim_layer().openconnection(destip, destport, localip, localport, timeout)
+
+    return ShimSocket(next_sockobj, self)
+
+
+
+
+  # ============================================
+  # Required Public Functions                  
+  # ============================================
+
+  def copy(self):
+    """
+    Make a copy of self.
+    """
+    shim_stack_copy = self.shim_context['shim_stack'].copy()
+    optional_args_copy = self.shim_context['optional_args']
+
+    my_copy = BindLocalAddressShim(shim_stack_copy, optional_args_copy)
+    return my_copy
+
+
+
+  def get_advertisement_string(self):
+    """
+    The BindLocalAddressShim will advertise the particular local shim it
+    is binding to. This way if the server binds to an alternate ip:port
+    the client is still able to connect to it.
+    """
+
+    if self.bind_localip and self.bind_localport:
+      ad_string = "(BindLocalAddressShim,%s:%d)" % (self.bind_localip, self.bind_localport)
+    else:
+      ad_string = "(BindLocalAddressShim)"
+
+    return ad_string + self.get_next_shim_layer().get_advertisement_string() 
