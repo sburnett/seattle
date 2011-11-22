@@ -41,7 +41,6 @@ def action_exitall():
  
   finally:
     mycontext['action_lock'].release()
-    print_calctime_info() 
     
   # Everything is ok, we can now call the real exitall()!
   exitall() 
