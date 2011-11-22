@@ -24,10 +24,33 @@ def action_randombytes():
   return exec_model_impl(fnc_name, getthreadname(), model_func, impl_func, args_list)
 
 
+################## EG: exitall action ##################
+def action_exitall():
+  
+  # EG:
+  mycontext['action_lock'].acquire(True)
+
+  try:
+    status_okay = systolic_disambiguate_and_verify()
+    if not status_okay:
+      for fail in mycontext['failure_messages']: 
+        log(fail,'\n')
+      for action_num in mycontext['trace_dict']: 
+        log(mycontext['trace_dict'][action_num], '\n')
+      raise ModelConformanceFailure("Could not find a valid serialization!")
+ 
+  finally:
+    mycontext['action_lock'].release()
+    print_calctime_info() 
+    
+  # Everything is ok, we can now call the real exitall()!
+  exitall() 
+
 
 
 ################## wrap all misc calls ##################
 def wrap_misc():
   CHILD_CONTEXT["randombytes"] = action_randombytes
-
+  # EG: 
+  CHILD_CONTEXT["exitall"] = action_exitall
 
