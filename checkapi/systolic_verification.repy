@@ -171,7 +171,6 @@ def _verify_model_impl_values(fnc_name, model_ret, impl_ret):
   # Check for conformance failures.
   if fnc_name in OBJ_CREATE_CALLS_DICT:
     
-    # TODO: If this is false, we still return true, wtf?
     if impl_ret == model_ret:
       return True
 
@@ -203,14 +202,18 @@ def _verify_model_impl_values(fnc_name, model_ret, impl_ret):
         error_str += str(model_ret) + ", " + str(impl_ret) + '\n'
         mycontext['failure_messages'].append(error_str)
         return False
-      
+  
     elif not isinstance(model_ret, str) or not _is_model_object(impl_ret):
       error_str = fnc_name + " action does not return correct types. The model should "
       error_str += "return a string and the impl should return a ModelObject. "
       error_str += str(model_ret) + ", " + str(impl_ret) + '\n'
       mycontext['failure_messages'].append(error_str)
       return False
-    
+
+    else:
+      # All is well!
+      return True
+        
   elif fnc_name == "createthread":
     # TODO: Special circumstance, since createthread in the model returns a new 
     # threadid, it is different than the impl that returns nothing. This can be 
@@ -367,12 +370,29 @@ def clear_verification_globals():
 
 
 
-# The main function that starts the systolic verification of the current in-memory 
-# trace. In the normal CheckAPI case it is called from runtime_verification_core.
 def systolic_disambiguate_and_verify():
   sigma_list = mycontext['start_finish_map'].keys()  
   status_okay = create_tree(sigma_list, mycontext['condition_dict'])
+  #write_str_to_log("*VERIFIED*\n")
   if status_okay:
     clear_verification_globals()
   return status_okay
+
+
+
+# The main function that starts the systolic verification of the current in-memory 
+# trace. In the normal CheckAPI case it is called from runtime_verification_core.
+def systolic_verify(force=False):
+  """
+  NOTE: This call must be wrapped around a try/finally action_lock. If you 
+    don't care about the trace length or any pending calls set force=True.
+  """
+  if force or (len(mycontext['trace_dict']) / 2 > SYSTOLIC_LEVELS and mycontext['special_pending_calls'] == 0):
+    status_okay = systolic_disambiguate_and_verify()
+    if not status_okay:
+      for fail in mycontext['failure_messages']: 
+        log(fail,'\n')
+      for action_num in mycontext['trace_dict']: 
+        log(mycontext['trace_dict'][action_num], '\n')
+      raise ModelConformanceFailure("Could not find a valid serialization!")
 

@@ -26,23 +26,14 @@ def action_randombytes():
 
 ################## EG: exitall action ##################
 def action_exitall():
-  
   # EG:
   mycontext['action_lock'].acquire(True)
-
   try:
-    status_okay = systolic_disambiguate_and_verify()
-    if not status_okay:
-      for fail in mycontext['failure_messages']: 
-        log(fail,'\n')
-      for action_num in mycontext['trace_dict']: 
-        log(mycontext['trace_dict'][action_num], '\n')
-      raise ModelConformanceFailure("Could not find a valid serialization!")
- 
+    systolic_verify(force=True)
   finally:
     mycontext['action_lock'].release()
-    
-  # Everything is ok, we can now call the real exitall()!
+
+  # Everything is ok, we can now call the real exitall!
   exitall() 
 
 

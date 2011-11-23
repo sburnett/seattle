@@ -59,10 +59,6 @@ def assert_thread_ok(threadname):
       raise InternalModelError("Thread: %s referenced, does not exist!" % \
           threadname)
 
-  if threadname in mycontext['model_state']['blocked_threads']:
-    raise InternalModelError("Thread: %s is currently blocked from running!" % \
-        threadname)
-
 
 
 
@@ -161,37 +157,26 @@ def model_lock_acquire(threadname, lockname, blocking):
   # Check to ensure thread is ok to run.
   assert_thread_ok(threadname)
 
-  # Check to make sure the lock referenced was actually created.
+  # Check to make sure the lock referenced was actually created at some point.
   model_state_assert_objid_against_max(lockname)
 
-  # If the valid lock name doesn't exist, it is not held...so grab it!
-  if lockname not in mycontext['model_state']['lock_info_dict']:
-    grabbed = model_state_acquire_lock(lockname, threadname)
-    assert grabbed, "We should have grabbed the lock."
+  lock_is_held = lockname in mycontext['model_state']['held_locks_set']
+
+  # If the lock is already held and the user wanted to block, we have a problem.
+  if lock_is_held and blocking:
+    raise InternalModelError("Lock is already held, this should not happen.")
+
+  # Would block if executed, user didn't want to block.
+  elif lock_is_held and not blocking:
+    return False
+
+  # Grab lock!
+  else:
+    model_state_acquire_lock(lockname)
     return True
 
-  # A lock name exists, is it currently held by someone?
-  else:
-    held, blocked_list = mycontext['model_state']['lock_info_dict'][lockname]
-    if held is None:
-      grabbed = model_state_acquire_lock(lockname, threadname)
-      assert grabbed, "We should have grabbed the lock."
-      return True
-
-    # Someone is holding the lock, we will block if we continue.
-    else:
-      if blocking:
-        grabbed = model_state_acquire_lock(lockname, threadname)
-        assert not grabbed, "We shouldn't have the lock."
-        # Indicate to the caller that this thread is now blocked, by returning
-        # None instead of a boolean.
-        return None
-      else:
-        # We would block if we tried to grab the lock and we dont want that!
-        return False
-
-
   
+
 
 def model_lock_release(threadname, lockname):
   """
@@ -217,14 +202,9 @@ def model_lock_release(threadname, lockname):
 
   # Check to make sure the lock referenced was actually created.
   model_state_assert_objid_against_max(lockname)
-    
-  # Make sure that the lock is actually held by someone.
-  try:
-    held, blocked_list = mycontext['model_state']['lock_info_dict'][lockname]
-    if held is None:
-      raise LockDoubleReleaseError("Releasing an un-locked lock!")
-  except KeyError:
+
+  if lockname not in mycontext['model_state']['held_locks_set']:
     raise LockDoubleReleaseError("Releasing an un-locked lock!")
 
-  model_state_release_lock(lockname)
-
+  else:
+    model_state_release_lock(lockname)

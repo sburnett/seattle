@@ -20,8 +20,8 @@
   dealing with concurrency.
 '''
 
-mycontext['obj_id_lock'] = createlock()
 mycontext['obj_id_count'] = 0
+mycontext['special_pending_calls'] = 0
 
 # API calls that return an object, this is used to match the API call with its
 # corresponding model wrapper object.
@@ -39,11 +39,8 @@ def _generate_new_obj_id():
   """
   Generates a unique object id
   """
-  mycontext['obj_id_lock'].acquire(True)
   mycontext['obj_id_count'] += 1
-  new_id = "obj" + str(mycontext['obj_id_count'])
-  mycontext['obj_id_lock'].release()
-  return new_id
+  return "obj" + str(mycontext['obj_id_count'])
 
 
   
@@ -156,19 +153,21 @@ def exec_model_impl(fnc_name, threadname, model_func, impl_func, args_list, obj_
   start_tuple = (fnc_name, 'start', threadname, obj_id, tuple(args_list), model_func)
   start_action_number = log_start_action(start_tuple)
   finish_action_number = None
-  if fnc_name == "createthread":
-    # Assume createthread finished just fine. This way a finish action will be 
-    # logged, so that it can create a new threadid in the model.
-    finish_tuple = (fnc_name, 'finish', threadname, obj_id, tuple([None, None]), None)
-    finish_action_number = log_finish_action(finish_tuple, start_action_number)
   mycontext['action_lock'].release()
+
+  if fnc_name in ["lock_release", "createthread"]:
+    mycontext['special_pending_calls'] += 1
 
   # Execute in the implementation.
   impl_ret = impl_error = None
   try:
     impl_ret = impl_func(*args_list)
   except RepyException, impl_error:
+    # Any other exception is a problem with the API.
     pass
+
+  # Grab lock to log finish details.
+  mycontext['action_lock'].acquire(True)
 
   # If the function returned an object, we must store a mapping from an impl 
   # unique object id to a model object id.
@@ -176,26 +175,16 @@ def exec_model_impl(fnc_name, threadname, model_func, impl_func, args_list, obj_
     impl_ret = _wrap_and_store_object(fnc_name, impl_ret)
 
   # Log finish action.
-  mycontext['action_lock'].acquire(True)
-  if fnc_name != "createthread":
-    finish_tuple = (fnc_name, 'finish', threadname, obj_id, tuple([impl_ret, impl_error]), None)
-    log_finish_action(finish_tuple, start_action_number)
-  elif impl_error != None and finish_action_number != None:
-    # We assumed wrong, there was an error. Patch up trace with what actually happended.
-    finish_tuple = mycontext['trace_dict'][finish_action_number]
-    num, fnc_name1, finish1, threadname1, obj_id1, ret_tuple, none = finish_tuple
-    new_finish_tuple = (num, fnc_name1, finish1, threadname1, obj_id1, tuple([impl_ret, impl_error]), none)
-    mycontext['trace_dict'][finish_action_number] = new_finish_tuple
+  finish_tuple = (fnc_name, 'finish', threadname, obj_id, tuple([impl_ret, impl_error]), None)
+  log_finish_action(finish_tuple, start_action_number)
 
-  # Done with basics, should we verify and/or return?
+  if fnc_name in ["lock_release", "createthread"]:
+    mycontext['special_pending_calls'] -= 1
+
+  # Done with basics, verify if necessary.
   try:
-    if len(mycontext['trace_dict']) > SYSTOLIC_LEVELS:
-      status_okay = systolic_disambiguate_and_verify()
-      if not status_okay:
-        for fail in mycontext['failure_messages']: log(fail,'\n')
-        for action_num in mycontext['trace_dict']: log(mycontext['trace_dict'][action_num], '\n')
-        raise ModelConformanceFailure("Could not find a valid serialization!")
-
+    systolic_verify()
+ 
     # We are done, return or raise to caller!
     if impl_error != None:
       raise impl_error

@@ -33,9 +33,7 @@ mycontext['model_state']['file_obj_map'] = {}
 
 mycontext['model_state']['open_files_list'] = []
 
-mycontext['model_state']['lock_info_dict'] = {}
-
-mycontext['model_state']['blocked_threads'] = []
+mycontext['model_state']['held_locks_set'] = set([])
 
 mycontext['model_state']['resource_restriction_table'] = {}
 
@@ -139,23 +137,10 @@ def model_state_remove_file(filename):
 
 
 
-def model_state_acquire_lock(objid, newthread):
-  lock_grabbed = False
-  if objid not in mycontext['model_state']['lock_info_dict']:
-    model_state_assert_objid_against_max(objid)
-    mycontext['model_state']['lock_info_dict'][objid] = (None, [])
-  
-  held, blocked_list = mycontext['model_state']['lock_info_dict'][objid]
-  if held is None:
-    assert len(blocked_list) == 0, "There should not be any blocked threads."
-    mycontext['model_state']['lock_info_dict'][objid] = (newthread, [])
-    lock_grabbed = True
-  else:
-    blocked_list.append(newthread)
-    mycontext['model_state']['blocked_threads'].append(newthread)
-    mycontext['model_state']['lock_info_dict'][objid] = (held, blocked_list)
+def model_state_acquire_lock(objid):
+  assert objid not in mycontext['model_state']['held_locks_set']
+  mycontext['model_state']['held_locks_set'].add(objid)
 
-  return lock_grabbed
 
 
 
@@ -168,19 +153,8 @@ def model_state_create_lock():
 
 
 def model_state_release_lock(objid):
-  model_state_assert_objid_against_max(objid)
-  assert objid in mycontext['model_state']['lock_info_dict'], "Trying to " + \
-      "release a lock that doesn't exist!"
-  held_thread, blocked_list = mycontext['model_state']['lock_info_dict'][objid]
-
-  assert held_thread != None, "The lock should be held by someone!"
-  if len(blocked_list) > 0:
-    held = blocked_list.pop(0)
-    mycontext['model_state']['lock_info_dict'][objid] = (held, blocked_list)
-    mycontext['model_state']['blocked_threads'].remove(held)
-  else:
-    # If there's no one blocked, get rid of the lock info.
-    del mycontext['model_state']['lock_info_dict'][objid]
+  assert objid in mycontext['model_state']['held_locks_set']
+  mycontext['model_state']['held_locks_set'].remove(objid)
 
 
 

@@ -71,10 +71,7 @@ def model_exitall(threadname):
 
   # Check to ensure thread is ok to run.
   assert_thread_ok(threadname)
-
-  # Exit the model.
-  #sys.exit()
-
+  # NOT MODELED
 
 
 
@@ -99,7 +96,4 @@ def model_getlasterror(threadname):
 
   # Check to ensure thread is ok to run.
   assert_thread_ok(threadname)
-
-  # TODO: Not really sure how to model this. It sounds like we can 
-  # disregard it for the model.
-  return None
+  # NOT MODELED

@@ -181,7 +181,6 @@ def model_openfile(threadname, filename, create):
 
   except RepyException:
     # Remove the open file that was tattled.
-    # TODO: FIX ME! We did not actually open a new file
     tattle_remove_item('filesopened', filename)
     raise
 
@@ -405,8 +404,6 @@ def model_file_writeat(threadname, objid, data, offset):
    <Returns>
     Nothing
   """
-  # TODO: This is where I left off!
-
   # Check to ensure thread is ok to run.
   assert_thread_ok(threadname)
 
