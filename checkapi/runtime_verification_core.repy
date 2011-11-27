@@ -64,7 +64,17 @@ def _wrap_and_store_object(fnc_name, impl_obj):
   else:
     # Create new wrapper object.
     return OBJ_CREATE_CALLS_DICT[fnc_name](impl_obj, impl_obj_id)
-    
+
+
+
+
+def _get_obj_id(fnc_name, impl_obj):
+  if fnc_name == "tcpserver_getconnection":
+    ip, port, socket_obj = impl_obj
+    return (ip, port, socket_obj.implid)
+  else:
+    return impl_obj.implid
+
 
 
 
@@ -95,7 +105,6 @@ def log_start_action(start_tuple):
   mycontext['trace_dict'][start_action_number] = start_tuple
   mycontext['pending_actions'].append(start_action_number)
   # Generate condition dictionary for later disambiguation.
-  #mycontext['condition_dict'][start_action_number] = set(mycontext['start_finish_map'].keys())
   mycontext['condition_dict'][start_action_number] = set(mycontext['finished_actions'])
   if WRITE_OUT_TRACE:
     write_out_action(start_tuple)
@@ -105,6 +114,14 @@ def log_start_action(start_tuple):
 
 
 def log_finish_action(finish_tuple, start_action_number):
+  fnc_name, finish, threadname, obj_id, return_val_tuple, modelfnc = finish_tuple
+  impl_ret, impl_exp = return_val_tuple
+
+  # If we are dealing with an object, only log its object id.
+  if fnc_name in OBJ_CREATE_CALLS_DICT and is_model_object(impl_ret):
+    impl_obj_id = _get_obj_id(fnc_name, impl_ret)
+    finish_tuple = (fnc_name, finish, threadname, obj_id, tuple([impl_obj_id, impl_exp]), modelfnc)
+
   mycontext['action_num'] += 1
   finish_action_number = mycontext['action_num'] 
   finish_tuple = (finish_action_number,) + finish_tuple
@@ -173,7 +190,7 @@ def exec_model_impl(fnc_name, threadname, model_func, impl_func, args_list, obj_
   # unique object id to a model object id.
   if impl_error == None and fnc_name in OBJ_CREATE_CALLS_DICT:
     impl_ret = _wrap_and_store_object(fnc_name, impl_ret)
-
+ 
   # Log finish action.
   finish_tuple = (fnc_name, 'finish', threadname, obj_id, tuple([impl_ret, impl_error]), None)
   log_finish_action(finish_tuple, start_action_number)

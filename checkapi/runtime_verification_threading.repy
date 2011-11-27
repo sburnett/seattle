@@ -29,6 +29,9 @@ class MBTLock(ModelObject):
     self.realobj = realobj
     self.implid = implid
 
+
+
+
   def acquire(self, blocking):
     if not ENABLE_LOCK_VERIF: 
       return self.realobj.acquire(blocking)
@@ -39,6 +42,9 @@ class MBTLock(ModelObject):
     obj_id = self.implid
     return exec_model_impl(fnc_name, getthreadname(), model_func, impl_func, args_list, obj_id, self)
 
+
+
+
   def release(self):
     if not ENABLE_LOCK_VERIF:
       return self.realobj.release()
@@ -48,6 +54,14 @@ class MBTLock(ModelObject):
     args_list = []
     obj_id = self.implid
     return exec_model_impl(fnc_name, getthreadname(), model_func, impl_func, args_list, obj_id, self)
+
+
+
+
+  def __del__(self):
+    mycontext['dead_object_ids'].append(self.implid)
+
+
 
 
 ############### Create Lock Action ###############

@@ -106,8 +106,8 @@ def assert_value_okay(cond_regex, value):
     
   elif special_regex.startswith("OBJ"):
     # Not sure what to do with an object here...
-    if not _is_model_object(value):
-      error_str = "The object returned by the implementation was not a ShimSocketWrapper."
+    if not isinstance(value, str): #is_model_object(value):
+      error_str = "The object returned by the implementation was not an object. " + str(type(value))
       raise ModelConformanceFailure(error_str)
       
   elif special_regex.startswith("TUPLE"):

@@ -39,6 +39,14 @@ mycontext['failure_messages'] = []
 mycontext['setter_getter_value'] = (None, None)
 
 
+# Maps unique object implemention ids to model ids.
+mycontext['translate_ids'] = {}
+
+# Once an object is no longer used we can remove the translate it. They are 
+# cleaned up by the systolic verification clear_verification_globals function.
+mycontext['dead_object_ids'] = []
+
+
 # All wrapper objects inherity from this type.
 class ModelObject(object):
   """
@@ -54,9 +62,6 @@ if not CHECKAPI_FOR_SHIMS:
     ShimSocketWrapper is for compatability reasons.
     """
     pass
-
-
-mycontext['translate_ids'] = {}
 
 
 def get_global_state_dict():

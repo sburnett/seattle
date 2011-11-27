@@ -26,7 +26,7 @@ def _trim_str_if_needed(arg):
 
 
 def _convert_arg_to_str(arg):
-    if _is_model_object(arg):
+    if is_model_object(arg):
         arg = repr(arg).replace('<.', '', 1)
         i = arg.find(" instance at 0x")
         k = arg.find(" object at 0x")

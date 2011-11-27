@@ -22,6 +22,7 @@ class MBTTCPServer(ModelObject):
   def __init__(self, realobj, implid):
     self.realobj = realobj
     self.implid = implid
+    self.closed = False
 
 
 
@@ -43,7 +44,18 @@ class MBTTCPServer(ModelObject):
     impl_func = self.realobj.close
     args_list = []
     obj_id = self.implid
-    return exec_model_impl(fnc_name, getthreadname(), model_func, impl_func, args_list, obj_id, self)
+    retval = exec_model_impl(fnc_name, getthreadname(), model_func, impl_func, args_list, obj_id, self)
+    self.closed = True
+    return retval
+
+
+
+
+  def __del__(self):
+    if not self.closed:
+      self.close()
+    mycontext['dead_object_ids'].append(self.implid)
+    
 
   
 
@@ -64,6 +76,7 @@ class MBTSocket(ModelObject):
   def __init__(self, realobj, implid):
     self.realobj = realobj
     self.implid = implid
+    self.closed = False
 
 
 
@@ -94,7 +107,17 @@ class MBTSocket(ModelObject):
     impl_func = self.realobj.close
     args_list = []
     obj_id = self.implid
-    return exec_model_impl(fnc_name, getthreadname(), model_func, impl_func, args_list, obj_id, self)
+    retval = exec_model_impl(fnc_name, getthreadname(), model_func, impl_func, args_list, obj_id, self)
+    self.closed = True
+    return retval
+
+
+
+
+  def __del__(self):
+    if not self.closed:
+      self.close()
+    mycontext['dead_object_ids'].append(self.implid)
 
 
 
@@ -115,6 +138,7 @@ class MBTUDPServer(ModelObject):
   def __init__(self, realobj, implid):
     self.realobj = realobj
     self.implid = implid
+    self.closed = False
 
 
 
@@ -136,7 +160,17 @@ class MBTUDPServer(ModelObject):
     impl_func = self.realobj.close
     args_list = []
     obj_id = self.implid
-    return exec_model_impl(fnc_name, getthreadname(), model_func, impl_func, args_list, obj_id, self)
+    retval = exec_model_impl(fnc_name, getthreadname(), model_func, impl_func, args_list, obj_id, self)
+    self.closed = True
+    return retval
+
+
+
+
+  def __del__(self):
+    if not self.closed:
+      self.close()
+    mycontext['dead_object_ids'].append(self.implid)
 
 
     

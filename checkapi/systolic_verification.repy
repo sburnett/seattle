@@ -45,7 +45,13 @@ class ActionNode(object):
 
 
 
-def _is_model_object(obj):
+def is_model_object(obj):
+  if isinstance(obj, (tuple, list)):
+    answer = False
+    for a in obj:
+      answer = answer or is_model_object(a)
+    return answer
+  
   if CHECKAPI_FOR_SHIMS:
     objtype = ShimSocketWrapper
   else:
@@ -127,11 +133,11 @@ def _create_children(sigma_set, condition_dict, start_node):
 
 def _assert_object(fnc_name, impl_ret):
   if fnc_name == "tcpserver_getconnection":
-    assert(len(impl_ret) == 3)
-    assert(isinstance(impl_ret, tuple))
-    _is_model_object(impl_ret[2])
+    assert len(impl_ret) == 3
+    assert isinstance(impl_ret, tuple)
+    assert isinstance(impl_ret[2], str)
   else:
-    _is_model_object(impl_ret)
+    assert isinstance(impl_ret, str)
 
 
 
@@ -149,19 +155,20 @@ def _get_obj_implid(impl_ret):
 def _get_and_store_obj_mapping(fnc_name, impl_ret, model_ret):
   if fnc_name == "tcpserver_getconnection":
     tuple_ip, tuple_port, tuple_socket = impl_ret
-    impl_obj_id = _get_obj_implid(tuple_socket)
-    assert(impl_obj_id is not None)
-    assert(isinstance(impl_obj_id, str))
-    assert(isinstance(model_ret, tuple))
-    assert(len(model_ret) == 3)
+    impl_obj_id = tuple_socket
+    assert impl_obj_id is not None
+    assert isinstance(impl_obj_id, str)
+    assert isinstance(model_ret, tuple)
+    assert len(model_ret) == 3
     model_ip, model_port, model_socket = model_ret
     mycontext['translate_ids'][impl_obj_id] = model_socket
     
-  else:  
+  else:
     # Direct translation from unique impl object id to the newly generated
     # model object id. This is used to map this object instance to later 
     # instance method calls. 
-    impl_obj_id = _get_obj_implid(impl_ret)
+    #impl_obj_id = _get_obj_implid(impl_ret)
+    impl_obj_id = impl_ret
     mycontext['translate_ids'][impl_obj_id] = model_ret
 
 
@@ -197,13 +204,13 @@ def _verify_model_impl_values(fnc_name, model_ret, impl_ret):
         mycontext['failure_messages'].append(error_str)
         return False
 
-      elif not isinstance(model_sock, str) or not _is_model_object(impl_sock):
+      elif not isinstance(model_sock, str) or not isinstance(impl_sock, str):
         error_str = fnc_name + " action did not return correct socket objects. "
         error_str += str(model_ret) + ", " + str(impl_ret) + '\n'
         mycontext['failure_messages'].append(error_str)
         return False
   
-    elif not isinstance(model_ret, str) or not _is_model_object(impl_ret):
+    elif not isinstance(model_ret, str) or not isinstance(impl_ret, str): 
       error_str = fnc_name + " action does not return correct types. The model should "
       error_str += "return a string and the impl should return a ModelObject. "
       error_str += str(model_ret) + ", " + str(impl_ret) + '\n'
@@ -320,14 +327,14 @@ def exec_and_verif_with_model(start_action_num):
   if DEBUG:
     log("\t", "model-return:", model_ret, ", model-raised:", repy_error, '\n')
 
-  # If there was an internal model error then we are done.                                                                                        
+  # If there was an internal model error then we are done.
   if model_error != None:
     put_global_state_dict(prestate)
     return None
 
   # If this function created an object, without error, we must store an id 
   # mapping from the original impl_obj to our new model_obj. That way later
-  # method calls on this object will be associated to this model_obj.
+  # method calls on this object will be associated with this model_obj.
   if fnc_name in OBJ_CREATE_CALLS_DICT and repy_error == None and impl_error == None:
     _assert_object(fnc_name, impl_ret)
     _get_and_store_obj_mapping(fnc_name, impl_ret, model_ret)
@@ -366,6 +373,14 @@ def clear_verification_globals():
   mycontext['failure_messages'] = []
   mycontext['trace_dict'] = temp_trace_dict
   mycontext['finished_actions'] = []
+
+  # Remove object ids that are no longer needed.
+  while len(mycontext['dead_object_ids']) != 0:
+    objid = mycontext['dead_object_ids'].pop()
+    try:
+      del mycontext['translate_ids'][objid]
+    except KeyError:
+      pass
 
 
 
