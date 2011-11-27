@@ -4,7 +4,6 @@ dy_import_module_symbols("core_model_misc.repy")
 dy_import_module_symbols("core_model_networking.repy")
 dy_import_module_symbols("core_model_thread.repy")
 dy_import_module_symbols("core_model_mock.repy")
-#dy_import_module_symbols("core_model_resource.repy")
 
 
 def should_raise(msg, fnc, *args):
@@ -37,27 +36,21 @@ grabbed = model_lock_acquire(thread1, lock1, blocking=True)
 assert grabbed, "Should have grabbed the lock!"
 
 # Make the MainThread attempt to grab the lock and block.
-grabbed = model_lock_acquire(mainthread, lock1, blocking=True)
-assert grabbed is None, "We should have blocked, so our return should be None"
-
-# MainThread should be blocked, cannot execute this.
-should_raise("Should not have been able to execut!\n", model_createthread, \
-    mainthread, "foo")
+should_raise("Should not be able to execute!\n", model_lock_acquire, mainthread, \
+    lock1, True)
 
 # thread1 is not blocked, should be okay!
 thread2 = model_createthread(thread1, 'foo')
 
 #Block the new thread2
-grabbed = model_lock_acquire(thread2, lock1, blocking=True)
-assert grabbed is None, "We should have blocked, so our return should be None."
+should_raise("Should not be able to execute!\n", model_lock_acquire, thread2, \
+    lock1, True)
 
-# Should not be able to release locked, it is still blocked.
-should_raise("Should not have been able to execute!\n", model_lock_release, \
-    mainthread, lock1)
+val = model_lock_acquire(thread2, lock1, False)
+assert not val, "We should not have been able to grab the lock!"
 
 # Release the lock.
 model_lock_release(thread1, lock1)
 
 # MainThread should now have the lock and thread2 should still be blocked.
 model_createlock(mainthread)
-should_raise("Should be blocked!\n", model_createlock, thread2)
