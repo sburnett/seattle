@@ -38,7 +38,7 @@ dy_import_module_symbols("shim_exceptions")
 
 
 # Whether we want to print debug statements.
-_COORDINATION_SHIM_DEBUG_MODE = True
+_COORDINATION_SHIM_DEBUG_MODE = False
 
 
 class CoordinationShim(BaseShim):

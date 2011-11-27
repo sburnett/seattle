@@ -1,18 +1,18 @@
 import re
 import time
+dy_import_module_symbols("session")
 
 
 # Prints debug statement ==========================
-_MOBILITY_SHIM_DEBUG = False
+_MOBILITY_SHIM_SHOW_DEBUG = False
+_MOBILITY_SHIM_WRITE_DEBUG = False
 _debug_log_bytes_written = 0
 _debug_log_lock = createlock()
 def debug_log(*p, **q):
   _debug_log_lock.acquire(True)
-  if _MOBILITY_SHIM_DEBUG:
+  if _MOBILITY_SHIM_SHOW_DEBUG and 'show' in q and q['show']:
     log(*p)
-  else:
-    if 'show' in q and q['show']:
-      log(*p)
+  if _MOBILITY_SHIM_WRITE_DEBUG:
     global _debug_log_bytes_written
     logstr = ' '.join([str(e) for e in p])
     logstr = 't = %.2f ' % time.time() + logstr
@@ -24,23 +24,23 @@ def debug_log(*p, **q):
 # =================================================
 _MOBILITY_SHIM_SLEEP_TIME = 0.010
 
-
-_mobility_shim_lock = createlock()
-
 _garbage_sockets = []
 
 
-def _atomic_call(target_func):
+def _mobility_atomic_call(target_func):
   """
   Function decorator. The target function is invoked atomically.
 
   """
-  def wrapper(*args, **kwargs):
+  def wrapper(self, *args, **kwargs):
     try:
-      _mobility_shim_lock.acquire(True)
-      return target_func(*args, **kwargs)
+      self._mobility_lock.acquire(True)
+      return target_func(self, *args, **kwargs)
     finally:
-      _mobility_shim_lock.release()
+      if self._mobility_lock.acquire(False):
+        debug_log('zzzz error: lock already released by', str(target_func), '\n', show=True)
+      else:
+        self._mobility_lock.release()
 
   return wrapper
 
@@ -77,10 +77,11 @@ class SendBuffer:
     self.completely_sent = False
 
     self.pending_acks = ''
+    self.closed = False
 
 
   def __str__(self):
-    
+
     state = 'SendBuffer: chunk_id: %s; ' % self.chunk_id
     state += 'data: %s; ' % _abbrev(self.data)
     state += 'bytes_sent: %s; ' % self.bytes_sent
@@ -88,7 +89,7 @@ class SendBuffer:
     state += 'pending_acks: %s' % self.pending_acks
 
     return state
-   
+
 
   
 class RecvBuffer:
@@ -100,7 +101,7 @@ class RecvBuffer:
 
     self.temp_buffer = ''
 
-  
+
   def __str__(self):
 
     state = 'RecvBuffer: data: %s; ' % _abbrev(self.data)
@@ -108,12 +109,56 @@ class RecvBuffer:
     state += 'temp_buffer: %s' % _abbrev(self.temp_buffer)
 
     return state
-    
 
 
 
+_mobility_ip_cache = {"last_check_time": 0,
+                      "last_ip":         getmyip(),
+                      "lock" :           createlock()}
 
+# The minimum time between successive checks for IP change, even if we
+# are asked to check more frequently.
+_CHECK_IP_INTERVAL = 2
 
+def _check_current_ip():
+    """
+    Returns the result of getmyip(). If getmyip() fails due to
+    InternetConnectivityError being raised then we will return None.
+    Results are cached so we don't have to call getmyip() too frequently.
+
+    """
+    current_time = getruntime()
+
+    _mobility_ip_cache["lock"].acquire(True)
+    if current_time - _mobility_ip_cache["last_check_time"] > _CHECK_IP_INTERVAL:
+      _mobility_ip_cache["last_check_time"] = current_time
+      _mobility_ip_cache["lock"].release()
+    else:
+      # We checked recently enough that we will just return the cached result.
+      current_ip = _mobility_ip_cache["last_ip"]
+      _mobility_ip_cache["lock"].release()
+      return current_ip
+
+    # Get the latest IP from a global cache updated by the coordination shim. It
+    # is set to None of the coordination shim detects no network
+    # connectivity. For detials, see the documentation within the coordination
+    # shim.
+    try:
+      current_ip = mycontext['coordination_shim_getmyip_cache']
+
+    # If the variable is not available (e.g. coordination shim not running), we
+    # obtain the IP from getmyip().
+    except KeyError:
+      try:
+        current_ip = getmyip()
+      except InternetConnectivityError:
+        current_ip = None
+
+    _mobility_ip_cache["lock"].acquire(True)
+    _mobility_ip_cache["last_ip"] = current_ip
+    _mobility_ip_cache["lock"].release()
+
+    return current_ip
 
 
 
@@ -151,16 +196,12 @@ class MobileSocket:
   # Counts how many chunks so far. Used to generate the chunk ID.
   _chunk_counter = [0]
 
-  # The number of seconds that need to elapse for a connection to be considered
-  # broken. Subsequently, the mobility will re-establish the connection.
-  _DISCONNECTION_TIME = 10
-
   # If connectivity is not restored after this many seconds, then the mobility
-  # shim gives up and considers the sockets as closed.
+  # shim gives up and considers the sockets as closed. Not actually used.
   _MOBILITY_TIMEOUT = 20
 
 
-  def __init__(self, shim_socket, openconnection_arg_list=[]):
+  def __init__(self, shim_socket, openconnection_arg_list=[], connection_id=None):
 
     # References to the internal state of the Shim Socket
     self._socket = shim_socket._socket
@@ -168,6 +209,7 @@ class MobileSocket:
     self._next_shim = self._shim_object.get_next_shim_layer()
     
     self._openconnection_arg_list = openconnection_arg_list
+    self._connection_id = connection_id
 
     self._send_buffer = SendBuffer()
     self._recv_buffer = RecvBuffer()
@@ -176,7 +218,9 @@ class MobileSocket:
                        'closed_remote': False,
                        'background_thread_active': True,
                        'unhandled_exception': None,
-                       'inactive_time': None}
+                       'connection_broken_time': None}
+
+    self._mobility_lock = createlock()
 
     createthread(self._send_recv_thread)
 
@@ -191,9 +235,8 @@ class MobileSocket:
     # Socket is to be closed locally. 
 
     send_buffer = self._send_buffer
-    if (self.sock_state['closed_local'] and 
-        send_buffer.chunk_id == None and send_buffer.data == '' and 
-        send_buffer.pending_acks == ''):
+    if (send_buffer.closed == None and send_buffer.chunk_id == None and
+        send_buffer.data == '' and send_buffer.pending_acks == ''):
 
       return False
 
@@ -209,37 +252,27 @@ class MobileSocket:
 
       recv_success = self._recv_chunks()
 
-    except SocketClosedRemote:
-      self.sock_state['closed_remote'] = True
-      self.sock_state['background_thread_active'] = False
-      return False
+    except (SocketClosedRemote, SocketClosedLocal):
+      if self.sock_state['closed_remote'] or self.sock_state['closed_local']:
+        return False
+      else:
+        self.sock_state['connection_broken_time'] = getruntime()
+        return True
 
     except Exception, err:
       self.sock_state['unhandled_exception'] = err
       self.sock_state['background_thread_active'] = False
       return False
 
-    # Determine the first time when we fail to send or receive. It may be a
-    # sign that the connection is broken, but we're not sure yet. We will wait
-    # up to _DISCONNECTION_TIMEOUT before concluding so.
-
-    if send_success and recv_success:
-      self.sock_state['inactive_time'] = None
-
-    elif self.sock_state['inactive_time'] is None:
-      self.sock_state['inactive_time'] = getruntime()
-
     debug_log('\nzzzz sock_state =', str(self.sock_state), '\n')
     debug_log('zzzz send_success:', send_success, '; recv_success:', recv_success, '\n')
-    if self.sock_state['inactive_time']:
-      debug_log('zzzz socket inactive for', getruntime() - self.sock_state['inactive_time'], 's.\n')
     debug_log('zzzz', str(self._send_buffer), '\n')
     debug_log('zzzz', str(self._recv_buffer), '\n\n')
 
     return True
 
 
-  @_atomic_call
+  @_mobility_atomic_call
   def _send_recv_thread(self):
     """
     Constantly sends data from the send buffer or reads data into the
@@ -248,20 +281,27 @@ class MobileSocket:
 
     """
     while self.sock_state['background_thread_active']:
-      
-      _mobility_shim_lock.release()
+
+      self._mobility_lock.release()
       sleep(self._SLEEP_TIME)
-      _mobility_shim_lock.acquire(True)
+      self._mobility_lock.acquire(True)
 
-      if not self._process_buffers():
-        break
+      if not self.sock_state['connection_broken_time']:
+        if not self._process_buffers():
+          break
 
-      # The socket has blocked for too long. We think the connection is dead and
-      # proceed to re-establish it with openconnection.
+      # If our IP has changed, then we want to reconnect.
+      if self._openconnection_arg_list:
+        socket_ip = self._openconnection_arg_list[2]
+        my_ip = _check_current_ip()
+        if my_ip is not None and my_ip != socket_ip:
+          self.sock_state['connection_broken_time'] = getruntime()
+          debug_log('zzzz IP changed from', socket_ip, 'to', my_ip, '.\n', show=True)
 
-      if (self.sock_state['inactive_time'] and 
-          getruntime() - self.sock_state['inactive_time'] > self._DISCONNECTION_TIME and
-          self._openconnection_arg_list):
+      # The socket has unexpectedly raise SocketClosedRemote, so we
+      # reestablish the connection.
+
+      if (self.sock_state['connection_broken_time'] and self._openconnection_arg_list):
 
         debug_log('\n' * 2, show=True)
         debug_log('*' * 80, '\n', show=True)
@@ -272,24 +312,36 @@ class MobileSocket:
 
         while True:
           try:
-            _mobility_shim_lock.release()
+            self._mobility_lock.release()
             # In case the local IP has changed, we update it in the openconn arg list.
             self._openconnection_arg_list[2] = getmyip()
             # Attempt to openconnection, ignoring the usual network errors.
             debug_log('zzzz Attempting openconn', self._openconnection_arg_list, '\n', show=True)
             new_socket = self._next_shim.openconnection(*(self._openconnection_arg_list))
+            # Send our connection ID and wait for the server to acknowledge it.
+            session_sendmessage(new_socket, "R" + self._connection_id)
+            message = session_recvmessage(new_socket)
+
+            if message != "R":
+              self._mobility_lock.acquire(True)
+              self.sock_state['closed_remote'] = True
+              self.sock_state['background_thread_active'] = False
+              break
+
           except (ConnectionRefusedError, InternetConnectivityError, 
                   TimeoutError, AddressBindingError), err:
             debug_log('zzzz Openconn failed:', repr(err), err, '\n', show=True)
             sleep(1)
-            _mobility_shim_lock.acquire(True)
+            self._mobility_lock.acquire(True)
+
           except Exception, err:
-            _mobility_shim_lock.acquire(True)
+            self._mobility_lock.acquire(True)
             self.sock_state['unhandled_exception'] = err
             self.sock_state['background_thread_active'] = False
             break
+
           else:
-            _mobility_shim_lock.acquire(True)
+            self._mobility_lock.acquire(True)
             self._socket = new_socket
             break
 
@@ -298,10 +350,12 @@ class MobileSocket:
           self.reset_pending_state()
           debug_log('zzzz Connectivity restored by openconn.\n', show=True)
 
-    debug_log('\nzzzz while loop exits \n')
+    debug_log('\nzzzz while loop exits \n', show=True)
     debug_log('\nzzzz sock_state =', str(self.sock_state), '\n')
     debug_log('\nzzzz', str(self._send_buffer), '\n')
     debug_log('\nzzzz', str(self._recv_buffer), '\n\n')
+
+    self.sock_state['background_thread_active'] = False
 
     if self._socket:
       self._next_shim.socket_close(self._socket)
@@ -315,7 +369,7 @@ class MobileSocket:
     self._send_buffer.bytes_sent = 0
     self._send_buffer.completely_sent = False
     self._recv_buffer.temp_buffer = ''
-    self.sock_state['inactive_time'] = None
+    self.sock_state['connection_broken_time'] = None
 
     # Resend the last ACK in case it was lost.
     last_chunk_id = self._recv_buffer.last_chunk_id_received
@@ -368,6 +422,11 @@ class MobileSocket:
       if sent == len(send_buffer.pending_acks):
         send_buffer.pending_acks = ''
 
+    # If this socket has been closed, then we need to send a notification.
+    if send_buffer.closed:
+      sent = self._next_shim.socket_send(self._socket, "D")
+      if sent == 1:
+        send_buffer.closed = None
 
     
 
@@ -388,9 +447,9 @@ class MobileSocket:
       except SocketWouldBlockError:
         break
 
-    if recv_buffer.temp_buffer and recv_buffer.temp_buffer[0] not in ('A', 'C'):
-      debug_log('zzzz Bad temp buffer:', recv_buffer.temp_buffer, '\n')
-      exitall()
+    if recv_buffer.temp_buffer and recv_buffer.temp_buffer[0] not in ('A', 'C', 'D'):
+      debug_log('zzzz Bad temp buffer:', recv_buffer.temp_buffer, '\n', show=True)
+      return False
 
     # Parse the temporary buffer first until nothing can be parsed.
 
@@ -468,6 +527,15 @@ class MobileSocket:
         self._recv_buffer.last_chunk_id_received = chunk_id
         self._recv_buffer.data += data
 
+    # We received a socket close notification.
+
+    elif temp_buffer.startswith("D"):
+      debug_log('zzzz Got socket close notification\n', show=True)
+      temp_buffer = temp_buffer[1 : ]
+
+      self.sock_state['closed_remote'] = True
+      self.sock_state['background_thread_active'] = False
+
     else:
 
       return False
@@ -479,7 +547,7 @@ class MobileSocket:
 
 
 
-  @_atomic_call
+  @_mobility_atomic_call
   def send(self, data):
 
     # Raise all the exceptions first.
@@ -489,12 +557,13 @@ class MobileSocket:
       raise unhandled_exception
 
     if self.sock_state['closed_local']:
-      raise SocketClosedLocal
+      raise SocketClosedLocal("The socket is closed!")
+
     elif self.sock_state['closed_remote']:
-      raise SocketClosedRemote
+      raise SocketClosedRemote("The socket has been closed remotely!")
     
     if len(self._send_buffer.data) > 0:
-      raise SocketWouldBlockError
+      raise SocketWouldBlockError("send() would block.")
 
     # Turn data into chunk and add it to the send buffer. 
 
@@ -512,7 +581,7 @@ class MobileSocket:
 
 
 
-  @_atomic_call
+  @_mobility_atomic_call
   def recv(self, bytes):
 
     # Raise exceptions only if there is nothing else to read.
@@ -525,13 +594,13 @@ class MobileSocket:
         raise unhandled_exception
 
       elif self.sock_state['closed_local']:
-        raise SocketClosedLocal
+        raise SocketClosedLocal("The socket is closed!")
 
       elif self.sock_state['closed_remote']:
-        raise SocketClosedRemote
+        raise SocketClosedRemote("The socket has been closed remotely!")
 
       else:
-        raise SocketWouldBlockError
+        raise SocketWouldBlockError("There is no data! recv() would block.")
     
     # Get data from the recv buffer
     data = self._recv_buffer.data[0 : bytes]
@@ -540,10 +609,13 @@ class MobileSocket:
     
 
 
-  @_atomic_call
+  @_mobility_atomic_call
   def close(self):
-
-    self.sock_state['closed_local'] = True
-    return True
+    if self.sock_state['closed_local']:
+      return False
+    else:
+      self._send_buffer.closed = True
+      self.sock_state['closed_local'] = True
+      return True
 
 
