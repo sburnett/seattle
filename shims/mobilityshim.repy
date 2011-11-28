@@ -70,26 +70,17 @@ class MobileTCPServerSocket:
   # How often to check for new connections.
   _GETCONNECTION_INTERVAL = 0.1
 
-  def __init__(self, shimtcpserversocket, listen_ip, listen_port):
+  def __init__(self, shimtcpserversocket):
     """
     Constructor. Arguments:
 
     shimtcpserversocket - the ShimTCPServerSocket to wrap around.
-    listen_ip - the IP address to which the listener was initially bound.
-    listen_port - the bound port.
 
     """
     # References to the internal state of the TCP server socket
     self._socket = shimtcpserversocket._socket
     self._shim_object = shimtcpserversocket._shim_object
     self._next_shim = self._shim_object.get_next_shim_layer()
-
-    # IP and port on which the initial listener was created.
-    self._listen_ip = listen_ip
-    self._listen_port = listen_port
-
-    # Last time we check for IP change.
-    self._last_check_ip_time = 0
 
     # Maps the client ID to the corresponding MobileSocket
     # object. Used to retrieve broken yet active connections.
@@ -298,7 +289,7 @@ class MobilityShim(BaseShim):
       server_socket._server_socket_lock.acquire(True)
 
       try:
-        # The server socket hasn't been closed yet, so 
+        # The server socket hasn't been closed yet, so raise an exception.
         if not server_socket._closed:
           raise AlreadyListeningError("The provided localip and localport are already in use!")
 
@@ -317,7 +308,7 @@ class MobilityShim(BaseShim):
 
     next_layer_socket = self.get_next_shim_layer().listenforconnection(localip, localport)
     shim_sock = ShimTCPServerSocket(next_layer_socket, self)
-    mobile_sock = MobileTCPServerSocket(shim_sock, _check_current_ip(), localport)
+    mobile_sock = MobileTCPServerSocket(shim_sock)
     self._server_socket_dict[identity] = mobile_sock
     return MobileTCPServerSocketWrapper(mobile_sock)
 
