@@ -164,6 +164,7 @@ def main():
   copy_to_target("seattlelib/*", target_dir)
   copy_to_target("seash/*", target_dir)
   copy_to_target("shims/*", target_dir)
+  copy_to_target("shims/proxy/*", target_dir)
   copy_to_target("softwareupdater/*", target_dir)
   copy_to_target("autograder/nm_remote_api.mix", target_dir)
   copy_to_target("keydaemon/*", target_dir)
