@@ -4,6 +4,7 @@ dy_import_module_symbols("shimstackinterface")
 dy_import_module_symbols("random")
 
 
+CLIENT_IP = getmyip()
 SERVER_IP = getmyip()
 SERVER_PORT = 35742
 SEND_PORT = 35779
@@ -51,9 +52,9 @@ def launch_server(udpserver_socket):
 
 
 # The test launching point.
-def launch_test(shim_str):
+def launch_test(server_shim_str, client_shim_str):
 
-  recv_shim_obj = ShimStackInterface(shim_str)
+  recv_shim_obj = ShimStackInterface(server_shim_str)
   udpserver_socket = recv_shim_obj.listenformessage(SERVER_IP, SERVER_PORT)
 
   try:
@@ -63,13 +64,13 @@ def launch_test(shim_str):
 
     sleep(2)
 
-    send_shim_obj = ShimStackInterface(shim_str)
+    send_shim_obj = ShimStackInterface(client_shim_str)
     
     for i in range(NUM_MSG_TO_SEND):
       message = generate_message()
       while message in msg_sent_set:
         message = generate_message()
-      send_shim_obj.sendmessage(SERVER_IP, SERVER_PORT, message, SERVER_IP, SEND_PORT)
+      send_shim_obj.sendmessage(SERVER_IP, SERVER_PORT, message, CLIENT_IP, SEND_PORT)
       msg_sent_set.add(message)
       sleep(0.01)
       

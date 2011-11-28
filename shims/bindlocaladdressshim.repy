@@ -67,8 +67,8 @@ class BindLocalAddressShim(BaseShim):
     """
     <Purpose>
       If a different localip and port has been specified, then 
-      we want to use to the alternate IP:Port of the server to 
-      connect.
+      we want to use to the alternate local IP:Port to bind this 
+      connection.
 
     <Arguments>
       Same as the RepyV2 api.
@@ -91,6 +91,38 @@ class BindLocalAddressShim(BaseShim):
 
     return ShimSocket(next_sockobj, self)
 
+
+
+
+  def sendmessage(self, destip, destport, message, localip, localport):
+    """
+    <Purpose>
+      If a different localip and localport is specified when this shim 
+      is initialized, then we bind to those IP:Port before we send the
+      UDP datagram rather then using the localip and localport provided
+      in the argument.
+
+    <Arguments>
+      Same as the RepyV2 api.
+
+    <Side Effects>
+      None
+
+    <Exceptions>
+      Same as the RepyV2 api.
+
+    <Return>
+      The number of bytes sent on success.
+    """
+
+    # Check if an alternate localip and port has been specified
+    if self.bind_localip and self.bind_localport:
+      byte_sent = self.get_next_shim_layer().sendmessage(destip, destport, message, self.bind_localip, self.bind_localport)
+    else:
+      byte_sent = self.get_next_shim_layer().sendmessage(destip, destport, message, localip, localport)
+
+    return byte_sent
+    
 
 
 
