@@ -23,15 +23,15 @@
 
 USAGE = """
   The command-line arguments are:
-  [outgoing IP] [outgoing port] [incoming port] [shim'ed port]
+  outgoing_IP outgoing_port incoming_IP incoming_port shim'ed_port [shim_stack]
 
   The shim'ed port must be either the outgoing openconnection port, or the
   incoming listen port; it designates the usage of shims on either ports. Avoid
   ports 10000 to 60000 as they are used for local openconnection ports.
 
   In the example above, we run:
-  - on host A: proxy.repy host_A_ip 80            listen_port_A listen_port_A
-  - on host B: proxy.repy host_A_ip listen_port_A listen_port_B listen_port_A
+  - on host A: proxy.repy '127.0.0.1' 80            host_A_ip   listen_port_A listen_port_A '(CoordinationShim)(StatShim)(CompressionShim)'
+  - on host B: proxy.repy host_A_ip   listen_port_A '127.0.0.1' listen_port_B listen_port_A '(CoordinationShim)(StatShim)(CompressionShim)'
 
 """
 
@@ -46,13 +46,14 @@ SLEEP_TIME = 0.010
 
 # List of shim stacks for incoming connections. See the documentation of
 # start_server() for how ports are assigned to each of the shim stacks.
-INCOMING_SHIM_STACK_LIST = ['(CoordinationShim)(StatShim)(CompressionShim)']
+INCOMING_SHIM_STACK_LIST = ['(CoordinationShim)']
 
 # How we are going to open a new outgoing connection.
 outgoing_ip = None
 outgoing_port = None
 
 # How we listen for incoming connections.
+incoming_ip = None
 incoming_port = None
 
 # Which of the port above should use shims.
@@ -92,7 +93,7 @@ def start_server():
 
     for index in range(len(INCOMING_SHIM_STACK_LIST)):
       shim_stack_str = INCOMING_SHIM_STACK_LIST[index]
-      shim = ShimStackInterface(shim_stack_str, 'pandaproxy.zenodotus.cs.washington.edu')
+      shim = ShimStackInterface(shim_stack_str, incoming_ip)
       port = incoming_port + index
       log('Shim stack', shim_stack_str, 'is about to listen on port', port,'\n')
       tcp_server_socket_list.append(shim.listenforconnection(shim.getmyip(), port))
@@ -100,7 +101,7 @@ def start_server():
 
   # Listen for connections from local applicaitons, such as wget.
   else:
-    tcp_server_socket_list.append(listenforconnection(getmyip(), incoming_port))
+    tcp_server_socket_list.append(listenforconnection(incoming_ip, incoming_port))
 
   # Waits for incoming connections.
   while True:
@@ -291,6 +292,7 @@ def main():
 
   global outgoing_ip
   global outgoing_port
+  global incoming_ip
   global incoming_port
   global shim_port
   global INCOMING_SHIM_STACK_LIST
@@ -299,8 +301,9 @@ def main():
 
     outgoing_ip = callargs[0]
     outgoing_port = int(callargs[1])
-    incoming_port = int(callargs[2])
-    shim_port = int(callargs[3])
+    incoming_ip = callargs[2]
+    incoming_port = int(callargs[3])
+    shim_port = int(callargs[4])
 
     # The shim port must be either the outgoing or incoming port.
     if shim_port not in (outgoing_port, incoming_port):
@@ -316,7 +319,7 @@ def main():
 
   # The user may have optionally specified the shim stack string.
   try:
-    INCOMING_SHIM_STACK_LIST = [callargs[4]]
+    INCOMING_SHIM_STACK_LIST = [callargs[5]]
   except IndexError:
     pass
 
