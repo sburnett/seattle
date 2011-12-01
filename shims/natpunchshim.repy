@@ -25,11 +25,13 @@ dy_import_module_symbols("nat_forwarder_common_lib")
 
 # The default timeout that is used when connecting to forwarder
 # when doing listenforconnection.
-DEFAULT_TIMEOUT = 10
+_NAT_SHIM_DEFAULT_TIMEOUT = 30
 
 # The shim string to use to connect to Nat Forwarder.
-NAT_SHIM_STRING="(CoordinationShim)"
+_NAT_SHIM_STRING = "(CoordinationShim)"
 
+# Whether we want to print debug statements.
+_NAT_SHIM_DEBUG_MODE = False
 
 
 class NatSockObj:
@@ -42,9 +44,15 @@ class NatSockObj:
     """
     self._sockobj = sockobj
     self._server_id = server_id
+    self._closed = False
   
   def close(self):
-    return self._sockobj.close()
+    if self._closed:
+      return False
+    else:
+      self._closed = True
+      self._sockobj.close()
+      return True
 
   def recv(self, bytes):
     return self._sockobj.recv(bytes)
@@ -134,18 +142,22 @@ class NatPunchShim(BaseShim):
 
     # Make a connection to the forwarder. Exceptions may be raised, if they are then we raise them.
     forwarder_ip, forwarder_port = self.default_forwarder
-    print "Connecting with %s, %d, %s, %d" % (forwarder_ip, forwarder_port, localip, localport)
+    if _NAT_SHIM_DEBUG_MODE:
+      log("Connecting with %s, %d, %s, %d" % (forwarder_ip, forwarder_port, localip, localport) + "\n")
 
-    shim_stack_object = ShimStackInterface(NAT_SHIM_STRING)
+    shim_stack_object = ShimStackInterface(_NAT_SHIM_STRING)
     sockobj = shim_stack_object.openconnection(forwarder_ip, forwarder_port, localip, localport, timeout)
-    print "Conencted properly."
+    if _NAT_SHIM_DEBUG_MODE:
+      log("Connected properly.\n")
 
     # Let the forwarder know which server we want to connect to.
     server_id = "%s:%d" % (destip, destport)
     session_sendmessage(sockobj, "%s,%s" % (CONNECT_CLIENT_TAG, server_id)) 
-    print "Sent connection tag."
+    if _NAT_SHIM_DEBUG_MODE:
+      log("Sent connection tag.\n")
     confirmation_msg = session_recvmessage(sockobj)
-    print "received confirmation tag"
+    if _NAT_SHIM_DEBUG_MODE:
+      log("received confirmation tag\n")
     # NOTE: We need to incorporate the timeout value in here somehow. 
     
     # If the forwarder confirms that we have successfully connected, then we 
@@ -229,17 +241,38 @@ class NatPunchShim(BaseShim):
       (remoteip, remoteport, socketobj) - for the connection.
     """
 
+    if nat_serversocket._closed:
+      raise SocketClosedLocal("The NAT TCPServerSocket has been closed.")
+
     server_id = nat_serversocket.getserver_id()
       
     # Ask the server if there is any connection that can be made and get back
     # the response.
     try:
       session_sendmessage(nat_serversocket, CHECK_SERVER_CONN)
-    except (SocketClosedLocal, SocketClosedRemote):
-      raise SocketClosedLocal("The NAT TCPServerSocket has been closed.")
+      nat_response = session_recvmessage(nat_serversocket)
 
-    nat_response = session_recvmessage(nat_serversocket)
-    
+    except (SocketClosedLocal, SocketClosedRemote):
+      # We should try reconnecting since we shouldn't raise SocketClosedLocal
+      # unless the client actually called close.
+      try:
+        localip, localport_str = server_id.split(":", 1)
+        localport = int(localport_str)
+        new_connection_socket = self.connect_to_forwarder(localip, localport)
+
+      except Exception, e:
+        if _NAT_SHIM_DEBUG_MODE:
+          log("Error restablishing server socket connection: " + repr(e) + "\n")
+        raise SocketWouldBlockError("Unable to restablish connection to forwarder.")
+
+      else:
+        # If we couldn't make a new connection, then we should block until
+        # we can connect to some forwarder.
+        if not new_connection_socket:
+          raise SocketWouldBlockError("Unable to restablish connection to forwarder.")
+
+        nat_serversocket._sockobj = new_connection_socket
+        raise SocketWouldBlockError("Unable to connect to any client currently.")
 
     # If there is an available client, we try to establish a connection.
     if nat_response == CLIENT_AVAILABLE:
@@ -289,8 +322,8 @@ class NatPunchShim(BaseShim):
     random_localport = self.retrieve_random_tcp_port()
     
     # Connect to the forwarder.
-    shim_stack_object = ShimStackInterface(NAT_SHIM_STRING)
-    new_sockobj = shim_stack_object.openconnection(forwarder_ip, forwarder_port, getmyip(), random_localport, DEFAULT_TIMEOUT)
+    shim_stack_object = ShimStackInterface(_NAT_SHIM_STRING)
+    new_sockobj = shim_stack_object.openconnection(forwarder_ip, forwarder_port, getmyip(), random_localport, _NAT_SHIM_DEFAULT_TIMEOUT)
         
     # Request the Nat Forwarder to connect a client to this new socket that
     # we just opened up. Then we check if we were successfully connected to
@@ -352,12 +385,17 @@ class NatPunchShim(BaseShim):
     # we successfully do. 
     for cur_forwarder in forwarder_list:
 
+      # If there's no results, we sometimes get the empty string back
+      # from the advertising lookup.
+      if not cur_forwarder:
+        continue
+
       forwarder_ip, forwarder_port_str = cur_forwarder.split(':')
       forwarder_port = int(forwarder_port_str)
 
       try:
-        shim_stack_object = ShimStackInterface(NAT_SHIM_STRING)
-        sockobj = shim_stack_object.openconnection(forwarder_ip, forwarder_port, localip, localport, DEFAULT_TIMEOUT)
+        shim_stack_object = ShimStackInterface(_NAT_SHIM_STRING)
+        sockobj = shim_stack_object.openconnection(forwarder_ip, forwarder_port, localip, localport, _NAT_SHIM_DEFAULT_TIMEOUT)
       # MMM: Should we also catch RepyArgumentError and AddressbindingError here? Currently we raise those.
       except (DuplicateTupleError, AlreadyListeningError, CleanupInProgressError, 
               ConnectionRefusedError, TimeoutError, InternetConnectivityError):
@@ -375,10 +413,12 @@ class NatPunchShim(BaseShim):
         confirmation_msg = session_recvmessage(sockobj)
         if confirmation_msg == CONNECT_SUCCESS:
           if not self.default_forwarder:
-            print "Setting the default forwarder"
+            if _NAT_SHIM_DEBUG_MODE:
+              log("Setting the default forwarder\n")
             self.default_forwarder = (forwarder_ip, forwarder_port)
 
-          print "Connected to forwarder, returning. Default forwarder is: " + str(self.default_forwarder)
+          if _NAT_SHIM_DEBUG_MODE:
+            log("Connected to forwarder, returning. Default forwarder is: " + str(self.default_forwarder) + "\n")
           return sockobj
         else:
           continue
@@ -424,6 +464,7 @@ class NatPunchShim(BaseShim):
     optional_args_copy = self.shim_context['optional_args']
 
     my_copy = NatPunchShim(shim_stack_copy, optional_args_copy)
+    my_copy.default_forwarder = self.default_forwarder
     return my_copy
 
 
@@ -435,9 +476,11 @@ class NatPunchShim(BaseShim):
     a default forwarder. Ther server should always fill this in when 
     doing tcpserver_getconnection.
     """
-    print "Default forwarder is: " + str(self.default_forwarder)
+    if _NAT_SHIM_DEBUG_MODE:
+      log("Default forwarder is: " + str(self.default_forwarder) + "\n")
     if self.default_forwarder:
-      print "Going to advertise forwarder ip:port"
+      if _NAT_SHIM_DEBUG_MODE:
+        log("Going to advertise forwarder ip:port\n")
       forwarder_ip, forwarder_port = self.default_forwarder
       nat_ad_string = "(NatPunchShim,%s:%d)" % (forwarder_ip, forwarder_port)
     else:

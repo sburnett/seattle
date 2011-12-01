@@ -461,7 +461,9 @@ def launch_server_communication_thread(sockobj, server_id):
         logmsg("Unexpected error occured in launch_server_communication_thread: %s" %
                 str(err), ERR_MSG)
         break
-    
+
+    sockobj.close()
+
     # Once we have broken out of the loop, we are going to unregister
     # the server before we exit this thread.
     register_lock.acquire(True)
@@ -504,7 +506,6 @@ if callfunc == 'initialize':
   mycontext['listenport_tcp'] = int(callargs[0])
 
   if len(callargs) >= 2:
-    global NAT_SHIM_STRING
     NAT_SHIM_STRING = callargs[1]
   
   # Launch the TCP Forwarder.
