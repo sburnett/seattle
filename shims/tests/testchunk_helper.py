@@ -9,9 +9,14 @@ DATA_RECV = 2**16
 CHUNK_SIZE_SEND = 2**16
 CHUNK_SIZE_RECV = 2**20
 DATA_TO_SEND = "HelloWorld" * 1024 * 1024 * 5 # 50MB of data
+END_TAG = "@@@END"
+
+
 
 MSG_RECEIVED = ''
 FINISHED_RECEIVING = False
+
+
 
 def launchserver():
   """
@@ -66,11 +71,15 @@ def handle_connection(chunk_object):
     while True:
       try:
         msg_recv += chunk_object.recvdata(DATA_RECV)
-        #msg_recv += chunk_object.recv(DATA_RECV)
-        sys.stdout.flush()
+        
+        # If we have received the end tag then we finish receiving.
+        if END_TAG in msg_recv:
+          break
       except SocketWouldBlockError:
         pass
-      except (SocketClosedLocal, SocketClosedRemote):
+      except (SocketClosedLocal, SocketClosedRemote), err:
+        print "Got socket closed error!!", str(err)
+        sys.stdout.flush()
         break
 
     log("\nTime taken to receive message: " + str(time.time() - start_time))
@@ -97,9 +106,8 @@ def launch_test():
   chunk_object = ChunkMessage(CHUNK_SIZE_SEND,CHUNK_SIZE_RECV)
   chunk_object.add_socket(sockobj)
 
-  msg = DATA_TO_SEND
+  msg = DATA_TO_SEND + END_TAG
   total_data_sent = 0
-
 
   start_time = time.time()
   while msg:
@@ -108,19 +116,28 @@ def launch_test():
       #data_sent = sockobj.send(msg)
     except SocketWouldBlockError:
       sleep(0.1)
-    except (SocketClosedLocal, SocketClosedRemote):
-      log("Socket closed too early")
+    except (SocketClosedLocal, SocketClosedRemote), err:
+      log("Socket closed too early. " + str(err))
+      sys.stdout.flush()
       exitall()
     else:
       msg = msg[data_sent:]
       total_data_sent += data_sent
 
+
   log("\nTime taken to send message: " + str(time.time() - start_time))
+
+  # Wait till all message has been received.
+  while not FINISHED_RECEIVING:
+    sleep(0.1)
+  
   chunk_object.close()
+
+  actual_data_sent = DATA_TO_SEND + END_TAG
 
   log("\nMessage sent length matches: ")
   try:
-    assert(total_data_sent == len(DATA_TO_SEND))
+    assert(total_data_sent == len(actual_data_sent))
   except AssertionError:
     log("[ FAIL ]")
     raise Exception("Message sent length doesn't match")
@@ -131,25 +148,23 @@ def launch_test():
   log("\nData distrubtion lenght check: ")
 
   try:
-    assert(data_distribution[repr(sockobj)] == len(DATA_TO_SEND))
+    assert(data_distribution[repr(sockobj)] == len(actual_data_sent))
   except AssertionError:
     log("[ FAIL ]")
     raise Exception("Data distribution length doesn't check out.")
   else:
     log("[ PASS ]")
 
-  # Wait till all message has been received.
-  while not FINISHED_RECEIVING:
-    sleep(0.1)
 
   log("\nMessage received length check: ")
   try:
-    assert(MSG_RECEIVED == DATA_TO_SEND)
+    assert(MSG_RECEIVED == actual_data_sent)
   except AssertionError:
-    log("[ FAIL ]")
+    log("[ FAIL ]\n")
+    print "Message received length is: %d, actual sent is: %d" % (len(MSG_RECEIVED), len(actual_data_sent))
     raise Exception("Message received length doesn't check out.")
   else:
-    log("[ PASS ]")
+    log("[ PASS ]\n")
   sys.stdout.flush()
 
   exitall()

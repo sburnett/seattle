@@ -9,7 +9,10 @@ SERVER_PORT = 60606
 DATA_RECV = 1024
 CHUNK_SIZE_SEND = 2**16
 CHUNK_SIZE_RECV = 2**20
-DATA_TO_SEND = "HelloWorld" * 1024 * 1024 * 5 # 50MB of data
+DATA_TO_SEND = "HelloWorld" * 1024 * 1024 #10MB of data
+
+END_TAG="@@@END"
+RECV_FINISHED = False
 
 def launchserver():
   """
@@ -63,21 +66,27 @@ def handle_connection(chunk_object):
   """
 
   def _connection_handle_helper():
+    global RECV_FINISHED
+
     msg_recv = ''
     start_time = time.time()
+    
     while True:
       try:
         msg_recv += chunk_object.recvdata(DATA_RECV)
         #msg_recv += chunk_object.recv(DATA_RECV)
+        if END_TAG in msg_recv:
+          break
       except SocketWouldBlockError:
-        sleep(0.1)
+        sleep(0.001)
       except (SocketClosedLocal, SocketClosedRemote):
-        exitall()
+        break
     log("\nTime taken to recv msg: " + str(time.time() - start_time))
-    assert(msg_recv == DATA_TO_SEND)
+    assert(msg_recv == DATA_TO_SEND + END_TAG)
     log("\nMessage received: [ PASS ]")
+    RECV_FINISHED = True
     sys.stdout.flush()
-    exitall()
+
 
   return _connection_handle_helper
 
@@ -103,7 +112,7 @@ if callfunc == 'initialize':
   chunk_object.add_socket(sockobj_two)
   chunk_object.add_socket(sockobj_three)
 
-  msg = DATA_TO_SEND
+  msg = DATA_TO_SEND + END_TAG
   total_data_sent = 0
 
 
@@ -113,7 +122,7 @@ if callfunc == 'initialize':
       data_sent = chunk_object.senddata(msg)
       #data_sent = sockobj.send(msg)
     except SocketWouldBlockError:
-      sleep(0.1)
+      sleep(0.001)
     except (SocketClosedLocal, SocketClosedRemote):
       log("Socket closed too early")
       chunk_object.close()
@@ -123,14 +132,18 @@ if callfunc == 'initialize':
       total_data_sent += data_sent
 
   log("\nTotal time taken to send msg: " + str(time.time() - start))
+
+  while not RECV_FINISHED:
+    sleep(0.001)
+
   chunk_object.close()
-  assert(total_data_sent == len(DATA_TO_SEND))
+  assert(total_data_sent == len(DATA_TO_SEND + END_TAG))
   log("\nMessage sent length matches: [ PASS ]")
 
   data_distribution = chunk_object.get_data_sent_distribution()
 
   total_data_sent = data_distribution[repr(sockobj_one)] + data_distribution[repr(sockobj_two)] + data_distribution[repr(sockobj_three)]
-  assert(total_data_sent == len(DATA_TO_SEND))
+  assert(total_data_sent == len(DATA_TO_SEND + END_TAG))
   log("\nData distrubtion lenght check: [ PASS ]")
   sys.stdout.flush()
 
