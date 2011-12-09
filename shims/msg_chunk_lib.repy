@@ -10,19 +10,13 @@
 <Purpose>
   Helps chunk out a message for sending and receiving
   message across a network.
-
-<Revisions>
-  12-05-2011: Modified this library heavily. Added dynamic chunking 
-              capability as well as modifying how send and receive
-              works. Now a seperate thread does send and receive
-              which allowed us to get rid of the old padding system.
 """
 
 dy_import_module_symbols("shim_exceptions")
-import sys
+
 
 MIN_BLK_SIZE = 2**8
-MAX_BLK_SIZE = 2**16
+MAX_BLK_SIZE = 2**18
 
 
 class ChunkMessage():
@@ -33,7 +27,7 @@ class ChunkMessage():
     # broken up into initially.
     self._SEND_BLOCK_SIZE = send_blk_size
     self._RECV_BLOCK_SIZE = recv_blk_size
-    
+
     # Assume that the header in the msg we send and receive is at
     # most of lenght 20 characters.
     self.max_header_size = 20
@@ -49,6 +43,7 @@ class ChunkMessage():
 
     # A dictionary that maps a socket to its receive buffer, which stores
     # the TCP message stream.
+    # for the recv buffer.
     self._recv_buf_dict = {}
 
     # Global chunk id values for both recv and send. 
@@ -81,8 +76,12 @@ class ChunkMessage():
     self._closed_local = False
     self._closed_remote = False
 
+    # The send buffer that holds everything that will be send.
     self.send_buffer = ""
 
+
+
+      
 
 
 
@@ -125,6 +124,21 @@ class ChunkMessage():
 
 
 
+  def get_total_block_size(self):
+    """
+    Return the total block size of all the sockets added
+    together.
+    """
+    total_size = 0
+
+    for cur_sockobj in self._active_socket_set:
+      total_size += self.sock_send_blk_size[repr(cur_sockobj)]
+
+    return 2 * total_size
+
+
+
+
   def add_socket(self, socket):
     """
     <Purpose>
@@ -150,6 +164,7 @@ class ChunkMessage():
     # so we add it to the active set.
     if not self._recv_buf_dict.has_key(repr(socket)):
       self._recv_buf_dict[repr(socket)] = ''
+
     
     # If its a new socket then we create a data sent dict and add it
     # to the complete socket list.
@@ -195,6 +210,12 @@ class ChunkMessage():
     Close all the active sockets and take them
     out of the active socket set.
     """
+    if self._closed_local:
+      return False
+
+    while self.send_buffer:
+      sleep(0.001)
+
     self._closed_local = True
     for socket in self._active_socket_set.copy():
       try:
@@ -203,6 +224,7 @@ class ChunkMessage():
         pass
     self._active_socket_set.clear()
 
+    return True
 
 
 
@@ -237,11 +259,22 @@ class ChunkMessage():
       # If the send buffer is not empty then we raise SocketWouldBlockError
       raise SocketWouldBlockError("Send will block, send buffer full.")
 
+    # We only want to send a message that is as big as the maximum block
+    # size, that is the size of all the blocksizes for each socket added
+    # together. This is to prevent a user calling send with a giant msg and
+    # then having to wait a long time for it to complete.
+    msg_send_size = self.get_total_block_size()
+
     # Append the message in order to send it.
-    self.send_buffer = self.send_buffer + msg
+    msg_to_send = msg[:msg_send_size]
+
+    self.send_buffer = self.send_buffer + msg_to_send
+
+    while self.send_buffer:
+      sleep(0.001)
 
     # Assume that the entire message has been sent.
-    return len(msg)
+    return len(msg_to_send)
 
 
 
@@ -303,11 +336,13 @@ class ChunkMessage():
     header = "%d,%d\n" % (len(data), self._send_chunk_id)
     fulldata = header + data
 
+    total_sent= 0
     # While we have data, keep sending.
     while fulldata:
       try:
         bytes_sent = sockobj.send(fulldata)
       except SocketWouldBlockError:
+
         if started_sending_msg:
           # If we get a SocketWouldBlockError but have
           # already started sending data, then we keep 
@@ -318,7 +353,7 @@ class ChunkMessage():
         else:
           # If this is the first send call and we block,
           # then we raise SocketWouldBlockError.
-          raise SocketWouldBlockError
+          raise SocketWouldBlockError("Socket blocked!")
       else:
         fulldata = fulldata[bytes_sent:]
         started_sending_msg = True
@@ -328,6 +363,7 @@ class ChunkMessage():
 
     # Keep track of how much data we sent.
     self._data_sent_dict[repr(sockobj)] += len(data)
+    
     return blocked_atleast_once
     
   
@@ -366,7 +402,13 @@ class ChunkMessage():
       # MMM: Do we need a lock for this? After thinking about it, I decided
       # that we are going to be storing the message in a buffer which is
       # a string, and the operations we perform on it are atomic.
+      sleep(0.0001)
       while self.send_buffer:
+        # If any new socket connections have been made since we started this
+        # thread, then we add them to our local copy.
+        for new_sockobj in (self._complete_socket_set - complete_sock_copy):
+          complete_sock_copy.add(new_sockobj)
+
         # We will send the data through the sockets in a round
         # robin fashion. This is to ensure that no one socket
         # gains advantage because of its order. We will look
@@ -387,7 +429,6 @@ class ChunkMessage():
         blk_size = self.sock_send_blk_size[repr(cur_socket)]
         block_body = self.send_buffer[ : blk_size]
 
-
         # Try sending the chunk through the current socket.
         try:
           socket_blocked = self.send_chunk(cur_socket, block_body)
@@ -395,14 +436,13 @@ class ChunkMessage():
           # If we block then we want to reduce the block size
           # of the current socket.
           blk_size = blk_size/2
-
+            
           # Makes sure that the minimum block size isn't too small.
-          if blk_size < self._SEND_BLOCK_SIZE/2:
-            blk_size = self._SEND_BLOCK_SIZE/2
+          if blk_size < MIN_BLK_SIZE:
+            blk_size = MIN_BLK_SIZE
 
           self.sock_send_blk_size[repr(cur_socket)] = blk_size
-          sleep(0.001)
-        except (SocketClosedLocal, SocketClosedRemote):
+        except (SocketClosedLocal, SocketClosedRemote), err:
           # If we get a socket closed remote error, we remove it
           # from the active socket list.
           self._active_socket_set.discard(cur_socket)
@@ -414,19 +454,17 @@ class ChunkMessage():
           # block size if we did not block at all.
           if socket_blocked:
             blk_size = blk_size/2
-
             # Makes sure that the minimum block size isn't too small.
             if blk_size < MIN_BLK_SIZE:
               blk_size = MIN_BLK_SIZE
-
-            self.sock_send_blk_size[repr(cur_socket)] = blk_size
           else:
             blk_size = blk_size*2
-
             if blk_size > MAX_BLK_SIZE:
               blk_size = MAX_BLK_SIZE
-            self.sock_send_blk_size[repr(cur_socket)] = blk_size
-      
+
+          # Update the block size accordingly.
+          self.sock_send_blk_size[repr(cur_socket)] = blk_size
+       
 
     # If there are no more active sockets, we assume that the socket has
     # been closed remotely.
@@ -469,6 +507,10 @@ class ChunkMessage():
     # Keep running this thread as long as the "close" call hasn't been
     # called locally and there is at least one active socket.
     while not self._closed_local and len(self._active_socket_set) > 0:
+      # If any new socket connections have been made since we started this
+      # thread, then we add them to our local copy.
+      for new_sockobj in (self._complete_socket_set - complete_sock_copy):
+        complete_sock_copy.add(new_sockobj)
 
       # We are going to go in circle and try to receive on all the
       # sockets.
@@ -499,11 +541,10 @@ class ChunkMessage():
 
         self.sock_recv_blk_size[repr(cur_socket)] = blk_size
         continue
-
       # If a different exception occur, we save it first. We will raise it later
       # when we run out of data to return (i.e. empty result buffer). The socket
       # is now considered inactive. We remove it from the active socket set.
-      except (SocketClosedLocal, SocketClosedRemote):
+      except (SocketClosedLocal, SocketClosedRemote), err:
         self._active_socket_set.discard(cur_socket)
       else:     
         # If we have successfully received data on this socket, then 
@@ -511,27 +552,22 @@ class ChunkMessage():
         blk_size = blk_size*2
 
         if blk_size > MAX_BLK_SIZE:
-          blk_SIZE = MAX_BLK_SIZE
+          blk_size = MAX_BLK_SIZE
         self.sock_recv_blk_size[repr(cur_socket)] = blk_size
-
+        
         # Now that we have received data on this block, we are going
-        # to try and reconstruct the block.
-        self._recv_buf_dict[repr(cur_socket)] += received_data 
+        # to add it to the buffer. We use a lock to ensure that there
+        # isn't any conflict.
+        self._recv_buf_dict[repr(cur_socket)] += received_data
         self._reconstruct_blocks(cur_socket)
-
-      # end-try
-    
-      # Construct the global recv buffer
       self._construct_result_buf()
-    # End while loop
 
+    # End while loop
 
     # If there are no more active sockets, we assume that the socket has
     # been closed remotely.
     if len(self._active_socket_set) == 0:
       self._closed_remote = True
-
-
 
 
 
@@ -547,12 +583,13 @@ class ChunkMessage():
     # and/or we are unable to reconstruct a block because the entire chunk has
     # not arrived yet.
     while True:
+      if not self._recv_buf_dict[repr(sockobj)]:
+        return
+      
+      
       # Get the receive buffer.
       recv_buf = self._recv_buf_dict[repr(sockobj)][:]
-
-      if recv_buf == '':
-        return
-
+ 
       # Stores the header of the message.
       header = ''
       msg_len = 0
@@ -578,6 +615,11 @@ class ChunkMessage():
       except ValueError:
         return
 
+      # This is the case where the chunk id hasn't been fully 
+      # transmitted yet. (Example header: '1024,' )
+      if not chunk_id_str:
+        return
+
       msg_len = int(msg_len_str)
       chunk_id = int(chunk_id_str)
       
@@ -588,13 +630,15 @@ class ChunkMessage():
 
       msg_body = recv_buf[ : msg_len]
       recv_buf = recv_buf[msg_len : ]
-      
+
       # Add the message chunk to the result buf dictionary and update
       # the receiver buffer with the new receiver buffer.
       self._result_buf_dict[chunk_id] = msg_body
       self._recv_buf_dict[repr(sockobj)] = recv_buf
       self.total_recv += len(msg_body)
-      
+      self._data_recv_dict[repr(sockobj)] += len(msg_body)
+            
+
 
 
 
@@ -603,7 +647,7 @@ class ChunkMessage():
     """
     Used to construct the global recv buffer.
     """
-  
+    
     # Try to read as many chunks as possible in a row that is available
     # and construct the global buffer.
     # Note that if we have so far extracted the chunks 1,2,3,5,7,8,9 then
@@ -614,7 +658,8 @@ class ChunkMessage():
     # result dictionary and increase the chunk id number (the id of the
     # next chunk that we expect to see).
     while self._result_buf_dict.has_key(self._recv_chunk_id):
-      self.global_recv_buffer += self._result_buf_dict[self._recv_chunk_id]
+      result_buf_msg = self._result_buf_dict[self._recv_chunk_id]     
+      self.global_recv_buffer += result_buf_msg
       try:
         self._result_buf_dict.pop(self._recv_chunk_id)
       except:

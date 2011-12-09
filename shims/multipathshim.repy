@@ -23,7 +23,7 @@ while True:
     dy_import_module_symbols("msg_chunk_lib")
   except FileInUseError, err:
     sleep(0.001)
-  except:
+  except Exception, err:
     raise ShimInternalError("Unable to import msg_chunk_lib for MultiPathShim." + str(err))
   else:
     break
@@ -99,19 +99,15 @@ class MultiShimSocket():
       The amount of data sent.
     """
 
-    # If the close() function has already been called.
-    if not self._sockets_open:
-      raise SocketClosedLocal("All sockets closed locally.")
-
     # Retrieve a list of socket objects that has already been 
-    # added to the chunk object. Note that these are the string
-    # form of the sockets.
+    # added to the chunk object. 
     chunk_object_socket_list = self._chunk_object.get_socket_list()
 
     # If any of the sockets have not been added to the chunk object
     # yet, we do it now. We also make a copy of the connection dict
     # in case new connections get added during iteration.
     connection_dict_copy = self._connection_dict.copy()
+    
     for cur_shim in connection_dict_copy:
       # It is possible that the current connection is being made,
       # which means there is a very brief moment when sockobj may
@@ -124,14 +120,14 @@ class MultiShimSocket():
 
       if sockobj:
         # Add the socket to the chunk object if not there already.
-        if repr(sockobj) not in chunk_object_socket_list:
+        if sockobj not in chunk_object_socket_list:
           self._chunk_object.add_socket(sockobj)
         # Add the socket to shim translation to the dict if not
         # there already.
         if repr(sockobj) not in self._sock_to_shim_dict.keys():
           self._sock_to_shim_dict[repr(sockobj)] = cur_shim
 
-
+    
     # Send the data.
     try:
       data_sent = self._chunk_object.senddata(msg)
@@ -167,11 +163,7 @@ class MultiShimSocket():
     <Return>
       A message of size byte or less.
     """
-
-    # If the close() function has already been called.
-    if not self._sockets_open:
-      raise SocketClosedLocal("All sockets closed locally.")
-
+   
     # Retrieve a list of socket objects that has already been
     # added to the chunk object. Note that these are the string
     # form of the sockets.
@@ -186,7 +178,7 @@ class MultiShimSocket():
 
       if sockobj:
         # Add the socket to the chunk object if not there already.
-        if repr(sockobj) not in chunk_object_socket_list:
+        if sockobj not in chunk_object_socket_list:
           self._chunk_object.add_socket(sockobj)
         # Add the socket to shim translation to the dict if not
         # there already.
@@ -196,12 +188,14 @@ class MultiShimSocket():
     # Receive the data that the user requested for.
     try:
       data_recv = self._chunk_object.recvdata(bytes)
+    except SocketWouldBlockError:
+      raise
     except (SocketClosedLocal, SocketClosedRemote):
       # If the sockets are closed we want to clear
       # the connection dictionary.
       self._connection_dict.clear()
       raise
-
+    
     return data_recv
     
 
