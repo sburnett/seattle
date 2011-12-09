@@ -15,6 +15,7 @@
 
 <History>
   04-18-11: Initial implementation.
+  12-09-11: New commit with improved performance.
 """
 
 #dy_import_module_symbols("shim_stack")

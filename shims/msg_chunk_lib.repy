@@ -10,6 +10,15 @@
 <Purpose>
   Helps chunk out a message for sending and receiving
   message across a network.
+<Revisions> 
+12-05-2011: Modified this library heavily. Added dynamic chunking  
+            capability as well as modifying how send and receive 
+            works. Now a seperate thread does send and receive 
+            which allowed us to get rid of the old padding system.
+ 
+12-09-2011: Modified how the send call works, such that we only accept
+            msg of size total block sizes of all sockets times two. This
+            improves the performance of the chunking library greatly.
 """
 
 dy_import_module_symbols("shim_exceptions")
