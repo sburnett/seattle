@@ -16,6 +16,7 @@
 <History>
   04-18-11: Initial implementation.
   12-09-11: New commit with improved performance.
+  12-12-11: Small bug fix that was occuring when the close call was called.
 """
 
 #dy_import_module_symbols("shim_stack")
@@ -240,6 +241,8 @@ class MultiShimSocket():
     # yet, we do it now.
     for cur_shim in self._connection_dict:
       sockobj = self._connection_dict[cur_shim]['sockobj']
+      if not sockobj:
+        continue
       if repr(sockobj) not in chunk_object_socket_list:
         self._chunk_object.add_socket(sockobj)
 

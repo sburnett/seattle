@@ -160,7 +160,7 @@ def handle_incoming_connection(remoteip, remoteport, in_socket):
 
         # Open a connection to presumably the destination proxy
         if outgoing_port == shim_port:
-          shim = ShimStackInterface('(CoordinationShim)')
+          shim = ShimStackInterface(INCOMING_SHIM_STACK_LIST[0])
           out_socket = shim.openconnection(outgoing_ip, outgoing_port, shim.getmyip(), local_port, 30)
 
         # Open a connection to presumably the local server, e.g. Apache.
@@ -231,7 +231,7 @@ class _DataForwarder:
 
       try:
         data_recv = block_call(self._src_socket.recv, BUFFER_SIZE)      
-        log('Forwarding', len(data_recv), 'bytes.\n')
+        #log('Forwarding', len(data_recv), 'bytes.\n')
         while data_recv:
           data_sent = block_call(self._dst_socket.send, data_recv)
           data_recv = data_recv[data_sent:]
