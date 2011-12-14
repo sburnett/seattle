@@ -75,6 +75,27 @@ def _xorstringlist(listofstrings):
 
 class FECShim(BaseShim):
 
+  # intialize all the internal variables
+  fec_context = {}
+  fec_context['send_lock'] = createlock()
+  fec_context['recv_lock'] = createlock()
+  fec_context['sending_bundle_dictionary'] = {}
+  fec_context['received_bundle_dictionary'] = {}
+
+  # let's pick some random value and increment from there to prevent restarts
+  # of this shim from getting confused.
+  fec_context['nextbundleid'] = random_nbit_int(10)
+  fec_context['bundleid_lock'] = createlock()
+
+  # simple metrics
+  fec_context['datapacketcount'] = 0
+  fec_context['dupcount'] = 0
+  fec_context['xorcount'] = 0
+  fec_context['spuriousxorcount'] = 0
+  fec_context['insufficientxorcount'] = 0
+  fec_context['usefulxorcount'] = 0
+
+
   # Return the next available bundleid without a race...
   def _get_new_bundleid(self):
     self.fec_context['bundleid_lock'].acquire(True)
@@ -91,41 +112,18 @@ class FECShim(BaseShim):
   def __init__(self, shim_stack, optional_args=None):
     BaseShim.__init__(self, shim_stack, optional_args)
 
-    # intialize all the internal variables
-    self.fec_context = {}
-    self.fec_context['send_lock'] = createlock()
-    self.fec_context['recv_lock'] = createlock()
-    self.fec_context['sending_bundle_dictionary'] = {}
-    self.fec_context['received_bundle_dictionary'] = {}
-
-    # let's pick some random value and increment from there to prevent restarts
-    # of this shim from getting confused.
-    self.fec_context['nextbundleid'] = random_nbit_int(10)
-    self.fec_context['bundleid_lock'] = createlock()
-
     if optional_args:
-      self.fec_context['packets_per_bundle'] = int(optional_args[0])
+      self._packets_per_bundle = int(optional_args[0])
     else:
-      self.fec_context['packets_per_bundle'] = 2
-
-    # simple metrics
-    self.fec_context['datapacketcount'] = 0
-    self.fec_context['dupcount'] = 0
-    self.fec_context['xorcount'] = 0
-    self.fec_context['spuriousxorcount'] = 0
-    self.fec_context['insufficientxorcount'] = 0
-    self.fec_context['usefulxorcount'] = 0
-
+      self._packets_per_bundle = 2
 
 
   def copy(self):
-    mycopy = FECShim(self.shim_context['shim_stack'].copy(), self.shim_context['optional_args'])
-    mycopy.fec_context = self.fec_context
-    return mycopy
+    return FECShim(self.shim_context['shim_stack'].copy(), self.shim_context['optional_args'])
 
 
   def get_advertisement_string(self):
-    return '(FECShim,' + str(self.fec_context['packets_per_bundle']) + ')' + self.get_next_shim_layer().get_advertisement_string()
+    return '(FECShim,' + str(self._packets_per_bundle) + ')' + self.get_next_shim_layer().get_advertisement_string()
 
 
 
@@ -163,7 +161,7 @@ class FECShim(BaseShim):
         except Exception:
           continue
         
-        if packetnum < 0 or packetnum > self.fec_context['packets_per_bundle']:
+        if packetnum < 0 or packetnum > self._packets_per_bundle:
           # we recievied a bad packetnum
           continue
 
@@ -192,7 +190,7 @@ class FECShim(BaseShim):
         self.fec_context['received_bundle_dictionary'][srcinfo][bundleid][packetnum] = packetbody
 
         # if it's not an XOR packet, return and continue
-        if packetnum != self.fec_context['packets_per_bundle']:
+        if packetnum != self._packets_per_bundle:
           self.fec_context['datapacketcount'] = self.fec_context['datapacketcount'] + 1
           
           return (srcip, srcport, packetbody)
@@ -202,12 +200,12 @@ class FECShim(BaseShim):
 
 
         # is it spurious? (we got all data packets, so no need)
-        if len(self.fec_context['received_bundle_dictionary'][srcinfo][bundleid]) > self.fec_context['packets_per_bundle']:
+        if len(self.fec_context['received_bundle_dictionary'][srcinfo][bundleid]) > self._packets_per_bundle:
           self.fec_context['spuriousxorcount'] = self.fec_context['spuriousxorcount'] + 1
           continue
 
         # did we get too few packets to reconstruct the missing ones?
-        if len(self.fec_context['received_bundle_dictionary'][srcinfo][bundleid]) < self.fec_context['packets_per_bundle']:
+        if len(self.fec_context['received_bundle_dictionary'][srcinfo][bundleid]) < self._packets_per_bundle:
           self.fec_context['insufficientxorcount'] = self.fec_context['insufficientxorcount'] + 1
           continue
    
@@ -231,7 +229,7 @@ class FECShim(BaseShim):
 
         # first figure out which message is missing...
         currentpacketnumset = set(self.fec_context['received_bundle_dictionary'][srcinfo][bundleid])
-        allpossiblepacketnumset = set(range(self.fec_context['packets_per_bundle']))
+        allpossiblepacketnumset = set(range(self._packets_per_bundle))
 
         missingmessageset = allpossiblepacketnumset.difference(currentpacketnumset)
         # should only be one missing...
@@ -292,7 +290,7 @@ class FECShim(BaseShim):
       self.fec_context['sending_bundle_dictionary'][destinfo]['packetlist'].append(packetbody)
 
       # if more are needed before sending an XOR packet, then return
-      if len(self.fec_context['sending_bundle_dictionary'][destinfo]['packetlist']) < self.fec_context['packets_per_bundle']:
+      if len(self.fec_context['sending_bundle_dictionary'][destinfo]['packetlist']) < self._packets_per_bundle:
         # BUG: I'm just assuming the whole thing was sent!
         return len(packetbody)
 

@@ -39,8 +39,6 @@ class UdpMultiPipeSocket():
     if not self._udpsocket_open:
       raise SocketClosedLocal("UDPServerSocket has been closed locally.")
 
-    # This is nicer to access than the full path from self, at least in terms
-    # of code appearence.
     localip_context = self.localip_dict[self.localip]
 
     # Acquire lock to prevent concurrent access to shared state.
@@ -133,6 +131,10 @@ class UdpMultiPipeSocket():
 
 class UdpMultiPipeShim(BaseShim):
 
+  listen_lock = createlock()
+  localip_dict = {}
+
+
   def __init__(self, shim_stack=ShimStack(), optional_args=None):
     """
     <Purpose>
@@ -163,9 +165,6 @@ class UdpMultiPipeShim(BaseShim):
     <Return>
       None
     """
-
-    self.listen_lock = createlock()
-    self.localip_dict = {}
 
     self.shim_str_list = optional_args
 
@@ -208,29 +207,27 @@ class UdpMultiPipeShim(BaseShim):
     port it was assigned in the optional arguments.
     """
 
-    self.listen_lock.acquire(True)
+    if localip not in self.localip_dict:
+      exception_list = []
+      udpsocket_list = []
 
-    try:
-      if localip in self.localip_dict:
-        if localport in self.localip_dict[localip]['received_msg_dict']:
-          raise AlreadyListeningError("There is a UdpMultiPipeSocket already listening on that IP and port")
+      for port, cur_shim in self.shim_stack_list:
+        try:
+          udpsocket = cur_shim.peek().listenformessage(localip, port)
+        except Exception, e:
+          exception_list.append(e)
+        else:
+          udpsocket_list.append((port, udpsocket))
 
-      else:
-        exception_list = []
-        udpsocket_list = []
+      self.listen_lock.acquire(True)
 
-        for port, cur_shim in self.shim_stack_list:
-          try:
-            udpsocket = cur_shim.peek().listenformessage(localip, port)
-          except Exception, e:
-            exception_list.append(e)
-          else:
-            udpsocket_list.append((port, udpsocket))
-        
+      if localip not in self.localip_dict:
+
         # It doesn't matter so much if we failed to create one or more of the
         # sockets, but if all the listenformessage invocations failed, then we
         # should let the user know.
         if not udpsocket_list:
+          self.listen_lock.release()
           raise exception_list[0]
 
         self.localip_dict[localip] = {}
@@ -239,11 +236,18 @@ class UdpMultiPipeShim(BaseShim):
         self.localip_dict[localip]['received_msg_dict'] = {}
         self.localip_dict[localip]['unreturned_msg_dict'] = {}
 
-    finally:
       self.listen_lock.release()
+
+    self.localip_dict[localip]['recv_lock'].acquire(True)
+
+    if localport in self.localip_dict[localip]['received_msg_dict']:
+      self.localip_dict[localip]['recv_lock'].release()
+      raise AlreadyListeningError("There is a UdpMultiPipeSocket already listening on that IP and port")
 
     self.localip_dict[localip]['received_msg_dict'][localport] = set()
     self.localip_dict[localip]['unreturned_msg_dict'][localport] = []
+
+    self.localip_dict[localip]['recv_lock'].release()
 
     return UdpMultiPipeSocket(self.localip_dict, localip, localport)
 
@@ -292,11 +296,7 @@ class UdpMultiPipeShim(BaseShim):
     shim_stack_copy = self.shim_context['shim_stack'].copy()
     optional_args_copy = self.shim_context['optional_args']
 
-    mycopy = UdpMultiPipeShim(shim_stack_copy, optional_args_copy)
-    mycopy.listen_lock = self.listen_lock
-    mycopy.localip_dict = self.localip_dict
-
-    return mycopy
+    return UdpMultiPipeShim(shim_stack_copy, optional_args_copy)
 
 
   def get_advertisement_string(self):

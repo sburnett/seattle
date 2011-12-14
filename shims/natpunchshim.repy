@@ -463,9 +463,7 @@ class NatPunchShim(BaseShim):
     shim_stack_copy = self.shim_context['shim_stack'].copy()
     optional_args_copy = self.shim_context['optional_args']
 
-    my_copy = NatPunchShim(shim_stack_copy, optional_args_copy)
-    my_copy.default_forwarder = self.default_forwarder
-    return my_copy
+    return NatPunchShim(shim_stack_copy, optional_args_copy)
 
 
 

@@ -265,11 +265,8 @@ class MobileTCPServerSocket:
 class MobilityShim(BaseShim):
 
 
-  def __init__(self, shim_stack, optional_args=None):
-    BaseShim.__init__(self, shim_stack, optional_args)
-
-    # Dict that maps from (port, ip) to tcp server sockets.
-    self._server_socket_dict = {}
+  # Dict that maps from (port, ip) to tcp server sockets.
+  _server_socket_dict = {}
 
 
 
