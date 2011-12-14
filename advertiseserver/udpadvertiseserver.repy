@@ -1,0 +1,322 @@
+""" 
+Author: Justin Cappos
+
+Start Date: Oct 30th, 2011
+
+Description:
+Advertisements to a central server (similar to openDHT)
+
+This is mostly derived from the old advertise server
+
+"""
+
+dy_import_module_symbols("session")
+dy_import_module_symbols("serialize")
+
+serverport = 10102
+servername = '128.208.4.96' # Blackbox IP
+
+# These are storage locations for data pertinent to logging.
+mycontext["get_times"] = []
+mycontext["put_times"] = []
+
+# These are file objects for logging purposes. They are initialized 
+# in the main code, and used only in the _log_with_timestamp method.
+mycontext["query_log"] = None
+
+# How frequently should we purge our log data?
+mycontext["log_spacing"] = 150 # How about every two and a half minutes?
+
+hashtable = {}
+
+#used for logging
+logfiledata=dict()
+
+#contains a list of get/put requests that have been completed, nothing is logged here for requests that are failed
+#the call_trace log follows the following format:
+#<timestamp> <PUT/GET> <request identification key> <first 16 characters of key> <value> <expiration interval in case of PUT, blank in case of GET>
+logfiledata["call_trace"]=None   
+
+#contains information that is logged while each request is processed
+#will log information for all requests that are received
+logfiledata["expanded_log"]=None
+log_lock = createlock()
+
+#safely write to the given log file
+def write_to_log(log_file, message):
+  # This has been commented out to prevent logging.  
+  #log the request information
+#  log_lock.acquire()
+#  log_file.write(message)
+#  log_file.flush()
+#  log_lock.release()
+  pass
+
+
+def expire_hashtable_items():
+  now = getruntime()
+  for key in hashtable.copy():
+    # copying the list, so I can remove elements...
+    for valuetimepair in hashtable[key][:]:
+      if valuetimepair[1] < now:
+        try:
+          # if time has expired, remove it...
+          hashtable[key].remove(valuetimepair)
+        except ValueError:
+          # This is okay.   It means another instance of expire_hashtable_items
+          # or an insert_hashtable removed the entry.
+          pass
+
+
+
+def insert_hashtable(key, value, expiretime):
+  if key not in hashtable:
+    hashtable[key] = []
+
+  # copying the list, so I can remove elements...
+  for valuetimepair in hashtable[key][:]:
+    if valuetimepair[0] == value:
+      # if there is already a value, remove it...
+      try:
+        hashtable[key].remove(valuetimepair)
+      except ValueError:
+        # This is okay.   It means an instance of expire_hashtable_items or
+        # another insert_hashtable instance removed the entry.
+        pass
+    
+  hashtable[key].append((value,expiretime))
+      
+
+def read_hashtable(key, maxkeys):
+  if key not in hashtable:
+    
+    #log the hash table miss
+    expanded_message = str(getruntime())+": unable to find key " + str(key)[0:16] + "... in hashtable.\n"
+    write_to_log(logfiledata["expanded_log"], expanded_message)
+  
+    return []
+
+  retlist = []
+  for item in hashtable[key]:
+    retlist.append(item[0])
+
+  return retlist[:maxkeys]
+
+
+
+
+
+
+# This will receive requests that look like this:
+# ('PUT', 'key', 'value', 100, requestid)     # put 'value' under 'key' for 
+#                                             # 100 seconds
+# ('GET', 'key', 10, requestid)      # get at most 10 values stored under 'key'
+#
+# The responses returned for a PUT look like the following:
+# ('OK',requestid)    (in response to put)
+# ('An error foobar occurred when performing a PUT',requestid)
+#
+# The responses returned for a GET look like the following:
+# ('OK',[],requestid)             #  (no items under key)
+# ('OK',['abc','123'],requestid)  #  ('abc' and '123' are under the key)
+# ('An error foobar occurred when performing a PUT',requestid) 
+
+# The requestid items listed above are merely a way for the caller to know
+# which response corresponds to a request.   It is opaque and is not assumed
+# do be of any specific type, etc.
+
+# I know it's a little wonky to return data of different types.   I also know
+# I could have used dicts instead of tuples.   After consideration I decided 
+# not to do either because I'm not sure this would have added much clarity.
+
+# let's expire every 10 seconds
+EXPIRE_FREQUENCY = 10
+expire_hashtable_items_lock = createlock()
+
+
+# This is the new handler.   This works on serialized requests...
+def handlerequest(remoteIP, remoteport, rawrequestdata):
+
+  start_time = getruntime()
+
+  # This is when I last ran expire_hashtable_items
+  if (getruntime() > mycontext['last_expire_hashtable_items_time'] + EXPIRE_FREQUENCY):
+
+    # if we can get the lock, great!   If not, continue...
+    if expire_hashtable_items_lock.acquire(False):
+      # expire the hashtable items that are obsolete and update the time...
+      expire_hashtable_items()
+      mycontext['last_expire_hashtable_items_time'] = getruntime()
+      expire_hashtable_items_lock.release()
+
+
+  # Now let's process the request...
+  try:
+    try:
+      requesttuple = serialize_deserializedata(rawrequestdata)
+    except ValueError, e:
+      print 'serialize_deserializedata:',e,' with string "'+rawrequestdata+'"'
+      return
+
+    if not type(requesttuple) is tuple:
+      print 'Request is '+str(type(requesttuple))+' not tuple.'
+      return
+    
+    if requesttuple[0] == 'PUT':
+
+      ############# START Tons of type checking
+      try:
+        (key, value, ttlval, requestid) = requesttuple[1:]
+      except ValueError, e:
+        print 'Incorrect format for request tuple: ',str(requesttuple)
+        return
+
+      if type(key) is not str:
+        print 'Key type for PUT must be str, not',type(key)
+        return
+
+      if type(value) is not str:
+        print 'Value type must be str, not',type(value)
+        return
+    
+      if type(ttlval) is not int and type(ttlval) is not long:
+        print 'TTL type must be int or long, not',type(ttlval)
+        return
+
+      if ttlval <=0:
+        print 'TTL must be positive, not ',ttlval
+        return
+
+      ############# END Tons of type checking
+
+      now = getruntime()
+
+      # insert the items...
+      insert_hashtable(key, value, ttlval+now)
+      insert_hashtable('%all', value, ttlval+now)
+      
+      senddata = serialize_serializedata(("OK",requestid))
+
+      # all is well...
+      sendmessage(remoteIP, remoteport, senddata, servername, serverport)
+      
+      mycontext["put_times"].append(getruntime() - start_time)
+
+      return
+
+
+
+    elif requesttuple[0] == 'GET':
+
+      ############# START Tons of type checking (similar to above
+      try:
+        (key, maxvals, requestid) = requesttuple[1:]
+      except ValueError, e:
+        print 'Incorrect format for request tuple: ',str(requesttuple)
+        return
+
+      if type(key) is not str:
+        print 'Key type for GET must be str, not',type(key)
+        return
+
+      if type(maxvals) is not int and type(maxvals) is not long:
+        print 'Maximum value type must be int or long, not',type(maxvals)
+        return
+
+      if maxvals <=0:
+        print 'Value type must be positive, not ',maxvals
+        return
+
+      ############# END Tons of type checking
+
+      # do the actual work...   read the value and send the response...
+      readlist = read_hashtable(key, maxvals)
+        
+      senddata = serialize_serializedata(("OK",readlist, requestid))
+      sendmessage(remoteIP, remoteport, senddata, servername, serverport)
+      
+      mycontext["get_times"].append(getruntime() - start_time)
+
+      return
+
+    else:
+    
+      print 'Unknown request:',str(requesttuple)
+      return
+
+  except Exception,e:
+    print "While handling request, received: ",e
+
+
+
+
+def _calcmean(collection):
+  if len(collection) == 0:
+    return 0
+
+  return sum(collection) / len(collection)
+
+
+def _perform_logging():
+
+  query_log_index = 0
+
+  while True:
+    # It's a shame, but this is a MESS. Suffice it to say, it constructs a 
+    # data string that looks something like this when written:
+    # [3456785.2432] PUT: 120 GET: 35
+    #                AVG PUT: 0.001341
+    #                AVG GET: 0.002340
+    # I do not know offhand how to timestamp queries in a way legible to the 
+    # uninitiated, so this will have to do for now.
+    helper_string = ""
+    for i in range(len(str(getruntime()))):
+      helper_string = helper_string + " "
+
+    query_log_str = "[" + str(getruntime()) + "] PUT: "
+    query_log_str = query_log_str + str(len(mycontext["put_times"]))
+    query_log_str = query_log_str + " GET: " + str(len(mycontext["get_times"])) + "\n"
+    query_log_str = query_log_str + "   " + helper_string
+    query_log_str = query_log_str + "AVG PUT: " + str(_calcmean(mycontext["put_times"])) + "\n"
+    query_log_str = query_log_str + "   " + helper_string
+    query_log_str = query_log_str + "AVG GET: " + str(_calcmean(mycontext["get_times"])) + "\n"
+
+    # Reset counts
+    mycontext["put_times"] = []
+    mycontext["get_times"] = []
+
+    # Flush the data and update index.
+    mycontext["query_log"].writeat(query_log_str, query_log_index)
+    query_log_index += len(query_log_str)
+
+    # Wait for another log spacing.
+    sleep(mycontext["log_spacing"])
+
+
+
+if callfunc=='initialize':
+  print "Started"
+  # time_updatetime(34612)
+  
+  mycontext["query_log"] = openfile("log.volume", True)
+
+  createthread(_perform_logging)
+
+  # This is when I last ran expire_hashtable_items
+  mycontext['last_expire_hashtable_items_time'] = getruntime()
+
+  #initialize the log files
+  # logfiledata["call_trace"] = open("log.calltrace",'a')
+  # logfiledata["expanded_log"] = open("log.expanded",'a')
+  print "Detailed logging has been disabled, see write_to_log to enable it"
+  
+  # recvmess(servername,serverport,handlerequest)
+
+  udpserversock = listenformessage(servername, serverport)
+
+  while True:
+    try:
+      remoteIP, remoteport, message = udpserversock.getmessage()
+      handlerequest(remoteIP, remoteport, message)
+    except SocketWouldBlockError, e:
+      continue
