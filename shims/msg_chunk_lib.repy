@@ -10,6 +10,7 @@
 <Purpose>
   Helps chunk out a message for sending and receiving
   message across a network.
+
 <Revisions> 
 12-05-2011: Modified this library heavily. Added dynamic chunking 
             capability as well as modifying how send and receive
@@ -24,11 +25,17 @@
             round robin fashion using sets as a queue and instead both the
             recv and send now goes through all the active sockets. This was
             done to fix a small bug that didn't allow sets to be used as a
-            lazy queue.
+            lazy queue. 
 
 12-12-2011: Changed the locking mechanism that senddata and the sending thread
             uses to the one similar to the compression shim. Fixed a bug where
             the last chunk of data was not being sent.
+
+12-15-2011: Fixed a bug that was causing the recvdata to raise 
+            SocketClosedRemote error if the socket was being closed 
+            remotely but the internal recv buffer still had data. 
+            Made changes so SocketClosedRemote is only raised if
+            the recv buffer is empty.
 """
 
 dy_import_module_symbols("shim_exceptions")
@@ -241,17 +248,21 @@ class ChunkMessage():
     if self._closed_local:
       return False
 
-    while self.send_buffer:
-      sleep(0.001)
+    self._empty_lock.acquire(True)
+    self._mutex_lock.acquire(True)
 
-    self._closed_local = True
-    for socket in self._complete_socket_set.copy():
-      try:
-        socket.close()
-      except:
-        pass
-    self._active_socket_set.clear()
+    try:
+      self._closed_local = True
+      for socket in self._complete_socket_set.copy():
+        try:
+          socket.close()
+        except:
+          pass
 
+      self._active_socket_set.clear()
+    finally:
+      self._empty_lock.release()
+      self._mutex_lock.release()
 
     return True
 
@@ -305,7 +316,6 @@ class ChunkMessage():
       msg_to_send = msg[:msg_send_size]
         
       self.send_buffer = self.send_buffer + msg_to_send
-      
       # Release the mutex lock and the full lock.
       self._mutex_lock.release()
       self._full_lock.release()
@@ -319,6 +329,10 @@ class ChunkMessage():
       
       raise SocketWouldBlockError("Blocking in send.")
     
+
+    # Wait to return until buffer is empty.
+    self._empty_lock.acquire(True)
+    self._empty_lock.release()
 
     # Assume that the entire message has been sent.
     return len(msg_to_send)
@@ -349,8 +363,14 @@ class ChunkMessage():
       # If socket has already been closed, then we raise SocketClosedLocal
       raise SocketClosedLocal("Socket has been closed locally.")
     elif self._closed_remote:
-      # If socket has been closed remotely, then we raise SocketClosedRemote
-      raise SocketClosedRemote("Socket has been closed remotely.")
+      self.global_recv_lock.acquire(True)
+      try:
+        if not self.global_recv_buffer:
+          # If socket has been closed remotely, then we raise SocketClosedRemote
+          raise SocketClosedRemote("Socket has been closed remotely.")
+      finally:
+        self.global_recv_lock.release()
+
     elif len(self.global_recv_buffer) == 0:
       # If the send buffer is not empty then we raise SocketWouldBlockError
       raise SocketWouldBlockError("Recv will block, recv buffer empty.")
@@ -486,9 +506,11 @@ class ChunkMessage():
                   blk_size = MIN_BLK_SIZE
 
                 self.sock_send_blk_size[repr(cur_socket)] = blk_size
-              except (SocketClosedLocal, SocketClosedRemote), err:
+              except (SocketClosedLocal), err:
                 # If we get a socket closed remote error, we remove it
                 # from the active socket list.
+                self._active_socket_set.discard(cur_socket)
+              except (SocketClosedRemote), err:
                 self._active_socket_set.discard(cur_socket)
               else:
                 # Update the send buffer.
@@ -580,7 +602,9 @@ class ChunkMessage():
         # If a different exception occur, we save it first. We will raise it later
         # when we run out of data to return (i.e. empty result buffer). The socket
         # is now considered inactive. We remove it from the active socket set.
-        except (SocketClosedLocal, SocketClosedRemote), err:
+        except (SocketClosedLocal), err:
+          self._active_socket_set.discard(cur_socket)
+        except (SocketClosedRemote), err:
           self._active_socket_set.discard(cur_socket)
         else:     
           # If we have successfully received data on this socket, then 

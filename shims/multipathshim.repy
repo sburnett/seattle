@@ -245,7 +245,7 @@ class MultiShimSocket():
       if not sockobj:
         continue
       if repr(sockobj) not in chunk_object_socket_list:
-        sockobj.close()
+        self._chunk_object.add_socket(sockobj)
 
     self._connection_dict.clear()
     
@@ -593,7 +593,6 @@ class MultiPathShim(BaseShim):
 
     def _openconn_thread_helper():
       all_connected = False
-
       thread_start_time = getruntime()
       
       while not all_connected:
