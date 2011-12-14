@@ -344,14 +344,9 @@ class MultiShimTCPSocket():
 
     def _getconnection_helper():
       all_connected = False
-      thread_start_time = getruntime()
 
       while not all_connected:
         all_connected = True
-
-        # Try to keep connecting for only 5 more second.
-        if (getruntime() - thread_start_time) > 5:
-          return
 
         for cur_tcp_socket in self.tcpsocket_dict.keys():
           # If a new connection was made after this thread was launched
@@ -593,15 +588,10 @@ class MultiPathShim(BaseShim):
 
     def _openconn_thread_helper():
       all_connected = False
-      thread_start_time = getruntime()
       
       while not all_connected:
         all_connected = True      
         
-        # Try to keep connecting for only 5 more second.
-        if (getruntime() - thread_start_time) > 5:
-          return
-
         for cur_shim_stack in self.shim_stack_dict.keys():
           # Check to see if we are already connected.
           if connection_dict[cur_shim_stack]['sockobj']:
