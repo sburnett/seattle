@@ -240,7 +240,8 @@ class MultiShimSocket():
 
     # If any of the sockets have not been added to the chunk object
     # yet, we do it now.
-    for cur_shim in self._connection_dict.copy():
+    connection_dict_copy = self._connection_dict.copy()
+    for cur_shim in connection_dict_copy.keys():
       sockobj = self._connection_dict[cur_shim]['sockobj']
       if not sockobj:
         continue
