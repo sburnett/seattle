@@ -12,8 +12,12 @@
 <Purpose>
   Recovers from disconnection by trying to reconnect if we lose
   connectivity and masking the disconnection from the layer above us.
-  Handles disconnections due to the client changing IP, but won't work
-  if the server changes IP.
+  Handles disconnections due to the client changing IP by reconnecting
+  from the new IP and disconnections due to the server changing IP by
+  listening on the new IP and waiting for the client to reconnect.
+  Server mobility is only handled correctly if the application is
+  listening on a Zenodotus name through the CoordinationShim and the
+  client is connecting to that same hostname.
 
 """
 
@@ -124,6 +128,9 @@ class MobileTCPServerSocket:
 
       self._server_socket_lock.release()
 
+      # If our IP has changed and update the IP we are listening on if so.
+      self._check_ip_change()
+
       try:
         # The internal _socket object may have been updated, if the IP changed and
         # new listener started successfully.
@@ -211,6 +218,36 @@ class MobileTCPServerSocket:
     self._next_shim.tcpserversocket_close(self._socket)
     self._server_socket_lock.release()
     debug_log('zzzz connection listener loop exits\n', show=True)
+
+
+
+  def _check_ip_change(self):
+    """
+    Helper method for getconnection(). Checks if IP has changed. If it has,
+    starts a new listener and updates the the original TCP server socket to
+    reference the new one.
+
+    """
+    current_ip = _check_current_ip()
+    if current_ip is None or current_ip == self._listen_ip:
+      return
+
+    # At this point, the IP has changed. Update the IP address to the current
+    # one.
+    self._listen_ip = current_ip
+
+    # Start listening on the new IP, ignore network errors because connectivity
+    # may have not been re-established yet.
+    try:
+      new_tcpserversocket = self._next_shim.listenforconnection(self._listen_ip, self._listen_port)
+    except NetworkError:
+      return
+
+    # Update the socket reference.
+    self._socket = new_tcpserversocket
+
+    debug_log('\n\n\n', '*' * 80, '\n', show=True)
+    debug_log('zzzz new listener on', self._listen_ip, ':', self._listen_port, '\n', show=True)
 
 
 
