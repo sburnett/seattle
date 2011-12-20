@@ -18,7 +18,7 @@
 # Import random, which we'll use to choose which packets to drop
 dy_import_module_symbols('random')
 
-
+dy_import_module_symbols("shim_exceptions")
 
 class UdpLossShim(BaseShim):
 
