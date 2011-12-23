@@ -200,7 +200,7 @@ def exec_model_impl(fnc_name, threadname, model_func, impl_func, args_list, obj_
 
   # Done with basics, verify if necessary.
   try:
-    systolic_verify()
+    check_and_possibly_verify()
  
     # We are done, return or raise to caller!
     if impl_error != None:
