@@ -397,7 +397,7 @@ def systolic_disambiguate_and_verify():
 
 # The main function that starts the systolic verification of the current in-memory 
 # trace. In the normal CheckAPI case it is called from runtime_verification_core.
-def systolic_verify(force=False):
+def check_and_possibly_verify(force=False):
   """
   NOTE: This call must be wrapped around a try/finally action_lock. If you 
     don't care about the trace length or any pending calls set force=True.
