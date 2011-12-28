@@ -41,6 +41,7 @@ import os
 import random
 import shutil
 import subprocess
+import sys
 
 sys.path.insert(0, os.path.join(os.getcwd(), "repy", "tests"))
 import testportfiller
@@ -66,7 +67,7 @@ def process_mix(script_path):
   for file_path in mix_files:
     #generate a .py file for the .mix file specified by file_path
     processed_file_path = (os.path.basename(file_path)).replace(".mix",".py")
-    (theout, theerr) =  exec_command("python " + script_path + " " + file_path + " " + processed_file_path)
+    (theout, theerr) =  exec_command(sys.executable + " " + script_path + " " + file_path + " " + processed_file_path)
 
 
 def exec_command(command):
