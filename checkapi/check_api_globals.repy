@@ -65,8 +65,15 @@ if not CHECKAPI_FOR_SHIMS:
 
 
 def get_global_state_dict():
-  return deep_copy(mycontext['model_state'])
+  # EG: it calls the 
+  empty_current_list()
+  return "ok"
+    
+  #return deep_copy(mycontext['model_state'])
 
 
 def put_global_state_dict(new_global_state_dict):
-  mycontext['model_state'] = new_global_state_dict
+  # EG:
+  restore_state()
+  #mycontext['model_state'] = new_global_state_dict
+

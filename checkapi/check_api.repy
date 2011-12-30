@@ -50,6 +50,9 @@ ENABLE_LOCK_VERIF = True
 # model's filesystem upon start-up.
 FILES_TO_IMPORT_TO_FS = "check_api_initial_filestate.input"
 
+# EG:
+dy_import_module_symbols("checkapi_rstructures.repy")
+
 # Various global state/methods used throughout CheckAPI.
 dy_import_module_symbols("check_api_globals.repy")
 
@@ -60,12 +63,13 @@ dy_import_module_symbols("check_api_exceptions.repy")
 dy_import_module_symbols("check_api_oracle_setter_getter.repy")
 
 # Include helper modules.
-dy_import_module_symbols("deep_copy.repy")
+#dy_import_module_symbols("deep_copy.repy")
 dy_import_module_symbols("math.repy")
 dy_import_module_symbols("librepyrandom.repy")
 dy_import_module_symbols("random.repy")
 
 # Include the core model itself.
+# EG: Now it makes use of the revertible structures
 dy_import_module_symbols("core_model_state.repy")
 dy_import_module_symbols("core_model_resource.repy")
 dy_import_module_symbols("core_model_thread.repy")
