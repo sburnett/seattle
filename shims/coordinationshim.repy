@@ -236,7 +236,7 @@ class CoordinationShim(BaseShim):
   # ===================================================================
 
 
-  def listenformessage(self, localip, localport):
+  def listenformessage(self, localhost, localport):
     """
     <Purpose>
       Listens for incoming connections. Advertises the shim stack when the
@@ -255,6 +255,18 @@ class CoordinationShim(BaseShim):
       Same as the network API in repy v2.    
 
     """
+    # If we are listening on a zenodotus name, first translate it to the local
+    # IP and start the advertisement thread that constantly announces the
+    # zenodotus name -> IP mapping.
+    if localhost.endswith('.zenodotus.cs.washington.edu'):
+      try:
+        localip = getmyip()
+      except InternetConnectivityError:
+        raise AddressBindingError('Coordination Shim: Not connected to the network.')
+      self._zenodotus_start_advertise(localhost)
+    else:
+      localip = localhost
+
     # Start listening so we have a complete view of the shim stack below us.
     udpserversocket = self.get_next_shim_layer().listenformessage(localip, localport)
 

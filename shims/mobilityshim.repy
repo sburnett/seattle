@@ -74,17 +74,23 @@ class MobileTCPServerSocket:
   # How often to check for new connections.
   _GETCONNECTION_INTERVAL = 0.1
 
-  def __init__(self, shimtcpserversocket):
+  def __init__(self, shimtcpserversocket, listen_ip, listen_port):
     """
     Constructor. Arguments:
 
     shimtcpserversocket - the ShimTCPServerSocket to wrap around.
+    listen_ip - the IP address to which the listener was initially bound.
+    listen_port - the bound port.
 
     """
-    # References to the internal state of the TCP server socket
+    # References to the internal state of the TCP server socket.
     self._socket = shimtcpserversocket._socket
     self._shim_object = shimtcpserversocket._shim_object
     self._next_shim = self._shim_object.get_next_shim_layer()
+
+    # IP and port on which the initial listener was created.
+    self._listen_ip = listen_ip
+    self._listen_port = listen_port
 
     # Maps the client ID to the corresponding MobileSocket
     # object. Used to retrieve broken yet active connections.
@@ -128,7 +134,7 @@ class MobileTCPServerSocket:
 
       self._server_socket_lock.release()
 
-      # If our IP has changed and update the IP we are listening on if so.
+      # If our IP has changed then update the IP we are listening on.
       self._check_ip_change()
 
       try:
@@ -232,10 +238,6 @@ class MobileTCPServerSocket:
     if current_ip is None or current_ip == self._listen_ip:
       return
 
-    # At this point, the IP has changed. Update the IP address to the current
-    # one.
-    self._listen_ip = current_ip
-
     # Start listening on the new IP, ignore network errors because connectivity
     # may have not been re-established yet.
     try:
@@ -243,7 +245,10 @@ class MobileTCPServerSocket:
     except NetworkError:
       return
 
+    self._next_shim.tcpserversocket_close(self._socket)
+
     # Update the socket reference.
+    self._listen_ip = current_ip
     self._socket = new_tcpserversocket
 
     debug_log('\n\n\n', '*' * 80, '\n', show=True)
@@ -297,6 +302,129 @@ class MobileTCPServerSocket:
 
 
 
+class MobileUDPServerSocket:
+  """
+  Wrapper for ShimUDPServerSocket.
+
+  """
+
+  def __init__(self, shimudpserversocket, listen_ip, listen_port):
+    """
+    Constructor. Arguments:
+
+    shimudpserversocket - the ShimUDPServerSocket to wrap around.
+    listen_ip - the IP address to which the listener was initially bound.
+    listen_port - the bound port.
+
+    """
+    # References to the internal state of the TCP server socket.
+    self._socket = shimudpserversocket._socket
+    self._shim_object = shimudpserversocket._shim_object
+    self._next_shim = self._shim_object.get_next_shim_layer()
+
+    # IP and port on which the initial listener was created.
+    self._listen_ip = listen_ip
+    self._listen_port = listen_port
+
+    # Messages that haven't we are holding on to because we received
+    # them on a server socket that was closed when we changed IP.
+    self._unreturned_message_tuples = []
+
+    # Keeps track of the socket's current state.
+    self._closed = False
+
+    # Prevent concurrent access to state.
+    self._server_socket_lock = createlock()
+
+
+
+  def getmessage(self):
+    """ Checks for new messages. """
+
+    if self._closed:
+      raise SocketClosedLocal("The socket has been closed!")
+
+    # If our IP has changed then update the IP we are listening on. This
+    # check will only occur if the application calls getmessage, but
+    # that shouldn't be an issue.
+    self._check_ip_change()
+
+    self._server_socket_lock.acquire(True)
+
+    # Check if we have any unreturned messages from previous server
+    # sockets.
+    if self._unreturned_message_tuples:
+      return self._unreturned_message_tuples.pop(0)
+
+    self._server_socket_lock.release()
+
+    return self._next_shim.udpserversocket_getmessage(self._socket)
+
+
+
+  def _check_ip_change(self):
+    """
+    Helper method for getmessage(). Checks if IP has changed. If it has,
+    starts a new listener and updates the the original UDP server socket
+    to reference the new one.
+
+    """
+    current_ip = _check_current_ip()
+    if current_ip is None or current_ip == self._listen_ip:
+      return
+
+    # Start listening on the new IP, ignore network errors because
+    # connectivity may have not been re-established yet.
+    try:
+      new_udpserversocket = self._next_shim.listenformessage(self._listen_ip, self._listen_port)
+    except NetworkError:
+      return
+
+    self._server_socket_lock.acquire(True)
+    old_udpserversocket = self._socket
+
+    # Update the socket reference.
+    self._listen_ip = current_ip
+    self._socket = new_udpserversocket
+
+    self._server_socket_lock.release()
+
+    # Get any messages currently avaliable before closing the old socket.
+    while True:
+      try:
+        unreturned_tuple = self._next_shim.udpserversocket_getmessage(old_udpserversocket)
+      except Exception:
+        break
+      else:
+        self._server_socket_lock.acquire(True)
+        self._unreturned_message_tuples.append(unreturned_tuple)
+        self._server_socket_lock.release()
+
+    self._next_shim.udpserversocket_close(old_udpserversocket)
+
+    debug_log('\n\n\n', '*' * 80, '\n', show=True)
+    debug_log('zzzz new udp listener on', self._listen_ip, ':', self._listen_port, '\n', show=True)
+
+
+
+  def close(self):
+    self._server_socket_lock.acquire(True)
+
+    if self._closed:
+      self._server_socket_lock.release()
+      return False
+
+    else:
+      self._closed = True
+      self._server_socket_lock.release()
+
+      self._next_shim.udpserversocket_close(self._socket)
+
+      return True
+
+
+
+
 
 
 class MobilityShim(BaseShim):
@@ -342,7 +470,7 @@ class MobilityShim(BaseShim):
 
     next_layer_socket = self.get_next_shim_layer().listenforconnection(localip, localport)
     shim_sock = ShimTCPServerSocket(next_layer_socket, self)
-    mobile_sock = MobileTCPServerSocket(shim_sock)
+    mobile_sock = MobileTCPServerSocket(shim_sock, _check_current_ip(), localport)
     self._server_socket_dict[identity] = mobile_sock
     return MobileTCPServerSocketWrapper(mobile_sock)
 
@@ -445,6 +573,22 @@ class MobilityShim(BaseShim):
 
 
 
+
+
+  def listenformessage(self, localip, localport):
+    next_layer_socket = self.get_next_shim_layer().listenformessage(localip, localport)
+    shim_sock = ShimUDPServerSocket(next_layer_socket, self)
+    return MobileUDPServerSocket(shim_sock, _check_current_ip(), localport)
+
+
+
+  def udpserversocket_close(self, mobileudpserversocket):
+    return mobileudpserversocket.close()
+
+
+
+  def udpserversocket_getmessage(self, mobileudpserversocket):
+    return mobileudpserversocket.getmessage()
 
 
 
