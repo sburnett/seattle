@@ -233,6 +233,7 @@ def _generate_python_file_from_repy(repyfilename, generatedfilename, shared_myco
     print >> fh, TRANSLATION_TAGLINE, os.path.abspath(repyfilename)
     print >> fh, WARNING_LABEL
     print >> fh, "from repyportability import *"
+    print >> fh, "from repyportability import _context"
     print >> fh, "import repyhelper"
     if shared_mycontext:
       print >> fh, "mycontext = repyhelper.get_shared_context()"

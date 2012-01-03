@@ -26,12 +26,12 @@ oldrestrictioncalls['nanny._resources_consumed_dict'] = nanny._resources_consume
 oldrestrictioncalls['emulfile.assert_is_allowed_filename'] = emulfile._assert_is_allowed_filename
 
 
-port_list = [x for x in range(60000, 65000)]
+port_list = range(60000, 65000)
 
-default_restrictions = {'loopsend': 100000000.0, 'netrecv': 1000000.0, 'random': 10000.0, 'insockets': 500.0, 'fileread': 10000000.0, 'netsend': 1000000.0, 'connport': set(port_list), 'messport': set(port_list), 'diskused': 10000000000.0, 'filewrite': 10000000.0, 'lograte': 3000000.0, 'filesopened': 500.0, 'looprecv': 100000000.0, 'events': 1000.0, 'memory': 150000000000.0, 'outsockets': 500.0, 'cpu': 1.0}
+default_restrictions = {'loopsend': 100000000.0, 'netrecv': 1000000.0, 'random': 10000.0, 'insockets': 500.0, 'fileread': 10000000.0, 'netsend': 1000000.0, 'connport': set(port_list), 'messport': set(port_list), 'diskused': 10000000000.0, 'filewrite': 10000000.0, 'lograte': 3000000.0, 'filesopened': 500.0, 'looprecv': 100000000.0, 'events': 1000.0, 'memory': 150000000000.0, 'outsockets': 500.0, 'cpu': 1.0, 'threadcpu' : 1.0}
 
 
-resource_used = {'diskused': 0.0, 'renewable_update_time': {'fileread': 0.0, 'loopsend': 0.0, 'lograte': 0.0, 'netrecv': 0.0, 'random': 0.0, 'filewrite': 0.0, 'looprecv': 0.0, 'netsend': 0.0, 'cpu': 0.0}, 'fileread': 0.0, 'loopsend': 0.0, 'filesopened': set([]), 'lograte': 0.0, 'netrecv': 0.0, 'random': 0.0, 'insockets': set([]), 'filewrite': 0.0, 'looprecv': 0.0, 'events': set([]), 'messport': set([]), 'memory': 0.0, 'netsend': 0.0, 'connport': set([]), 'outsockets': set([]), 'cpu': 0.0}
+resource_used = {'diskused': 0.0, 'renewable_update_time': {'fileread': 0.0, 'loopsend': 0.0, 'lograte': 0.0, 'netrecv': 0.0, 'random': 0.0, 'filewrite': 0.0, 'looprecv': 0.0, 'netsend': 0.0, 'cpu': 0.0}, 'fileread': 0.0, 'loopsend': 0.0, 'filesopened': 0, 'lograte': 0.0, 'netrecv': 0.0, 'random': 0.0, 'insockets': 0, 'filewrite': 0.0, 'looprecv': 0.0, 'events': 0, 'messport': set([]), 'memory': 0.0, 'netsend': 0.0, 'connport': set([]), 'outsockets': 0, 'cpu': 0.0, 'threadcpu' : 1.0}
 
 def _do_nothing(*args):
   pass
@@ -165,6 +165,17 @@ openfile = emulated_open
 # file command discontinued in repy V2
 #file = emulated_open
 
+# Create a mock copy of getresources()
+def getresources():
+  return (default_restrictions, resource_used, [])
+  
+# Needed for ticket #1038.
+# `safe._builtin_destroy()` removes the ability to call `import`.
+# it would be called inside of `createvirtualnamespace()`
+# If we didn't do this, we would not be able to call `import` after 
+# calling `createvirtualnamespace()`
+safe._builtin_destroy = _do_nothing
+  
 # Override by default!
 override_restrictions()
 
