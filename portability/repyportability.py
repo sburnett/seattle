@@ -8,6 +8,7 @@ import nonportable
 import namespace
 import nanny
 import virtual_namespace
+import __builtin__
 
 
 # JAC: Save the calls in case I want to restore them.   This is useful if 
@@ -170,11 +171,13 @@ def getresources():
   return (default_restrictions, resource_used, [])
   
 # Needed for ticket #1038.
-# `safe._builtin_destroy()` removes the ability to call `import`.
+# `safe._builtin_destroy()` normally removes the ability to call `import`.
 # it would be called inside of `createvirtualnamespace()`
 # If we didn't do this, we would not be able to call `import` after 
 # calling `createvirtualnamespace()`
-safe._builtin_destroy = _do_nothing
+for builtin_type in dir(__builtin__):
+  if builtin_type not in safe._BUILTIN_OK:
+    safe._BUILTIN_OK.append(builtin_type)
   
 # Override by default!
 override_restrictions()
