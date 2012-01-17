@@ -32,7 +32,7 @@ port_list = range(60000, 65000)
 default_restrictions = {'loopsend': 100000000.0, 'netrecv': 1000000.0, 'random': 10000.0, 'insockets': 500.0, 'fileread': 10000000.0, 'netsend': 1000000.0, 'connport': set(port_list), 'messport': set(port_list), 'diskused': 10000000000.0, 'filewrite': 10000000.0, 'lograte': 3000000.0, 'filesopened': 500.0, 'looprecv': 100000000.0, 'events': 1000.0, 'memory': 150000000000.0, 'outsockets': 500.0, 'cpu': 1.0, 'threadcpu' : 1.0}
 
 
-resource_used = {'diskused': 0.0, 'renewable_update_time': {'fileread': 0.0, 'loopsend': 0.0, 'lograte': 0.0, 'netrecv': 0.0, 'random': 0.0, 'filewrite': 0.0, 'looprecv': 0.0, 'netsend': 0.0, 'cpu': 0.0}, 'fileread': 0.0, 'loopsend': 0.0, 'filesopened': 0, 'lograte': 0.0, 'netrecv': 0.0, 'random': 0.0, 'insockets': 0, 'filewrite': 0.0, 'looprecv': 0.0, 'events': 0, 'messport': set([]), 'memory': 0.0, 'netsend': 0.0, 'connport': set([]), 'outsockets': 0, 'cpu': 0.0, 'threadcpu' : 1.0}
+resource_used = {'diskused': 0.0, 'renewable_update_time': {'fileread': 0.0, 'loopsend': 0.0, 'lograte': 0.0, 'netrecv': 0.0, 'random': 0.0, 'filewrite': 0.0, 'looprecv': 0.0, 'netsend': 0.0, 'cpu': 0.0}, 'fileread': 0.0, 'loopsend': 0.0, 'filesopened': set([]), 'lograte': 0.0, 'netrecv': 0.0, 'random': 0.0, 'insockets': set([]), 'filewrite': 0.0, 'looprecv': 0.0, 'events': set([]), 'messport': set([]), 'memory': 0.0, 'netsend': 0.0, 'connport': set([]), 'outsockets': set([]), 'cpu': 0.0, 'threadcpu' : 1.0}
 
 def _do_nothing(*args):
   pass
