@@ -126,7 +126,7 @@ class MobileTCPServerSocket:
       self._server_socket_lock.acquire(True)
       if self._closed:
         for socket in self._mobile_sock_dict.values():
-          if socket.sock_state['background_thread_active']:
+          if not socket.is_closed():
             break
         else:
           # Exit Loop
@@ -160,7 +160,7 @@ class MobileTCPServerSocket:
             repy_socket.close()
             continue
 
-          # If's a new connection, so generate and send to the client a
+          # It's a new connection, so generate and send to the client a
           # connection ID for it to use when reconnecting.
           connection_id = None
           while connection_id is None or connection_id in self._mobile_sock_dict:
@@ -173,13 +173,12 @@ class MobileTCPServerSocket:
           # to establish the connection. Otherwise, add the new
           # connection tuple to the list of unreturned connections
           # so getconnection() can return it later.
+          mobile_sock = MobileSocket(shim_sock)
           self._server_socket_lock.acquire(True)
           if self._closed:
             self._server_socket_lock.release()
-            repy_socket.send("D")
-            repy_socket.close()
+            mobile_sock.close()
           else:
-            mobile_sock = MobileSocket(shim_sock)
             self._mobile_sock_dict[connection_id] = mobile_sock
             self._new_connection_tuples.append((remote_ip, remote_port, mobile_sock))
             self._server_socket_lock.release()
@@ -195,26 +194,21 @@ class MobileTCPServerSocket:
 
             # Update the socket object reference if the mobile socket has not been
             # closed yet. Finally, we pretend that we didn't receive a new connection.
-            if mobile_sock.sock_state['background_thread_active']:
-              # Acknowledge to the client that we are reconnecting.
-              session_sendmessage(repy_socket, "R")
-
-              mobile_sock._mobility_lock.acquire(True)
-              _garbage_sockets.append(mobile_sock._socket)
-              mobile_sock._socket = repy_socket
-              mobile_sock.reset_pending_state()
-              mobile_sock._mobility_lock.release()
+            if not mobile_sock.is_closed():
+              mobile_sock.replace_socket(repy_socket)
               debug_log('zzzz getconnection: old connection from', client_id, '\n', show=True)
               continue
 
           # We can't reconnect if we don't have an open mobile socket
           # to reconnect with, so tell the client we are disconnecting.
-          session_sendmessage(repy_socket, "D")
-          repy_socket.close()
+          # For implementation related reasons, the easiest way to do
+          # this is to create and immediately close a new mobile socket.
+          shim_sock = ShimSocket(repy_socket, self._shim_object)
+          mobile_sock = MobileSocket(shim_sock)
+          mobile_sock.close()
 
       except Exception, err:
         try:
-          session_sendmessage(repy_socket, "D")
           repy_socket.close()
         except Exception:
           pass
@@ -265,10 +259,17 @@ class MobileTCPServerSocket:
       if self._closed:
         raise SocketClosedLocal("The socket has been closed!")
 
-      if self._new_connection_tuples:
-        return self._new_connection_tuples.pop(0)
-      else:
-        raise SocketWouldBlockError("No connections currently available!")
+      while self._new_connection_tuples:
+        # Get the next unreturned socket.
+        return_tuple = self._new_connection_tuples.pop(0)
+        (remote_ip, remote_port, mobile_socket) = return_tuple
+        # It the socket has been closed remotely since the connection
+        # was initialized, don't bother returning it.
+        if mobile_socket.is_closed():
+          continue
+        return return_tuple
+
+      raise SocketWouldBlockError("No connections currently available!")
 
     finally:
       self._server_socket_lock.release()

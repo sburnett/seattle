@@ -47,12 +47,38 @@ MAX_BLK_SIZE = 2**20
 
 class ChunkMessage():
 
-  def __init__(self, send_blk_size = 2**11, recv_blk_size = 2**11):
+  def __init__(self, send_blk_size = 2**11, recv_blk_size = 2**11,
+               acknowledge_msgs = False, explicitly_close = False):
     
     # The size of each block in which the original message is
     # broken up into initially.
     self._SEND_BLOCK_SIZE = send_blk_size
     self._RECV_BLOCK_SIZE = recv_blk_size
+
+    # Whether to send acknowledgments for received messages so we can
+    # resend them if neccessary when sockets close.
+    self._acknowledge_msgs = acknowledge_msgs
+
+    if self._acknowledge_msgs:
+      # Maps sockets to lists of (integer, string) pairs for chunks that
+      # haven't yet been acknowledged.
+      self._unacknowledged_chunks_dict = {}
+
+      # List of unacknowledged chunks from closed sockets which need to
+      # be resent.
+      self._resend_chunk_list = []
+
+      # Maps sockets to the most recently received chunk ID for that
+      # socket, or None if the chunk has been acknowledged.
+      self._unsent_acknowledgment_dict = {}
+
+      self.acknowledgment_lock = createlock()
+
+    # Whether to send a message when closing the socket locally and keep
+    # the connection open otherwise. The default of false will just
+    # automatically close the connection when all added sockets have
+    # been closed.
+    self._explicitly_close = explicitly_close
 
     # Assume that the header in the msg we send and receive is at
     # most of lenght 20 characters.
@@ -99,7 +125,7 @@ class ChunkMessage():
     self.total_recv = 0
 
 
-    # Keeps track of weather close() was called locally.
+    # Keeps track of whether close() was called locally.
     self._closed_local = False
     self._closed_remote = False
 
@@ -116,7 +142,10 @@ class ChunkMessage():
     # compression thread after it places data in the send buffer)
     self._full_lock.acquire(True)
 
-      
+    createthread(self.send_msg_thread)
+    createthread(self.recv_msg_thread)
+
+
 
 
 
@@ -125,6 +154,14 @@ class ChunkMessage():
     Returns the set of sockets that have been added so far.
     """
     return self._complete_socket_set
+
+
+
+  def get_active_socket_list(self):
+    """
+    Returns the set of currently active sockets.
+    """
+    return self._active_socket_set.copy()
 
   
 
@@ -194,6 +231,17 @@ class ChunkMessage():
       None
     """
 
+    # Don't bother adding sockets if we've already been closed.
+    if self._closed_local or self._closed_remote:
+      if self._explicitly_close:
+        # We send a chunk with ID -1 to indicate we are closed.
+        try:
+          self.send_chunk(cur_socket, -1, "")
+        except Exception:
+          pass
+      socket.close()
+
+
     # Initialize the receive buffer that stores the raw TCP stream, from which
     # we reconstruct the blocks. Also we assume that this is an active socket
     # so we add it to the active set.
@@ -226,15 +274,18 @@ class ChunkMessage():
     
     if repr(socket) not in self.sock_recv_blk_size.keys():
       self.sock_recv_blk_size[repr(socket)] = self._RECV_BLOCK_SIZE
- 
 
-    # If the length of active socket set is now 1, then we have to start
-    # up the send msg thread and recv message thread as it hasn't been
-    # started yet, since the lenght of active socket set would have been
-    # 0 before.
-    if len(self._active_socket_set) == 1:
-      createthread(self.send_msg_thread)
-      createthread(self.recv_msg_thread)
+
+    if self._acknowledge_msgs:
+      # In initialize dictionaries for acknowledgments
+      self._unacknowledged_chunks_dict[repr(socket)] = []
+      self._unsent_acknowledgment_dict[repr(socket)] = None
+
+    # If we don't automatically close when all the sockets get closed,
+    # then we may have extra messages left to send/resend.
+    if self._explicitly_close and len(self._active_socket_set) == 1:
+      self.wake_send_thread()
+
 
 
 
@@ -248,21 +299,8 @@ class ChunkMessage():
     if self._closed_local:
       return False
 
-    self._empty_lock.acquire(True)
-    self._mutex_lock.acquire(True)
-
-    try:
-      self._closed_local = True
-      for socket in self._complete_socket_set.copy():
-        try:
-          socket.close()
-        except:
-          pass
-
-      self._active_socket_set.clear()
-    finally:
-      self._empty_lock.release()
-      self._mutex_lock.release()
+    self._closed_local = True
+    self.wake_send_thread()
 
     return True
 
@@ -298,6 +336,9 @@ class ChunkMessage():
     elif self.send_buffer:
       # If the send buffer is not empty then we raise SocketWouldBlockError
       raise SocketWouldBlockError("Send will block, send buffer full.")
+    elif len(self._active_socket_set) == 0:
+      # If there are no active sockets then we raise SocketWouldBlockError
+      raise SocketWouldBlockError("Send will block, no active sockets.")
 
 
     empty = self._empty_lock.acquire(False)
@@ -331,8 +372,8 @@ class ChunkMessage():
     
 
     # Wait to return until buffer is empty.
-    self._empty_lock.acquire(True)
-    self._empty_lock.release()
+    #self._empty_lock.acquire(True)
+    #self._empty_lock.release()
 
     # Assume that the entire message has been sent.
     return len(msg_to_send)
@@ -391,7 +432,35 @@ class ChunkMessage():
 
 
 
-  def send_chunk(self, sockobj, data):
+  def wake_send_thread(self):
+    """
+    <Purpose>
+      Causes the send thread to wake up and process any extra messages
+      like acknowledgments and explicit close notifications.
+    """
+    empty = self._empty_lock.acquire(False)
+    mutex = self._mutex_lock.acquire(False)
+
+    # Only proceed if we have successfully grabbed both the empty and
+    # the mutex lock. Otherwise the send message thread is probably
+    # already active.
+    if mutex and empty:
+      # Release the mutex lock and the full lock.
+      self._mutex_lock.release()
+      self._full_lock.release()
+    else:
+      # If we did not grab both the empty and the mutex locks,
+      # then we release the ones we did manage to grab.
+      if empty:
+        self._empty_lock.release()
+      if mutex:
+        self._mutex_lock.release()
+
+
+
+
+
+  def send_chunk(self, sockobj, chunk_id, data):
     """
     <Purpose>
       The purpose of this function is to send data in 
@@ -406,7 +475,7 @@ class ChunkMessage():
 
     # The header will contain the length of the message as well
     # as the current chunk id.
-    header = "%d,%d\n" % (len(data), self._send_chunk_id)
+    header = "%d,%d\n" % (len(data), chunk_id)
     fulldata = header + data
 
     total_sent= 0
@@ -431,9 +500,18 @@ class ChunkMessage():
         fulldata = fulldata[bytes_sent:]
         started_sending_msg = True
 
+    # We are explicitly closing this socket and don't need to bother
+    # with keeping track of socket data for this chunk.
+    if self._explicitly_close and chunk_id == -1:
+      return blocked_atleast_once
 
-    # Increase the chunk id after we have successfully sent the data.
-    self._send_chunk_id += 1
+    # An acknowledgment is a message with zero length.
+    if self._acknowledge_msgs and len(data) != 0:
+      # If we are expecting to receive acknowledgments, add the sent
+      # chunk to the dictionary of unacknowledged chunks.
+      self.acknowledgment_lock.acquire(True)
+      self._unacknowledged_chunks_dict[repr(sockobj)].append((chunk_id, data))
+      self.acknowledgment_lock.release()
 
     # Keep track of how much data we sent.
     self._data_sent_dict[repr(sockobj)] += len(data)
@@ -464,21 +542,121 @@ class ChunkMessage():
       None
     """
 
-    # Keep running this thread as long as the "close" call hasn't been
-    # called locally and there is at least one active socket.
-    while not self._closed_local and len(self._active_socket_set) > 0:
-      # Check to see if there is anything in the buffer for us to send.
-      # MMM: Do we need a lock for this? After thinking about it, I decided
-      # that we are going to be storing the message in a buffer which is
-      # a string, and the operations we perform on it are atomic.
-      #sleep(0.0001)
+    # Keep running this thread as long as we haven't been closed.
+    while not self._closed_remote and not (self._closed_local and \
+        len(self._active_socket_set) == 0):
 
-      while True:
-        self._full_lock.acquire(True)
-        self._mutex_lock.acquire(True)
-        try:
-          while self.send_buffer:
-            # Go through all the sockets and send the message.
+      self._full_lock.acquire(True)
+      self._mutex_lock.acquire(True)
+      try:
+        while self.send_buffer:
+          # Go through all the sockets and send the message.
+          for cur_socket in self._complete_socket_set.copy():
+
+            # If the socket is not active anymore then we move on
+            # to the  next socket.
+            if cur_socket not in self._active_socket_set:
+              continue
+
+      
+            # Create a block of data from the original message.
+            # Then reduce the message size since we took out the 
+            # beginning chunk.
+            blk_size = self.sock_send_blk_size[repr(cur_socket)]
+            block_body = self.send_buffer[ : blk_size]
+
+            # Try sending the chunk through the current socket.
+            try:
+              socket_blocked = self.send_chunk(cur_socket, self._send_chunk_id, block_body)
+            except SocketWouldBlockError:
+              # If we block then we want to reduce the block size
+              # of the current socket.
+              blk_size = blk_size/2
+          
+              # Makes sure that the minimum block size isn't too small.
+              if blk_size < MIN_BLK_SIZE:
+                blk_size = MIN_BLK_SIZE
+
+              self.sock_send_blk_size[repr(cur_socket)] = blk_size
+            except (SocketClosedLocal), err:
+              # If we get a socket closed remote error, we remove it
+              # from the active socket list.
+              self.discard_socket(cur_socket)
+            except (SocketClosedRemote), err:
+              self.discard_socket(cur_socket)
+            else:
+              # Update the send buffer.
+              self.send_buffer = self.send_buffer[blk_size : ]
+              
+              # If we successfully send the data, then we double the
+              # block size if we did not block at all.
+              if socket_blocked:
+                blk_size = blk_size/2
+
+                # Makes sure that the minimum block size isn't too small.
+                if blk_size < MIN_BLK_SIZE:
+                  blk_size = MIN_BLK_SIZE
+              else:
+                blk_size = blk_size*2
+                if blk_size > MAX_BLK_SIZE:
+                  blk_size = MAX_BLK_SIZE
+
+              # Update the block size accordingly.
+              self.sock_send_blk_size[repr(cur_socket)] = blk_size
+
+              # Increase the chunk id after we have successfully sent the data.
+              self._send_chunk_id += 1
+
+
+        if self._acknowledge_msgs:
+          # Send any unsent acknowledgments. We won't worry about if they
+          # are successfully sent or not since they aren't time critical.
+          for cur_socket in self._complete_socket_set.copy():
+
+            # If the socket is not active anymore then we move on
+            # to the  next socket.
+            if cur_socket not in self._active_socket_set:
+              continue
+
+            chunk_id = self._unsent_acknowledgment_dict[repr(cur_socket)]
+            if chunk_id == None:
+              continue
+
+            # Try sending the acknowledgment through its socket. The
+            # empty body indicates it is an acknowledgment
+            try:
+              socket_blocked = self.send_chunk(cur_socket, chunk_id, "")
+            except SocketWouldBlockError:
+              pass
+            except (SocketClosedLocal), err:
+              # If we get a socket closed remote error, we remove it
+              # from the active socket list.
+              self.discard_socket(cur_socket)
+            except (SocketClosedRemote), err:
+              self.discard_socket(cur_socket)
+            else:
+              # Make sure the chunk ID we need to acknowledge hasn't
+              # changed since when we started sending.
+              self.acknowledgment_lock.acquire(True)
+              if chunk_id == self._unsent_acknowledgment_dict[repr(cur_socket)]:
+                self._unsent_acknowledgment_dict[repr(cur_socket)] = None
+              self.acknowledgment_lock.release()
+              
+          # Resend any unacknowledged messages for recently closed sockets.
+          while True:
+            # Make sure we have active sockets to send through and we
+            # haven't been closed.
+            if self._closed_remote or len(self._active_socket_set) == 0:
+              break
+
+            self.acknowledgment_lock.acquire(True)
+            if self._resend_chunk_list:
+              chunk_id, chunk_body = self._resend_chunk_list[0]
+              self.acknowledgment_lock.release()
+            else:
+              self.acknowledgment_lock.release()
+              break
+
             for cur_socket in self._complete_socket_set.copy():
 
               # If the socket is not active anymore then we move on
@@ -486,61 +664,79 @@ class ChunkMessage():
               if cur_socket not in self._active_socket_set:
                 continue
 
-        
-              # Create a block of data from the original message.
-              # Then reduce the message size since we took out the 
-              # beginning chunk.
-              blk_size = self.sock_send_blk_size[repr(cur_socket)]
-              block_body = self.send_buffer[ : blk_size]
-
               # Try sending the chunk through the current socket.
               try:
-                socket_blocked = self.send_chunk(cur_socket, block_body)
+                socket_blocked = self.send_chunk(cur_socket, chunk_id, chunk_body)
               except SocketWouldBlockError:
-                # If we block then we want to reduce the block size
-                # of the current socket.
-                blk_size = blk_size/2
-            
-                # Makes sure that the minimum block size isn't too small.
-                if blk_size < MIN_BLK_SIZE:
-                  blk_size = MIN_BLK_SIZE
-
-                self.sock_send_blk_size[repr(cur_socket)] = blk_size
+                pass
               except (SocketClosedLocal), err:
                 # If we get a socket closed remote error, we remove it
                 # from the active socket list.
-                self._active_socket_set.discard(cur_socket)
+                self.discard_socket(cur_socket)
               except (SocketClosedRemote), err:
-                self._active_socket_set.discard(cur_socket)
+                self.discard_socket(cur_socket)
               else:
-                # Update the send buffer.
-                self.send_buffer = self.send_buffer[blk_size : ]
-                
-                # If we successfully send the data, then we double the
-                # block size if we did not block at all.
-                if socket_blocked:
-                  blk_size = blk_size/2
+                # The chunk has been successfully resent.
+                self._resend_chunk_list.pop(0)
 
-                  # Makes sure that the minimum block size isn't too small.
-                  if blk_size < MIN_BLK_SIZE:
-                    blk_size = MIN_BLK_SIZE
-                else:
-                  blk_size = blk_size*2
-                  if blk_size > MAX_BLK_SIZE:
-                    blk_size = MAX_BLK_SIZE
 
-                # Update the block size accordingly.
-                self.sock_send_blk_size[repr(cur_socket)] = blk_size
-        finally:
-          self._mutex_lock.release()
-          self._empty_lock.release()
-   
+        if self._closed_local:
+          # If we are explicitly closing the socket we need to send
+          # a message to tell the other side we are closing.
+          if self._explicitly_close:
+            for cur_socket in self._complete_socket_set.copy():
+              if cur_socket not in self._active_socket_set:
+                continue
 
-    # If there are no more active sockets, we assume that the socket has
-    # been closed remotely.
-    if len(self._active_socket_set) == 0:
+              # We send a chunk with ID -1 to indicate we are closing.
+              try:
+                self.send_chunk(cur_socket, -1, "")
+              except Exception:
+                pass
+
+          else:
+            for socket in self._complete_socket_set.copy():
+              try:
+                socket.close()
+              except:
+                pass
+
+            self._active_socket_set.clear()
+
+      finally:
+        self._mutex_lock.release()
+        self._empty_lock.release()
+
+
+
+
+
+  def discard_socket(self, socket):
+    """
+    <Purpose>
+      Removes a closed socket from the list of active sockets and if
+      applicable resends any chunks sent by that socket that haven't
+      been acknowledged.
+    """
+
+    # Check if the socket has already been discarded.
+    if socket not in self._active_socket_set:
+      return
+
+    self._active_socket_set.discard(socket)
+
+    # If we are using message acknowledgments, then move any
+    # unacknowledged messages to the list of messages to resend.
+    if self._acknowledge_msgs:
+      self.acknowledgment_lock.acquire(True)
+      self._resend_chunk_list += self._unacknowledged_chunks_dict[repr(socket)]
+      self._unacknowledged_chunks_dict[repr(socket)] = []
+      self.acknowledgment_lock.release()
+      # Send any unacknowledged messages.
+      self.wake_send_thread()
+
+    if not self._explicitly_close and len(self._active_socket_set) == 0:
       self._closed_remote = True
-
 
 
 
@@ -570,8 +766,11 @@ class ChunkMessage():
     """
 
     # Keep running this thread as long as the "close" call hasn't been
-    # called locally and there is at least one active socket.
-    while not self._closed_local and len(self._active_socket_set) > 0:
+    # called locally and we haven't been closed remotely. In the case
+    # of being closed remotely it's worth trying to receive any addition
+    # chunks that we can before closing all the sockets.
+    while not self._closed_local and not (self._closed_remote and \
+        len(self._active_socket_set) == 0):
       # Go through all the sockets that are available and try to receive
       # on them if they are available.
       for cur_socket in self._complete_socket_set.copy():
@@ -590,6 +789,12 @@ class ChunkMessage():
           
           received_data = cur_socket.recv(blk_size)
         except SocketWouldBlockError:
+          # If we have been closed remotely, then we shouldn't expect to
+          # get any more messages.
+          if self._closed_remote:
+            cur_socket.close()
+            self._active_socket_set.discard(cur_socket)
+
           # If we block then we reduce the block size of this socket.
           blk_size = blk_size/2
 
@@ -603,9 +808,9 @@ class ChunkMessage():
         # when we run out of data to return (i.e. empty result buffer). The socket
         # is now considered inactive. We remove it from the active socket set.
         except (SocketClosedLocal), err:
-          self._active_socket_set.discard(cur_socket)
+          self.discard_socket(cur_socket)
         except (SocketClosedRemote), err:
-          self._active_socket_set.discard(cur_socket)
+          self.discard_socket(cur_socket)
         else:     
           # If we have successfully received data on this socket, then 
           # we double the block size.
@@ -622,13 +827,9 @@ class ChunkMessage():
           self._reconstruct_blocks(cur_socket)
         self._construct_result_buf()
 
-    # End while loop
-    
+      sleep(0.001)
 
-    # If there are no more active sockets, we assume that the socket has
-    # been closed remotely.
-    if len(self._active_socket_set) == 0:
-      self._closed_remote = True
+    # End while loop
 
 
 
@@ -639,6 +840,8 @@ class ChunkMessage():
     The buffer should have blocks in the form of msg_length,chunk_id\nMSG.
     We greedily try to reconstruct as many blocks as we can.
     """
+
+    last_chunk = None
 
     # We keep trying to reconstruct blocks while our recv buffer is not empty 
     # and/or we are unable to reconstruct a block because the entire chunk has
@@ -693,17 +896,43 @@ class ChunkMessage():
       if len(recv_buf) < msg_len:
         return
 
-      msg_body = recv_buf[ : msg_len]
-      recv_buf = recv_buf[msg_len : ]
+      # We are using a chunk ID of -1 to signal explicit closing.
+      if self._explicitly_close and chunk_id == -1:
+        self._closed_remote = True
+        sockobj.close()
+        self._active_socket_set.discard(sockobj)
+        return
 
-      # Add the message chunk to the result buf dictionary and update
-      # the receiver buffer with the new receiver buffer.
-      self._result_buf_dict[chunk_id] = msg_body
-      self._recv_buf_dict[repr(sockobj)] = recv_buf
-      self.total_recv += len(msg_body)
-      self._data_recv_dict[repr(sockobj)] += len(msg_body)
-            
+      elif self._acknowledge_msgs and msg_len == 0:
+        # We received a message acknowledgment, so we can discard any
+        # chunks we are remembering up to the chunk with the same ID as
+        # the one we received an acknowledgment for.
+        self.acknowledgment_lock.acquire(True)
+        while self._unacknowledged_chunks_dict[repr(sockobj)]:
+          next_chunk_id, msg = self._unacknowledged_chunks_dict[repr(sockobj)].pop(0)
+          if chunk_id == next_chunk_id:
+            break
+        self.acknowledgment_lock.release()
 
+        self._recv_buf_dict[repr(sockobj)] = recv_buf
+
+      else:
+        msg_body = recv_buf[ : msg_len]
+        recv_buf = recv_buf[msg_len : ]
+
+        # Add the message chunk to the result buf dictionary and update
+        # the receiver buffer with the new receiver buffer.
+        self._result_buf_dict[chunk_id] = msg_body
+        self._recv_buf_dict[repr(sockobj)] = recv_buf
+        self.total_recv += len(msg_body)
+        self._data_recv_dict[repr(sockobj)] += len(msg_body)
+
+        if self._acknowledge_msgs:
+          self.acknowledgment_lock.acquire(True)
+          self._unsent_acknowledgment_dict[repr(sockobj)] = chunk_id
+          self.acknowledgment_lock.release()
+          # Send the acknowledgment.
+          self.wake_send_thread()
 
 
 
