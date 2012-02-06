@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest
+	package="com.seattleonandroid"
+	android:versionCode="1"
+	android:versionName="1.0"
+	xmlns:android="http://schemas.android.com/apk/res/android">
+	<application
+		android:debuggable="true"
+		android:icon="@drawable/seattlelogo"
+		android:label="@string/app_name"
+		android:name="com.seattleonandroid.ScriptApplication">
+		<activity
+			android:name=".ScriptActivity"
+			android:configChanges="keyboardHidden|orientation"
+			android:launchMode="singleTop"
+			android:theme="@android:style/Theme.Black">
+			<intent-filter>
+				<action
+					android:name="android.intent.action.MAIN" />
+				<category
+					android:name="android.intent.category.LAUNCHER" />
+			</intent-filter>
+			<intent-filter>
+				<action
+					android:name="com.googlecode.android_scripting.action.ACTION_LAUNCH_FOR_RESULT" />
+				<category
+					android:name="android.intent.category.DEFAULT" />
+			</intent-filter>
+		</activity>
+		<service
+			android:name="com.seattleonandroid.ScriptService"/>
+		<service
+			android:name="com.seattleonandroid.InstallerService" />
+		<activity
+			android:configChanges="keyboardHidden|orientation"
+			android:name="com.googlecode.android_scripting.activity.FutureActivity" 
+			android:theme="@android:style/Theme.Translucent"/>
+		<activity android:theme="@android:style/Theme.Translucent.NoTitleBar" 
+			android:configChanges="keyboardHidden|orientation" 
+			android:name="com.seattleonandroid.DialogActivity"/>
+		<receiver android:name="com.seattleonandroid.AutostartListener">
+			<intent-filter>
+				<action android:name="android.intent.action.BOOT_COMPLETED"/>
+			</intent-filter>
+		</receiver>
+	</application>
+	<uses-sdk android:minSdkVersion="7"/>
+	<uses-permission android:name="android.permission.INTERNET" />
+	<uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+	<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
+	<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+</manifest>

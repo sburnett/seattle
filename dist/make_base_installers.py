@@ -18,9 +18,9 @@
   Usage: python make_base_installer.py m|l|w|i|a|t path/to/trunk/ pubkey
           privkey output/dir/ [version of seattle]
           [--wg path/to/Windows/GUI/builder/makensis.exe]
-  Flags: m,l,w,i,a,t represent the OS for which the base installer is being
+  Flags: m,l,w,i,a,d,t represent the OS for which the base installer is being
          created.  m = Macintosh, l = Linux, w = Windows, i = Windows Mobile,
-         a = all systems. t = include tests in installer.
+         d = Android, a = all systems. t = include tests in installer.
   NOTE: The Windows GUI installer will ONLY be built if the 'w' or 'a' options
         are passed ALONG WITH the '--wg' option.
 
@@ -53,6 +53,8 @@ WINDOWS_PATH = "/dist/win/scripts"
 WINMOB_PATH = "/dist/winmob/scripts"
 LINUX_PATH = "/dist/linux/scripts"
 MAC_PATH = "/dist/mac/scripts"
+ANDROID_PATH = "/dist/android/SeattleOnAndroid"
+ANDROID_ZIP_PATH = "/dist/android/SeattleOnAndroid/res/raw/seattle.zip"
 
 # The path to the directory, relative the trunk, of the OS-specific script
 # wrappers.
@@ -74,7 +76,7 @@ def get_inst_name(dist, version):
   <Arguments>
     dist:
       The OS that the installer is intended for, should be Windows, Macintosh,
-      Linux, or Winmob.
+      Linux, Winmob, or Android.
 
     version:
 
@@ -102,7 +104,9 @@ def get_inst_name(dist, version):
       base_name += ".exe"
     else:
       base_name += ".zip"
-  else:    
+  elif "android" in dist:
+    base_name += ".apk"
+  else:
     base_name += ".tgz"
   return base_name
 
@@ -113,7 +117,7 @@ def check_flags(flags):
   """
   <Purpose>
     Checks that each character in 'flags' is a valid flag and that there is at
-    least one valid flag (i.e., m,w,l,i,a).
+    least one valid flag (i.e., m,w,l,i,d,a).
 
   <Arguments>
     flags:
@@ -133,8 +137,8 @@ def check_flags(flags):
     are no problems, a tuple with True and the empty string is returned.
   """
 
-  valid_flags = "mwliat"
-  required_flags = "mwlia"
+  valid_flags = "mwlidat"
+  required_flags = "mwliad"
   got_required_flag = False
   no_invalid_flags = True
   badflag = ""
@@ -367,7 +371,6 @@ def package_win_gui(trunk_location, temp_tarball_dir, zip_inst_name,
 
 
 
-
 def package_win_or_winmob(trunk_location, temp_install_dir, temp_tarball_dir,
                           inst_name, gen_files):
   """
@@ -548,6 +551,91 @@ def package_linux_or_mac(trunk_location, temp_install_dir, temp_tarball_dir,
 
 
 
+
+def package_android(trunk_location, temp_install_dir, temp_tarball_dir,
+                    inst_name, gen_files):
+  """
+  <Purpose>
+    Creates an Android-specific package (APK) with the installation.
+
+  <Arguments>
+    trunk_location:
+      The location of the repository trunk.
+
+    temp_install_dir:
+      The path to the temporary installation directory.
+
+    temp_tarball_dir:
+      The path to the directory in which the installer zipfile(s) is stored.
+
+    inst_name:
+      The name that the final installer should have.
+
+    gen_files:
+      A list of the general non-installer-specific files located in the
+      temporary installer directory.
+
+  <Exceptions>
+    IOError on bad file paths
+    EnvironmentError if the external build tools (Ant, Java) complain
+
+  <Side Effects>
+    Puts the final APK in the temporary tarball directory.
+
+  <Returns>
+    None.  
+   """
+  # Create a zipfile for Android.
+  installer_zipfile = zipfile.ZipFile(temp_tarball_dir + os.sep + 'seattle.zip',
+                                      "w")
+
+  # Put all general program files into the zipfile.
+  for fname in gen_files:
+    installer_zipfile.write(temp_install_dir + os.sep + fname,
+                            BASE_PROGRAM_FILES_DIR + os.sep + fname)
+
+  # Close zipfile
+  installer_zipfile.close()
+
+  # Move zipfile into the resources directory of the Android application
+  shutil.move(temp_tarball_dir + os.sep + 'seattle.zip',
+              trunk_location + os.sep + ANDROID_ZIP_PATH)
+
+  # Create APK using ant.
+  # Make sure the path to the Android SDK is configured in local.properties
+  path_to_localproperties = trunk_location + os.sep + ANDROID_PATH + \
+    os.sep + 'local.properties'
+  if not os.path.exists(path_to_localproperties):
+    print "Build process for Android failed. See '" + ANDROID_PATH + os.sep,
+    print "README' on how to set up '" + path_to_localproperties + "'."
+    raise IOError("File '" + path_to_localproperties + "' not found.")
+
+  # If ant doesn't exist, inform the user appropriately.
+  try:
+    ant_exit_status = subprocess.call(['ant', 'release'],
+                  cwd=trunk_location + os.sep + ANDROID_PATH)
+  except OSError:
+    # Typical Exceptions are OSErrors 2 (not found) and 13 (permission denied)
+    print "Build process for Android failed when calling ant."
+    print "Please make sure ant is installed and in your $PATH."
+    raise
+
+  if ant_exit_status != 0:
+    print "Build process for Android failed when calling ant."
+    raise EnvironmentError("Ant failed with error code " + 
+      str(ant_exit_status)+".")
+
+  # Move APK to the temporary tarball directory
+  shutil.copyfile(trunk_location + os.sep + ANDROID_PATH +
+                  os.sep + '/bin/SeattleOnAndroid-unsigned.apk',
+                  temp_tarball_dir + os.sep + inst_name)
+
+  # Clean up after the ant build process
+  subprocess.call(['ant', 'clean'], cwd=trunk_location + os.sep + ANDROID_PATH)
+
+
+
+
 def test_arguments(arguments):
   """
   """
@@ -564,7 +652,7 @@ def test_arguments(arguments):
   passed, offenses = check_flags(flags)
   if not passed:
     if offenses == "":
-      print "Requires at least one of these flags: m,l,w,i,a"
+      print "Requires at least one of these flags: m,l,w,i,d,a"
     else:
       print "Invalid flag(s): " + offenses
     return False
@@ -596,12 +684,12 @@ def test_arguments(arguments):
 
 
 def usage():
-  print "USAGE: python make_base_installer.py m|l|w|i|a|t path/to/trunk/ " \
+  print "USAGE: python make_base_installer.py m|l|w|i|d|a|t path/to/trunk/ " \
       + "pubkey privkey output/dir/ [version of seattle] " \
       + "[--wg path/to/Windows/GUI/builder/makensis.exe]"
-  print "\tFLAGS: m,l,w,i,a,t represent the OS for which the base installer " \
+  print "\tFLAGS: m,l,w,i,d,a,t represent the OS for which the base installer " \
       + "is being created.  m = Macintosh, l = Linux, w = Windows, " \
-      + "i = Windows Mobile, a = all systems. t = include tests in installer."
+      + "i = Windows Mobile, d = Android, a = all systems. t = include tests in installer."
   print "\tNOTE: The Windows GUI installer will ONLY be built if the 'w' or " \
       + "'a' options are passed ALONG WITH the '--wg' option."
 
@@ -742,6 +830,12 @@ def main():
                           inst_name, gen_files)
     created_installers.append(inst_name)
 
+  # Package the Android installer.
+  if "d" in installer_type or "a" in installer_type:
+    inst_name = get_inst_name("android", version)
+    package_android(trunk_location, temp_install_dir, temp_tarball_dir,
+                          inst_name, gen_files)
+    created_installers.append(inst_name)
 
 
   # Move the installer tarball(s) / zipfile(s)  to the specified output
