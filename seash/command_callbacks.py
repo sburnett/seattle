@@ -1096,7 +1096,7 @@ def browse(input_dict, environment_dict):
     raise seash_exceptions.UserError("Error, must browse as an identity with a public key")
 
 
-  nodelist = advertise_lookup(seash_global_variables.keys[environment_dict['currentkeyname']]['publickey'])
+  nodelist = advertise_lookup(seash_global_variables.keys[environment_dict['currentkeyname']]['publickey'], graceperiod = 3)
 
 
   # If there are no vessels for a user, the lookup may return ''
