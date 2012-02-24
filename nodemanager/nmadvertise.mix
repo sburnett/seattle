@@ -14,7 +14,14 @@ from repyportability import *
 # needed to convert keys to strings
 include rsa.repy
 
-include advertise.repy
+# Comment out following line by Danny Y. Huang. Potentially unsafe operation if it contains repy-specific symbols like mycontext.
+# include advertise.repy
+
+import repyhelper
+repyhelper.translate_and_import("advertise.repy")
+
+
+include listops.repy
 
 import misc
 
@@ -36,6 +43,9 @@ adTTL = 750
 # This is how many seconds we'll wait between checks to see if there are new 
 # keys that need to be advertised.
 adsleepfrequency = 5
+
+# Log after 'N' advertise errors 
+error_skip_count = 100
 
 myname = None
 
@@ -70,6 +80,8 @@ class advertthread(threading.Thread):
   def __init__(self, advertisementdictionary, nodekey):
     self.addict = advertisementdictionary
     self.nodekey = nodekey
+    self.error_count = 0
+    self.is_offline = False
     threading.Thread.__init__(self, name = "Advertisement Thread")
 
 
@@ -84,6 +96,11 @@ class advertthread(threading.Thread):
 
         # this list contains the keys we will advertise
         advertisekeylist = []
+
+        # JAC: advertise under the node's key
+        if rsa_publickey_to_string(self.nodekey) not in lastadvertisedict and self.nodekey not in advertisekeylist:
+          advertisekeylist.append(self.nodekey)
+
 
         # make a copy so there isn't an issue with a race
         for vesselname in self.addict.keys()[:]:
@@ -105,8 +122,9 @@ class advertthread(threading.Thread):
               if rsa_publickey_to_string(userkey) not in lastadvertisedict and userkey not in advertisekeylist:
                 advertisekeylist.append(userkey)
 
-            # also advertise under the node key
-            advertisekeylist.append(self.nodekey)
+
+        # there should be no dups.   
+        assert(advertisekeylist == listops_uniq(advertisekeylist))
 
         # now that I know who to announce to, send messages to annouce my IP and 
         # port to all keys I support
@@ -116,9 +134,29 @@ class advertthread(threading.Thread):
             # mark when we advertise
             lastadvertisedict[rsa_publickey_to_string(advertisekey)] = getruntime()
           
-          # advertise errors are common so note them and move on
+            # If the announce succeeded, and node was offline, log info message
+            # and switch it back to online mode.
+            if self.is_offline:
+              info_msg = 'Node is back online.'
+              if self.error_count:
+                info_msg += ' (Encountered ' + str(self.error_count) + \
+                              ' advertise errors)'
+              servicelogger.log('[INFO]: ' + info_msg)
+              self.error_count = 0
+              self.is_offline = False
+          
           except AdvertiseError, e:
-            servicelogger.log('AdvertiseError occured, continuing: '+str(e))
+            # If all announce requests failed, assume node has
+            # gone offline, 
+            if str(e) == "None of the advertise services could be contacted":
+              self.is_offline = True
+              # Log an error message after every 'N' failures
+              if (self.error_count % error_skip_count == 0):
+                servicelogger.log('AdvertiseError occured, continuing: '+str(e))
+              self.error_count += 1
+            # Log all other types of errors
+            else:
+              servicelogger.log('AdvertiseError occured, continuing: '+str(e))
           except Exception, e:
             servicelogger.log_last_exception(e)
             # an unexpected exception occured, exit and restart
