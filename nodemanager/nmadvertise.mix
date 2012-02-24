@@ -44,6 +44,9 @@ adTTL = 750
 # keys that need to be advertised.
 adsleepfrequency = 5
 
+# Log after 'N' advertise errors 
+error_skip_count = 100
+
 myname = None
 
 # This dictionary holds the last time an address was advertised.   This is used
@@ -77,6 +80,8 @@ class advertthread(threading.Thread):
   def __init__(self, advertisementdictionary, nodekey):
     self.addict = advertisementdictionary
     self.nodekey = nodekey
+    self.error_count = 0
+    self.is_offline = False
     threading.Thread.__init__(self, name = "Advertisement Thread")
 
 
@@ -128,10 +133,30 @@ class advertthread(threading.Thread):
             advertise_announce(advertisekey, str(myname), adTTL)
             # mark when we advertise
             lastadvertisedict[rsa_publickey_to_string(advertisekey)] = getruntime()
+         
+            # If the announce succeeded, and node was offline, log info message
+            # and switch it back to online mode.
+            if self.is_offline:
+              info_msg = 'Node is back online.'
+              if self.error_count:
+                info_msg += ' (Encountered ' + str(self.error_count) + \
+                              ' advertise errors)'
+              servicelogger.log('[INFO]: ' + info_msg)
+              self.error_count = 0
+              self.is_offline = False
           
-          # advertise errors are common so note them and move on
           except AdvertiseError, e:
-            servicelogger.log('AdvertiseError occured, continuing: '+str(e))
+            # If all announce requests failed, assume node has
+            # gone offline, 
+            if str(e) == "None of the advertise services could be contacted":
+              self.is_offline = True
+              # Log an error message after every 'N' failures
+              if (self.error_count % error_skip_count == 0):
+                servicelogger.log('AdvertiseError occured, continuing: '+str(e))
+              self.error_count += 1
+            # Log all other types of errors
+            else:
+              servicelogger.log('AdvertiseError occured, continuing: '+str(e))
           except Exception, e:
             servicelogger.log_last_exception()
             # an unexpected exception occured, exit and restart
