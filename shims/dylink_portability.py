@@ -6,8 +6,6 @@ import repyportability
 import virtual_namespace
 
 
-
-
 def _do_nothing(*args):
   pass
 
@@ -18,51 +16,26 @@ def _initialize_safe_module():
     the safe module.
     """
 
-    
-
-    # Allow the user to do try, except, finally, etc.
-    safe._NODE_CLASS_OK.append("TryExcept")
-    safe._NODE_CLASS_OK.append("TryFinally")
-    safe._NODE_CLASS_OK.append("Raise")
-    safe._NODE_CLASS_OK.append("ExcepthandlerType")
-    safe._NODE_CLASS_OK.append("Invert")
+    # Allow Import Errors.
     safe._NODE_CLASS_OK.append("Import")
-    
-    # needed for traceback
-    # NOTE: still needed for tracebackrepy
-    safe._BUILTIN_OK.append("isinstance")
-    safe._BUILTIN_OK.append("BaseException")
-    safe._BUILTIN_OK.append("WindowsError")
-    safe._BUILTIN_OK.append("type")
-    safe._BUILTIN_OK.append("issubclass")
+
     # needed to allow primitive marshalling to be built
-    safe._BUILTIN_OK.append("ord")
-    safe._BUILTIN_OK.append("chr")
     safe._BUILTIN_OK.append("__import__")
     safe._BUILTIN_OK.append("open")
     safe._BUILTIN_OK.append("eval")
 
 
-    # Include everything
+    # Allow all built-ins
     for builtin_type in dir(__builtins__):
       if builtin_type not in safe._BUILTIN_OK:
         safe._BUILTIN_OK.append(builtin_type)
-
-
-    safe._STR_OK.append("__repr__")
-    safe._STR_OK.append("__str__")
     
     for str_type in dir(__name__):
       if str_type not in safe._STR_OK:
         safe._STR_OK.append(str_type)
 
-    # allow __ in strings.   I'm 99% sure this is okay (do I want to risk it?)
-    safe._NODE_ATTR_OK.append('value')
-
     safe.serial_safe_check = _do_nothing
     safe._check_node = _do_nothing
-
-
 
 
 
