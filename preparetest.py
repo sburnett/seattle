@@ -103,7 +103,7 @@ def exec_command(command):
   return (theout, theerr)
 
 
-helpstring = """python preparetest.py [-t -randombports -checkapi] <foldername>"""
+helpstring = """python preparetest.py [-t -randomports -checkapi] <foldername>"""
 
 # Prints the given error message and the help string, then exits
 def help_exit(errMsg):
