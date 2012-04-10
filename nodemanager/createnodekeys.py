@@ -11,9 +11,11 @@ Adapted from nminit.py
 
 # need repy portability 
 from repyportability import *
+_context = locals()
+add_dy_support(_context)
 
 # need to generate a public key
-include rsa.repy
+dy_import_module_symbols('rsa.repy')
 
 
 import os

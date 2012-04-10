@@ -182,3 +182,23 @@ for builtin_type in dir(__builtin__):
 # Override by default!
 override_restrictions()
 
+
+# This function makes the dy_* functions available.
+def add_dy_support(_context):
+  import repyhelper # It's not worth importing it throughout for one use.
+  
+  # Add dylink support
+  repyhelper.translate_and_import("dylink.repy", callfunc = 'initialize')
+  
+  # The dy_* functions are only added to the namespace after init_dylink is called.
+  init_dylink(_context,{})
+  
+  # Make our own `dy_import_module_symbols` and  add it to the context.
+  # It is not currently possible to use the real one (details at ticket #1046)
+  def _dy_import_module_symbols(module,new_callfunc="import"):
+    temp = _context['dy_import_module'](module, new_callfunc)
+    for x in temp._context:  # Copy in new functions into our namespace. Collisions do not replace.
+      if x not in _context: #Prevents imported object from destroying our namespace.
+        _context[x] = temp._context[x]
+
+  _context['dy_import_module_symbols'] = _dy_import_module_symbols

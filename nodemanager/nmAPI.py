@@ -14,6 +14,10 @@ The individual functions in here are called from nmrequesthandler.   The
 functions are listed in the API_dict.
 """
 
+from repyportability import *
+_context = locals()
+add_dy_support(_context)
+
 # used to persist data...
 import persist
 
@@ -49,7 +53,8 @@ import nmstatusmonitor
 import nonportable
 
 # need this to check uploaded keys for validity
-include rsa.repy
+dy_import_module_symbols('rsa.repy')
+
 # MIX: fix with repy <-> python integration changes
 import random
 randomfloat = random.random()
