@@ -15,20 +15,21 @@ pass them to the appropriate API function
 """
 
 from repyportability import *
+_context = locals()
+add_dy_support(_context)
   
-import repyhelper
 
 # repy signeddata to protect request information
 import fastsigneddata 
 
 # get requests (encapsulated in session messages)
-repyhelper.translate_and_import("session.repy")
+dy_import_module_symbols("session.repy")
 
 # for using time_updatetime
-repyhelper.translate_and_import("time.repy")
+dy_import_module_symbols("time.repy")
 
 # For using rsa key conversion
-repyhelper.translate_and_import("rsa.repy")
+dy_import_module_symbols("rsa.repy")
 
 # the API for the node manager
 import nmAPI

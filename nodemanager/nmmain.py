@@ -60,6 +60,10 @@ import warnings
 warnings.simplefilter("ignore")
 
 from repyportability import *
+_context = locals()
+add_dy_support(_context)
+
+
 
 import time
 
@@ -80,8 +84,6 @@ import nmrequesthandler
 
 import persist
 
-import misc
-
 import runonce
 
 # for getruntime...
@@ -98,10 +100,9 @@ import servicelogger
 
 # import the natlayer for use
 # this requires all NATLayer dependincies to be in the current directory
-repyhelper.translate_and_import('natlayer_rpc.repy')
-repyhelper.translate_and_import('rsa.repy')
-
-repyhelper.translate_and_import('sockettimeout.repy')
+dy_import_module_symbols('natlayer_rpc.repy')
+dy_import_module_symbols('rsa.repy')
+dy_import_module_symbols('sockettimeout.repy')
 
 
 # Armon: To handle user preferrences with respect to IP's and Interfaces

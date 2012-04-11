@@ -40,14 +40,15 @@ class xmlparse_XMLTreeNode:
     self.attributes = {}
 
 
+  """
   def __repr__(self):
-    """Provide a pretty representation of an XML tree."""
+    # Provide a pretty representation of an XML tree.
 
     if self.content is not None:
       return "%s:\"%s\"" % (self.tag_name, self.content)
     else:
       return "%s:%s" % (self.tag_name, str(self.children))
-
+  """
 
   def to_string(self):
     result = "<" + self.tag_name

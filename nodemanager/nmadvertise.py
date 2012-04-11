@@ -19,21 +19,14 @@ dy_import_module_symbols('rsa.repy')
 # Comment out following line by Danny Y. Huang. Potentially unsafe operation if it contains repy-specific symbols like mycontext.
 # include advertise.repy
 
-import repyhelper
-repyhelper.translate_and_import("advertise.repy")
-
-
-dy_import_module_symbols('listops.repy')
-
-import misc
-
+import sys
+import time
 import threading
-
+import traceback
 import servicelogger
 
-import sys
-
-import traceback
+dy_import_module_symbols('listops.repy')
+dy_import_module_symbols("advertise.repy")
 
 
 # The frequency of updating the advertisements
@@ -166,7 +159,7 @@ class advertthread(threading.Thread):
            
 
         # wait to avoid sending too frequently
-        misc.do_sleep(adsleepfrequency)
+        time.sleep(adsleepfrequency)
     except Exception, e:
       exceptionstring = "[ERROR]:"
       (etype, value, tb) = sys.exc_info()
