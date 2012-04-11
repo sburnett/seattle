@@ -1,3 +1,4 @@
+#!python
 """
    Author: Justin Cappos
      Edited by Eric Kimbrel, this was originally time.repy 
@@ -45,22 +46,22 @@ dy_import_module_symbols("random.repy")
 def ntp_time_updatetime(localport):
   """
    <Purpose>
-    Obtains and stores the local time from a subset of NTP servers.
+     Obtains and stores the local time from a subset of NTP servers.
 
    <Arguments>
-    localport:
-             The local port to be used when contacting the NTP server(s).
+     localport:
+       The local port to be used when contacting the NTP server(s).
 
    <Exceptions>
-    TimeError when getmyip() fails or one of the subset of NTP servers will not
-    respond.
+     TimeError when getmyip() fails or one of the subset of NTP servers will not
+     respond.
 
    <Side Effects>
-    time_settime(currenttime) is called as the subprocess of a subprocess, which
-    adjusts the current time.
+     Time_settime(currenttime) is called as the subprocess of a subprocess, which
+     adjusts the current time.
 
    <Returns>
-    None.
+     True if we updated the time, false otherwise
   """
 
   try:
@@ -68,40 +69,56 @@ def ntp_time_updatetime(localport):
   except Exception, e:
     raise TimeError, str(e)
 
-  timeservers = ["time-a.nist.gov", "time-b.nist.gov", "time-a.timefreq.bldrdoc.gov", "time-b.timefreq.bldrdoc.gov", "time-c.timefreq.bldrdoc.gov", "utcnist.colorado.edu", "time.nist.gov", "time-nw.nist.gov", "nist1.symmetricom.com", "nist1-dc.WiTime.net", "nist1-ny.WiTime.net", "nist1-sj.WiTime.net", "nist1.aol-ca.symmetricom.com", "nist1.aol-va.symmetricom.com", "nist1.columbiacountyga.gov", "nist.expertsmi.com", "nist.netservicesgroup.com"]
+  timeservers = ["time-a.nist.gov", "time-b.nist.gov", "time-a.timefreq.bldrdoc.gov", 
+                 "time-b.timefreq.bldrdoc.gov", "time-c.timefreq.bldrdoc.gov", 
+                 "utcnist.colorado.edu", "time.nist.gov", "time-nw.nist.gov", 
+                 "nist1.symmetricom.com", "nist1-dc.WiTime.net", "nist1-ny.WiTime.net", 
+                 "nist1-sj.WiTime.net", "nist1.aol-ca.symmetricom.com", 
+                 "nist1.aol-va.symmetricom.com", "nist1.columbiacountyga.gov", 
+                 "nist.expertsmi.com", "nist.netservicesgroup.com"]
 
-  listenhandle = recvmess(ip,localport, _time_decode_NTP_packet)
-  mycontext['ntp_time_got_time'] = False
-  # always close the handle before returning...
-  try: 
-    # try five random servers times...
-    for servername in random_sample(timeservers,5):
 
-      # this sends a request, version 3 in "client mode"
-      ntp_request_string = chr(27)+chr(0)*47
-      try: 
-        sendmess(servername,123, ntp_request_string, ip, localport) # 123 is the NTP port
-      except Exception:
-        # most likely a lookup error...
-        continue
+  # Open up a new udp server socket for listening for incoming udp datagrams.
+  server_sock = listenformessage(localip, localport)
 
-      # wait for 5 seconds for a response before retrying
-      for junkiterations in range(10):
-        sleep(.5)
+  # Create the ntp request string that will be sent to the timeservers.
+  # This sends a request, version 3 in "client mode"
+  ntp_request_string = chr(27)+chr(0)*47
 
-        if mycontext['ntp_time_got_time']:
-          # If we've had a response, we're done!
-          return
+  # Choose 5 of the time servers randomly and send the ntp request string.
+  for time_server_url in random_sample(timeservers,5):
+    try:
+      sendmessage(time_server_url, 123, ntp_request_string, ip, localport)
+    except:
+      # In case of any exception we just continue.
+      pass
+
+  
+  starttime = getruntime()
+  
+  response_received = False
+
+  # Try to receive a response from the time servers for 5 seconds.
+  # If we receive a reponse, do an early exit.
+  while (getruntime() - starttime < 5):
+    try:
+      (remoteip, remoteport, msg) = server_sock.getmessage()
+  
+      # Decode the return message.
+      _time_decode_NTP_packet(msg)
+      response_received = True
+    except SocketWouldBlockError:
+      sleep(0.1)
     
     
-  finally:
-    stopcomm(listenhandle)
-
-  # Failure, tried servers without luck...
-  raise TimeError, "Time Server update failed.  Perhaps retry later..."
-
+  # Close the socket and return whether we were able to successfully
+  # update the time.
+  server_sock.close()
+  return response_received
 
 
+
+  
 ### Do the conversion / decoding for NTP.   More details about the 
 ### format of NTP are at RFC 2030 (http://www.ietf.org/rfc/rfc2030.txt)
 
@@ -112,11 +129,14 @@ def _time_convert_timestamp_to_float(timestamp):
   return integerpart + floatpart / float(2**32)
 
 
-def _time_decode_NTP_packet(ip, port, mess, ch):
-  time_settime(_time_convert_timestamp_to_float(mess[40:48]))
-  mycontext['ntp_time_got_time'] = True
-  stopcomm(ch)
 
 
-#register the update method
-time_register_method('ntp',ntp_time_updatetime)
+def _time_decode_NTP_packet(ntp_message):
+  """
+  This function takes the ntp_message, decodes it and
+  registers the time.
+  """
+  time_settime(_time_convert_timestamp_to_float(ntp_message[40:48]))
+
+  # Register the update method.
+  time_register_method('ntp',ntp_time_updatetime)
