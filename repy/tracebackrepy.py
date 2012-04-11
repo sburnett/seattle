@@ -22,8 +22,12 @@ traceback.linecache = fakelinecache
 # Need to be able to reference the last traceback...
 import sys
 
+# We need the service logger to log internal errors -Brent
+# import servicelogger
+
 # Used to determine whether or not we use the service logger to log internal
 # errors.  Defaults to false. -Brent
+# WARNING: Changing this to True manually may break tracebackrepy
 servicelog = False
 
 # this is the directory where the node manager resides.   We will use this
@@ -31,10 +35,7 @@ servicelog = False
 logdirectory = None
 
 
-# We need the service logger to log internal errors -Brent
-import servicelogger
-
-# We need to be able to do a harshexit on internal errors
+# We need to be able to do a harshexit on internal errors.
 import harshexit
 
 # Get the exception hierarchy
@@ -55,6 +56,10 @@ TB_SKIP_MODULES = ["repy.py","safe.py","virtual_namespace.py","namespace.py","em
 def initialize(useservlog=False, logdir = '.'):
   global servicelog
   global logdirectory
+
+  if useservlog:
+    import servicelogger
+
   servicelog = useservlog
   logdirectory = logdir
 

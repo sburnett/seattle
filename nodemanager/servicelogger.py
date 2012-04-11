@@ -1,3 +1,4 @@
+#!python
 """
 <Program>
   servicelogger.py
@@ -26,7 +27,13 @@ import traceback
 
 # We don't import from repyportability because when this is imported from
 # within repy, restrictions files are no longer honored.
-include servicelookup.repy
+
+from repyportability import *
+_context = locals()
+add_dy_support(_context)
+
+dy_import_module_symbols('servicelookup.repy')
+
 
 
 logfile = None
