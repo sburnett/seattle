@@ -1,6 +1,6 @@
 #including yourself is a rather contrived test case, but lets do it anyway
 
-include rhtestrecursion_4.repy
+dy_import_module_symbols("rhtestrecursion_4.repy")
 
 def four():
   print "four says hi"

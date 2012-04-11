@@ -31,7 +31,7 @@ multiplex any type of connection.
 """
 
 # This is to help send dictionaries as strings
-include deserialize.repy
+dy_import_module_symbols("deserialize.repy")
 
 # Define Module Constants
 # 

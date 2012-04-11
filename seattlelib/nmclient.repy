@@ -13,20 +13,20 @@ that order).
 """
 
 # for signing the data we send to the node manager
-include signeddata.repy
+dy_import_module_symbols("signeddata.repy")
 
 # session wrapper (breaks the stream into messages)
 # an abstracted "itemized data communication" in a separate API
-include session.repy
+dy_import_module_symbols("session.repy")
 
 
 
 #allow nat layer
-include natlayer_rpc.repy
+dy_import_module_symbols("natlayer_rpc.repy")
 
 
 # makes connections time out
-include sockettimeout.repy
+dy_import_module_symbols("sockettimeout.repy")
 
 # The idea is that this module returns "node manager handles".   A handle
 # may be used to communicate with a node manager and issue commands.   If the

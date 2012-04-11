@@ -13,9 +13,9 @@
   PUT/GET advertisements to the central server.
 """
 
-include session
-include sockettimeout
-include serialize
+dy_import_module_symbols("session")
+dy_import_module_symbols("sockettimeout")
+dy_import_module_symbols("serialize")
 
 class CentralAdvertiseError(Exception):
   pass

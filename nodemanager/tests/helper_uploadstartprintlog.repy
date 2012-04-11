@@ -2,8 +2,8 @@
 # Start the remote vessel, fetch the log file, then complain if there
 # is any logged output
 
-include time.repy
-include nmclient.repy
+dy_import_module_symbols("time.repy")
+dy_import_module_symbols("nmclient.repy")
 
 if callfunc == 'initialize':
   # Get the name of the file we are uploading, the first argument
