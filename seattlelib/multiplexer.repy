@@ -70,13 +70,15 @@ class MultiplexerFrame():
     self.referenceID = 0
     self.content = ""
     
+  """
   # So that we display properly  
   def __repr__(self):
     try:
       return self.toString()
     except AttributeError:
       return "<MultiplexerFrame instance, MULTIPLEXER_FRAME_NOT_INIT>"
-    
+  """    
+
   def initClientFrame(self,requestedID, remotehost, remoteport, localip, localport):
     """
     <Purpose>
@@ -379,14 +381,15 @@ class Multiplexer():
     else:
       raise ValueError, "Must pass in a valid socket!"
   
-  # So that we display properly  
+  # So that we display properly
+  """  
   def __repr__(self):
     # Format a nice string with some of our info
     return "<Multiplexer setup:"+str(self.isAlive())+ \
     " buf_size:"+str(self.defaultBufSize)+ \
     " counter:"+str(self.nextReferenceID)+ \
     " info:"+str(self.socketInfo)+">"
-  
+  """
   
   # Returns the status of the multiplexer
   def isAlive(self):

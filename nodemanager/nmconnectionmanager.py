@@ -56,7 +56,7 @@ import servicelogger
 
 from repyportability import *
 
-connectionlock = getlock()
+connectionlock = createlock()
   
 
 def connection_handler(IP, port, socketobject, thiscommhandle, maincommhandle):
