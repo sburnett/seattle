@@ -2,9 +2,9 @@ Introduction:
 -------------
 
 This is the README file on how to set up your own instance of Seattle
-and SeattleGENI. The files in this tarball is currently from our svn
+and Seattle Clearinghouse. The files in this tarball is currently from our svn
 trunk of revision 4015. To get the most up to date version of 
-Seattle and SeattleGENI you can check out our latest version using 
+Seattle and Seattle Clearinghouse you can check out our latest version using 
 subversion by running the command:
 
   > svn co http://seattle.cs.washington.edu/svn/seattle/trunk
@@ -13,12 +13,12 @@ subversion by running the command:
 Installation:
 -------------
 
-We have an extensive guid on how to install both Seattle and SeattleGENI
+We have an extensive guid on how to install both Seattle and Seattle Clearinghouse
 on the main wiki page of our project. These wiki pages take you step by
 step through all the processes of setting up your own instance of 
-SeattleGENI. Please follow the links below to find the intallation guide.
+Seattle Clearinghouse. Please follow the links below to find the intallation guide.
 
-SeattleGENI:
+Seattle Clearinghouse:
 https://seattle.cs.washington.edu/wiki/GeniInstallation
 
 Seattle Base Installer:
