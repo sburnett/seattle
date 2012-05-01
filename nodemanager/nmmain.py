@@ -607,10 +607,8 @@ if __name__ == '__main__':
 
 
   # Armon: Add some logging in case there is an uncaught exception
-  main()  
   try:
-    pass
-#    main()
+    main()
   except Exception,e:
     # If the servicelogger is not yet initialized, this will not be logged.
     servicelogger.log_last_exception()

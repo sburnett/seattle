@@ -63,7 +63,7 @@ def connection_handler(IP, port, socketobject, thiscommhandle, maincommhandle):
  
   # prevent races when adding connection information...   We don't process
   # the connections here, we just categorize them...
-  connectionlock.acquire()
+  connectionlock.acquire(True)
  
   # always release the lock...
   try:
@@ -125,7 +125,7 @@ connection_dict = {}
 def pop_request():
 
   # Acquire a lock to prevent a race (#993)...
-  connectionlock.acquire()
+  connectionlock.acquire(True)
 
   # ...but always release it.
   try:
