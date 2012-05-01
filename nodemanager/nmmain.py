@@ -97,22 +97,15 @@ import traceback
 import servicelogger
 
 
-
-# import the natlayer for use
-# this requires all NATLayer dependincies to be in the current directory
-dy_import_module_symbols('natlayer_rpc.repy')
-dy_import_module_symbols('rsa.repy')
-dy_import_module_symbols('sockettimeout.repy')
-
-
 # Armon: To handle user preferrences with respect to IP's and Interfaces
 # I will re-use the code repy uses in emulcomm
 import emulcomm
 
 # JAC: Fix for #1000: This needs to be after ALL repyhhelper calls to prevent 
 # sha from being replaced
-import sha
-
+warnings.simplefilter('ignore')
+import sha    # Required for the code safety check
+warnings.resetwarnings()
 
 # One problem we need to tackle is should we wait to restart a failed service
 # or should we constantly restart it.   For advertisement and status threads, 
@@ -156,13 +149,12 @@ version = "0.1t"
 configuration = {}
 
 # Lock and condition to determine if the accepter thread has started
-accepter_state = {'lock':getlock(),'started':False}
+accepter_state = {'lock':createlock(),'started':False}
 
 # whether or not to use the natlayer, this option is passed in via command line
 # --nat
 # If TEST_NM is true, then the nodemanager won't worry about another nmmain
 # running already.
-AUTO_USE_NAT = False
 FOREGROUND = False
 TEST_NM = False
 
@@ -228,27 +220,13 @@ def started_waitable_thread(threadid):
 
 # has the thread started?
 def is_accepter_started():
-  accepter_state['lock'].acquire()
+  accepter_state['lock'].acquire(True)
   result = accepter_state['started']
   accepter_state['lock'].release()
   return result
 
 
 def start_accepter():
-  
-
-  if AUTO_USE_NAT == False:
-    # check to see if we should use the nat layer
-    try:
-      # see if we can currently have a bi-directional connection
-      use_nat = nat_check_bi_directional(getmyip(), configuration['ports'][0])
-    except Exception,e:
-      servicelogger.log("Exception occurred trying to contact forwarder to detect nat "+str(e))
-      use_nat = False
-  else:
-    use_nat = True
-    
-  
   # do this until we get the accepter started...
   while True:
 
@@ -264,17 +242,6 @@ def start_accepter():
         
       for possibleport in configuration['ports']:
         try:
-          
-          if use_nat:
-            # use the sha hash of the nodes public key with the vessel
-            # number as an id for this node
-            unique_id = rsa_publickey_to_string(configuration['publickey'])
-            hashedunique_id = sha.new(unique_id).hexdigest()
-            advertiseid = hashedunique_id+str(configuration['service_vessel'])
-            servicelogger.log("[INFO]: Trying NAT wait")
-            nat_waitforconn(advertiseid, possibleport,
-                    nmconnectionmanager.connection_handler)
-
           # do a local waitforconn (not using a forwarder)
           # this makes the node manager easily accessible locally
  
@@ -289,17 +256,14 @@ def start_accepter():
           servicelogger.log_last_exception()
         else:
           # the waitforconn was completed so the accepter is started
-          accepter_state['lock'].acquire()
+          accepter_state['lock'].acquire(True)
           accepter_state['started']= True
           accepter_state['lock'].release()
 
           # assign the nodemanager name
           # if NAT is being used NAT$ will tell the connection client
           # to use nat_openconn with unique_id to contact this node
-          if use_nat:
-            myname = 'NAT$'+advertiseid+":"+str(possibleport)
-          else:
-            myname = str(bind_ip) + ":" + str(possibleport)
+          myname = str(bind_ip) + ":" + str(possibleport)
           break
 
       else:
@@ -378,7 +342,6 @@ def start_status_thread(vesseldict,sleeptime):
 
 # lots of little things need to be initialized...   
 def main():
-
   global configuration
 
   if not FOREGROUND:
@@ -606,25 +569,17 @@ def parse_arguments():
                          "instead of daemonizing it.")
 
 
-  # Add the --test-mode optino.
+  # Add the --test-mode option.
   parser.add_option('--test-mode', dest='test_mode',
                     action='store_true', default=False,
                     help="Run the nodemanager in test mode.")
-
-
-  # Add the --nat option.
-  parser.add_option('--nat', dest='nat', action='store_true',
-                    default=False, help="Forcibly use the natlayer")
                     
-
-
   # Parse the argumetns.
   options, args = parser.parse_args()
 
   # Set some global variables.
   global FOREGROUND
   global TEST_NM
-  global AUTO_USE_NAT
 
 
   # Analyze the options
@@ -633,10 +588,6 @@ def parse_arguments():
 
   if options.test_mode:
     TEST_NM = True
-
-  if options.nat:
-    AUTO_USE_NAT = True
-
     
 
 
@@ -656,8 +607,10 @@ if __name__ == '__main__':
 
 
   # Armon: Add some logging in case there is an uncaught exception
+  main()  
   try:
-    main() 
+    pass
+#    main()
   except Exception,e:
     # If the servicelogger is not yet initialized, this will not be logged.
     servicelogger.log_last_exception()
@@ -665,9 +618,3 @@ if __name__ == '__main__':
     # Since the main thread has died, this is a fatal exception,
     # so we need to forcefully exit
     harshexit.harshexit(15)
-
-
-
-
-
-

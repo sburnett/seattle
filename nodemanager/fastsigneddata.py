@@ -37,9 +37,10 @@ events are not skipped.    The sequence numbers are a tuple: (tag, version)
 # Should filter out a warning about sha deprecation (if applicable)
 import warnings
 
-# warnings.filterwarnings("ignore",message="the sha module is deprecated")
-
+# Hide the DeprecationWarning for sha 
+warnings.simplefilter('ignore') 
 import sha as fastsha
+warnings.resetwarnings() 
 
 def sha_hash(data):
   return fastsha.new(data).digest()

@@ -53,7 +53,114 @@ import nmstatusmonitor
 import nonportable
 
 # need this to check uploaded keys for validity
-dy_import_module_symbols('rsa.repy')
+def rsa_is_valid_publickey(key):
+  """
+  <Purpose>
+    This tries to determine if a key is valid.   If it returns False, the
+    key is definitely invalid.   If True, the key is almost certainly valid
+  
+  <Arguments>
+    key:
+        A dictionary of the form {'n': 1.., 'e': 6..} with the 
+        keys 'n' and 'e'.  
+                  
+  <Exceptions>
+    None
+
+  <Side Effects>
+    None
+    
+  <Return>
+    If the key is valid, True will be returned. Otherwise False will
+    be returned.
+    
+  """
+  # must be a dict
+  if type(key) is not dict:
+    return False
+
+  # missing the right keys
+  if 'e' not in key or 'n' not in key:
+    return False
+
+  # has extra data in the key
+  if len(key) != 2:
+    return False
+
+  for item in ['e', 'n']:
+    # must have integer or long types for the key components...
+    if type(key[item]) is not int and type(key[item]) is not long:
+      return False
+
+  if key['e'] < key['n']:
+    # Seems valid...
+    return True
+  else:
+    return False
+  
+  
+
+def rsa_publickey_to_string(publickey):
+  """
+  <Purpose>
+    To convert a publickey to a string. It will read the
+    publickey which should a dictionary, and return it in
+    the appropriate string format.
+  
+  <Arguments>
+    publickey:
+              Must be a valid publickey dictionary of 
+              the form {'n': 1.., 'e': 6..} with the keys
+              'n' and 'e'.
+    
+  <Exceptions>
+    ValueError if the publickey is invalid.
+
+  <Side Effects>
+    None
+    
+  <Return>
+    A string containing the publickey. 
+    Example: if the publickey was {'n':21, 'e':3} then returned
+    string would be "3 21"
+  
+  """
+  if not rsa_is_valid_publickey(publickey):
+    raise ValueError, "Invalid public key"
+
+  return str(publickey['e'])+" "+str(publickey['n'])
+
+
+def rsa_string_to_publickey(mystr):
+  """
+  <Purpose>
+    To read a private key string and return a dictionary in 
+    the appropriate format: {'n': 1.., 'e': 6..} 
+    with the keys 'n' and 'e'.
+  
+  <Arguments>
+    mystr:
+          A string containing the publickey, should be in the format
+          created by the function rsa_publickey_to_string.
+          Example if e=3 and n=21, mystr = "3 21"
+          
+  <Exceptions>
+    ValueError if the string containing the privateky is 
+    in a invalid format.
+
+  <Side Effects>
+    None
+    
+  <Return>
+    Returns a publickey dictionary of the form 
+    {'n': 1.., 'e': 6..} with the keys 'n' and 'e'.
+  
+  """
+  if len(mystr.split()) != 2:
+    raise ValueError, "Invalid public key string"
+  
+  return {'e':long(mystr.split()[0]), 'n':long(mystr.split()[1])}
+
 
 # MIX: fix with repy <-> python integration changes
 import random
