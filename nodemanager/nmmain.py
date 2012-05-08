@@ -216,17 +216,26 @@ def started_waitable_thread(threadid):
   thread_waittime[threadid] = min(maxwaittime, thread_waittime[threadid] ** wait_exponent)
 
   
+accepter_thread = None
 
-
-# has the thread started?
+# Set the accepter thread
+def set_accepter(accepter):
+  global accepter_thread
+  accepter_state['lock'].acquire(True)
+  accepter_thread = accepter
+  accepter_state['lock'].release()
+  
+# Has the accepter thread started?
 def is_accepter_started():
   accepter_state['lock'].acquire(True)
-  result = accepter_state['started']
+  result = accepter_thread is not None and accepter_thread.is_alive()
   accepter_state['lock'].release()
   return result
 
 
 def start_accepter():
+  global accepter_thread
+
   # do this until we get the accepter started...
   while True:
 
@@ -239,30 +248,36 @@ def start_accepter():
       # We only want to call getmyip() once, rather than in the loop since this potentially avoids
       # rebuilding the allowed IP cache for each possible port
       bind_ip = emulcomm.getmyip()
-        
+      
+      # Attempt to have the nodemanager listen on an available port.
+      # Once it is able to listen, create a new thread and pass it the socket.
+      # That new thread will be responsible for handling all of the incoming connections.     
       for possibleport in configuration['ports']:
         try:
-          # do a local waitforconn (not using a forwarder)
-          # this makes the node manager easily accessible locally
- 
-          #JAC: I do a timeout waitforconn in an attempt to address #881
-          # 10 seconds should be adequate for a client to respond / communicate
-          timeout_waitforconn(bind_ip, possibleport, 
-                    nmconnectionmanager.connection_handler, timeout=10)
+          # There are two possible implementations available here:
+          # 1) Use a raw (python) socket, and so we can have a timeout, as per ticket #881
+          # 2) Use a repy socket, but then possibly leak many connections.
+          
+          # For now, we'll use the second method.
+          serversocket = listenforconnection(bind_ip, possibleport)
+          
+          # If there is no error, we were able to successfully start listening.
+          # Create the thread, and start it up!
+          accepter = nmconnectionmanager.AccepterThread(serversocket)
+          accepter.start()
+          
+          # Now that we created an accepter, let's use it!          
+          set_accepter(accepter)
+
+          # MOSHE: Is this thread safe!?          
           # Now that waitforconn has been called, unset the accepter reset flag
           node_reset_config['reset_accepter'] = False
         except Exception, e:
+          # print bind_ip, port, e
           servicelogger.log("[ERROR]: when calling waitforconn for the connection_handler: " + str(e))
           servicelogger.log_last_exception()
         else:
-          # the waitforconn was completed so the accepter is started
-          accepter_state['lock'].acquire(True)
-          accepter_state['started']= True
-          accepter_state['lock'].release()
-
           # assign the nodemanager name
-          # if NAT is being used NAT$ will tell the connection client
-          # to use nat_openconn with unique_id to contact this node
           myname = str(bind_ip) + ":" + str(possibleport)
           break
 
@@ -438,7 +453,7 @@ def main():
     try:
       # Try to find our external IP.
       myip = emulcomm.getmyip()
-    except Exception, e:
+    except Exception, e: # Replace with InternetConnectivityError ?
       # If we aren't connected to the internet, emulcomm.getmyip() raises this:
       if len(e.args) >= 1 and e.args[0] == "Cannot detect a connection to the Internet.":
         # So we try again.

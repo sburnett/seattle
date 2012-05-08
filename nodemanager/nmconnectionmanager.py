@@ -36,7 +36,7 @@ I'm going to use "polling" by the worker thread.   I'll sleep when the
 list is empty and periodically look to see if a new element was added.
 """
 
-# needed to have a separate thread for the worker
+# Need to have a separate threads for the worker and the accepter
 import threading
 
 # need to get connections, etc.
@@ -59,7 +59,7 @@ from repyportability import *
 connectionlock = createlock()
   
 
-def connection_handler(IP, port, socketobject, thiscommhandle, maincommhandle):
+def connection_handler(IP, port, socketobject):
  
   # prevent races when adding connection information...   We don't process
   # the connections here, we just categorize them...
@@ -97,8 +97,29 @@ def _get_total_connection_count():
     totalconnections = totalconnections + len(connection_dict[srcIP])
 
   return totalconnections
+
+
+
+
+# This thread takes an active ServerSocket, and waits for incoming connections 
+class AccepterThread(threading.Thread):
+  serversocket = None
   
+  def __init__(self,serversocket):
+    threading.Thread.__init__(self, name="AccepterThread")
+    self.serversocket = serversocket
   
+  def run(self):
+    # Run indefinitely.
+    # This is on the assumption that getconnection() blocks, and so this won't consume an inordinate amount of resources.
+    while True:
+      try:
+        IP, port, client_socket = self.serversocket.getconnection()
+        connection_handler(IP, port, client_socket)
+      except SocketWouldBlockError:
+        sleep(0.5)      
+
+
 ##### ORDER IN WHICH CONNECTIONS ARE HANDLED
 
 # Each connection should be handled after all other IP addresses with this
