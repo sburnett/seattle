@@ -235,7 +235,7 @@ class Overlord:
       vesselcount
         The number of vessels on which to deploy.
       vesseltype
-        The type of vessel to acquire, based on the SEATTLEGENI_VESSEL_TYPE_*
+        The type of vessel to acquire, based on the SEATTLECLEARINGHOUSE_VESSEL_TYPE_*
         constants within experimentlib.py
       program_filename
         The filename of the program to deploy and monitor on vessels.
@@ -246,7 +246,7 @@ class Overlord:
     <Exceptions>
       ValueError
         Raised if argument vesseltype doesn't match one of the experimentlib
-        SEATTLEGENI_VESSEL_TYPE_* constants, if argument program file does not
+        SEATTLECLEARINGHOUSE_VESSEL_TYPE_* constants, if argument program file does not
         exist, or if argument number of vessels on which to deploy exceeds the
         user's number of vessel credits.
 
@@ -264,14 +264,14 @@ class Overlord:
       os.remove(os.path.expanduser("./stop"))
 
     # List of valid vessel types.
-    vessel_types = [explib.SEATTLEGENI_VESSEL_TYPE_WAN,
-                    explib.SEATTLEGENI_VESSEL_TYPE_LAN,
-                    explib.SEATTLEGENI_VESSEL_TYPE_NAT,
-                    explib.SEATTLEGENI_VESSEL_TYPE_RAND]
+    vessel_types = [explib.SEATTLECLEARINGHOUSE_VESSEL_TYPE_WAN,
+                    explib.SEATTLECLEARINGHOUSE_VESSEL_TYPE_LAN,
+                    explib.SEATTLECLEARINGHOUSE_VESSEL_TYPE_NAT,
+                    explib.SEATTLECLEARINGHOUSE_VESSEL_TYPE_RAND]
   
     if vessel_type not in vessel_types:
       raise ValueError("Invalid vessel type specified. Argument 'vessel_type' must be one of " +
-                        "the SEATTLEGENI_VESSEL_TYPE_* constants defined in 'experimentlib.py'")
+                        "the SEATTLECLEARINGHOUSE_VESSEL_TYPE_* constants defined in 'experimentlib.py'")
     
     self.config['vessel_type'] = vessel_type
 
