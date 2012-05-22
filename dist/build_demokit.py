@@ -68,7 +68,7 @@ def prepare_files(trunk_location, temp_demokit_dir):
 
   # Copy necessary Seattle files
   shutil.copy2(trunk_location + os.sep + "experimentmanager/experimentlib.py", temp_demokit_dir)
-  shutil.copy2(trunk_location + os.sep + "seattlegeni/xmlrpc_clients/seattlegeni_xmlrpc.py", temp_demokit_dir)
+  shutil.copy2(trunk_location + os.sep + "seattlegeni/xmlrpc_clients/seattleclearinghouse_xmlrpc.py", temp_demokit_dir)
   shutil.copy2(trunk_location + os.sep + "experimentmanager/repyimporter.py", temp_demokit_dir)
 
   # Copy Seattle license file

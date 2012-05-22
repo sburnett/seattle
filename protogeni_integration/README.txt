@@ -10,10 +10,10 @@ emulab ssl certificate in order to be granted access.
 
 Files that are required to run XMLRPC server:
 
-  1. seattlegeni_xmlrpc_server.pl (included)
+  1. seattleclearinghouse_xmlrpc_server.pl (included)
   2. generate_pubkey.py (included)
   3. protogeni reference component files.
-  4. seattlegeni_xmlrpc.logfile
+  4. seattleclearinghouse_xmlrpc.logfile
   5. protogeni_user_file.txt
   6. protogeni_vessel_handle.txt
   7. genica.bundle
@@ -69,7 +69,7 @@ Setting up XMLRPC server:
      The last 3 values are set by default to 1:0:0 but this will get changed
      to some other value after the XMLRPC server has run.
 
-  7. Edit the seattlegeni_xmlrpc_server.pl file to make sure some of the global
+  7. Edit the seattleclearinghouse_xmlrpc_server.pl file to make sure some of the global
      variables are set correctly if not done so already. The variables that 
      need to be changed if necessary are:
       * $generate_pubkey_path
@@ -112,7 +112,7 @@ following variables must be modified:
       https://www.emulab.net/genicrl.bundle
    
     These files are used to grant access to emulab users.
-  * The path to the seattlegeni_xmlrpc_server.pl should be set for the variable ScriptAlias
+  * The path to the seattleclearinghouse_xmlrpc_server.pl should be set for the variable ScriptAlias
     in line 49.
   * The directory where the  XMLRPC server resides should be set at line 51 as the directory path.
   * The location of the Seattle library files that were extracted in Step 2, should be added to 

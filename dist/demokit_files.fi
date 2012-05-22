@@ -129,7 +129,7 @@ req nmclient.repy
 req nmstatusinterface.py
 req virtual_namespace.py
 req experimentlib.py
-req seattlegeni_xmlrpc.py
+req seattleclearinghouse_xmlrpc.py
 req repyimporter.py
 req LICENSE.txt, LICENSE.TXT
 

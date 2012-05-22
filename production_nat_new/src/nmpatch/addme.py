@@ -1,5 +1,5 @@
 """
-Example of using the seattlegeni_xmlrpc module's SeattleGENIClient.
+Example of using the seattleclearinghouse_xmlrpc module's SeattleGENIClient.
 
 This script tries to acquire, renew, and release some vessels and prints out
 various information along the way.
@@ -22,7 +22,7 @@ else:
 
 
 # Allowing SSL to be insecure means it will be susceptible to MITM attacks.
-# See the instructions in seattlegeni_xmlrpc.py for using SSL securely.
+# See the instructions in seattleclearinghouse_xmlrpc.py for using SSL securely.
 ALLOW_SSL_INSECURE = True
 
 
@@ -97,7 +97,7 @@ def shellrun(cmd):
 
 """
 <Program>
-  seattlegeni_xmlrpc.py
+  seattleclearinghouse_xmlrpc.py
 
 <Started>
   6/28/2009

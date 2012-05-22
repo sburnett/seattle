@@ -23,7 +23,7 @@ import urllib
 TARGET_DIR = ""
 CURRENT_DIR = ""
 
-create_required_files_list = ['seattlegeni_xmlrpc.logfile', 'protogeni_user_file.txt',
+create_required_files_list = ['seattleclearinghouse_xmlrpc.logfile', 'protogeni_user_file.txt',
                               'protogeni_vessel_handle.txt', '__lockfile__']
 
 def main():
@@ -113,7 +113,7 @@ def main():
 #  and Seattle library files should already be downloaded to some folder. This             
 #  should have been done in Step 2 and 3 in the README.txt             
 #                                                                 
-#  seattlegeni_xmlrpc_server.pl:                                                  
+#  seattleclearinghouse_xmlrpc_server.pl:                                                  
 #    * use lib '/path/to/protogeni/reference-cm-2.0/xmlrpc'; (Line 12)
 #    * use lib '/path/to/protogeni/reference-cm-2.0/lib'; (Line 13)   
 #    * $directory_prefix = '""" + TARGET_DIR + """'; (Line 36)                    

@@ -95,7 +95,7 @@ my $LOCK_NB = 4;
 my $NORMAL_LOG = 0;
 my $ERROR_LOG = 1;
 
-my $log_filepath = $directory_prefix . "seattlegeni_xmlrpc.logfile";
+my $log_filepath = $directory_prefix . "seattleclearinghouse_xmlrpc.logfile";
 
 
 

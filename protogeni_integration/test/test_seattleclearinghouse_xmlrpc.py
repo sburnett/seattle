@@ -1,5 +1,5 @@
 """
-Program Name: test_seattlegeni_xmlrpc.py
+Program Name: test_seattleclearinghouse_xmlrpc.py
 Author: Monzur Muhammad
 Created: May 25, 2010
 """
