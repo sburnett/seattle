@@ -75,7 +75,7 @@ def deploycncexperiment_aquirevessels(number_vessels, vessel_type):
     #aquire more vessels than we actually need
     num_vessels_to_get = number_vessels - len(ip_handle_dict.keys())
   
-    proxy = seattleclearinghouse_xmlrpc.SeattleGENIClient(username=XMLRPC_CRED['username'], api_key=XMLRPC_CRED['api_key'], xmlrpc_url= XMLRPC_SERVER_URL, allow_ssl_insecure=True)
+    proxy = seattleclearinghouse_xmlrpc.SeattleClearinghouseClient(username=XMLRPC_CRED['username'], api_key=XMLRPC_CRED['api_key'], xmlrpc_url= XMLRPC_SERVER_URL, allow_ssl_insecure=True)
 
     acquired_dict = []
     print "Acquiring resources..."
@@ -140,7 +140,7 @@ def switch_out_client(client_ip_handle_dict, client_deploy_info_dict, source_of_
   client_ip_handle_dict.pop(vessel_ip)
   
   #use xmlrpc to release the vessel
-  proxy = seattleclearinghouse_xmlrpc.SeattleGENIClient(username=XMLRPC_CRED['username'], api_key=XMLRPC_CRED['api_key'], xmlrpc_url= XMLRPC_SERVER_URL, allow_ssl_insecure=True)
+  proxy = seattleclearinghouse_xmlrpc.SeattleClearinghouseClient(username=XMLRPC_CRED['username'], api_key=XMLRPC_CRED['api_key'], xmlrpc_url= XMLRPC_SERVER_URL, allow_ssl_insecure=True)
   proxy.release_resources([resource_handle])
   
   #get a new vessel
@@ -320,7 +320,7 @@ def deploy_cnc_experiment(source_of_client_vessels, num_clients, source_of_serve
   
   #release vessels
   print "###Releasing Vessels###"
-  proxy = seattleclearinghouse_xmlrpc.SeattleGENIClient(username=XMLRPC_CRED['username'], api_key=XMLRPC_CRED['api_key'], xmlrpc_url= XMLRPC_SERVER_URL, allow_ssl_insecure=True)
+  proxy = seattleclearinghouse_xmlrpc.SeattleClearinghouseClient(username=XMLRPC_CRED['username'], api_key=XMLRPC_CRED['api_key'], xmlrpc_url= XMLRPC_SERVER_URL, allow_ssl_insecure=True)
   proxy.release_resources(client_ip_handle_dict.values())
   
   
@@ -382,7 +382,7 @@ def deploy_cnc_experiment_static_config(source_of_client_vessels, num_clients,du
   
   #release vessels
   print "###Releasing Vessels###"
-  proxy = seattleclearinghouse_xmlrpc.SeattleGENIClient(username=XMLRPC_CRED['username'], api_key=XMLRPC_CRED['api_key'], xmlrpc_url= XMLRPC_SERVER_URL, allow_ssl_insecure=True)
+  proxy = seattleclearinghouse_xmlrpc.SeattleClearinghouseClient(username=XMLRPC_CRED['username'], api_key=XMLRPC_CRED['api_key'], xmlrpc_url= XMLRPC_SERVER_URL, allow_ssl_insecure=True)
   proxy.release_resources(client_ip_handle_dict.values())
   
   #copy log info to experiment specific directory

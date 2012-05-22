@@ -1,5 +1,5 @@
 """
-Example of using the seattleclearinghouse_xmlrpc module's SeattleGENIClient.
+Example of using the seattleclearinghouse_xmlrpc module's SeattleClearinghouseClient.
 
 This script tries to acquire, renew, and release some vessels and prints out
 various information along the way.
@@ -27,7 +27,7 @@ ALLOW_SSL_INSECURE = True
 
 
 def do_example_acquire_renew_release():
-  client = SeattleGENIClient(username=USERNAME,
+  client = SeattleClearinghouseClient(username=USERNAME,
                              api_key=API_KEY,
                              allow_ssl_insecure=ALLOW_SSL_INSECURE)
 
@@ -110,7 +110,7 @@ def shellrun(cmd):
   A client library for communicating with the SeattleGENI XMLRPC Server.
   
   Your Python scripts can import this library, create an instance of the
-  SeattleGENIClient class, then call methods on the object to perform XMLRPC
+  SeattleClearinghouseClient class, then call methods on the object to perform XMLRPC
   calls through the SeattleGENI XMLRPC API.
 
   Full tutorials on using this library, see:
@@ -128,7 +128,7 @@ def shellrun(cmd):
   XMLRPC servers that use https but you will be vulnerable to a man-in-the-middle
   attack. To enable this insecure mode, include the argument:
     allow_ssl_insecure=True
-  when creating a SeattleGENIClient instance.
+  when creating a SeattleClearinghouseClient instance.
   
 <Notes>
   All methods of the client class may raise the following errors in addition to
@@ -165,7 +165,7 @@ FAULTCODE_UNABLETOACQUIRE = 105
 
 
 
-class SeattleGENIClient(object):
+class SeattleClearinghouseClient(object):
   """
   Implementation of an XMLRPC client for communicating with a SeattleGENI
   server. This uses the public API described at:
