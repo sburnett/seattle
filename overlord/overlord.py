@@ -442,7 +442,7 @@ class Overlord:
     try:
       vessel_handlers = explib.seattlegeni_acquire_vessels(self.config['identity'], self.config['vessel_type'], vessel_count)
     
-    except explib.SeattleGENIError, e:
+    except explib.SeattleClearinghouseError, e:
       self.logger.error('Error while acquiring vessels: ' + str(e))
       return []
     
@@ -587,7 +587,7 @@ class Overlord:
   
     try:
       explib.seattlegeni_release_vessels(self.config['identity'], vessel_handlers)
-    except explib.SeattleGENIError, e:
+    except explib.SeattleClearinghouseError, e:
       self.logger.error('Error while releasing vessels: ' + str(e))
 
 
