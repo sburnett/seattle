@@ -273,10 +273,17 @@ def get_filepath_of_win_startup_folder_with_link_to_seattle():
 
 
   else:
-    raise UnsupportedOSError("This version of Windows is not supported. " \
-                               + "Contact the seattle development team to " \
-                               + "resolve this issue." )
+    raise UnsupportedOSError("""
+Sorry, we couldn't detect your Windows version.
+Please contact the Seattle development team at
 
+   seattle-devel@googlegroups.com
+   
+to resolve this issue. Version details:
+Python version: """ + str(platform.python_version()) + 
+"\nPlatform arch: " + str(platform.architecture()) + 
+"\nPlatform release: " + str(platform.release()) + 
+"\nPlatform version string: " + str(platform.version()))
 
 
 
