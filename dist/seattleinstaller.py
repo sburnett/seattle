@@ -53,14 +53,10 @@ DISABLE_STARTUP_SCRIPT = False
 OS = nonportable.ostype
 SUPPORTED_OSES = ["Windows", "WindowsCE", "Linux", "Darwin"]
 # Supported Windows Versions: XP, Vista, 7
-#      NOTE: python versions later than 2.5 do not properly detect Windows 7.
-#            Instead, it detects "post2008server". If the version of python
-#            included in the seattle Windows installer is ever upgraded,
-#            it must be checked that this is still the case (maybe a patch
-#            will be created after this comment is written that will actually
-#            allow python to detect that it is running on Windows 7, in which
-#            case the function below 'get_filepath_of_win_startup_folder...()'
-#            will need to be amended appropriately).
+# NOTE:
+#   To support newer versions of Windows (or when changing the Python version 
+#   included with the Windows installer package), ammend the function 
+#   get_filepath_of_win_startup_folder_with_link_to_seattle() below.
 
 RESOURCE_PERCENTAGE = 10
 # Armon: DISABLE_INSTALL: Special flag for testing purposes that can be
@@ -251,19 +247,25 @@ def get_filepath_of_win_startup_folder_with_link_to_seattle():
     raise UnsupportedOSError("The startup folder only exists on Windows.")
 
 
-  # Currently, the call to platform.release() on Windows 7 machines using
-  # a version of python LATER than Python2.5 returns "post2008server" rather
-  # than something indicating that python is running on Windows 7.
-  # For Python2.5 running on Windows 7, platform.release() returns "Vista".
   # The startup_path is the same for Vista and Windows 7.
-  version = platform.release()
-  if version == "Vista" or version == "post2008server":
+  #
+  # As discussed per ticket #1059, different Python versions return
+  # different names for Windows 7 (see also http://bugs.python.org/issue7863).
+  # Testing on Windows 7 Professional, 64 bits, German localization, 
+  # platform.release() returns
+  #   "Vista" for Python versions 2.5.2 and 2.5.4,
+  #   "post2008Server" for versions 2.6.2 to 2.6.5, and
+  #   "7" for versions 2.6.6 and 2.7.0 to 2.7.3.
+  # Please adapt this once new Python/Windows versions become available.
+
+  release = platform.release()
+  if release == "Vista" or release == "post2008Server" or release == "7":
     startup_path = os.environ.get("HOMEDRIVE") + os.environ.get("HOMEPATH") \
         + "\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs" \
         + "\\Startup" + os.sep + get_starter_shortcut_file_name()
     return (startup_path, os.path.exists(startup_path))
 
-  elif version == "XP":
+  elif release == "XP":
     startup_path = os.environ.get("HOMEDRIVE") + os.environ.get("HOMEPATH") \
         + "\\Start Menu\\Programs\\Startup" + os.sep \
         + get_starter_shortcut_file_name()
