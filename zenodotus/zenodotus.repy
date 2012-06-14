@@ -1,0 +1,692 @@
+"""
+<Program Name>
+  zenodotus.repy
+
+<Date Created>
+  August 12, 2010
+
+<Author(s)>
+  Sebastian Morgan
+  sebass63@gmail.com
+
+<Major Edits>
+  None
+
+<Purpose>
+  Using both the dnsserver and zenodotus_advertise modules, this program runs a 
+  DNS name server to service hostname lookup requests within the Seattle 
+  network.
+
+<Notes>
+  None
+
+<Side Effects>
+  Since this uses the dnsserver module to listen on some UDP port, it is 
+  possible that this program might interfere with another application trying to 
+  use the same port.
+
+<Exceptions>
+  MalformedPacketError
+    _do_dns_callback will raise this if it encounters a dictionary which 
+    describes a malformed packet.
+  RefusedError
+    _do_dns_callback will raise this if it encounters a dictionary that should 
+    be refused for policy reasons.
+  NotImplementedError
+    _do_dns_callback will raise this if it encounters a dictionary requesting 
+    a functionality which it does not provide.
+  NonexistentDomainError
+    _do_dns_callback will raise this if it encounters a dictionary requesting 
+    information on a name with no valid corresponding advertise entry.
+  ServerFailedError
+    _do_dns_callback will raise this if it crashes and is not sure why.
+"""
+
+
+
+# This should be global, since zenodotus_advertise is interested in it.
+_verbose = False
+
+# Used to examine runtime resource use. Should not be modified more than once.
+_ntp_progstart = 0
+
+
+
+
+include dnsserver.repy
+include zenodotus_advertise.repy
+include ntp_time.repy
+
+
+
+
+# This is the serial number which zenodotus will advertise in SOA records.
+# Please increase this number by one each time a new version of the code is 
+# pushed. NEVER decrease it.
+_SOA_SERIAL = 6
+
+# The file reference to which debug information should be saved. This is 
+# initialized in the main code body.
+_debug_stream = None
+
+# This is initialized in the main body of the code, via getmyip(). This 
+# must be reworked when commandline arguments are overhauled.
+_host_ip_address = None
+
+
+
+
+def _do_dns_callback(query_dictionary):
+  """
+  <Purpose>
+    This method is invoked by dnsserver.repy as a callback whenever a 
+    DNS-compliant query is received. The query_dictionary is a formatted 
+    dictionary fully describing the DNS packet just received.
+
+  <Arguments>
+    A dictionary describing the DNS packet we've received. It has the 
+    following format:
+
+    {
+        'raw_data': <long string>
+        'communication_id': 'a7'
+        'query_response': False
+        'operation_code': 0
+        'authority_advisory': False
+        'truncation': False
+        'recursion_desired': True
+        'recursion_accepted': False
+        'z': False
+        'authentic_data': False
+        'checking_disabled': False
+        'error_code': 0
+        'question_count': 1
+        'answer_count': 0
+        'nscount': 0
+        'arcount': 0
+        'question_name': "asdf" <--- This is the query, such as a hostname.
+        'question_type': 0
+        'question_class': 0
+        'answers': []
+    } (Numbers are integers)
+
+  <Exceptions>
+    There are five exceptions which can be raised by this method.
+    They correspond to the DNS error codes, reproduced here.
+
+    1 Format error - Packet was malformed
+    2 Server failure - Server was unable to complete request
+    3 Name Error - NXDOMAIN. Indicates that the name requested doesn't exist.
+    4 Not Implemented - The server does not support the specified functionality.
+    5 Refused - The server actively refused the connection.
+
+    In order, the corresponding errors are as follows.
+
+    MalformedPacketError
+      Indicates that the dictionary we received contains a malformed packet.
+
+    ServerFailedError
+      Indicates that the server has failed in some capacity, but isn't able 
+      to self-diagnose.
+
+    NonexistentDomainError
+      Indicates that the question asked by the user has no valid answer. More 
+      specifically, that there is no corresponding value in advertise.
+
+    NotImplementedError
+      Indicates that the dictionary we received contains a question of a 
+      form which we cannot answer due to lack of functionality.
+
+    RefusedError
+      Indicates that the dictionoary we received contains a packet which we 
+      refused for policy reasons.
+
+  <Side Effects>
+    None
+
+  <Returns>
+    A dictionary with the same format as above, though with different values 
+    associated with the keys. Additionally, 'answers' should be populated 
+    with strings received from the advertise service.
+  """
+  # Record the time at which this method begins.
+  method_time = getruntime()
+
+  # These types are all dealt with in the same way, format-wise.
+  simple_answers = ['NS', 'CNAME', 'MD', 'MB', 'MF', 'MG', 'MR', 'MX', 'PTR']
+
+  # No doubt the debugger will be interested in a query dump.
+  if _verbose:
+    print "===================================="
+    print "| Callback started with arguments: |"
+    print "===================================="
+    for key in query_dictionary.keys():
+      print "  " + str(key) + " : " + str(query_dictionary[key])
+    print "====================================\n"
+
+  try:
+    query_dictionary['query_response'] = True
+    query_dictionary['authority_advisory'] = True
+    query_dictionary['recursion_accepted'] = True
+
+    # The domain name service imposes an artificial 512 byte limit on all 
+    # DNS UDP transmissions, meaning none of our messages can exceed that 
+    # length. What's worse is that UDP headers are included in the length, 
+    # and we have to service requests from IPv6 users as well. As such, we 
+    # can only depend on having 512 - 128 (384) bytes available for any 
+    # given message. If they exceed 512 in total, they will be truncated, 
+    # and we will start to lose answers in our responses. However, 
+    # dnsserver currently doesn't allow packets it sends to be too long, 
+    # so truncation should never come up.
+    query_dictionary['truncation'] = False
+
+    # dnsserver does not currently support inverse queries, so we require 
+    # opcode to be equal to zero always.
+    if query_dictionary['operation_code'] != 0:
+      raise NotImplementedError()
+
+    # Iterate through the enclosed questions and respond appropriately.
+    for question in query_dictionary['questions']:
+      # Special variables for these, since we use them a lot.
+      question_type = question['type']
+      question_class = question['class']
+      question_name = question['name']
+
+      if question_class != 'IN':
+        raise NotImplementedError("Non-IN query is unacceptable.")
+      if question_type == 'A':
+        if question_name == 'zenodotus.cs.washington.edu':
+          query_dictionary['answers'].append({
+               'name': question_name, 
+               'type': question_type,
+               'class': question_class,
+               'time_to_live': 0,
+               'answer_data': { 'address': _host_ip_address } })
+          query_dictionary['answer_count'] += 1
+        elif question_name == 'localhost':
+          query_dictionary['answers'].append({
+               'name': question_name,
+               'type': question_type,
+               'class': question_class,
+               'time_to_live': 0,
+               'answer_data': { 'address': "127.0.0.1" } })
+          query_dictionary['answer_count'] += 1
+        elif question_name == 'localhost.zenodotus.cs.washington.edu':
+          query_dictionary['answers'].append({
+               'name': question_name,
+               'type': question_type,
+               'class': question_class,
+               'time_to_live': 0,
+               'answer_data': { 'address': "127.0.0.1" } })
+          query_dictionary['answer_count'] += 1
+
+        # This part involves a lot of compact and complicated string operations.
+        # It is slightly horrifying. It handles redirection to additional name servers
+        elif question_name.endswith("zenodotus.cs.washington.edu") and len(question_name.split(".")) > 5:
+          service_name = question_name[:-28].split(".")[len(question_name[:-28].split(".")) - 1]
+          lookup_name = service_name + ".zenodotus.cs.washington.edu"
+
+          answers = zenodotus_advertise_do_lookup(lookup_name, 'NS')
+
+          for answer in answers:
+            query_dictionary['answers'].append({
+                 'name': lookup_name,
+                 'type': 'NS',
+                 'class': question_class,
+                 'time_to_live': 0,
+                 'answer_data': { 'address': answer } })
+
+          query_dictionary['answer_count'] += len(answers)
+
+        else:
+          # Begin "stopwatch" for the advertise stuff.
+          pre_advertise_time = getruntime()
+          
+          # Get advertise data
+          answers = zenodotus_advertise_do_lookup(question_name, question_type)
+
+          if _verbose:
+            advertise_time = getruntime() - pre_advertise_time
+            print "::NOTICE:: Advertise lookup took " + str(advertise_time) + " seconds.\n"
+
+          query_dictionary['answer_count'] += len(answers)
+
+          for answer in answers:
+            query_dictionary['answers'].append({
+                 'name': question_name,
+                 'type': question_type,
+                 'class': question_class,
+                 'time_to_live': 0,
+                 'answer_data': { 'address': answer } })
+
+      elif question_type == 'NS':
+
+        if question_name == 'zenodotus.cs.washington.edu':
+          query_dictionary['answers'].append({
+               'name': question_name,
+               'type': question_type,
+               'class': question_class,
+               'time_to_live': 0,
+               'answer_data': { 'address': 'zenodotus.cs.washington.edu' } })
+
+          query_dictionary['answer_count'] += 1
+
+          query_dictionary['answers'].append({
+               'name': question_name,
+               'type': question_type,
+               'class': question_class,
+               'time_to_live': 0,
+               'answer_data': { 'address': 'zenodotus.cs.washington.edu' } })
+
+          query_dictionary['additional_record_count'] += 1
+
+        else:
+          pre_advertise_time = getruntime()
+
+       	  answers = zenodotus_advertise_do_lookup(question_name, question_type)
+
+          if _verbose:
+            advertise_time = getruntime() - pre_advertise_time
+            print "::NOTICE:: Advertise lookup took " + str(advertise_time) + " seconds.\n"
+
+          for answer in answers:
+            query_dictionary['answers'].append({
+       	         'name': question_name,
+                 'type': question_type,
+                 'class': question_class,
+                 'time_to_live': 0,
+                 'answer_data': { 'address': answer } })
+
+          query_dictionary['answer_count'] += len(answers)
+
+
+      elif question_type == 'SOA':
+        if question_name != "zenodotus.cs.washington.edu":
+          pre_advertise_time = getruntime()
+          
+          answers = zenodotus_advertise_do_lookup(question_name, question_type)
+
+          if _verbose:
+            advertise_time = getruntime() - pre_advertise_time
+            print "::NOTICE:: Advertise lookup took " + str(advertise_time) + " seconds.\n"
+
+          query_dictionary['answer_count'] += len(answers)
+
+          for answer in answers:
+            answer_data = {
+                'mname': answer,
+                'rname': 'autogen.noaddress',
+                'serial': _SOA_SERIAL,
+                'retry': 900,
+                'refresh': 10800,
+                'expire': 3600000,
+                'minimum': 1 }
+
+            query_dictionary['answers'].append({
+                'name': question_name,
+                'type': question_type,
+                'class': question_class,
+                'time_to_live': 0,
+                'answer_data': answer_data })
+        else:
+          query_dictionary['answer_count'] += 1
+          query_dictionary['additional_record_count'] += 1
+
+          answer_data = {
+                'mname': "testbed-ubuntu.cs.washington.edu",
+                'rname': "sebass63.uw.edu",
+                'serial': _SOA_SERIAL,
+                'retry': 900,
+                'refresh': 10800,
+                'expire': 3600000,
+                'minimum': 1 }
+
+          query_dictionary['answers'].append({
+               'name': question_name,
+               'type': question_type,
+               'class': question_class,
+               'time_to_live': 0,
+               'answer_data': answer_data })
+          query_dictionary['answers'].append({
+               'name': "testbed-ubuntu.cs.washington.edu",
+               'type': 'A',
+               'class': question_class,
+               'time_to_live': 0,
+               'answer_data': {'address': _host_ip_address } })
+
+      elif question_type in simple_answers:
+        pre_advertise_time = getruntime()
+        answers = zenodotus_advertise_do_lookup(question_name, question_type)
+
+        if _verbose:
+          advertise_time = getruntime() - pre_advertise_time
+          print "::NOTICE:: Advertise lookup took " + str(advertise_time) + " seconds.\n"
+
+        for answer in answers:
+          query_dictionary['answers'].append({
+             'name': question_name,
+             'type': question_type,
+             'class': question_class,
+             'time_to_live': 0,
+             'answer_data': { 'address': answer } })
+
+        query_dictionary['answer_count'] = len(answers)
+
+      else:
+        raise NotImplementedError("Query type " + str(question_type) + " not implemented!")
+
+    ############################################
+    #      End TYPE checking/formatting        #
+    ############################################
+
+    if _verbose:
+      print "Processing successful. Returning:"
+      print "================================="
+      for key in query_dictionary.keys():
+        print "  " + str(key) + " : " + str(query_dictionary[key])
+
+    if _verbose:
+      total_time = getruntime() - method_time
+      print "::NOTICE:: Method took " + str(total_time) + " seconds.\n"
+
+    return query_dictionary
+  except NotImplementedError, e:
+    if _verbose:
+      print "NotImplementedError arose!"
+      print "Dumping exception data . . ."
+      print e
+    _write_debug_report(_debug_stream, e, query_dictionary)
+    raise NotImplementedError()
+  except RefusedError, e:
+    if _verbose:
+      print "RefusedError arose!"
+      print "Dumping exception data . . ."
+      print e
+    _write_debug_report(_debug_stream, "RefusedError", query_dictionary)
+    raise RefusedError()
+  except NonexistentDomainError, e:
+    if _verbose:
+      print "NonexistentDomainError arose!"
+      print "Dumping exception data . . ."
+      print e
+    _write_debug_report(_debug_stream, "NXDomainError", query_dictionary)
+    raise NonexistentDomainError()
+  except MalformedPacketError, e:
+    if _verbose:
+      print "MalformedPacketError arose!"
+      print "Dumping exception data . . ."
+      print e
+    _write_debug_report(_debug_stream, "MalformedPacketError", query_dictionary)
+    raise MalformedPacketError()
+  except Exception, e:
+    if _verbose:
+      print "Unknown error arose!"
+      print "Dumping exception data . . ."
+      print e
+    _write_debug_report(_debug_stream, e, query_dictionary)
+    raise ServerFailedError()
+
+
+
+
+def _write_debug_report(debug_stream, error_data, packet_dictionary):
+  """
+  <Purpose>
+    This method writes an error report to the specified file. These 
+    reports are intended to be legible upon opening the file.
+
+  <Arguments>
+    debug_stream
+      The file to which the debug report should be written.
+
+    error_data
+      A string describing the error that occurred. This can be 
+      an exception string, or a custom message.
+
+    packet_dictionary
+      The dictionary produced by the packet which caused a problem. 
+      This is included to shed light on the exception message in 
+      the debug report.
+
+  <Exceptions>
+    IOError
+      Occurs if disk is out of space.
+    ValueError
+      Occurs if file is closed.
+
+  <Side Effects>
+    It may be possible for a malicious entity to send deliberately malformed 
+    packets to trigger this, depending on how it is used, and in so doing 
+    fill the server hard drive in a relatively short time. Some sort of 
+    protection against this is in order, but I'm not sure what the best way 
+    to do that is.
+
+  <Returns>
+    None
+  """
+  print >> debug_stream, "=================================================="
+  print >> debug_stream, "|         Error: Query caused a problem          |"
+  print >> debug_stream, "=================================================="
+  print >> debug_stream, "Exception data: \n"
+  print >> debug_stream, error_data
+  print >> debug_stream, "\n=================================================="
+  print >> debug_stream, "Time processed: " + str(time_gettime()) + " NTP"
+  print >> debug_stream, "=================================================="
+  print >> debug_stream, "Dictionary State: \n"
+  
+  # This is some extremely complicated formatting, and I really wish there 
+  # were a more convenient way to go about it.
+
+  # In order to convert from decimal to hex properly, we need a character 
+  # dictionary for quick reference.
+  conversion_table = { 0: '0', 1: '1', 2: '2', 3: '3', 4: '4', 5: '5', 
+                       6: '6', 7: '7', 8: '8', 9: '9', 10: 'A', 11: 'B', 
+                       12: 'C', 13: 'D', 14: 'E', 15: 'F' }
+
+  # We should make it simple to determine the max number of hex entries 
+  # per line, in case this is refactored in the future.
+  max_entries = 4
+
+  # We also want to separate the parsing and formatting operations, so 
+  # let's create a temporary array to store our hex data in.
+  hex_values = []
+
+  for entry in packet_dictionary:
+    # When we know that we've hit the entry that can't be formatted in a 
+    # simple way, we need to get tricky. We can't print as we go, because 
+    # our printing will place a newline character at the end of every 
+    # operation, which isn't what we want. So, we construct a string and 
+    # populate it as we iterate.
+    if entry == 'raw_data':
+      output_text = "raw_data:\n  "
+
+      # Grab the raw packet data:
+      raw_data = packet_dictionary['raw_data']
+
+      # This is formatted such that each character has a 0 - 255 decimal 
+      # value, but if we try to print it, we might get an unreadable debug 
+      # file! So we need to convert the values one by one, and put them in 
+      # to a form that is easier on the eyes.
+      for character in raw_data:
+        # The & operation looks like this in a more logical format:
+        # raw_data & 11110000
+        # meaning we're finding the value of the first (upper) four 
+        # bits as if they were a int4. This should be the decimal 
+        # value of the first hex digit.
+        upper_value = (ord(character) & 240) / 2 ** 4
+      
+        # Next, we need the decimal value of the lower four bits.
+        lower_value = ord(character) & 15
+
+        # Now that we have the decimal values of our two hex digits, we 
+        # can easily convert them using the table we constructed earlier.
+        hex_values.append(conversion_table[upper_value] + conversion_table[lower_value])
+
+      # Once the hex value list is populated, we need to format the 
+      # data and print. First, we'll iterate through and append the 
+      # hex values to our output string.
+      newline_index = 0
+
+      for value in hex_values:
+        output_text += value
+        newline_index += 1
+        # If we've already printed the max number of values on this line, we 
+        # should move to the next one. Two spaces before each hex value 
+        # should make this a little easier to read via indentation.
+        if newline_index == max_entries:
+          output_text += '\n  '
+          newline_index = 0
+        # Otherwise, print a space to separate this value from the next.
+        else:
+          output_text += ' '
+      
+      # Finally, print the raw data.
+      print >> debug_stream, output_text
+
+    else:
+      print >> debug_stream, entry + ": " + str(packet_dictionary[entry])
+
+  print >> debug_stream, "\n=================================================="
+  debug_stream.flush()
+  
+
+
+
+
+if callfunc == 'initialize':
+  listen_port = 0
+  listen_ip = ''
+  ntp_port = 0
+  ntp_port_set = False
+
+  # If no NTP port is specified, zenodotus chooses the first available 
+  # port within this range.
+  ntp_default_range = range(49000, 49005)
+  success = True
+
+  # Iterate through the call arguments, looking for flags that we know.
+  # Currently implemented flags are:
+  # -p        : <hostport>
+  # -ip       : <IP Address>
+  # -tsp/-ntp : <NTP port to use>
+  # -v        : <Verbose flag>
+  #
+  # In addition to flags, we also allow the user to simply pass one 
+  # hostport as an argument. While this is deprecated, it has been 
+  # permitted in the past, and we should continue to allow it.
+  if len(callargs) == 1:
+    # We should ensure that we are only accepting integer ports.
+    try:
+      listen_port = int(callargs[0])
+      print "Warning: You are using a deprecated syntax to run zenodotus."
+      print "  Usage: zenodotus.repy -p <hostport>"
+    except ValueError:
+      print "Unacceptable argument: hostport must be a number."
+      print "  Usage: zenodotus.repy <hostport>"
+      success = False
+      
+      listen_ip = getmyip()
+  elif len(callargs) == 0:
+    print "Unacceptable arguments: No arguments! Need at least a hostport."
+    print "  Usage: zenodotus.repy -p <hostport>"
+    success = False
+  else:
+    # Check for flags. We use this ugly method of iteration for easy access 
+    # of data near our iteration.
+    for i in range(len(callargs)):
+      if callargs[i] == '-p':
+        try:
+          listen_port = int(callargs[i + 1])
+          # Only advance the flag if this works correctly.
+          i += 1
+        except ValueError:
+          print "Unacceptable argument: hostport must be a number."
+          print "  Usage: zenodotus.repy -p <hostport>"
+          success = False
+        except IndexError:
+          print "Unacceptable arguments: -p must be followed by a hostport."
+          print "  Usage: zenodotus.repy -p <hostport>"
+          success = False
+      if callargs[i] == '-v':
+        _verbose = True
+        print "Verbose mode requested."
+      # This does not check for valid host IPs. If you input a bad IP, 
+      # the program will crash somehow. Due to the possibility of the 
+      # host having a IPv6 address, I don't know what the best way to 
+      # do this is. Perhaps add a sniffer method to prevent bad args?
+      # It's probably fine for now, but should be added in the near future.
+      if callargs[i] == '-ip':
+        try:
+          listen_ip = callargs[i + 1]
+        except IndexError:
+          print "Unacceptable arguments: -ip must be followed by a IP Address."
+          print "  Usage: zenodotus.repy -ip <IP Address>"
+          success = False
+      if callargs[i] == '-tsp':
+        try:
+          ntp_port = int(callargs[i + 1])
+          ntp_port_set = True
+        except IndexError:
+          print "Unacceptable arguments: port must be a number."
+          print "  Usage: zenodotus.repy -tsp <port>"
+          success = False
+        except ValueError:
+          print "Unacceptable arguments: -tsp must be followed by a port."
+          print "  Usage: zenodotus.repy -tsp <port>"
+          success = False
+
+  if listen_port == 0:
+    print "Unacceptable arguments: No hostport provided!"
+    print "  Usage: zenodotus.repy -p <hostport>"
+    success = False
+
+  if not ntp_port_set:
+    print "No NTP port specified. Trying defaults . . ."
+    ntp_updated = False
+    ntp_test_index = 0
+    while not ntp_updated:
+      try:
+        print "Testing port " + str(ntp_default_range[ntp_test_index]) + " . . ."
+        time_updatetime(ntp_default_range[ntp_test_index])
+        time_data = time_gettime()
+        ntp_updated = True
+        print "  Success!"
+      except Exception, e:
+        print "  Port failed, with exception: " + str(e)
+        if ntp_test_index + 1 < len(ntp_default_range):
+          ntp_test_index += 1
+        else:
+          print "All defaults failed. Unable to set NTP port."
+          print "Zenodotus will shut down."
+          # Convention.
+          success = False
+          exitall()
+    
+  if listen_ip == '':
+    listen_ip = getmyip()
+
+
+  if success:
+    # Open a file writer for debug output.
+    _debug_stream = open('debug.txt', 'w')
+    _host_ip_address = listen_ip
+
+    # Update NTP Time on the server, so that we can use time_gettime() for 
+    # timestamping purposes. This should incorporate a way to run zenodotus 
+    # without timestamping, but that's not a very high priority right now.
+    if ntp_port_set:
+      try:
+        time_updatetime(ntp_port)
+        _ntp_startprog = time_gettime()
+        time_acquired = True
+        print "\nTime acquired. Zenodotus started at " + str(_ntp_startprog) + " NTP."
+      except TimeError:
+        print "\nTime acquisition failed; NTP server could not be reached."
+        print "Zenodotus will shut down."
+        exitall()
+
+    dnsserver_registercallback(listen_port, listen_ip, _do_dns_callback)
+    print "DNS callback registered."
+    print "zenodotus now running on the local machine:"
+    print "  Host port = " + str(listen_port)
+    print "  Local IP  = " + str(listen_ip)

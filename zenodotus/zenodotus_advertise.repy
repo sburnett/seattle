@@ -1,0 +1,221 @@
+"""
+<Program Name>
+  zenodotus_advertise.repy
+
+<Created>
+  July 28, 2010
+
+<Author>
+  sebass63@gmail.com
+  Sebastian Morgan
+
+<Major Edits>
+  None
+
+<Purpose>
+  This module abstracts the method used for retrieving advertise data, 
+  allowing us to easily switch advertise lookup techniques without 
+  modifying server functionality.
+
+<Notes>
+  None
+
+<Side Effects>
+  None discovered.
+
+<Exceptions>
+  An exception will be raised if a call to do_advertise_lookup is made 
+  while all advertise servers are down.
+
+"""
+
+
+
+# _verbose is not in this file, it is in the calling file, zenodotus.repy.
+# You should make sure that the file you use to call this has a global 
+# called "_verbose" to indicate whether debug data should be printed.
+
+
+
+include centralizedadvertise.repy
+
+
+
+
+def zenodotus_advertise_do_lookup(key_string, key_prefix):
+  """
+  <Purpose>
+    This function performs an advertise query on the string passed to it 
+    using the central advertise service. As of 3/29/11, OpenDHT and DOR 
+    have been removed as usable services. 4000ms queries are bad.
+
+  <Arguments>
+    key_string
+      The query to be sent to the advertise source, in string form.
+
+    key_prefix
+      The type of the DNS query to prefix the name with. EG, a MX type query 
+      for www.google.com would become "MX www.google.com" : XXX.XXX.XXX.XXX in 
+      the DHT.
+
+  <Exceptions>
+    AdvertiseError
+      If a service not supported by advertise is passed in lookup_services, 
+      this will be raised.
+
+  <Side Effects>
+    Since these are calls over the network, the server response time will 
+    be drastically reduced if the services passed time out.
+
+  <Returns>
+    An array of the values associated with the given query (key) in the 
+    advertise database. These will all be strings.
+  """
+  initialization_time = 0
+  lookup_time = 0
+  clean_time = 0
+  test_time = 0
+  current_time = getruntime()
+
+  if _verbose:
+    print "Advertise call start with args: "
+    print "  Key: " + str(key_string)
+    print "  Prefix: " + str(key_prefix)
+    print "Initializing variables . . ."
+  maxvals = 10
+  concurrentevents = 1
+  graceperiod = 10
+  timeout = 60
+  results = []
+  success = False
+  service_index = 0
+  clean_data = []
+
+  initialization_time = getruntime() - current_time
+
+  current_time = getruntime()
+
+  if _verbose:
+    print "Beginning main loop."
+
+  while not success:
+    try:
+      # A queries do not need an identifier.
+      if key_prefix == 'A':
+        if _verbose:
+          print "Begin lookup attempt on central service."
+        simple_results = centralizedadvertise_lookup(key_string, maxvals)
+        if _verbose:
+          print "Lookup success. Data received:"
+          for result in simple_results:
+            print "  " + str(result)
+        success = True
+        if simple_results == None:
+          simple_results = []
+        results = simple_results
+      else:
+        adjusted_name = key_prefix + " " + key_string
+        if _verbose:
+          print "Begin lookup attempt on central service."
+        results = centralizedadvertise_lookup(adjusted_name, maxvals)
+        if _verbose:
+          print "Lookup success. Data received:"
+          for result in results:
+            print "  " + str(result)
+        success = True
+        if results == None:
+          results = []
+    except Exception, e:
+      if _verbose:
+        print "Error occurred during lookup via central service!"
+        print "Beginning error dump . . ."
+        print e
+      #if service_index < len(lookup_services):
+      #  service_index += 1
+      #  print "Retrying lookup process with central service."
+      #else:
+        print "All lookup services failed!"
+        print "Indicate server failure to client, since servers seem to be down."
+        raise ServerFailedError("Could not reach any advertise services.")
+
+  lookup_time = getruntime() - current_time
+  current_time = getruntime()
+
+  if _verbose:
+    print "Advertise data before cleaning:"
+    for entry in results:
+      print "  " + str(entry)
+
+  # Advertise tends to return empty strings in its replies sometimes, 
+  # but we need to filter those out.
+  for result in results:
+    if len(result) > 0:
+      if key_prefix == 'A':
+        if _isIPv4(result):
+          clean_data.append(result)
+      else:
+        clean_data.append(result)
+
+  if _verbose:
+    print "Advertise data after cleaning:"
+    for entry in clean_data:
+      print "  " + str(entry)
+
+  clean_time = getruntime() - current_time
+  current_time = getruntime()
+
+  try:
+    temp = clean_data[0]
+  except Exception:
+    if _verbose:
+      print "Detected no data in clean_data. Raising NXDomainError."
+    raise NonexistentDomainError("No matching values!")
+
+  test_time = getruntime() - current_time
+
+  if _verbose:
+    print "DIAGNOSITCS FOR ZENODOTUS_ADVERTISE CHECK:"
+    print "  Initialization took " + str(initialization_time) + " seconds."
+    print "  Lookup took " + str(lookup_time) + " seconds."
+    print "  Cleaning took " + str(clean_time) + " seconds."
+    print "  Testing took " + str(test_time) + " seconds."
+
+  return clean_data
+
+
+
+
+def _isIPv4(address):
+  """
+  <Purpose>
+    This method checks whether or not the string passed in is a valid IPv4 
+    address.
+
+  <Arguments>
+    address
+      A string to be verified.
+
+  <Exceptions>
+    None
+
+  <Side Effects>
+    None
+
+  <Returns>
+    A boolean value indicating whether the string passed is a valid IPv4 
+    address (true) or not. (false)
+  """
+  pieces = address.split(".")
+
+  if len(pieces) != 4:
+      return False
+  
+  try:
+    for piece in pieces:
+      if int(piece) >= 255:
+        return False
+
+    return True
+  except ValueError:
+    # An element in the IP is not a number, so it is not IPv4.
+    return False
