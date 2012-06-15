@@ -207,6 +207,17 @@ def command_loop(test_command_list):
         # get the user input
         userinput = raw_input(prompt)
         
+        # allows commenting
+        comment_index = userinput.find('#')
+
+        # throw away anything after (and including) the '#'
+        if comment_index != -1:
+          userinput = userinput[0:comment_index]
+
+        # drop any leading or trailing whitespace
+        userinput = userinput.strip()
+
+        # if it's an empty line, continue...
         if len(userinput)==0:
           continue
       
