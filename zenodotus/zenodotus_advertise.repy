@@ -37,7 +37,7 @@
 
 
 
-include centralizedadvertise.repy
+include centralizedadvertise_v2.repy
 
 
 
@@ -104,7 +104,7 @@ def zenodotus_advertise_do_lookup(key_string, key_prefix):
       if key_prefix == 'A':
         if _verbose:
           print "Begin lookup attempt on central service."
-        simple_results = centralizedadvertise_lookup(key_string, maxvals)
+        simple_results = v2centralizedadvertise_lookup(key_string, maxvals)
         if _verbose:
           print "Lookup success. Data received:"
           for result in simple_results:
@@ -117,7 +117,7 @@ def zenodotus_advertise_do_lookup(key_string, key_prefix):
         adjusted_name = key_prefix + " " + key_string
         if _verbose:
           print "Begin lookup attempt on central service."
-        results = centralizedadvertise_lookup(adjusted_name, maxvals)
+        results = v2centralizedadvertise_lookup(adjusted_name, maxvals)
         if _verbose:
           print "Lookup success. Data received:"
           for result in results:

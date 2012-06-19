@@ -1,0 +1,13 @@
+$ORIGIN zenodotus.cs.washington.edu                                              ; Start of zone file.
+$TTL 1h                                                                          ; Default TTL unless otherwise specified.
+zenodotus.cs.washington.edu    SOA    testbed-ubuntu.cs.washington.edu    sebass63.uw.edu (
+                                10                                               ; Serial number of the zone file.
+                                1d                                               ; Refresh interval for sub-zones.
+                                2h                                               ; Retry interval in case refresh went awry.
+                                4w                                               ; Expiration time - if refreshing fails for one month, subserver is longer authoritative.
+                                1h                                               ; Minimum TTL on exported records.
+                                )                                                ; Parens signal to the zenodotus interpreter that the RR is multiline.
+zenodotus.cs.washington.edu    NS  zenodotus.cs.washington.edu                   ; zenodotus.cs.washington.edu is its own nameserver.
+zenodotus.cs.washington.edu    A   getmyip                                       ; Signals zenodotus to replace 'getmyip' with its external IP on startup.
+localhost.zenodotus.cs.washington.edu A 127.0.0.1                                ; Dunno what this is for, but it seems to be needed for blackbox.
+localhost                      A    127.0.0.1                                    ; Ditto, though I suspect this has to do with me not using $origin.
