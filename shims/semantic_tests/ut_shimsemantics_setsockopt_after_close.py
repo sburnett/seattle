@@ -2,12 +2,10 @@
 """
 <Purpose>
   The purpose of this test is to test what happens when the 
-  client sends data multiple times without having the server
-  receiver receive any data. The big buffer at the OS level
-  should buffer all the data. According to:
-  http://twistedmatrix.com/pipermail/twisted-python/2004-August/008461.html
-  apparently Windows does not append new data to the buffer, instead
-  it waits for the buffer to be completely empty.
+  client tries to set a socket option after the socket has 
+  been closed from the server side. We check to see if the
+  client raises any error, or is able to set the option on 
+  a closed socket.
 """
 
 import time
@@ -36,6 +34,8 @@ class server(Thread):
       except:
         time.sleep(0.1)
 
+    time.sleep(1)
+
     sock_server.close()
     print "[Server] Closed socket from server thread."
     # After we have accepted the connection, we do nothing.
@@ -63,8 +63,9 @@ time.sleep(1)
 # Open up a connection to the server and send a short message.
 sock_client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 sock_client.connect((host, port))
+print "[Client] Client made connection to server."
 
-time.sleep(3)
+time.sleep(5)
 
 # Attempt to set a socket option after socket has been closed.
 print "[Client] Setting socket option after socket has been closed from" +\
@@ -76,3 +77,19 @@ except socket.error, err:
 else:
   print "[Client] No error raised."
 
+try:
+  sock_client.send("HelloWorld")
+except socket.error, err:
+  print "[Client] Client unable to send msg after socket closed."
+else:
+  print "[Client] Client still sent msg after socket was closed from server side!"
+
+print "[Client] Setting socket option after socket has been closed from" +\
+    " a different thread a second time"
+
+try:
+  sock_client.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+except socket.error, err:
+  print "[Client] Error raised second time: " + str(err)
+else:
+  print "[Client] No error raised second time."
