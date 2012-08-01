@@ -330,7 +330,7 @@ def package_win_gui(trunk_location, temp_tarball_dir, zip_inst_name,
   # Extract the zipfile to the win_gui_location to get all the contents that
   # will be compressed into the Windows gui installer.
   installer_zipfile = zipfile.ZipFile(temp_tarball_dir + os.sep + zip_inst_name,
-                                      'r')
+                                      'r', zipfile.ZIP_DEFLATED)
   installer_zipfile.extractall(win_gui_location)
   shutil.copy(trunk_location + os.sep + "dist" + os.sep \
                 + "extract_custom_info.py",win_gui_location + os.sep \
@@ -409,10 +409,10 @@ def package_win_or_winmob(trunk_location, temp_install_dir, temp_tarball_dir,
     shutil.copy2(trunk_location + "/dist/win/partial_win.zip",
                  temp_tarball_dir + os.sep + inst_name)
     installer_zipfile = zipfile.ZipFile(temp_tarball_dir + os.sep + inst_name,
-                                        "a")
+                                        "a", zipfile.ZIP_DEFLATED)
   else:
     installer_zipfile = zipfile.ZipFile(temp_tarball_dir + os.sep + inst_name,
-                                        "w")
+                                        "w", zipfile.ZIP_DEFLATED)
 
   # Put all general program files into zipfile.
   for fname in gen_files:
@@ -585,7 +585,7 @@ def package_android(trunk_location, temp_install_dir, temp_tarball_dir,
     None.  
    """
 
-  installer_zipfile = zipfile.ZipFile(temp_tarball_dir+os.sep+inst_name, "w")
+  installer_zipfile = zipfile.ZipFile(temp_tarball_dir+os.sep+inst_name, "w", zipfile.ZIP_DEFLATED)
     
   # Put all general installer files into the zip file.
   for fname in gen_files:
