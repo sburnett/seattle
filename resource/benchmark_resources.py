@@ -595,7 +595,7 @@ def main(prog_path, resource_percent, logfileobj):
   # since some of the benchmark scripts pick very safe/low values.
   tenpercentdict = get_tenpercent_of_donated(donatedresources)
   # Going to go ahead and log it just to be safe.
-  logfileobj.write("Ten percent of the donatedresources (offcut costs " + \
+  logfileobj.write("Useful amount of the donatedresources (offcut costs " + \
                     "removed already): " + str(tenpercentdict) + "\n")
   
   # Create the installer installer initial vessel state, this will create
