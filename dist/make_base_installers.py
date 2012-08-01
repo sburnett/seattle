@@ -53,8 +53,6 @@ WINDOWS_PATH = "/dist/win/scripts"
 WINMOB_PATH = "/dist/winmob/scripts"
 LINUX_PATH = "/dist/linux/scripts"
 MAC_PATH = "/dist/mac/scripts"
-ANDROID_PATH = "/dist/android/SeattleOnAndroid"
-ANDROID_ZIP_PATH = "/dist/android/SeattleOnAndroid/res/raw/seattle.zip"
 
 # The path to the directory, relative the trunk, of the OS-specific script
 # wrappers.
@@ -105,7 +103,7 @@ def get_inst_name(dist, version):
     else:
       base_name += ".zip"
   elif "android" in dist:
-    base_name += ".apk"
+    base_name += ".zip"
   else:
     base_name += ".tgz"
   return base_name
@@ -556,7 +554,9 @@ def package_android(trunk_location, temp_install_dir, temp_tarball_dir,
                     inst_name, gen_files):
   """
   <Purpose>
-    Creates an Android-specific package (APK) with the installation.
+    Packages the installation files specific to Android into a
+    tarball and adds the specific installation scripts for this OS.
+    THIS IS CUT AND PASTED FROM ABOVE WITH ONLY MINOR CHANGES.  NEEDS REFACTOR!
 
   <Arguments>
     trunk_location:
@@ -576,62 +576,53 @@ def package_android(trunk_location, temp_install_dir, temp_tarball_dir,
       temporary installer directory.
 
   <Exceptions>
-    IOError on bad file paths
-    EnvironmentError if the external build tools (Ant, Java) complain
+    IOError on bad file paths.
 
   <Side Effects>
-    Puts the final APK in the temporary tarball directory.
+    Puts the final zipfile in the temporary tarball directory.
 
   <Returns>
     None.  
    """
-  # Create a zipfile for Android.
-  installer_zipfile = zipfile.ZipFile(temp_tarball_dir + os.sep + 'seattle.zip',
-                                      "w")
 
-  # Put all general program files into the zipfile.
+  installer_zipfile = zipfile.ZipFile(temp_tarball_dir+os.sep+inst_name, "w")
+    
+  # Put all general installer files into the zip file.
   for fname in gen_files:
-    installer_zipfile.write(temp_install_dir + os.sep + fname,
-                            BASE_PROGRAM_FILES_DIR + os.sep + fname)
+    installer_zipfile.write(temp_install_dir + os.sep + fname,BASE_PROGRAM_FILES_DIR + os.sep + fname)
 
-  # Close zipfile
+
+  # Put generic files in the zipfile.  (Same as Linux)
+  specific_installer_dir = trunk_location + os.sep + LINUX_PATH
+  specific_files = os.listdir(specific_installer_dir)
+
+  # Add the OS-specific files to the zipfile.
+  for fname in specific_files:
+    if not "svn" in fname and fname != "manifest.txt":
+      if "README" in fname or "LICENSE" in fname:
+        installer_zipfile.write(specific_installer_dir + os.sep + fname,
+                              BASE_INSTALL_DIR + os.sep + fname)
+      else:
+        installer_zipfile.write(specific_installer_dir + os.sep + fname,
+                              BASE_PROGRAM_FILES_DIR + os.sep + fname)
+
+
+
+  # Second, copy all script wrappers (which call those in the
+  # BASE_PROGRAM_FILES_DIR) to the BASE_INSTALL_DIR.
+  script_wrappers_dir = trunk_location + os.sep + LINUX_SCRIPT_WRAPPERS_PATH
+  script_wrappers = os.listdir(script_wrappers_dir)
+
+  # Add script wrappers to the zipfile.
+  for fname in script_wrappers:
+    if not "svn" in fname:
+      installer_zipfile.write(script_wrappers_dir + os.sep + fname, BASE_INSTALL_DIR + os.sep + fname)
+
+
   installer_zipfile.close()
 
-  # Move zipfile into the resources directory of the Android application
-  shutil.move(temp_tarball_dir + os.sep + 'seattle.zip',
-              trunk_location + os.sep + ANDROID_ZIP_PATH)
 
-  # Create APK using ant.
-  # Make sure the path to the Android SDK is configured in local.properties
-  path_to_localproperties = trunk_location + os.sep + ANDROID_PATH + \
-    os.sep + 'local.properties'
-  if not os.path.exists(path_to_localproperties):
-    print "Build process for Android failed. See '" + ANDROID_PATH + os.sep,
-    print "README' on how to set up '" + path_to_localproperties + "'."
-    raise IOError("File '" + path_to_localproperties + "' not found.")
 
-  # If ant doesn't exist, inform the user appropriately.
-  try:
-    ant_exit_status = subprocess.call(['ant', 'release'],
-                  cwd=trunk_location + os.sep + ANDROID_PATH)
-  except OSError:
-    # Typical Exceptions are OSErrors 2 (not found) and 13 (permission denied)
-    print "Build process for Android failed when calling ant."
-    print "Please make sure ant is installed and in your $PATH."
-    raise
-
-  if ant_exit_status != 0:
-    print "Build process for Android failed when calling ant."
-    raise EnvironmentError("Ant failed with error code " + 
-      str(ant_exit_status)+".")
-
-  # Move APK to the temporary tarball directory
-  shutil.copyfile(trunk_location + os.sep + ANDROID_PATH +
-                  os.sep + '/bin/SeattleOnAndroid-release-unsigned.apk',
-                  temp_tarball_dir + os.sep + inst_name)
-
-  # Clean up after the ant build process
-  subprocess.call(['ant', 'clean'], cwd=trunk_location + os.sep + ANDROID_PATH)
 
 
 
