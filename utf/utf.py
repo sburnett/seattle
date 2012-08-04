@@ -204,6 +204,13 @@ def main():
     module_name = options.module
     
     module_file_list = filter_files(valid_files, module = module_name)
+
+    # is the module empty? we should print something to indicate this is likely
+    # an error...
+    if len(module_file_list) == 0:
+      print "No module with name:",module_name
+      return
+
     test_module(module_name, module_file_list)
     
   elif (options.all): #all test files
