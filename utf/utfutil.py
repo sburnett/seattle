@@ -157,7 +157,7 @@ def spawn(args, identifier):
   
   # We have to pipe the output. Otherwise, the process's output fills up and its
   # write attempt eventually blocks, preventing it from continuing.
-  proccess = subprocess.Popen(args,
+  process = subprocess.Popen(args,
                               stdout = subprocess.PIPE,
                               stderr = subprocess.PIPE)
   
@@ -168,5 +168,5 @@ def spawn(args, identifier):
     file_path = os.path.join(temp_dir, file_path)
   
   temp_file_handle = open(file_path, 'w')
-  pickle.dump(proccess, temp_file_handle, 2)
+  pickle.dump(process, temp_file_handle, 2)
   temp_file_handle.close()
