@@ -6,6 +6,7 @@ import shutil
 import glob
 import time
 import persist
+import sys
 
 # initialize directory for security layer files
 if os.path.exists("securitylayers"):
@@ -15,7 +16,7 @@ shutil.copy("private_encasementlib.repy", "securitylayers")
 shutil.copy("private_wrapper.repy", "securitylayers")
 shutil.copy("private_hideprivate_layer.repy", "securitylayers")
 
-initproc = subprocess.Popen(["python", "nminit.py"])
+initproc = subprocess.Popen([sys.executable, "nminit.py"])
 initproc.wait()
 
 # nminit doesn't automatically initialize the vessels with security layer files,
@@ -31,7 +32,7 @@ configuration['repy_prepend'] = ["private_encasementlib.repy", "private_hidepriv
 configuration['repy_prepend_dir'] = "securitylayers"
 persist.commit_object(configuration, "nodeman.cfg")
 
-nmproc = subprocess.Popen(["python", "nmmain.py", "--test-mode"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+nmproc = subprocess.Popen([sys.executable, "nmmain.py", "--test-mode"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
 # without closing stdin, stdout, stderr, nmmain.py won't execute on XP
 nmproc.stdin.close()

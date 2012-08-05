@@ -129,7 +129,7 @@ def runRsyncTest(testtype, updatefolder, otherargs=None):
   webserver = run_webserver(updatefolder)
   print updatefolder
   # Run the test
-  rsync = subprocess.Popen(['python', 'test_rsync.py', testtype]+otherargs+[updateurl], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+  rsync = subprocess.Popen([sys.executable, 'test_rsync.py', testtype]+otherargs+[updateurl], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
   # Get the output
   theout = rsync.communicate()[0]
@@ -199,7 +199,7 @@ def run_webserver(path):
     The process handle for the webserver.
   """
 
-  webserver = subprocess.Popen(['python', 'repy.py', '--cwd', path,
+  webserver = subprocess.Popen([sys.executable, 'repy.py', '--cwd', path,
       'webserver_restrictions.test', 'webserver.repy'], 
       stderr=subprocess.PIPE) 
       
@@ -306,7 +306,7 @@ def main():
     # The 'u' shows the username rather than user id running the process.
     pscommand = 'ps auxww'
  
-    updateprocess = subprocess.Popen(['python', 'softwareupdater.py'])
+    updateprocess = subprocess.Popen([sys.executable, 'softwareupdater.py'])
     if not no_ps:
       # Only do the ps check if ps is available
       ps = subprocess.Popen(pscommand + ' | grep "softwareupdater.py" | grep -v grep', shell=True, stdout=subprocess.PIPE)

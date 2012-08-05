@@ -3,10 +3,11 @@ import os
 import shutil
 import signal
 import time
+import sys
 
 # launch three echo servers for testing
 def run_echo_servers():
-  args = ['python','repy.py','restrictions.default','echo_server.py','127.0.0.1','12345']
+  args = [sys.executable,'repy.py','restrictions.default','echo_server.py','127.0.0.1','12345']
   runners = [] 
   runners.append(subprocess.Popen(args))
   args[4] = '127.0.0.2'

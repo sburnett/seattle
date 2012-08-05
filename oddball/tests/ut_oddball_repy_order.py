@@ -4,11 +4,13 @@ import os
 
 import utfutil
 
+import sys
+
 # Make sure repy.py works when invoked with options in a various 
 # order (to test that adding getopt worked.)
 
 def main():
-  args = ['python', 'repy.py', 
+  args = [sys.executable, 'repy.py', 
           '--simple', 
           '--logfile', 'log.log', 
           'restrictions.loose', 
@@ -22,7 +24,7 @@ def main():
 
     os.remove("log.log.old")
 
-    opposite_args = ['python',    'repy.py',
+    opposite_args = [sys.executable,    'repy.py',
                      '--logfile', 'log.log', 
                      '--simple', 
                      'restrictions.loose', 

@@ -8,11 +8,12 @@ import os
 import signal
 import harshexit
 import utfutil
+import sys
 
  
 def main():
 
-  repy_args = ['python', 'repy.py', 
+  repy_args = [sys.executable, 'repy.py', 
                'restrictions.default',
                'test_killp_writetodisk.py']
 

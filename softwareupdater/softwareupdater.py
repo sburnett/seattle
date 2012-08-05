@@ -666,7 +666,7 @@ def restart_software_updater():
   thismutex = get_mutex()
 
   # starts new with arg that is the mutex 
-  junkupdaterobject = portable_popen.Popen(["python","softwareupdater.py",thismutex])
+  junkupdaterobject = portable_popen.Popen([sys.executable,"softwareupdater.py",thismutex])
 
   # wait for some time (1 minute) for them to init and stop them if they don't
   for junkcount in range(30):
@@ -726,7 +726,7 @@ def restart_client(filenamelist):
 
   # run the node manager.   I rely on it to do the smart thing (handle multiple
   # instances, etc.)
-  nm_restart_command_args_list = ["python", "nmmain.py"]
+  nm_restart_command_args_list = [sys.executable, "nmmain.py"]
   
   if run_nodemanager_in_foreground:
     nm_restart_command_args_list.append('--foreground')

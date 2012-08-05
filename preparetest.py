@@ -71,7 +71,7 @@ def process_mix(script_path, verbose):
   for file_path in mix_files:
     #generate a .py file for the .mix file specified by file_path
     processed_file_path = (os.path.basename(file_path)).replace(".mix",".py")
-    (theout, theerr) =  exec_command("python " + script_path + " " + file_path + " " + processed_file_path)
+    (theout, theerr) =  exec_command(sys.executable+" " + script_path + " " + file_path + " " + processed_file_path)
 
     # If there was any problem processing the files, then notify the user.
     if theerr:

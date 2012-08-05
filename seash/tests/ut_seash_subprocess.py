@@ -9,10 +9,10 @@ import os
 import glob
 import shutil
 
-initproc = subprocess.Popen(["python", "nminit_test.py"])
+initproc = subprocess.Popen([sys.executable, "nminit_test.py"])
 initproc.wait()
 
-nmproc = subprocess.Popen(["python", "nmmain.py"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+nmproc = subprocess.Popen([sys.executable, "nmmain.py"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
 # without closing stdin, stdout, stderr, nmmain.py won't execute on XP
 nmproc.stdin.close()
