@@ -72,23 +72,7 @@ import os
 # copy
 import shutil
 
-# AR: Determine whether we're running on Android
-try:
-  import android
-  is_android = True
-except ImportError:
-  is_android = False
 
-
-def _copy(orig_filename, copy_filename):
-  # AR: Wrap Android-specific shutil.copy() quirks. They seem to have a problem 
-  # setting the file access mode bits there, and shutil.copyfile() suffices 
-  # for the task at hand.
-
-  if not is_android:
-    shutil.copy(orig_filename, copy_filename)
-  else:
-    shutil.copyfile(orig_filename, copy_filename)
 
 
 
@@ -160,7 +144,7 @@ def restore_object(filename):
     
     # 2) try to copy filename to filename+".tmp" 
     try:
-      _copy(filename, filename+'.tmp')
+      shutil.copyfile(filename, filename+'.tmp')
     except IOError, e:
       if e[0] == 2: # file not found
         pass
@@ -176,7 +160,7 @@ def restore_object(filename):
 
     # 5) try to copy filename+'.new' to filename+'.tmp'
     try:
-      _copy(filename+'.new', filename+'.tmp')
+      shutil.copyfile(filename+'.new', filename+'.tmp')
     except IOError, e:
       if e[0] == 2: # file not found
         # 6) if step 5 failed, goto step 1
