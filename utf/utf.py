@@ -504,7 +504,10 @@ def execution_monitor(file_path, pragma_dictionary):
   popen_args.append(file_path)
 
   # Execute the program.
-  (out, error) = utfutil.execute(popen_args)
+  (rawout, error) = utfutil.execute(popen_args)
+
+  # Get rid of debug output on Android, #1084.
+  out = strip_android_debug_messages(rawout)
   
   # Is this executable suppose to produce any output on standard out?
   if pragma_dictionary.has_key(OUT_PRAGMA):
@@ -660,6 +663,55 @@ def filter_files(file_list, module = None, descriptor = None):
 
 def print_dashes(): 
   print '-' * 80
+
+
+
+
+def strip_android_debug_messages(rawoutput):
+  """
+  Interim fix for #1084: Get rid of stray debugging output on Android
+  of the form "dlopen libpython2.6.so" and "dlopen /system/lib/libc.so",
+  yet preserve all of the other output (including empty lines).
+  
+  Note that almost the same code is used in trunk/repy/safe.py as of r5639.
+  """
+
+  # Are we running on Android?
+  try:
+    import android
+  except ImportError:
+    # If not, then we are done!
+    return rawoutput
+
+  # If we are, then there is work to do (as of Py4A 2.6.2)
+  output = ""
+  for line in rawoutput.split("\n"):
+    # Preserve empty lines
+    if line == "":
+      output += "\n"
+      continue
+    # Suppress debug messages we know can turn up
+    wordlist = line.split()
+    if wordlist[0]=="dlopen":
+      if wordlist[-1]=="/system/lib/libc.so":
+        continue
+      if wordlist[-1].startswith("libpython") and \
+        wordlist[-1].endswith(".so"):
+        # We expect "libpython" + version number + ".so".
+        # The version number should be a string convertible to float.
+        # If it's not, raise an exception.
+        try:
+          versionstring = (wordlist[-1].replace("libpython", 
+            "")).replace(".so", "")
+          junk = float(versionstring)
+        except TypeError, ValueError:
+          raise Exception("Unexpected debug output '" + line + 
+            "' while evaluating code safety!")
+    else:
+      output += line + "\n"
+
+  # Strip off the last newline character we added
+  return output[0:-1]
 
 
 
