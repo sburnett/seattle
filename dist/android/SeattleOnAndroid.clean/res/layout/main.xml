@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+	android:layout_width="fill_parent"
+	android:layout_height="fill_parent"
+	android:fillViewport="true" >
+	<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+		android:orientation="vertical"
+		android:layout_width="fill_parent"
+		android:layout_height="fill_parent">
+		<ToggleButton android:textOn="@string/toggleon" android:textOff="@string/toggleoff" android:id="@+id/toggleStatus" android:layout_width="fill_parent" android:layout_height="70dp"></ToggleButton>
+		<CheckBox android:text="@string/autostart" android:id="@+id/checkBoxAutostart" android:layout_width="wrap_content" android:layout_height="wrap_content"></CheckBox>
+		<SeekBar android:layout_height="wrap_content" android:id="@+id/seekBarAutostart" android:layout_width="fill_parent"></SeekBar>
+		<TextView android:textAppearance="?android:attr/textAppearanceMedium" android:text="@string/startup_delay" android:layout_height="wrap_content" android:id="@+id/textViewAutostart" android:layout_width="wrap_content"></TextView>
+	</LinearLayout>
+</ScrollView>

@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+	android:layout_width="fill_parent"
+	android:layout_height="fill_parent"
+	android:fillViewport="true" >
+	<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+		android:orientation="vertical"
+		android:layout_width="fill_parent"
+		android:layout_height="fill_parent">
+		<!--  <TextView android:textAppearance="?android:attr/textAppearanceMedium" android:layout_width="wrap_content" android:layout_height="wrap_content" android:id="@+id/textView1" android:text="@string/not_installed"></TextView> -->
+		<!--  <View android:layout_height="2px" android:layout_width="fill_parent" android:background="#DDFFDD" android:layout_marginTop="5dip" android:layout_marginBottom="5dip"/> -->
+		<View android:layout_width="fill_parent" android:layout_height="30dp"/>
+		<Button android:layout_height="70dp" android:id="@+id/buttonInstall" android:layout_width="fill_parent" android:text="@string/Install"/>
+		<View android:layout_width="fill_parent" android:layout_height="30dp"/>
+		<TextView android:text="@string/resource_donate" android:id="@+id/textView6" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceMedium"/>
+		<SeekBar android:id="@+id/seekBar1" android:layout_height="wrap_content" android:layout_width="fill_parent"></SeekBar>
+		<View android:layout_width="fill_parent" android:layout_height="30dp"/>
+		<TextView android:id="@+id/referview" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:layout_width="wrap_content" android:text="Donate_to"></TextView>
+		<View android:layout_width="fill_parent" android:layout_height="30dp"/>
+		<CheckBox android:text="Support all interfaces" android:id="@+id/checkBox1" android:layout_width="wrap_content" android:layout_height="wrap_content"/>
+		<TextView android:id="@+id/permifView" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceLarge" android:layout_width="wrap_content" android:text="Interfaces to support"></TextView>
+		<EditText android:id="@+id/permittedInterfaces" android:layout_height="wrap_content" android:layout_width="fill_parent">
+			<requestFocus/>
+		</EditText>
+		<View android:layout_width="fill_parent" android:layout_height="30dp"/>
+		<TextView android:id="@+id/textView1" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceLarge" android:layout_width="wrap_content" android:text="Optional installer arguments"></TextView>
+		<EditText android:id="@+id/optionalEdit" android:layout_height="wrap_content" android:layout_width="fill_parent"></EditText>
+		<View android:layout_width="fill_parent" android:layout_height="30dp"/>
+		<TextView android:id="@+id/moreoptionsView" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceMedium" android:layout_width="wrap_content" android:text="Note: some options are accessible only after installation"/>
+		<View android:layout_width="fill_parent" android:layout_height="30dp"/>
+		<Button android:text="Hide advanced options" android:id="@+id/showbasicoptionsbutton" android:layout_width="wrap_content" android:layout_height="wrap_content"/>
+	</LinearLayout>
+</ScrollView>
