@@ -1,5 +1,5 @@
 import os
-
+import utf
 import utfutil
 
 def main():
@@ -15,7 +15,9 @@ def main():
                '../test_init.py',
               ]
 
-  (out, error) = utfutil.execute_repy(repy_args)
+  (rawout, error) = utfutil.execute_repy(repy_args)
+
+  out = utf.strip_android_debug_messages(rawout)
 
   if out or error: print 'FAIL'
 

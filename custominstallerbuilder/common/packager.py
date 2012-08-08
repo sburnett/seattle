@@ -130,6 +130,25 @@ def package_installers(working_dir, build_platforms):
     os.remove(temp)
     os.chmod(orig, constants.FILE_PERMISSIONS)
 
+  for platform in (constants.APK_PLATFORMS & set(build_platforms)):
+    orig = base_installers[platform]
+    align = base_installers[platform] + '.align'
+
+    # Modify seattle.zip
+    subprocess.call(['unzip', orig, 'res/raw/seattle.zip'], cwd=working_dir)
+    subprocess.call(['zip', '-r', './res/raw/seattle.zip', config_dir_rel], cwd=working_dir)
+    subprocess.call(['zip', '-r', orig, './res'], cwd=working_dir)
+    # Sign and align the apk
+    subprocess.call(['jarsigner', '-digestalg', 'SHA1', '-sigfile', 'CERT', 
+                     '-keystore', settings.ANDR_KEYSTORE_PATH, '-storepass',
+                     settings.ANDR_KEYSTORE_PASS, '-keypass', settings.ANDR_KEY_PASS,
+                     orig, settings.ANDR_KEY_NAME], cwd=working_dir)
+    subprocess.call(['zipalign', '4', orig, align], cwd=working_dir)
+    os.remove(orig)
+    shutil.move(align, orig)
+
+    shutil.rmtree(os.path.abspath(os.path.join(working_dir, 'res')))
+
   # Remove the working directories.
   shutil.rmtree(os.path.abspath(os.path.join(working_dir, constants.TEMP_DIR_NAMES['config_root'])))
 
