@@ -130,9 +130,3 @@ CUSTOM_INSTALLER_URL = PROJECT_URL + 'static/installers/'
 # During testing, you may want to use Django's built-in static file server.
 SERVE_STATIC = False
 STATIC_BASE = 'static/'
-
-# Android keystore settings
-ANDR_KEYSTORE_PATH = ''
-ANDR_KEYSTORE_PASS = ''
-ANDR_KEY_PASS = ''
-ANDR_KEY_NAME = ''

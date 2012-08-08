@@ -45,15 +45,3 @@ MEDIA_URL = PROJECT_URL + 'static/'
 
 # The locations of the customized installers created by this program.
 CUSTOM_INSTALLER_URL = PROJECT_URL + 'static/installers/'
-
-# Location of the keystore. Change this in your local install
-ANDR_KEYSTORE_PATH = 'path/to/keystore'
-
-# Keystore password. Change this in your local install
-ANDR_KEYSTORE_PASS = 'keystore-password'
-
-# Key password. Change this in your local install
-ANDR_KEY_PASS = 'key-password'
-
-# Key name. Change this in your local install
-ANDR_KEY_NAME = 'key-name'

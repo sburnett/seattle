@@ -69,12 +69,6 @@ import nonportable
 # import for Popen
 import portable_popen
 
-# Fix for #1081, use sys.executable instead of "python"
-import sys
-
-
-
-
 offcutfilename = "resources.offcut"
 
 # The node information (reported to interested clients)
