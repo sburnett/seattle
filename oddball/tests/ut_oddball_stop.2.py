@@ -1,4 +1,7 @@
 import utfutil
+import utf
+
+
 
 def main():
            
@@ -8,7 +11,10 @@ def main():
                'stop_testsleep.py'
                ]
 
-  output = (out, error) = utfutil.execute_repy(repy_args)
+  (rawout, error) = utfutil.execute_repy(repy_args)
+
+  out = utf.strip_android_debug_messages(rawout)
+
   if not error or out: print 'FAIL'
 
 
