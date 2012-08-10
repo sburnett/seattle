@@ -16,6 +16,16 @@
 
 package com.seattleonandroid;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileFilter;
+import java.io.FileReader;
+import java.net.NetworkInterface;
+import java.net.SocketException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Enumeration;
+
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
@@ -26,6 +36,8 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.Message;
+import android.text.Html;
+import android.text.method.LinkMovementMethod;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
@@ -45,7 +57,6 @@ import android.widget.SeekBar.OnSeekBarChangeListener;
 import android.widget.TextView;
 import android.widget.ToggleButton;
 
-import com.seattleonandroid.R;
 import com.googlecode.android_scripting.BaseApplication;
 import com.googlecode.android_scripting.Constants;
 import com.googlecode.android_scripting.FeaturedInterpreters;
@@ -53,16 +64,6 @@ import com.googlecode.android_scripting.FileUtils;
 import com.googlecode.android_scripting.Log;
 import com.googlecode.android_scripting.interpreter.Interpreter;
 import com.googlecode.android_scripting.interpreter.InterpreterConfiguration;
-
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileFilter;
-import java.io.FileReader;
-import java.net.NetworkInterface;
-import java.net.SocketException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Enumeration;
 
 /**
  * 
@@ -76,7 +77,7 @@ public class ScriptActivity extends Activity {
 	// Use int values instead of enums for easier message handling 
 	public final static int SEATTLE_INSTALLED = 14;
 	public final static int INSTALL_FAILED = 15;
-
+	
 	// Names of the keys to use
 	public final static String AUTOSTART_ON_BOOT = "autostart_on_boot";
 	public final static String AUTOSTART_DELAY = "autostart_delay";
@@ -394,6 +395,10 @@ public class ScriptActivity extends Activity {
 	private void showMainLayout() {
 		setContentView(R.layout.main);
 		currentContentView = R.layout.main;
+		TextView sensor = (TextView)findViewById(R.id.sensorlink);
+		sensor.setMovementMethod(LinkMovementMethod.getInstance());
+		//sensor.setText("Note: Installing a "+Html.fromHtml("<a href=\"https://seattle.cs.washington.edu/wiki/AvailableAndroidSensors\">sensor</a>")+" can provide a richer Seattle experience.");
+		sensor.setText(Html.fromHtml("Note: Installing a <a href=\"https://seattle.cs.washington.edu/wiki/AvailableAndroidSensors\">sensor</a> can provide a richer Seattle experience."));
 		// Set up status toggle button
 		final ToggleButton toggleStatus = (ToggleButton) findViewById(R.id.toggleStatus);
 		toggleStatus.setChecked(ScriptService.isServiceRunning());
@@ -438,8 +443,8 @@ public class ScriptActivity extends Activity {
 			delay = DEFAULT_DELAY;
 		twAutostart.setText(getString(R.string.startup_delay) + " " + (delay)/UNIT_AUTOSTART);
 		sbAutostart.setProgress(delay/UNIT_AUTOSTART/STEP_AUTOSTART);
-		twAutostart.setVisibility(View.INVISIBLE);
-		sbAutostart.setVisibility(View.INVISIBLE);
+		twAutostart.setVisibility(View.VISIBLE);
+		sbAutostart.setVisibility(View.VISIBLE);
 		// Set up autostart checkbox
 		final CheckBox checkBoxAutostart = (CheckBox) findViewById(R.id.checkBoxAutostart);
 		checkBoxAutostart.setOnCheckedChangeListener(new OnCheckedChangeListener(){
@@ -458,7 +463,7 @@ public class ScriptActivity extends Activity {
 				}
 			}
 		});
-		checkBoxAutostart.setChecked(settings.getBoolean(AUTOSTART_ON_BOOT, false));
+		checkBoxAutostart.setChecked(settings.getBoolean(AUTOSTART_ON_BOOT, true));
 	}
 
 	// Show install layout

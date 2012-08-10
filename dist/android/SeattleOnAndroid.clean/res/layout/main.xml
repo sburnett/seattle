@@ -8,8 +8,25 @@
 		android:layout_width="fill_parent"
 		android:layout_height="fill_parent">
 		<ToggleButton android:textOn="@string/toggleon" android:textOff="@string/toggleoff" android:id="@+id/toggleStatus" android:layout_width="fill_parent" android:layout_height="70dp"></ToggleButton>
-		<CheckBox android:text="@string/autostart" android:id="@+id/checkBoxAutostart" android:layout_width="wrap_content" android:layout_height="wrap_content"></CheckBox>
+
+		<CheckBox
+		    android:id="@+id/checkBoxAutostart"
+		    android:layout_width="wrap_content"
+		    android:layout_height="wrap_content"
+		    android:linksClickable="true"
+		    android:text="@string/autostart"
+		    android:checked="true"></CheckBox>
 		<SeekBar android:layout_height="wrap_content" android:id="@+id/seekBarAutostart" android:layout_width="fill_parent"></SeekBar>
 		<TextView android:textAppearance="?android:attr/textAppearanceMedium" android:text="@string/startup_delay" android:layout_height="wrap_content" android:id="@+id/textViewAutostart" android:layout_width="wrap_content"></TextView>
+				<View android:layout_width="fill_parent" android:layout_height="40dp"/>
+		
+		<TextView
+		    android:id="@+id/sensorlink"
+		    android:layout_width="wrap_content"
+		    android:layout_height="wrap_content"
+		    android:text="Note: Installing a sensor can provide a richer Seattle experience."
+		    android:textAppearance="?android:attr/textAppearanceMedium"
+		    android:textSize="15sp" />
+
 	</LinearLayout>
 </ScrollView>
