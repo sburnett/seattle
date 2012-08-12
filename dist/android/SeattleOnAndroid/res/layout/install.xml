@@ -75,7 +75,7 @@
 
 		<EditText
 		    android:id="@+id/permittedInterfaces"
-		    android:layout_width="match_parent"
+		    android:layout_width="fill_parent"
 		    android:layout_height="35dp"
 		    android:textSize="16sp" >
 			<requestFocus/>
