@@ -96,7 +96,7 @@ public class ScriptActivity extends Activity {
 	public final static int MAXIMUM_AUTOSTART = 60;
 	public final static int STEP_AUTOSTART= 30;
 	public final static int UNIT_AUTOSTART= 1000; // Seconds
-	public final static int DEFAULT_DELAY = (MAXIMUM_AUTOSTART+MINIMUM_AUTOSTART)/2*STEP_AUTOSTART*UNIT_AUTOSTART;
+	public final static int DEFAULT_DELAY = 300*UNIT_AUTOSTART; // 5 mins
 	// Some private variables
 	private int donate = -1;
 	private int currentContentView;
