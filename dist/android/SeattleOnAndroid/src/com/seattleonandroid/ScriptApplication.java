@@ -1,7 +1,7 @@
 package com.seattleonandroid;
 
 import com.googlecode.android_scripting.BaseApplication;
-import com.googlecode.android_scripting.Log;
+import android.util.Log;
 import com.googlecode.android_scripting.interpreter.InterpreterConfiguration;
 import com.googlecode.android_scripting.interpreter.InterpreterConstants;
 import com.googlecode.android_scripting.interpreter.InterpreterConfiguration.ConfigurationObserver;
@@ -39,7 +39,7 @@ public class ScriptApplication extends BaseApplication implements ConfigurationO
 		try {
 			mLatch.await();
 		} catch (InterruptedException e) {
-			Log.e(e);
+			Log.e(Common.LOG_TAG, Common.LOG_EXCEPTION_UNKNOWN_APPLICATION, e);
 		}
 		return receivedConfigUpdate;
 	}

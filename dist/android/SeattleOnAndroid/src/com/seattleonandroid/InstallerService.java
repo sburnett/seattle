@@ -26,6 +26,7 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.os.IBinder;
 import android.os.StatFs;
+import android.util.Log;
 
 import com.seattleonandroid.R;
 import com.seattleonandroid.process.SeattleScriptProcess;
@@ -33,7 +34,6 @@ import com.googlecode.android_scripting.AndroidProxy;
 import com.googlecode.android_scripting.BaseApplication;
 import com.googlecode.android_scripting.FileUtils;
 import com.googlecode.android_scripting.ForegroundService;
-import com.googlecode.android_scripting.Log;
 import com.googlecode.android_scripting.NotificationIdFactory;
 import com.googlecode.android_scripting.interpreter.InterpreterConfiguration;
 
@@ -45,6 +45,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.MalformedURLException;
+import java.net.UnknownHostException;
 import java.net.URL;
 import java.net.URLConnection;
 import java.util.ArrayList;
@@ -116,7 +117,7 @@ public class InstallerService extends ForegroundService {
 			return (prevLine != null && prevLine.contains("seattle completed installation"));
 		} catch (Exception e) {
 			// Log exception
-			Log.e(e);
+			Log.e(Common.LOG_TAG, Common.LOG_EXCEPTION_READING_INSTALL_INFO, e);
 		}
 		return false;
 	}
@@ -128,6 +129,8 @@ public class InstallerService extends ForegroundService {
 		// Set instance to self
 		instance = this;
 		
+		Log.i(Common.LOG_TAG, Common.LOG_INFO_INSTALLER_STARTED);
+
 		// Set up notification icon
 		String ns = Context.NOTIFICATION_SERVICE;
 		final NotificationManager mNotificationManager = (NotificationManager) getSystemService(ns);
@@ -153,9 +156,6 @@ public class InstallerService extends ForegroundService {
 				else
 					; // folder not created
 				
-				// Copy seattle archive to seattle root;
-				// Reason: random access is not possible on resources inside the apk
-				//File archive = FileUtils.copyFromStream(Environment.getExternalStorageDirectory().getAbsolutePath()+"/sl4a/seattle.zip", getResources().openRawResource(R.raw.seattle));
 				File archive = new File(Environment.getExternalStorageDirectory().getAbsolutePath()+"/sl4a/seattle.zip");
 				archive.delete();
 		
@@ -165,56 +165,58 @@ public class InstallerService extends ForegroundService {
 				
 				try {
 					URL url = new URL("https://seattlegeni.cs.washington.edu/geni/download/"+user_hash+"/seattle_win.zip");
-					Log.d(url.toString());
+					Log.i(Common.LOG_TAG, Common.LOG_INFO_DOWNLOADING_FROM + url.toString());
 					URLConnection ucon = url.openConnection();
 					InputStream is = ucon.getInputStream();
 					BufferedInputStream bis = new BufferedInputStream(is);
 					FileOutputStream fos = new FileOutputStream(archive);
 					int len = 0;
 					byte[] buffer = new byte[4096];
-					Log.d("Download started...");
+					Log.i(Common.LOG_TAG, Common.LOG_INFO_DOWNLOAD_STARTED);
 					while ((len = bis.read(buffer)) != -1) {
 						fos.write(buffer,0,len);
 					}
-					Log.d("Download finished...");
+					Log.i(Common.LOG_TAG, Common.LOG_INFO_DOWNLOAD_FINISHED);
 					bis.close();
 					fos.close();
 				} catch (MalformedURLException e) {
-					e.printStackTrace();
-					
+					Log.e(Common.LOG_TAG, Common.LOG_EXCEPTION_MALFORMED_URL, e);					
 					instance = null;
 					ScriptActivity.handler.sendEmptyMessage(ScriptActivity.INSTALL_FAILED);
-					// 	Stop service
+					// Stop service
 					stopSelf(startId);
 					return;
-					
+				} catch (UnknownHostException e) {
+					Log.e(Common.LOG_TAG, Common.LOG_EXCEPTION_COULD_NOT_RESOLVE_HOST, e);					
+					instance = null;
+					ScriptActivity.handler.sendEmptyMessage(ScriptActivity.INSTALL_FAILED);
+					// Stop service
+					stopSelf(startId);
+					return;
 				} catch (IOException e) {
-					e.printStackTrace();
-					
+					Log.e(Common.LOG_TAG, Common.LOG_EXCEPTION_DOWNLOAD_ERROR, e);			
 					instance = null;
 					ScriptActivity.handler.sendEmptyMessage(ScriptActivity.INSTALL_FAILED);
-					// 	Stop service
+					// Stop service
 					stopSelf(startId);
-					return;
-					
+					return;					
 				}
 		
 				// Unzip archive
 				try{
 					Unzip.unzip(archive.getAbsolutePath(), Environment.getExternalStorageDirectory().getAbsolutePath()+"/sl4a");
 				} catch (Exception e) {
-					e.printStackTrace();
-					
-					
-					archive.delete();
-					
+					Log.e(Common.LOG_TAG, Common.LOG_EXCEPTION_UNZIPPING, e);					
+					archive.delete();				
 					instance = null;
 					ScriptActivity.handler.sendEmptyMessage(ScriptActivity.INSTALL_FAILED);
-					// 	Stop service
+					// Stop service
 					stopSelf(startId);
 					return;					
 				}
-		
+
+				Log.i(Common.LOG_TAG, Common.LOG_INFO_UNZIP_COMPLETED);
+
 				// Remove archive
 				archive.delete();
 		
@@ -268,6 +270,7 @@ public class InstallerService extends ForegroundService {
 				if (optionalArgs != null)
 					args.add(optionalArgs);
 				
+				Log.i(Common.LOG_TAG, Common.LOG_INFO_STARTING_INSTALLER_SCRIPT);
 				// Launch installer
 				SeattleScriptProcess.launchScript(installer, mInterpreterConfiguration, mProxy, new Runnable() {
 					@Override
@@ -276,7 +279,8 @@ public class InstallerService extends ForegroundService {
 		
 						// Mark installation terminated
 						instance = null;
-		
+
+						Log.i(Common.LOG_TAG, Common.LOG_INFO_TERMINATED_INSTALLER_SCRIPT);
 						// Check whether the installation was successful or not
 						if(checkInstallationSuccess())
 						{

@@ -23,6 +23,7 @@ import android.os.Binder;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.IBinder;
+import android.util.Log;
 
 import com.seattleonandroid.R;
 import com.seattleonandroid.process.SeattleScriptProcess;
@@ -81,6 +82,7 @@ public class ScriptService extends ForegroundService {
 	// on destroy
 	@Override
 	public void onDestroy() {
+		Log.i(Common.LOG_TAG, Common.LOG_INFO_MONITOR_SERVICE_SHUTDOWN);
 	}
 
 	// set up notification and binder
@@ -115,6 +117,8 @@ public class ScriptService extends ForegroundService {
 			return;
 		}
 		
+		Log.i(Common.LOG_TAG, Common.LOG_INFO_STARTING_SEATTLE_UPDATER);
+
 		// Get updater script file
 		File updater = new File(Environment.getExternalStorageDirectory().getAbsolutePath()+"/sl4a/seattle/seattle_repy/softwareupdater.py");
 
@@ -130,6 +134,7 @@ public class ScriptService extends ForegroundService {
 		updaterProcess = SeattleScriptProcess.launchScript(updater, mInterpreterConfiguration, mProxy, new Runnable() {
 			@Override
 			public void run() {
+				Log.i(Common.LOG_TAG, Common.LOG_INFO_SEATTLE_UPDATER_SHUTDOWN);
 				mProxy.shutdown();
 				if(!killMe) {
 					// Exit was not initiated by the user
@@ -142,10 +147,12 @@ public class ScriptService extends ForegroundService {
 						startUpdater();
 					} else {
 						if(updaterProcess.getReturnValue() == 200) {
+							Log.i(Common.LOG_TAG, Common.LOG_INFO_RESTARTING_SEATTLE_MAIN_AND_UPDATER);
 							seattlemainProcess.kill(); // Restart nodemanager and updater
 							startSeattleMain();
 							startUpdater();
 						} else {
+							Log.i(Common.LOG_TAG, Common.LOG_INFO_RESTARTING_SEATTLE_UPDATER);
 							startUpdater(); // Restart updater only
 						}
 					}
@@ -162,6 +169,7 @@ public class ScriptService extends ForegroundService {
 			return;
 		}
 		
+		Log.i(Common.LOG_TAG, Common.LOG_INFO_STARTING_SEATTLE_MAIN);
 		// Get nodemanager script file
 		File seattlemain = new File(Environment.getExternalStorageDirectory().getAbsolutePath()+"/sl4a/seattle/seattle_repy/nmmain.py");
 
@@ -176,6 +184,7 @@ public class ScriptService extends ForegroundService {
 		seattlemainProcess = SeattleScriptProcess.launchScript(seattlemain, mInterpreterConfiguration, mProxy, new Runnable() {
 			@Override
 			public void run() {
+				Log.i(Common.LOG_TAG, Common.LOG_INFO_SEATTLE_MAIN_SHUTDOWN);
 				mProxy.shutdown();
 				if(!isRestarting && !killMe) {
 					// seattle stopped because of an unknown reason
@@ -188,6 +197,7 @@ public class ScriptService extends ForegroundService {
 
 	private void killProcesses(){
 		// Set kill flag, stop processes
+		Log.i(Common.LOG_TAG, Common.LOG_INFO_KILLING_SCRIPTS);
 		killMe = true;
 		instance = null;
 
@@ -201,6 +211,7 @@ public class ScriptService extends ForegroundService {
 	// executed after each startService() call
 	@Override
 	public void onStart(Intent intent, final int startId) {
+		Log.i(Common.LOG_TAG, Common.LOG_INFO_MONITOR_SERVICE_STARTED);
 		Bundle b = intent.getExtras();
 		if(b != null && b.getBoolean("KILL_SERVICE") ||
 				!Environment.getExternalStorageState().equals(Environment.MEDIA_MOUNTED)) {

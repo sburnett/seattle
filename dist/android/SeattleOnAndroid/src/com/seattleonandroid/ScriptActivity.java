@@ -56,12 +56,12 @@ import android.widget.SeekBar;
 import android.widget.SeekBar.OnSeekBarChangeListener;
 import android.widget.TextView;
 import android.widget.ToggleButton;
+import android.util.Log;
 
 import com.googlecode.android_scripting.BaseApplication;
 import com.googlecode.android_scripting.Constants;
 import com.googlecode.android_scripting.FeaturedInterpreters;
 import com.googlecode.android_scripting.FileUtils;
-import com.googlecode.android_scripting.Log;
 import com.googlecode.android_scripting.interpreter.Interpreter;
 import com.googlecode.android_scripting.interpreter.InterpreterConfiguration;
 
@@ -103,6 +103,9 @@ public class ScriptActivity extends Activity {
 	private File currentLogFile;
 	private ArrayList<File> files;
 
+	// Workaround -- status toggle-button could be set incorrectly right after installation
+	private static boolean autostartedAfterInstallation = false;
+
 	// Message handler used for notifying the activity
 	public static MyMessageHandler handler;
 
@@ -133,6 +136,12 @@ public class ScriptActivity extends Activity {
 			try{
 				// Installation finished -> refresh screen
 				if (msg.what == SEATTLE_INSTALLED || msg.what == INSTALL_FAILED){
+					// Start seattle automatically after installation
+					if(msg.what == SEATTLE_INSTALLED) {
+						ScriptActivity.autostartedAfterInstallation = true;
+						ScriptService.serviceInitiatedByUser = true;
+						startService(new Intent(getBaseContext(), ScriptService.class));
+					}
 					// If AUTOSTART_ON_BOOT key does not exist, create it
 					// Default value: true
 					if (!settings.contains(AUTOSTART_ON_BOOT)){
@@ -146,11 +155,13 @@ public class ScriptActivity extends Activity {
 
 					// Show dialog with information about the installation outcome					
 					String text;
-					if(msg.what == SEATTLE_INSTALLED)
+					if(msg.what == SEATTLE_INSTALLED) {
 						text = "Seattle installed successfully!";
-					else
+						Log.i(Common.LOG_TAG, Common.LOG_INFO_INSTALL_SUCCESS);
+					} else {
 						text = "Installation failed! Please check logs for more information.";
-
+						Log.i(Common.LOG_TAG, Common.LOG_INFO_INSTALL_FAILURE);
+					}
 					new AlertDialog.Builder(a)
 						.setTitle("SeattleOnAndroid")
 						.setMessage(text)
@@ -161,7 +172,7 @@ public class ScriptActivity extends Activity {
 				}
 			} catch(Exception e) {
 				// Log exceptions
-				Log.e(e);
+				Log.e(Common.LOG_TAG, Common.LOG_EXCEPTION_MESSAGE_HANDLING, e);
 			}
 		}
 	}
@@ -214,7 +225,7 @@ public class ScriptActivity extends Activity {
 				}
 			} catch (Exception e) {
 				// Log exception
-				Log.e(e);
+				Log.e(Common.LOG_TAG, Common.LOG_EXCEPTION_READING_LOG_FILE, e);
 			}	
 		}
 		// Post event to scroll down to the bottom of the page
@@ -298,10 +309,6 @@ public class ScriptActivity extends Activity {
 			@Override
 			public void onItemClick(AdapterView<?> arg0, View arg1, int arg2, long arg3) {
 				instance.showLogFile(files.get(arg2));
-				Log.d("AdapterView: "+arg0.toString());
-				Log.d("View: "+arg1.toString());
-				Log.d("Position: "+Integer.toString(arg2));
-				Log.d("Id: "+Long.toString(arg3));
 			}
 		});
 	}
@@ -322,6 +329,7 @@ public class ScriptActivity extends Activity {
 					.setCancelable(false)
 					.setPositiveButton("Yes", new DialogInterface.OnClickListener() {
 						public void onClick(DialogInterface dialog, int id) {
+							Log.i(Common.LOG_TAG, Common.LOG_INFO_UNINSTALL_INITIATED);
 							// Kill service, in case it was running
 							if(ScriptService.isServiceRunning())
 								killService();
@@ -339,6 +347,7 @@ public class ScriptActivity extends Activity {
 									public void onClick(DialogInterface dialog, int which) {}
 								})
 							.create().show();
+							Log.i(Common.LOG_TAG, Common.LOG_INFO_UNINSTALL_SUCCESS);
 							showBasicInstallLayout();
 						}
 					})
@@ -402,6 +411,12 @@ public class ScriptActivity extends Activity {
 		// Set up status toggle button
 		final ToggleButton toggleStatus = (ToggleButton) findViewById(R.id.toggleStatus);
 		toggleStatus.setChecked(ScriptService.isServiceRunning());
+
+		if (ScriptActivity.autostartedAfterInstallation) {
+			ScriptActivity.autostartedAfterInstallation = false;
+			toggleStatus.setChecked(true);
+		}
+
 		toggleStatus.setOnCheckedChangeListener(new OnCheckedChangeListener(){
 			@Override
 			public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
@@ -593,7 +608,7 @@ public class ScriptActivity extends Activity {
 			}
 		} catch (SocketException e) {
 			iflist = null;
-			e.printStackTrace();
+			Log.e(Common.LOG_TAG, Common.LOG_EXCEPTION_GETTING_IFS, e);
 		}
 		
 		permittedInterfaces.setText(iflist);
@@ -656,7 +671,7 @@ public class ScriptActivity extends Activity {
 			tw.setText("v"+getPackageManager().getPackageInfo(getPackageName(), 0).versionName);
 		} catch (NameNotFoundException e) {
 			// This exception should not occur
-			Log.e(e);
+			Log.e(Common.LOG_TAG, Common.LOG_EXCEPTION_ABOUT_NNF, e);
 		}
 		currentContentView = R.layout.about;
 	}
@@ -686,7 +701,7 @@ public class ScriptActivity extends Activity {
 						startActivity(i);
 					} else {
 						// No available python installers; should not happen
-						Log.e(this, "Cannot find an interpreter for python!");
+						Log.e(Common.LOG_TAG, Common.LOG_EXCEPTION_NO_PYTHON_INTERPRETER);
 					}
 					// Finish activity
 					finish();

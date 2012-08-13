@@ -10,6 +10,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.util.Log;
 
 /*
  * 
@@ -93,6 +94,8 @@ public class ReferralReceiver extends BroadcastReceiver
         }
  
         editor.commit();
+
+	Log.i(Common.LOG_TAG, Common.LOG_INFO_STORED_REFERRAL_PARAMS + params.toString());
     }
  
     /*

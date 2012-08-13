@@ -1,6 +1,6 @@
 package com.seattleonandroid;
 
-import com.googlecode.android_scripting.Log;
+import android.util.Log;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
@@ -42,7 +42,7 @@ public class Unzip {
 			}
 		} catch (Exception e) {
 			// Error occured
-			Log.e("Error while extracting file " + archive, e);
+			Log.e(Common.LOG_TAG, Common.LOG_EXCEPTION_UNZIPPING_ARCHIVE + archive, e);
 			throw e;
 		}
 	}
@@ -65,7 +65,7 @@ public class Unzip {
 			outputFile.getParentFile().mkdirs();
 		}
 
-		Log.v("Extracting: " + entry);
+		Log.v(Common.LOG_TAG, Common.LOG_VERBOSE_EXTRACTING_FILE + entry);
 
 		// Set up input and output streams
 		BufferedInputStream inputStream = new BufferedInputStream(zipFile.getInputStream(entry), buffer.length);
@@ -77,7 +77,7 @@ public class Unzip {
 			while((readBytes = inputStream.read(buffer))!=-1)
 				outputStream.write(buffer, 0, readBytes);
 		} catch (Exception e) {
-			Log.e("Error while unzipping entry "+entry, e);
+			Log.e(Common.LOG_TAG, Common.LOG_EXCEPTION_UNZIPPING_FILE + entry, e);
 		}
 		finally {
 			// Close streams

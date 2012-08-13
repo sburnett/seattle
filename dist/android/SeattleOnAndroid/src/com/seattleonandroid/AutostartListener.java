@@ -8,6 +8,7 @@ import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.Environment;
 import android.os.Handler;
+import android.util.Log;
 
 /***
  * 
@@ -35,6 +36,7 @@ public class AutostartListener extends BroadcastReceiver {
 					if (Environment.getExternalStorageState().equals(Environment.MEDIA_MOUNTED)
 							&& info != null && info.isConnected()) {
 						// Start the service
+						Log.i(Common.LOG_TAG, Common.LOG_INFO_SEATTLE_STARTED_AUTOMATICALLY);
 						ScriptService.serviceInitiatedByUser = true;
 						context.startService(new Intent(context.getApplicationContext(), ScriptService.class));
 					}

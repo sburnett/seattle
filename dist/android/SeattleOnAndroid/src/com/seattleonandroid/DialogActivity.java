@@ -9,9 +9,9 @@ import android.content.pm.ActivityInfo;
 import android.content.pm.ResolveInfo;
 import android.net.Uri;
 import android.os.Bundle;
+import android.util.Log;
 
 import com.googlecode.android_scripting.FeaturedInterpreters;
-import com.googlecode.android_scripting.Log;
 import com.googlecode.android_scripting.interpreter.InterpreterConstants;
 
 import java.net.URL;
@@ -32,7 +32,7 @@ public class DialogActivity extends Activity {
 		String interpreter = FeaturedInterpreters.getInterpreterNameForScript("foo.py");
 
 		if (interpreter == null) {
-			Log.e("Cannot find interpreter for python!");
+			Log.e(Common.LOG_TAG, Common.LOG_EXCEPTION_NO_PYTHON_INTERPRETER);
 			finish();
 		}
 
@@ -55,12 +55,13 @@ public class DialogActivity extends Activity {
 
 		AlertDialog.Builder dialog = new AlertDialog.Builder(this);
 		dialog.setTitle(String.format("%s is not installed.", interpreter));
-		dialog.setMessage(String.format("Do you want to download the installer APK for %s ?   You will need to download the installer, open it, and then click install before continuing to install Seattle.", interpreter));
+		dialog.setMessage(String.format("Do you want to download the installer APK for %s ?   You will need to download the installer, open it, and then click install before continuing to install Seattle.\nNote: If you do not see the installer downloading and extracting zip files, it has not completed!", interpreter));
 
 		DialogInterface.OnClickListener buttonListener = new DialogInterface.OnClickListener() {
 			@Override
 			public void onClick(DialogInterface dialog, int which) {
 				if (which == DialogInterface.BUTTON_POSITIVE) {
+					Log.i(Common.LOG_TAG, Common.LOG_INFO_DOWNLOADING_PYTHON);
 					startActivity(activityIntent);
 				}
 				dialog.dismiss();
