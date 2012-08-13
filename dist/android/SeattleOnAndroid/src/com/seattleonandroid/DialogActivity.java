@@ -55,7 +55,7 @@ public class DialogActivity extends Activity {
 
 		AlertDialog.Builder dialog = new AlertDialog.Builder(this);
 		dialog.setTitle(String.format("%s is not installed.", interpreter));
-		dialog.setMessage(String.format("Do you want to download and install APK for %s ?", interpreter));
+		dialog.setMessage(String.format("Do you want to download the installer APK for %s ?   You will need to download the installer, open it, and then click install before continuing to install Seattle.", interpreter));
 
 		DialogInterface.OnClickListener buttonListener = new DialogInterface.OnClickListener() {
 			@Override
