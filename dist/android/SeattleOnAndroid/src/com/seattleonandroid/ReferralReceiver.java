@@ -36,6 +36,7 @@ public class ReferralReceiver extends BroadcastReceiver
             return;
         }
  
+	Log.i(Common.LOG_TAG, "Refrec started");
         Map<String, String> referralParams = new HashMap<String, String>();
  
         // Return if this is not the right intent.
@@ -43,17 +44,20 @@ public class ReferralReceiver extends BroadcastReceiver
             return;
         }
  
+	Log.i(Common.LOG_TAG, "Refrec right intent");
         String referrer = intent.getStringExtra("referrer"); //$NON-NLS-1$
         if( referrer == null || referrer.length() == 0) {
             return;
         }
- 
+ 	Log.d(Common.LOG_TAG, "Refrec referrer");
+
         try
         {    // Remove any url encoding
             referrer = URLDecoder.decode(referrer, "x-www-form-urlencoded"); //$NON-NLS-1$
         }
         catch (UnsupportedEncodingException e) { return; }
- 
+ 	Log.i(Common.LOG_TAG, "Refrec right encoding");
+
         // Parse the query string, extracting the relevant data
         String[] params = referrer.split("&"); // $NON-NLS-1$
         for (String param : params)
@@ -63,6 +67,7 @@ public class ReferralReceiver extends BroadcastReceiver
         }
  
         ReferralReceiver.storeReferralParams(context, referralParams);
+	Log.i(Common.LOG_TAG, "Refrec params added");
     }
  
     private final static String[] EXPECTED_PARAMETERS = {

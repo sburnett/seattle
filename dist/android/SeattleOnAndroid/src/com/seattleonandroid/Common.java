@@ -2,6 +2,16 @@ package com.seattleonandroid;
 
 // Contains common constants 
 public final class Common {
+	// Default download URL for seattle archive
+	public static final String DEFAULT_DOWNLOAD_URL = "https://seattlegeni.cs.washington.edu/geni/download/defaultandroid/seattle_win.zip";
+
+	// Trusted hostnames
+	public static final String[] TRUSTED_DOWNLOAD_HOSTNAMES_WHITELIST = {
+		"seattlegeni.cs.washington.edu", "betabox.cs.washington.edu", "seattleclearinghouse.poly.edu",
+		"betaseattleclearinghouse.poly.edu", "blackbox.cs.washington.edu", "blackbox.poly.edu"
+	};
+
+	// Log -- Tag
 	public static final String LOG_TAG = "SeattleOnAndroid";
 
 	// Log -- Exceptions
@@ -19,6 +29,8 @@ public final class Common {
 	public static final String LOG_EXCEPTION_UNKNOWN_APPLICATION = "Unknown exception occured in ScriptApplication";
 	public static final String LOG_EXCEPTION_UNZIPPING_FILE = "Exception occured while extracting archive: ";
 	public static final String LOG_EXCEPTION_UNZIPPING_ARCHIVE = "Exception occured while extracting file: ";
+	public static final String LOG_EXCEPTION_DOWNLOAD_UNKNOWN_ERROR = "Unknown exception occured during or before download";
+	public static final String LOG_EXCEPTION_UNTRUSTED_HOST = "Untrusted host (host not on whitelist)";
 
 	// Log -- Informative
 	public static final String LOG_INFO_SEATTLE_STARTED_AUTOMATICALLY = "Seattle started automatically";
@@ -44,6 +56,7 @@ public final class Common {
 	public static final String LOG_INFO_INSTALL_FAILURE = "Seattle could not be installed";
 	public static final String LOG_INFO_UNINSTALL_INITIATED = "Seattle uninstall initiated by user";
 	public static final String LOG_INFO_UNINSTALL_SUCCESS = "Seattle uninstalled successfully";
+	public static final String LOG_INFO_UNTRUSTED_HOST_CHECK_WHITELIST_OK = "Hostname ok (is on whitelist).";
 
 	// Log -- Verbose info
 	public static final String LOG_VERBOSE_EXTRACTING_FILE = "Extracting file: ";

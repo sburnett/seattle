@@ -559,6 +559,12 @@ public class ScriptActivity extends Activity {
 		final TextView referrerView = (TextView) findViewById(R.id.referview);
 		referrerView.setText(referrer);
 		
+		String DownloadURLString = ReferralReceiver.retrieveReferralParams(getApplicationContext()).get("utm_source");
+		if (DownloadURLString == null)
+			DownloadURLString = Common.DEFAULT_DOWNLOAD_URL;
+		final TextView downloadView = (TextView) findViewById(R.id.downloadview);
+		downloadView.setText("URL: "+DownloadURLString);
+
 		// If donation was not yet set, default to DEFAULT_DONATE
 		if (donate == -1)
 			donate = DEFAULT_DONATE;
