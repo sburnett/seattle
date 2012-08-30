@@ -31,7 +31,7 @@ def daemonize():
 
   """
 
-  if os.name == "nt" or os.name == "ce":
+  if os.name == "nt":
     # No way to fork or daemonize on windows. Just do nothing for now?
     return
 
