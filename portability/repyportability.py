@@ -1,14 +1,17 @@
 
+import __builtin__
+
 # I'm importing these so I can neuter the calls so that they aren't 
 # restricted...
+
 import safe
+import nanny
 import emulfile
 import emulmisc
-import nonportable
 import namespace
-import nanny
+import repyhelper
+import nonportable
 import virtual_namespace
-import __builtin__
 
 
 # JAC: Save the calls in case I want to restore them.   This is useful if 
@@ -182,3 +185,21 @@ for builtin_type in dir(__builtin__):
 # Override by default!
 override_restrictions()
 
+# This function makes the dy_* functions available.
+def add_dy_support(_context):
+  # Add dylink support
+  repyhelper.translate_and_import("dylink.repy", callfunc = 'initialize')
+  
+  # The dy_* functions are only added to the namespace after init_dylink is called.
+  init_dylink(_context,{})
+  
+  # Make our own `dy_import_module_symbols` and  add it to the context.
+  # It is not currently possible to use the real one (details at ticket #1046)
+  def _dy_import_module_symbols(module,new_callfunc="import"):
+    new_context = _context['dy_import_module'](module, new_callfunc)._context
+    # Copy in the new symbols into our namespace.
+    for symbol in new_context:  
+      if symbol not in _context: # Prevent the imported object from destroying our namespace.
+        _context[symbol] = new_context[symbol]
+
+  _context['dy_import_module_symbols'] = _dy_import_module_symbols
