@@ -97,14 +97,14 @@ import servicelogger
 
 
 # import the natlayer for use
-# this requires all NATLayer dependincies to be in the current directory
+# this requires all NATLayer dependencies to be in the current directory
 repyhelper.translate_and_import('NATLayer_rpc.repy')
 repyhelper.translate_and_import('rsa.repy')
 
 repyhelper.translate_and_import('sockettimeout.repy')
 
 
-# Armon: To handle user preferrences with respect to IP's and Interfaces
+# Armon: To handle user preferences with respect to IP's and Interfaces
 # I will re-use the code repy uses in emulcomm
 import emulcomm
 
@@ -461,7 +461,7 @@ def main():
 
       except Exception,e:
         exception_traceback_string = traceback.format_exc()
-        servicelogger.log("[ERROR]: The following error occured when " \
+        servicelogger.log("[ERROR]: The following error occurred when " \
                             + "modifying the crontab for the new 2009 " \
                             + "seattle crontab entry: " \
                             + exception_traceback_string)
@@ -605,7 +605,7 @@ def parse_arguments():
                          "instead of daemonizing it.")
 
 
-  # Add the --test-mode optino.
+  # Add the --test-mode option.
   parser.add_option('--test-mode', dest='test_mode',
                     action='store_true', default=False,
                     help="Run the nodemanager in test mode.")
@@ -617,7 +617,7 @@ def parse_arguments():
                     
 
 
-  # Parse the argumetns.
+  # Parse the arguments.
   options, args = parser.parse_args()
 
   # Set some global variables.
