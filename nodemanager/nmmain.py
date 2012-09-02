@@ -34,10 +34,15 @@ they do not terminate prematurely (restarting them as necessary).
 import checkpythonversion
 checkpythonversion.ensure_python_version_is_supported()
 
-import daemon
+# Built-in imports
 import os
 import sys
+import time
+import optparse
+import threading
 
+# Relative imports
+import daemon
 import repyhelper #used to bring in NAT Layer
 
 # I need to make a cachedir for repyhelper...
@@ -48,18 +53,12 @@ if not os.path.exists('nodemanager.repyhelpercache'):
 sys.path = ['nodemanager.repyhelpercache'] + sys.path
 repyhelpercachedir = repyhelper.set_importcachedir('nodemanager.repyhelpercache')
 
-
-
 # Armon: Prevent all warnings
 import warnings
 # Ignores all warnings
 warnings.simplefilter("ignore")
 
 from repyportability import *
-
-import time
-
-import threading
 
 import nmadvertise
 
@@ -483,17 +482,41 @@ def main():
       
     
 
+def parse_arguments():
+  """
+  Parse the arguments passed in through the command line for the nodemanager
+  and initialize the relevant global variables.
+  """
+
+  # Create the option parser
+  parser = optparse.OptionParser(version="Seattle " + version)
+
+  parser.add_option('--foreground', dest='foreground',
+                    action='store_true', default=False,
+                    help="Run the nodemanager in foreground " +
+                         "instead of daemonizing it.")
+  
+  parser.add_option('--nat', dest='nat', action='store_true',
+                    default=False, help="Forcibly use the natlayer")
+
+  
+  # Parse the arguments.
+  options, args = parser.parse_args()
+
+  # Analyze the options and (possibly) set some global variables.
+  global FOREGROUND
+  global AUTO_USE_NAT
+
+  if options.foreground:
+    FOREGROUND = True
+
+  if options.nat:
+    AUTO_USE_NAT = True
+
 
 if __name__ == '__main__':
   
-  for arg in sys.argv[1:]:
-    # take a command line argument to force use of natlayer
-    if arg == '-nat':
-      AUTO_USE_NAT = True
-
-    # take a command line argument to force foreground
-    if arg == '--foreground':
-      FOREGROUND = True
+  parse_arguments()
 
   # Initialize the service logger.   We need to do this before calling main
   # because we want to print exceptions in main to the service log
