@@ -202,6 +202,13 @@ def startvessel(vesselname, argstring):
   # Armon: this is required to fetch the networkrestrictions information from the configuration
   configuration = persist.restore_object("nodeman.cfg")
 
+  # If the nodemanager is configured to use one or more custom security layers, 
+  # then prepend the security layers to the user program arguments. 
+  if 'repy_prepend' in configuration: 
+    prependstring = "" 
+    for prependarg in configuration['repy_prepend']: 
+      prependstring += prependarg + " " 
+      argstring = prependstring + argstring 
   
   # Armon: Generate the IP/Iface preferences if they exist
   ip_iface_preference_flags = []
@@ -666,8 +673,13 @@ def _setup_vessel(vesselname, examplevessel, resourcedict):
     item['advertise'] = vesseldict[examplevessel]['advertise']
     item['ownerinformation'] = vesseldict[examplevessel]['ownerinformation']
 
-  # create the directory on the file system
-  os.mkdir(vesselname)
+  # create the directory on the file system and, if neccessary, populate it with 
+  # the private files for the security layers 
+  configuration = persist.restore_object("nodeman.cfg") 
+  if 'repy_prepend_dir' in configuration and configuration['repy_prepend_dir'] is not None: 
+    shutil.copytree(configuration['repy_prepend_dir'], vesselname) 
+  else: 
+    os.mkdir(vesselname) 
 
   # now we're ready to add the entry to the table (so other threads can use it)
   vesseldict[vesselname] = item
