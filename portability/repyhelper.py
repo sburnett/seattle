@@ -238,8 +238,13 @@ def _generate_python_file_from_repy(repyfilename, generatedfilename, shared_myco
       os.makedirs(os.path.dirname(generatedfilename))
     fh = open(generatedfilename, "w")
   except IOError, e:
-    # this is likely a directory permissions error
-    raise TranslationError("Cannot open file for translation '" + repyfilename + "': " + str(e))
+    # This is likely a directory permissions error
+    if e.errno == 13: # Permission denied
+      raise TranslationError("Unable to translate '%s'. Received a '%s' error " \
+        "when trying to access or create '%s'. This is likely because repy is " \
+        "unable to write in the current directory" % (repyfilename, e.strerror, e.filename))
+    else:
+      raise TranslationError("Cannot open file for translation '" + repyfilename + "': " + str(e))
 
   # always close the file
   try:
