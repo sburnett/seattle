@@ -158,20 +158,26 @@ def _get_module_name(repyfilename):
 def _translation_is_needed(repyfilename, generatedfile):
   """ Checks if generatedfile needs to be regenerated. Does several checks to 
   decide if generating generatedfilename based on repyfilename is a good idea.
-    --does file already exist?
-    --was it automatically generated?
-    --was it generated from the same source file?
-    --was the original modified since the last translation?
+    --Does the file already exist?
+    --Was it automatically generated?
+    --Was it generated from the same source file?
+    --Was the original modified since the last translation?
     
   """
   
   if not os.path.isfile(repyfilename):
-    raise TranslationError("no such file:", repyfilename)
+    raise TranslationError("No such source file:", repyfilename)
     
+  # Does the file already exist?
   if not os.path.isfile(generatedfile):
     return True
   
-  #Read the first line
+  # Was it automatically generated?
+  # A file is considered to have been automatically generated if the first
+  # and last line start with TRANSLATION_TAGLINE
+  
+  # TODO: This should be optimized to seek to os.SEEK_END-len( TRANSLATION_TAGLINE + " " + os.path.abspath(repyfilename) )
+  # instead of reading through the entire file.
   try:
     fh = open(generatedfile, "r")
     first_line = fh.readline().rstrip()
@@ -196,21 +202,24 @@ def _translation_is_needed(repyfilename, generatedfile):
     # silently regenerate (#617)
     return True
   
-  #Check to see if the generated file has the same original source
+  # Was it generated from the same source file?
+  # This is determined by reading the source file from the translated file, and
+  # comparing that to the fully-qualified filename of the source file.
   old_translation_path = first_line[len(TRANSLATION_TAGLINE):].strip()
   generated_abs_path = os.path.abspath(repyfilename)
   if old_translation_path != generated_abs_path:
-    #It doesn't match, but the other file was also a translation! Regen then...
+    # The old file was a translation, but not for this repy file! Regen then...
     return True
   
-  #If we get here and modification time of orig is older than gen, this is still
-  #a valid generation
-  repystat = os.stat(repyfilename)
-  genstat = os.stat(generatedfile)
-  if repystat.st_mtime < genstat.st_mtime:
-    return False
+  # Was the original modified since the last translation?
+  # Check the timstamps of both files
+  repy_timestamp = os.stat(repyfilename).st_mtime
+  gen_timestamp = os.stat(generatedfile).st_mtime
+  if repy_timestamp >= gen_timestamp:
+    return True
     
-  return True
+  # Everything appears to be consistent
+  return False
 
 
 def _generate_python_file_from_repy(repyfilename, generatedfilename, shared_mycontext, callfunc, callargs):
