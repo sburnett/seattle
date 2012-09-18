@@ -353,12 +353,9 @@ def show_files(input_dict, environment_dict):
       goodlist.append(longname)
 
     else:
-      print "failure on '"+longname+"': '"+retdict[longname][1]+"'"
       faillist.append(longname)
   
-  # and display it...
-  if faillist:
-    print "Failures on "+str(len(faillist))+" targets: "+", ".join(faillist)
+  seash_helper.print_vessel_errors(retdict, "list files on")
 
   if goodlist and faillist:
     seash_global_variables.targets['filesgood'] = goodlist
@@ -403,12 +400,9 @@ def show_log(input_dict, environment_dict):
       goodlist.append(longname)
 
     else:
-      print "failure on '"+longname+"': ",retdict[longname][1]
       faillist.append(longname)
 
-  # and display it...
-  if faillist:
-    print "Failures on "+str(len(faillist))+" targets: "+", ".join(faillist)
+  seash_helper.print_vessel_errors(retdict, "retrieve log from")
 
   if goodlist and faillist:
     seash_global_variables.targets['loggood'] = goodlist
@@ -463,12 +457,9 @@ def show_log_to_file(input_dict, environment_dict):
       goodlist.append(longname)
 
     else:
-      print "failure on '"+longname+"': ",retdict[longname][1]
       faillist.append(longname)
 
-  # and display it...
-  if faillist:
-    print "Failures on "+str(len(faillist))+" targets: "+", ".join(faillist)
+  seash_helper.print_vessel_errors(retdict, "retrieve log from")
 
   if goodlist and faillist:
     seash_global_variables.targets['loggood'] = goodlist
@@ -497,12 +488,9 @@ def show_resources(input_dict, environment_dict):
       goodlist.append(longname)
 
     else:
-      print "Failure '"+longname+"':",retdict[longname][1]
       faillist.append(longname)
 
-  # and display it...
-  if faillist:
-    print "Failures on "+str(len(faillist))+" targets: "+", ".join(faillist)
+  seash_helper.print_vessel_errors(retdict, "show resources on")
 
   if goodlist and faillist:
     seash_global_variables.targets['resourcegood'] = goodlist
@@ -529,8 +517,7 @@ def show_offcut(input_dict, environment_dict):
       print "Offcut resource data for '"+nodename+"':"
       print retdict[nodename][1]
 
-    else:
-      print "Failure '"+nodename+"':",retdict[longname][1]
+  seash_helper.print_vessel_errors(retdict, "show offcut resource data")
 
 
 
@@ -1123,13 +1110,9 @@ def browse(input_dict, environment_dict):
       newidlist = newidlist + retdict[nodename][1]
 
     else:
-      print "Error '",retdict[nodename][1],"' on "+nodename
       faillist.append(nodename)
 
-
-  # tell the user what we did...
-  if len(faillist) > 0:
-    print "Failed to contact: "+ ", ".join(faillist)
+  seash_helper.print_vessel_errors(retdict, 'contact')
 
   if len(newidlist) == 0:
     print "Could not add any new targets."
@@ -1183,14 +1166,8 @@ def browse_arg(input_dict, environment_dict):
 
     if retdict[nodename][0]:
       newidlist = newidlist + retdict[nodename][1]
-    else:
-      print "Error '",retdict[nodename][1],"' on "+nodename
-      faillist.append(nodename)
 
-
-  # tell the user what we did...
-  if len(faillist) > 0:
-    print "Failed to contact: "+ ", ".join(faillist)
+  seash_helper.print_vessel_errors(retdict, 'contact')
 
   if len(newidlist) == 0:
     print "Could not add any new targets."
@@ -1652,13 +1629,8 @@ def list(input_dict, environment_dict):
 
     if retdict[longname][0]:
       goodlist.append(longname)
-    else:
-      print "Error '"+retdict[longname][1]+"' on "+longname
-      faillist.append(longname)
 
-  # and display it...
-  if faillist:
-    print "Failures on "+str(len(faillist))+" targets: "+", ".join(faillist)
+  seash_helper.print_vessel_errors(retdict, 'contact')
 
   if goodlist:
     print "%4s %3s %25s %10s %30s" % ('ID','Own','Name','Status','Owner Information')
@@ -1714,12 +1686,10 @@ def reset(input_dict, environment_dict):
     if retdict[longname][0]:
       goodlist.append(longname)
     else:
-      print "Error '"+retdict[longname][1]+"' on "+longname
       faillist.append(longname)
 
   # and display it...
-  if faillist:
-    print "Failures on "+str(len(faillist))+" targets: "+", ".join(faillist)
+  seash_helper.print_vessel_errors(retdict, 'reset')
 
   if goodlist and faillist:
     seash_global_variables.targets['resetgood'] = goodlist
@@ -1747,12 +1717,9 @@ def update(input_dict, environment_dict):
     if retdict[longname][0]:
       goodlist.append(longname)
     else:
-      print "Error '"+retdict[longname][1]+"' on "+longname
       faillist.append(longname)
 
-  # and display it...
-  if faillist:
-    print "Failures on "+str(len(faillist))+" targets: "+", ".join(faillist)
+  seash_helper.print_vessel_errors(retdict, 'contact')
 
   if goodlist and faillist:
     seash_global_variables.targets['updategood'] = goodlist
@@ -1848,10 +1815,11 @@ def loadstate_filename(input_dict, environment_dict):
 
   for longname in retdict:
     if not retdict[longname][0]:
-      print "Failure '" + retdict[longname][1] + "' on " + longname + "."
       reloadfail.append(longname)
     else:
       reloadgood.append(longname)
+      
+  seash_helper.print_vessel_errors(retdict, "reload")
 
   # update the groups
   if reloadfail and reloadgood:
@@ -1911,8 +1879,9 @@ def upload_filename(input_dict, environment_dict):
     if retdict[longname][0]:
       goodlist.append(longname)
     else:
-      print "Failure '"+retdict[longname][1]+"' uploading to",longname
       faillist.append(longname)
+
+  seash_helper.print_vessel_errors(retdict, 'upload a file to')
 
   # update the groups
   if goodlist and faillist:
@@ -1975,8 +1944,9 @@ def upload_filename_remotefn(input_dict, environment_dict):
     if retdict[longname][0]:
       goodlist.append(longname)
     else:
-      print "Failure '"+retdict[longname][1]+"' uploading to",longname
       faillist.append(longname)
+
+  seash_helper.print_vessel_errors(retdict, 'upload a file to')
 
   # update the groups
   if goodlist and faillist:
@@ -2024,8 +1994,9 @@ def download_filename(input_dict, environment_dict):
       # for output...
       writestring = writestring + retdict[longname][1]+ " "
     else:
-      print "Failure '"+retdict[longname][1]+"' downloading from",longname
       faillist.append(longname)
+
+  seash_helper.print_vessel_errors(retdict, 'download a file from')
 
   if writestring:
     print "Wrote files: "+writestring
@@ -2078,8 +2049,9 @@ def download_filename_localfn(input_dict, environment_dict):
       # for output...
       writestring = writestring + retdict[longname][1]+ " "
     else:
-      print "Failure '"+retdict[longname][1]+"' downloading from",longname
       faillist.append(longname)
+
+  seash_helper.print_vessel_errors(retdict, 'download a file from')
 
   if writestring:
     print "Wrote files: "+writestring
@@ -2119,8 +2091,9 @@ def delete_remotefn(input_dict, environment_dict):
     if retdict[longname][0]:
       goodlist.append(longname)
     else: 
-      print "Failure '"+retdict[longname][1]+"' deleting on",longname
       faillist.append(longname)
+
+  seash_helper.print_vessel_errors(retdict, "delete the file on")
 
   # add groups if needed...
   if goodlist and faillist:
@@ -2167,12 +2140,9 @@ def cat_filename(input_dict, environment_dict):
 
     else:
       print
-      print "failure on '"+longname+"': '"+retdict[longname][1]+"'"
       faillist.append(longname)
-  
-  # and display it...
-  if faillist:
-    print "Failures on "+str(len(faillist))+" targets: "+", ".join(faillist)
+
+  seash_helper.print_vessel_errors(retdict, "display file contents on")
 
   if goodlist and faillist:
     seash_global_variables.targets['catgood'] = goodlist
@@ -2211,8 +2181,9 @@ def start_remotefn(input_dict, environment_dict):
     if retdict[longname][0]:
       goodlist.append(longname)
     else:
-      print "Failure '"+retdict[longname][1]+"' starting ",longname
       faillist.append(longname)
+
+  seash_helper.print_vessel_errors(retdict, 'start on')
 
   # add groups if needed...
   if goodlist and faillist:
@@ -2258,8 +2229,9 @@ def start_remotefn_arg(input_dict, environment_dict):
     if retdict[longname][0]:
       goodlist.append(longname)
     else:
-      print "Failure '"+retdict[longname][1]+"' starting ",longname
       faillist.append(longname)
+
+  seash_helper.print_vessel_errors(retdict, 'start on')
 
   # add groups if needed...
   if goodlist and faillist:
@@ -2287,9 +2259,9 @@ def stop(input_dict, environment_dict):
     if retdict[longname][0]:
       goodlist.append(longname)
     else:
-      print "Failure '"+retdict[longname][1]+"' stopping ",longname
       faillist.append(longname)
 
+  seash_helper.print_vessel_errors(retdict, 'stop on')
 
 
   # add groups if needed...
@@ -2342,9 +2314,9 @@ def run_localfn(input_dict, environment_dict):
     if retdict[longname][0]:
       goodlist.append(longname)
     else:
-      print "Failure '"+retdict[longname][1]+"' on ",longname
       faillist.append(longname)
 
+  seash_helper.print_vessel_errors(retdict, 'run on')
 
   # update the groups
   if goodlist and faillist:
@@ -2405,9 +2377,9 @@ def run_localfn_arg(input_dict, environment_dict):
     if retdict[longname][0]:
       goodlist.append(longname)
     else:
-      print "Failure '"+retdict[longname][1]+"' on ",longname
       faillist.append(longname)
 
+  seash_helper.print_vessel_errors(retdict, 'run on')
 
   # update the groups
   if goodlist and faillist:
@@ -2457,8 +2429,9 @@ def split_resourcefn(input_dict, environment_dict):
       goodlist2.append(newname2)
       print longname+" -> ("+newname1+", "+newname2+")"
     else:
-      print "Failure '"+retdict[longname][1]+"' splitting",longname
       faillist.append(longname)
+
+  seash_helper.print_vessel_errors(retdict, 'split')
 
   # update the groups
   if goodlist1 and goodlist2 and faillist:
@@ -2518,9 +2491,9 @@ def join(input_dict, environment_dict):
       goodlist = goodlist + nodedict[nodename]
     else:
       if retdict[nodename][1]:
-        print "Failure '"+retdict[nodename][1]+"' on",nodename
         faillist = faillist + nodedict[nodename]
       # Nodes that I only have one vessel on don't get added to a list...
+  seash_helper.print_vessel_errors(retdict, 'join')
 
   # update the groups
   if goodlist and faillist:
@@ -2574,9 +2547,9 @@ def set_owner_arg(input_dict, environment_dict):
     if retdict[longname][0]:
       goodlist.append(longname)
     else:
-      print "Failure '"+retdict[longname][1]+"' on ",longname
       faillist.append(longname)
 
+  seash_helper.print_vessel_errors(retdict, 'change the owner of')
 
 
   # update the groups
@@ -2639,9 +2612,9 @@ def set_advertise_arg(input_dict, environment_dict):
     if retdict[longname][0]:
       goodlist.append(longname)
     else:
-      print "Failure '"+retdict[longname][1]+"' on ",longname
       faillist.append(longname)
 
+  seash_helper.print_vessel_errors(retdict, 'change the advertise state on')
 
   # update the groups
   if goodlist and faillist:
@@ -2676,8 +2649,8 @@ def set_ownerinfo_arg(input_dict, environment_dict):
     if retdict[longname][0]:
       goodlist.append(longname)
     else:
-      print "Failure '"+retdict[longname][1]+"' on ",longname
       faillist.append(longname)
+  seash_helper.print_vessel_errors(retdict, 'change the owner information on')
 
 
   # update the groups
@@ -2725,8 +2698,9 @@ def set_users_arg(input_dict, environment_dict):
     if retdict[longname][0]:
       goodlist.append(longname)
     else:
-      print "Failure '"+retdict[longname][1]+"' on ",longname
       faillist.append(longname)
+
+  seash_helper.print_vessel_errors(retdict, 'change the users on')
 
   # update the groups
   if goodlist and faillist:

@@ -776,3 +776,140 @@ def reset_vessel_timeout():
     thisvesselhandledict = fastnmclient.nmclient_get_handle_info(thisvesselhandle) 
     thisvesselhandledict['timeout'] = seash_global_variables.globalseashtimeout 
     fastnmclient.nmclient_set_handle_info(thisvesselhandle,thisvesselhandledict) 
+
+
+
+
+
+def print_vessel_errors(retdict, action):
+  """
+  <Purpose>
+    Prints out any errors that occurred while performing an action on vessels,
+    in a human readable way.
+    
+    Errors will be printed out in the following format:
+    "You don't have permission to" "upload a file to" "[node identifiers]"
+               'error'                  'action'
+
+    To define a new error, add the following entry to ERROR_RESPONSES in this 
+    function:
+      'error_identifier': {
+        'error': 'description for the error',
+        'reason': 'reason for the error' (optional).
+    'error_identifier'
+      This is the substring of the error that can be used to identify it.
+      Longer identifiers will have a higher priority over shorter identifiers.
+      For example, authentication errors could be identified using the string
+      'Insufficient Permissions'.
+    'error'
+      This is where you put the description for the error to show to the user.
+    'reason' (optional)
+      This is where you put clarification for the error to ease the user.
+      Additionally, you may put things that they could do to fix the error here,
+      if applicable. If you don't want to show a reason, don't include this key 
+      in the dictionary.
+      Examples when you would not put a reason is if you received a timeout, 
+      since the user can't do anything to fix them.
+
+  <Arguments>
+    retdict:
+      A list of longnames mapped against a tuple (Success?, Message/Errortext).
+    action:
+      The action being performed. It should fit in the following sentence:
+      'There was an error while trying to [ACTION] v1, v2, v3, and v4.'
+      
+  <Side Effects>
+    Prints error messages onto the screen. See documentation for ERROR_RESPONSES
+    for more information.
+    
+  <Exceptions>
+    Exception
+    
+  <Return>
+    None
+
+  """
+  ERROR_RESPONSES = {
+    "Node Manager error 'Insufficient Permissions'": {
+      'error': "You don't have permission to",
+      'reason': "Did you release the resource(s) by accident?"},
+    'timed out': {
+      'error':'Connection timed out when attempting to'},
+    }
+  
+  # A dictionary mapping error identifiers to a list of vessels that share 
+  # that error.
+  error_longnames = {}
+
+  for longname in retdict:
+    # if the first item is true, then there is no error.
+    if not retdict[longname][0]:
+      matches = []
+      # Loop until we find the response
+      for error_string in ERROR_RESPONSES:
+        if error_string.lower() in retdict[longname][1].lower():
+          # This is the first match
+          if not matches:
+            matches = [error_string]
+          else:
+            # This is a better match, forget about the previous matches
+            if len(error_string) > len(matches[0]):
+              matches = [error_string]
+            
+            elif len(error_string) == len(matches[0]):
+              matches.append(error_string)
+
+      # If there isn't a match, use the error string as an error identifier
+      if not matches:
+        errorid = retdict[longname][1]
+      
+      else:
+        # There should not be more than 1 match for any error. 
+        # If there is, log the error to a file. 
+        if len(matches) != 1:
+          errfile = open('seasherrors.txt', 'a')
+          errorstring = "Multiple matches with same priority:" + '\n'.join(matches)
+          errfilewrite(errorstring)
+          raise Exception(errorstring)
+        errorid = matches[0]
+      
+      # Create the longname list if it doesn't already exist
+      if errorid not in error_longnames:
+        error_longnames[errorid] = []
+      error_longnames[errorid].append(longname)
+
+
+  # Print the errors out
+  for errorid in error_longnames:
+    # Represent the list of nodes in a human readable way.
+    nodestring = ''
+    for node in error_longnames[errorid]:
+      # This is the first node
+      if node == error_longnames[errorid][0]:
+        divider = ''
+      # This is a node in the middle
+      elif node != error_longnames[errorid][-1]:
+        divider = ', '
+      # This is the last node
+      else:
+        # We will always have at least 2 nodes at this point, since if there
+        # is only one node, it will be treated as the first node. Therefore,
+        # we only have two cases, where there are exactly 2 nodes, or more than 
+        # 2 nodes.
+        # If we have two nodes, we want: "node_1 and node_2".
+        # Otherwise, we want: "node_1, node_2, ..., and node_n".
+        divider = " and "
+        if len(error_longnames[errorid]) > 2:
+          divider = ',' + divider
+      nodestring += divider + node
+    
+    if errorid in ERROR_RESPONSES:
+      print ERROR_RESPONSES[errorid]['error'], action, nodestring + ".",
+      if 'reason' in ERROR_RESPONSES[errorid]:
+        print ERROR_RESPONSES[errorid]['reason']
+      else:
+        # Caret is still on the same line as the list of nodes
+        print
+    else:
+      # Unknown error
+      print "Error: '" + retdict[longname][1] + "' when attempting to", action, nodestring + '.'
