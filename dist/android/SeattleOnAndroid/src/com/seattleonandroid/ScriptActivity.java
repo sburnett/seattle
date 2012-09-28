@@ -239,8 +239,18 @@ public class ScriptActivity extends Activity {
 	}
 
 	// Back button was pressed by the user
+	@Override
 	public void onBackPressed() {
-		goBack();
+		if(currentContentView == R.layout.logmenuview){
+			showFrontendLayout();
+		} else if(currentContentView == R.layout.logfileview){
+			showAvailableLogListing();
+		} else if(currentContentView == R.layout.about){
+			showFrontendLayout();
+		} else{
+			// Let android handle it.
+			super.onBackPressed();
+		}
 	}
 
 	// Get a listing of the (hopefully) seattle specific log files in the directory 
@@ -359,7 +369,7 @@ public class ScriptActivity extends Activity {
 				return true;
 			case R.id.back:
 				// Back button
-				goBack();
+				onBackPressed();
 				return true;
 			case R.id.refresh:
 				// Refresh
@@ -386,17 +396,6 @@ public class ScriptActivity extends Activity {
 			showAvailableLogListing();
 		} else if(currentContentView == R.layout.logfileview){
 			showLogFile(currentLogFile);
-		}
-	}
-
-	// Back button pressed
-	private void goBack(){
-		if(currentContentView == R.layout.logmenuview){
-			showFrontendLayout();
-		} else if(currentContentView == R.layout.logfileview){
-			showAvailableLogListing();
-		} else if(currentContentView == R.layout.about){
-			showFrontendLayout();
 		}
 	}
 
