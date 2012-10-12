@@ -506,6 +506,13 @@ def execution_monitor(file_path, pragma_dictionary):
   # Execute the program.
   (rawout, error) = utfutil.execute(popen_args)
 
+  # Get rid of an escape sequence that Mac's readline prints out on import. #1110
+  # I'm assuming this will only occur at the very beginning of stdout. Possible bug?
+  # Should we also do this for the stderr?
+  escape_sequence = '\x1b[?1034h'
+  if out.startswith(escape_sequence):
+    out = out[len(escape_sequence):]
+
   # Get rid of debug output on Android, #1084.
   out = strip_android_debug_messages(rawout)
   
@@ -519,8 +526,7 @@ def execution_monitor(file_path, pragma_dictionary):
       report[OUT_PRAGMA] = (out, expected_out)
     
   elif out: # If not, make sure the standard out is empty.
-    report[ERROR_PRAGMA] = (out, None)
-
+    report[OUT_PRAGMA] = (out, None)
 
   # Is this executable suppose to produce any output on standard error?
   if pragma_dictionary.has_key(ERROR_PRAGMA):
