@@ -869,7 +869,8 @@ def print_vessel_errors(retdict):
         if len(matches) != 1:
           errfile = open('seasherrors.txt', 'a')
           errorstring = "Multiple matches with same priority:" + '\n'.join(matches)
-          errfilewrite(errorstring)
+          errfile.write(errorstring)
+          errfile.close()
           raise Exception(errorstring)
         errorid = matches[0]
       
