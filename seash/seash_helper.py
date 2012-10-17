@@ -781,15 +781,15 @@ def reset_vessel_timeout():
 
 
 
-def print_vessel_errors(retdict, action):
+def print_vessel_errors(retdict):
   """
   <Purpose>
     Prints out any errors that occurred while performing an action on vessels,
     in a human readable way.
     
     Errors will be printed out in the following format:
-    "You don't have permission to" "upload a file to" "[node identifiers]"
-               'error'                  'action'
+    description [reason]
+    Affected vessels: nodelist
 
     To define a new error, add the following entry to ERROR_RESPONSES in this 
     function:
@@ -814,9 +814,6 @@ def print_vessel_errors(retdict, action):
   <Arguments>
     retdict:
       A list of longnames mapped against a tuple (Success?, Message/Errortext).
-    action:
-      The action being performed. It should fit in the following sentence:
-      'There was an error while trying to [ACTION] v1, v2, v3, and v4.'
       
   <Side Effects>
     Prints error messages onto the screen. See documentation for ERROR_RESPONSES
@@ -831,10 +828,10 @@ def print_vessel_errors(retdict, action):
   """
   ERROR_RESPONSES = {
     "Node Manager error 'Insufficient Permissions'": {
-      'error': "You don't have permission to",
+      'error': "You lack sufficient permissions to perform this action.",
       'reason': "Did you release the resource(s) by accident?"},
     'timed out': {
-      'error':'Connection timed out when attempting to'},
+      'error':'Connection timed out.'},
     }
   
   # A dictionary mapping error identifiers to a list of vessels that share 
@@ -904,7 +901,7 @@ def print_vessel_errors(retdict, action):
       nodestring += divider + node
     
     if errorid in ERROR_RESPONSES:
-      print ERROR_RESPONSES[errorid]['error'], action, nodestring + ".",
+      print ERROR_RESPONSES[errorid]['error'],
       if 'reason' in ERROR_RESPONSES[errorid]:
         print ERROR_RESPONSES[errorid]['reason']
       else:
@@ -912,4 +909,5 @@ def print_vessel_errors(retdict, action):
         print
     else:
       # Unknown error
-      print "Error: '" + retdict[longname][1] + "' when attempting to", action, nodestring + '.'
+      print "An error occurred: " + errorid
+    print "Affected vessels:", nodestring + '.'
