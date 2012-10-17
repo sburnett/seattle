@@ -832,6 +832,9 @@ def print_vessel_errors(retdict):
       'reason': "Did you release the resource(s) by accident?"},
     'timed out': {
       'error':'Connection timed out.'},
+    "file not found": {
+      'error': "The specified file(s) could not be found.",
+      'reason': "Please check the filename."},
     }
   
   # A dictionary mapping error identifiers to a list of vessels that share 
@@ -908,6 +911,6 @@ def print_vessel_errors(retdict):
         # Caret is still on the same line as the list of nodes
         print
     else:
-      # Unknown error
+      # Unknown error. 
       print "An error occurred: " + errorid
     print "Affected vessels:", nodestring + '.'

@@ -4,7 +4,7 @@ proceeds to download and remove the file from the node to test seash's file
 recognition.
 """
 
-#pragma out Failure 'Node Manager error 'Error, File Not Found'' downloading from 
+#pragma out The specified file(s) could not be found. Please check the filename.
 
 import seash
 import sys
