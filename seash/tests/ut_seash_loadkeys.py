@@ -3,9 +3,51 @@ Loads a series of keys and make sures seash recognizes them correctly.
 """
 import seash
 import sys
+import repyhelper
 
+repyhelper.translate_and_import('rsa.repy')
 
 orig_stdout = sys.stdout
+
+# Prepare the expected results.
+
+# This list of tuples dictates whether the specified guest has its 
+# public/private keys loaded.
+# Each tuple represents: (guestname, publickey, privatekey)
+guest_has_keys = [('guest2', True, True),
+                  ('guest0', True, False),
+                  ('guest1', False, True)]
+
+sys.stdout = open("loadkeys_test_results.txt", "w")
+
+# show keys
+# Guestname Publickey/None Privatekey/None
+# None is printed only if that key isn't loaded.
+# e.g.:
+# guest0 {'e': 65537L, 'n': 899L} {'q': 31L, 'p': 29L, 'd': 593L}
+# guest1 None {'q': 31L, 'p': 29L, 'd': 593L}
+# guest2 {'e': 65537L, 'n': 899L} None
+
+for (guest, haspublic, hasprivate) in guest_has_keys:
+  print guest,
+  print rsa_file_to_publickey(guest + ".publickey") if haspublic else None,
+  print rsa_file_to_privatekey(guest + ".privatekey") if hasprivate else None
+
+# show identities
+# Same as show keys, except:
+#   Keys are replaced by the tokens "PUB" and "PRIV"
+#   If a key is not found, it is simply not printed
+for (guest, haspublic, hasprivate) in guest_has_keys:
+  print guest, 
+  if haspublic:
+    print "PUB", 
+  if hasprivate:
+    print "PRIV",
+  print
+
+sys.stdout.close()
+
+# Begin testing
 sys.stdout = open("test_results.txt", "w")
 command_list = [
   'loadpub guest0',
