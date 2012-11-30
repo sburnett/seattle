@@ -17,12 +17,12 @@ import os
 
 
 # The complete set of platforms supported by the Custom Installler Builder.
-PLATFORMS = set(['linux', 'mac', 'windows'])
+PLATFORMS = set(['linux', 'mac', 'windows', 'android'])
 
 # For each platform listed above, it should belong to one of the following
 # sets.
 TGZ_PLATFORMS = set(['linux', 'mac'])
-ZIP_PLATFORMS = set(['windows'])
+ZIP_PLATFORMS = set(['windows', 'android'])
 
 # For each platform listed above, provide the name of the base installer
 # archive that will be used to construct customized installers.
@@ -30,6 +30,7 @@ PLATFORM_BUNDLES = {
   'linux': 'seattle_linux.tgz',
   'mac': 'seattle_mac.tgz',
   'windows': 'seattle_win.zip',
+  'android': 'seattle_android.zip',
 }
 
 # The names for generated cryptographic key bundles.
