@@ -370,10 +370,6 @@ class HideSizeShim(BaseShim):
     cur_position = 0
 
 
-    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
-    # Parse the header
-    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
-
     while True:
 
       # Read the header of the block, a char at a time, until two commas
