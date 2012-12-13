@@ -54,12 +54,31 @@ warnings.simplefilter("default")
 ### Integration fix here...
 from repyportability import *
 
+# We need to expose the readline object file to OSX because the default object
+# file for Python 2.7 on OSX is not compatible with our tab completion module.
+import os
+import sys
+
+# Only rename if we're running on OSX
+rename_readline_so_file = sys.platform == 'darwin'
+HIDDEN_READLINE_SO_FN = 'readline.so.mac'
+EXPOSED_READLINE_SO_FN = 'readline.so'
+
+# Make sure we don't overwrite an existing readline.so if it exists.
+# We need to do this because os.rename() doesn't raise any errors
+# if the destination file already exists.
+if (rename_readline_so_file and 
+    EXPOSED_READLINE_SO_FN not in os.listdir('.')):
+  try:
+    os.rename(HIDDEN_READLINE_SO_FN, EXPOSED_READLINE_SO_FN)
+  except OSError:
+    # There was a problem reading readline.so.mac
+    rename_readline_so_file = False
 
 tabcompletion = True
 try:
   # Even we can import the readline module successfully, we still disable tab
   # completion in Windows, in response to Ticket #891.
-  import os
   if os.name == 'nt':
     raise ImportError
 
@@ -70,6 +89,9 @@ try:
 except ImportError:
   tabcompletion = False
   
+# Don't hide mac readline.so if we didn't expose it
+if rename_readline_so_file:
+  os.rename(EXPOSED_READLINE_SO_FN, HIDDEN_READLINE_SO_FN)
 
 # Needed for parsing user commands and executing command functions
 import seash_dictionary
@@ -87,7 +109,6 @@ import traceback
 
 import os.path    # fix path names when doing upload, loadkeys, etc.
 
-import sys
 
 
 
