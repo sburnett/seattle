@@ -150,7 +150,7 @@ def package_demokit(temp_demokit_dir, temp_archive_dir):
     
   # Put all demokit files into the tarball
   for fname in os.listdir(temp_demokit_dir):
-    demokit_tar.add(temp_demokit_dir + os.sep + fname, BASE_DEMOKIT_DIR + os.sep + fname, False)
+    demokit_tar.add(temp_demokit_dir + os.sep + fname, BASE_DEMOKIT_DIR + os.sep + fname, True)
 
   demokit_tar.close()
 

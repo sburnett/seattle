@@ -159,4 +159,5 @@ req priority_queue.repy
 req AdvertiseObjects.repy
 req centralizedadvertise_v2.repy
 req udpcentralizedadvertise.repy
-
+req readline_windows.py
+req pyreadline

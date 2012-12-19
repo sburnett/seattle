@@ -416,7 +416,12 @@ def package_win_or_winmob(trunk_location, temp_install_dir, temp_tarball_dir,
 
   # Put all general program files into zipfile.
   for fname in gen_files:
-    installer_zipfile.write(temp_install_dir + os.sep + fname,
+    if os.path.isdir(temp_install_dir + os.sep + fname):
+      write_files_in_dir_to_zipfile(temp_install_dir + os.sep + fname, 
+                            BASE_PROGRAM_FILES_DIR + os.sep + fname + os.sep, 
+                            installer_zipfile)
+    else:
+      installer_zipfile.write(temp_install_dir + os.sep + fname,
                             BASE_PROGRAM_FILES_DIR + os.sep + fname)
 
 
@@ -463,6 +468,40 @@ def package_win_or_winmob(trunk_location, temp_install_dir, temp_tarball_dir,
     
 
 
+def write_files_in_dir_to_zipfile(sourcepath, arcpath, zipfile):
+  '''
+  <Purpose>
+    Inserts the files in the current directory into the specified zipfile.
+  <Arguments>
+    sourcepath:
+      The source path of the files to add.
+    arcpath:
+      The zip file's internal destination path to write to.
+    zipfile:
+      The zip file to write to.
+    files:
+      If specified, only these files are copied. Only files in the immediate
+      directory can be specified.
+    skipfiles:
+      If specified, these files will be skipped. Only files in the immediate 
+      directory can be skipped.
+  <Side Effects>
+    Copies the files that are in sourcepath to arcpath in the zipfile. If files
+    is specified, then only those files are copied.
+  <Exceptions>
+    None
+  <Return>
+    None
+  '''
+  files = os.listdir(sourcepath)
+
+  for fname in files:
+    sourcefilepath = sourcepath + os.sep + fname
+    targetfilepath = arcpath + os.sep + fname
+    if os.path.isfile(sourcefilepath):
+      zipfile.write(sourcefilepath, targetfilepath)
+    else:
+      write_files_in_dir_to_zipfile(sourcefilepath, targetfilepath, zipfile)
 
 def package_linux_or_mac(trunk_location, temp_install_dir, temp_tarball_dir,
                          inst_name, gen_files):
@@ -502,8 +541,9 @@ def package_linux_or_mac(trunk_location, temp_install_dir, temp_tarball_dir,
     
   # Put all general installer files into the tar file.
   for fname in gen_files:
-    installer_tarfile.add(temp_install_dir + os.sep + fname,
-                          BASE_PROGRAM_FILES_DIR + os.sep + fname,False)
+    if fname not in ['pyreadline']:
+      installer_tarfile.add(temp_install_dir + os.sep + fname,
+                          BASE_PROGRAM_FILES_DIR + os.sep + fname,True)
 
 
 
@@ -587,9 +627,16 @@ def package_android(trunk_location, temp_install_dir, temp_tarball_dir,
 
   installer_zipfile = zipfile.ZipFile(temp_tarball_dir+os.sep+inst_name, "w", zipfile.ZIP_DEFLATED)
     
-  # Put all general installer files into the zip file.
+  # Put all general program files into zipfile.
   for fname in gen_files:
-    installer_zipfile.write(temp_install_dir + os.sep + fname,BASE_PROGRAM_FILES_DIR + os.sep + fname)
+    if os.path.isdir(temp_install_dir + os.sep + fname):
+      if fname not in ['pyreadline']:
+        write_files_in_dir_to_zipfile(temp_install_dir + os.sep + fname, 
+                            BASE_PROGRAM_FILES_DIR + os.sep + fname + os.sep, 
+                            installer_zipfile)
+    else:
+      installer_zipfile.write(temp_install_dir + os.sep + fname,
+                            BASE_PROGRAM_FILES_DIR + os.sep + fname)
 
 
   # Put generic files in the zipfile.  (Same as Linux)

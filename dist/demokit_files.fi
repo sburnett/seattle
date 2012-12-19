@@ -132,6 +132,8 @@ req experimentlib.py
 req seattleclearinghouse_xmlrpc.py
 req repyimporter.py
 req LICENSE.txt, LICENSE.TXT
+req readline_windows.py
+req pyreadline
 
 
 # Demo-specific files
