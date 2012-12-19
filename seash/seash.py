@@ -77,14 +77,15 @@ if (rename_readline_so_file and
 
 tabcompletion = True
 try:
-  # Even we can import the readline module successfully, we still disable tab
-  # completion in Windows, in response to Ticket #891.
-  if os.name == 'nt':
-    raise ImportError
-
-  # Required for the tab completer. It works on Linux and Mac. It does not work
-  # on Windows. See http://docs.python.org/library/readline.html for details. 
-  import readline
+  try:
+    # Required for windows tab-completion. 
+    # This is the readline module provided by pyreadline 1.7.1.
+    # http://pypi.python.org/pypi/pyreadline
+    import readline_windows as readline
+  except ImportError:
+    # This error occurs when trying to import win_readline on mac/linux.
+    # We use the default readline module for mac/linux.
+    import readline
   import tab_completer
 except ImportError:
   tabcompletion = False
