@@ -3,12 +3,12 @@ package com.seattleonandroid;
 // Contains common constants 
 public final class Common {
 	// Default download URL for seattle archive
-	public static final String DEFAULT_DOWNLOAD_URL = "https://seattlegeni.cs.washington.edu/geni/download/defaultandroid/seattle_win.zip";
+	public static final String DEFAULT_DOWNLOAD_URL = "https://seattleclearinghouse.poly.edu/download/flibble/seattle_android.zip";
 
 	// Trusted hostnames
 	public static final String[] TRUSTED_DOWNLOAD_HOSTNAMES_WHITELIST = {
-		"seattlegeni.cs.washington.edu", "betabox.cs.washington.edu", "seattleclearinghouse.poly.edu",
-		"betaseattleclearinghouse.poly.edu", "blackbox.cs.washington.edu", "blackbox.poly.edu"
+		"seattleclearinghouse.poly.edu", "betaseattleclearinghouse.poly.edu", "blackbox.cs.washington.edu",
+		"blackbox.poly.edu", "custombuilder.poly.edu"
 	};
 
 	// Log -- Tag
