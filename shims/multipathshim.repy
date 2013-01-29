@@ -360,9 +360,14 @@ class MultiShimTCPSocket():
           if connection_dict[cur_tcp_socket]['sockobj']:
             continue
 
+          serversocket = self.tcpsocket_dict[cur_tcp_socket]['tcpsockobj']
+
+          if not serversocket:
+            continue
+
           try:
             # Try to connect to this tcp socket
-            (remoteip, remoteport, sockobj) = self.tcpsocket_dict[cur_tcp_socket]['tcpsockobj'].getconnection()
+            (remoteip, remoteport, sockobj) = serversocket.getconnection()
           except (SocketWouldBlockError, ResourceExhaustedError):
             # If there is any exception we don't raise it because we have already made
             # one successful connection.
@@ -541,7 +546,7 @@ class MultiPathShim(BaseShim):
         # Call openconnection on the top shim of this particular shimstack.
         sockobj = self.shim_stack_dict[cur_shim_stack].peek().openconnection(destip, destport, 
                                                                              localip, localport, timeout)
-      except (CleanupInProgressError, TimeoutError, InternetConnectivityError, ConnectionRefusedError), err:
+      except (NetworkError, TimeoutError), err:
         exception_list.append(err)
         pass
       else:
@@ -591,26 +596,29 @@ class MultiPathShim(BaseShim):
       all_connected = False
       
       while not all_connected:
-        all_connected = True      
-        
-        for cur_shim_stack in self.shim_stack_dict.keys():
-          # Check to see if we are already connected.
-          if connection_dict[cur_shim_stack]['sockobj']:
-            continue
+        all_connected = True
+
+        for cur_shim_stack in connection_dict.keys():
           try:
-            sockobj = self.shim_stack_dict[cur_shim_stack].peek().openconnection(self._destip,
-                          connection_dict[cur_shim_stack]['destport'], self._localip,
-                          connection_dict[cur_shim_stack]['localport'], self._timeout)
-      
-          except (CleanupInProgressError, TimeoutError, InternetConnectivityError, ConnectionRefusedError), err:
-            # If there is any exception we don't raise it because we have already made
-            # one successful connection.
-            # If we have gotten an exception then there is atleast one shimstack that
-            # we haven't been able to connect to.
-            all_connected = False
-          else:
-            connection_dict[cur_shim_stack]['sockobj'] = sockobj
-            
+            # Check to see if we are already connected.
+            if connection_dict[cur_shim_stack]['sockobj']:
+              continue
+            try:
+              sockobj = self.shim_stack_dict[cur_shim_stack].peek().openconnection(self._destip,
+                            connection_dict[cur_shim_stack]['destport'], self._localip,
+                            connection_dict[cur_shim_stack]['localport'], self._timeout)
+        
+            except (NetworkError, TimeoutError), err:
+              # If there is any exception we don't raise it because we have already made
+              # one successful connection.
+              # If we have gotten an exception then there is atleast one shimstack that
+              # we haven't been able to connect to.
+              all_connected = False
+            else:
+              connection_dict[cur_shim_stack]['sockobj'] = sockobj
+
+          except KeyError:
+            pass
 
     return _openconn_thread_helper
 
@@ -653,6 +661,12 @@ class MultiPathShim(BaseShim):
     shim_stack_keys.sort()
 
     for cur_shim_stack in shim_stack_keys:
+      if cur_shim_stack not in tcpsocket_dict.keys():
+        tcpsocket_dict[cur_shim_stack] = {}
+
+      tcpsocket_dict[cur_shim_stack]['localport'] = localport
+      tcpsocket_dict[cur_shim_stack]['tcpsockobj'] = None
+
       try:
         # Call listenforconnection on the top shim of this particular shimstack.
         tcpsockobj = self.shim_stack_dict[cur_shim_stack].peek().listenforconnection(localip, localport)
@@ -660,12 +674,6 @@ class MultiPathShim(BaseShim):
         exception_list.append(err)
         pass
       else:
-        if cur_shim_stack not in tcpsocket_dict.keys():
-          tcpsocket_dict[cur_shim_stack] = {}
-
-        tcpsocket_dict[cur_shim_stack]['localport'] = localport
-        tcpsocket_dict[cur_shim_stack]['tcpsockobj'] = None
-
         # Once connection has been made, add the tcpsocket object to connection_dict
         tcpsocket_dict[cur_shim_stack]['tcpsockobj'] = tcpsockobj
       
@@ -707,31 +715,29 @@ class MultiPathShim(BaseShim):
       while not all_connected:
         all_connected = True  
 
-        for cur_shim_stack in self.shim_stack_dict.keys():
-          if cur_shim_stack not in tcpsocket_dict.keys():
-            tcpsocket_dict[cur_shim_stack] = {}
-            tcpsocket_dict[cur_shim_stack]['tcpsockobj'] = None
-            tcpsocket_dict[cur_shim_stack]['localport'] = 0
-
-          # Check to see if we are already connected.
-          if tcpsocket_dict[cur_shim_stack]['tcpsockobj']:
-            continue
-
+        for cur_shim_stack in tcpsocket_dict.keys():
           try:
-            tcpsockobj = self.shim_stack_dict[cur_shim_stack].peek().listenforconnection(self._localip,
-                             tcpsocket_dict[cur_shim_stack]['localport'])
+            # Check to see if we are already connected.
+            if tcpsocket_dict[cur_shim_stack]['tcpsockobj']:
+              continue
 
-          except (AlreadyListeningError, DuplicateTupleError):
-            # If there is any exception we don't raise it because we have already made
-            # one successful connection.
-            # If we have gotten an exception then there is atleast one shimstack that
-            # we haven't been able to connect to.
-            all_connected = False
-          else:
-            tcpsocket_dict[cur_shim_stack]['tcpsockobj'] = tcpsockobj
+            try:
+              tcpsockobj = self.shim_stack_dict[cur_shim_stack].peek().listenforconnection(self._localip,
+                               tcpsocket_dict[cur_shim_stack]['localport'])
 
+            except (AlreadyListeningError, DuplicateTupleError):
+              # If there is any exception we don't raise it because we have already made
+              # one successful connection.
+              # If we have gotten an exception then there is atleast one shimstack that
+              # we haven't been able to connect to.
+              all_connected = False
+            else:
+              tcpsocket_dict[cur_shim_stack]['tcpsockobj'] = tcpsockobj
 
-    return _listenforconnection_helper 
+          except KeyError:
+            pass
+
+    return _listenforconnection_helper
 
 
 

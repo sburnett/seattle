@@ -525,17 +525,16 @@ class MobilityShim(BaseShim):
             debug_log('zzzz Openconn created new shim_sock', repr(shim_sock), shim_sock, '\n', show=True)
             return MobileSocket(shim_sock, [destip, destport, localip, localport, original_timeout], connection_id)
 
-          # The remote server socket is listening for reconnections, but
-          # is closed, so we shouldn't be able to connect.
-          elif message == "D":
+          else:
+            # The remote server socket is listening for reconnections, but
+            # is closed, so we shouldn't be able to connect.
+            if message != "D":
+              debug_log('zzzz Openconn received bad connection id response: ', message, '\n', show=True)
             try:
               shim_sock.close()
             except Exception:
               pass
             raise ConnectionRefusedError("The connection was refused!")
-
-          else:
-            debug_log('zzzz Openconn received bad connection id response: ', message, '\n', show=True)
 
         try:
           shim_sock.close()

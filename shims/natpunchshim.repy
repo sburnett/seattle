@@ -101,13 +101,13 @@ class NatPunchShim(BaseShim):
 
       try:
         forwarder_ip, forwarder_port = optional_args[0].split(':')
-        self.default_forwarder = (forwarder_ip, int(forwarder_port))
+        self.default_forwarder = [forwarder_ip, int(forwarder_port)]
       except ValueError:
         raise ShimInternalError("Optional arg provided is not of valid format. Must be IP:port.")
       
     # If no default forwarder is provided.
     else:
-      self.default_forwarder = None
+      self.default_forwarder = []
 
     BaseShim.__init__(self, shim_stack, optional_args)
 
@@ -415,7 +415,8 @@ class NatPunchShim(BaseShim):
           if not self.default_forwarder:
             if _NAT_SHIM_DEBUG_MODE:
               log("Setting the default forwarder\n")
-            self.default_forwarder = (forwarder_ip, forwarder_port)
+            self.default_forwarder.append(forwarder_ip)
+            self.default_forwarder.append(forwarder_port)
 
           if _NAT_SHIM_DEBUG_MODE:
             log("Connected to forwarder, returning. Default forwarder is: " + str(self.default_forwarder) + "\n")
@@ -463,7 +464,10 @@ class NatPunchShim(BaseShim):
     shim_stack_copy = self.shim_context['shim_stack'].copy()
     optional_args_copy = self.shim_context['optional_args']
 
-    return NatPunchShim(shim_stack_copy, optional_args_copy)
+    shim_copy = NatPunchShim(shim_stack_copy, optional_args_copy)
+    shim_copy.default_forwarder = self.default_forwarder
+
+    return shim_copy
 
 
 

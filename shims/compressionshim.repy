@@ -21,217 +21,70 @@ import zlib
 dy_import_module_symbols("shim_exceptions")
 
 
-_compression_shim_global_lock = createlock()
 
-def _compression_shim_atomic_operation(target_func):
+
+def _compression_socket_atomic_operation(target_func):
   """
   Function decorator. The target function is invoked atomically.
 
   """
-  def wrapper(*args, **kwargs):
+  def wrapper(self, *args, **kwargs):
     try:
-      _compression_shim_global_lock.acquire(True)
-      return target_func(*args, **kwargs)
+      self._atomic_lock.acquire(True)
+      return target_func(self, *args, **kwargs)
     finally:
-      _compression_shim_global_lock.release()
+      self._atomic_lock.release()
 
   return wrapper
 
 
 
-class CompressionShim(BaseShim):
 
+class CompressionSocket():
 
-  def __init__(self, shim_stack, optional_args=None):
-    """
-    One can specify the size of the send/recv block in the optional
-    arguments. For a send/recv block size of 1024 bytes, the shim string would
-    be '(CompressionShim,1024)'. If it is not specified, the default block size
-    will be used.
-
-    """
-
-    # A dictionary that maps a socket to its send buffer, which stores any
-    # temporary data pending to be transmitted.
-    self._send_buf_dict = {}
-
-    # A dictionary that maps a socket to its receive buffer, which stores
-    # the compressed TCP stream.
-    self._recv_buf_dict = {}
-
-    # A dictionary that maps a socket to any exception it raises while we try to
-    # receive as much as possible.
-    self._recv_exception_dict = {}
-
-    # A dictionary that maps a socket to the stream of uncompressed data.
-    self._result_buf_dict = {}
-
-    # A set that stores all the active sockets used in socket_send. If a socket
-    # raises an exception other than SocketWouldBlockError, it is considered
-    # inactive and thus removed from the set.
-    self._active_recv_socket_set = set()
-
-    # FF: A dictionary that maps a socket to the locks used to synchronize the 
-    # socket's sending thread and compression thread
-    self._full_lock = {}
-    self._empty_lock = {}
-    self._mutex_lock = {}
-
-
-    # If optional args is provided, use them as the block sizes.
-    # SEND_BLOCK_SIZE determines the size of each block into which the original 
-    # uncompressed stream is broken up into.
-    # The RECV_BLOCK_SIZE determines how many bytes we should receive per socket.recv()
-    if optional_args:
-      block_size = int(optional_args[0])
-      self._SEND_BLOCK_SIZE = block_size
-      self._RECV_BLOCK_SIZE = block_size
-    else:
-      self._SEND_BLOCK_SIZE = 2 ** 11
-      self._RECV_BLOCK_SIZE = 2 ** 11
-
-    BaseShim.__init__(self, shim_stack, optional_args)
-
-
-
-  def copy(self):
-    return CompressionShim(self.shim_context['shim_stack'].copy(), self.shim_context['optional_args'])
-
-
-  
-  def get_advertisement_string(self):
-
-    # If an optional argument is specified (i.e. block size), we advertise it.
-
-    optional_args = self.shim_context['optional_args']
-    shim_name = '(CompressionShim'
-
-    if optional_args:
-      shim_name += ',' + str(optional_args[0]) + ')'
-    else:
-      shim_name += ')'
-
-    return shim_name + self.get_next_shim_layer().get_advertisement_string()
-
-
-
-  # =========================================================
-  # Initializing the proper dicts during new socket creation.
-  # =========================================================
-
-
-  def tcpserversocket_getconnection(self, tcpserversocket):
-    # Call the next layer of tcpserver_getconnection()
-    (remote_ip, remote_port, repy_socket) = self.get_next_shim_layer().tcpserversocket_getconnection(tcpserversocket)
-
-    if isinstance(repy_socket, ShimSocket):
-      sockobj = repy_socket._socket
-    else:
-      sockobj = repy_socket
+  def __init__(self, socket, shim):
+    self.socket = socket
+    self.shim = shim
 
     # Initialize all the necessary dictionaries and sets.
-    self._send_buf_dict[repr(sockobj)] = ''
-    self._recv_buf_dict[repr(sockobj)] = ''
-    self._recv_exception_dict[repr(sockobj)] = None
-    self._result_buf_dict[repr(sockobj)] = ''
-    self._active_recv_socket_set.add(repr(sockobj))
+    self._send_buf = ''
+    self._recv_buf = ''
+    self._result_buf = ''
 
-    # FF: locks for synchronizing threads
-    self._full_lock[repr(sockobj)] = createlock()
-    self._empty_lock[repr(sockobj)] = createlock()
-    self._mutex_lock[repr(sockobj)] = createlock()
+    self._full_lock = createlock()
+    self._empty_lock = createlock()
+    self._mutex_lock = createlock()
+    self._atomic_lock = createlock()
 
+    self.closed_local = False
+    self.closed_remote = False
+    self.close_lock = createlock()
 
     # FF: The "full" lock is initialized to locked, so that the sending thread  
     # will sleep until there is data to send (the lock will be released by the 
     # compression thread after it places data in the send buffer)
-    self._full_lock[repr(sockobj)].acquire(True)
+    self._full_lock.acquire(True)
 
     # FF: Create the sending thread for this connection
-    def _send_wrapper():
-      self._send_pending_data(sockobj)
-    createthread(_send_wrapper)  
-
-    return (remote_ip, remote_port, ShimSocket(repy_socket, self))
+    createthread(self._send_pending_data)
 
 
+  def close(self):
+    self.close_lock.acquire(True)
+    result = not self.closed_local
+    self.closed_local = True
+    self.close_lock.release()
+
+    try:
+      self._full_lock.release()
+    except Exception:
+      pass
+
+    return result
 
 
-
-  def openconnection(self, destip, destport, localip, localport, timeout):
-    # Call the next layer of openconnection.
-    next_sockobj = self.get_next_shim_layer().openconnection(destip, destport, localip, localport, timeout)
-
-    if isinstance(next_sockobj, ShimSocket):
-      sockobj = next_sockobj._socket
-    else:
-      sockobj = next_sockobj
-
-    # Initialize all the necessary dictionaries and sets.
-    self._send_buf_dict[repr(sockobj)] = ''
-    self._recv_buf_dict[repr(sockobj)] = ''
-    self._recv_exception_dict[repr(sockobj)] = None
-    self._result_buf_dict[repr(sockobj)] = ''
-    self._active_recv_socket_set.add(repr(sockobj))
-
-    self._full_lock[repr(sockobj)] = createlock()
-    self._empty_lock[repr(sockobj)] = createlock()
-    self._mutex_lock[repr(sockobj)] = createlock()
-
-    # FF: The "full" lock is initialized to locked, so that the sending thread  
-    # will sleep until there is data to send (the lock will be released by the 
-    # compression thread after it places data in the send buffer)
-    self._full_lock[repr(sockobj)].acquire(True)
-
-    # FF: Create the sending thread for this connection
-    def _send_wrapper():
-      self._send_pending_data(sockobj)
-    createthread(_send_wrapper)  
-
-    return ShimSocket(next_sockobj, self)
-
-
-
-
-
-
-
-  # ===================================================
-  # Compression and decompression of TCP streams
-  # ===================================================
-
-
-
-  def _send_pending_data(self,socket):
-    """
-    FF: Sending thread. When there is data in the send buffer (signaled by the "full"
-    lock becoming available), it keeps trying to send until the buffer is empty, 
-    at which point it signals to the compression thread by releasing the "empty" lock.
-    """
-
-    while True:
-      self._full_lock[repr(socket)].acquire(True)
-      self._mutex_lock[repr(socket)].acquire(True)
-      send_buf = self._send_buf_dict[repr(socket)]
-      bytes_to_send = len(send_buf)
-      
-      # Send everything in the send buffer and remove it from the buffer.
-      while send_buf:
-        sent_bytes = 0
-        try:
-          sent_bytes = self.get_next_shim_layer().socket_send(socket, send_buf)
-        except (SocketWouldBlockError, SocketClosedLocal, SocketClosedRemote), err:
-          pass
-        send_buf = send_buf[sent_bytes : ]
-
-      # When the send buffer is empty, release the locks and sleep until there
-      # is more data to send
-      self._mutex_lock[repr(socket)].release()
-      self._empty_lock[repr(socket)].release()
-
-
-  @_compression_shim_atomic_operation
-  def socket_send(self, socket, msg):
+  @_compression_socket_atomic_operation
+  def send(self, msg):
     """ 
     <Purpose>
       FF: Compression thread. Breaks up the original stream into blocks of 
@@ -253,6 +106,13 @@ class CompressionShim(BaseShim):
       Same as repy v2 socket API.
 
     """
+
+    if self.closed_local:
+      raise SocketClosedLocal("Socket closed locally!")
+
+    if self.closed_remote:
+      raise SocketClosedRemote("Socket closed remotely!")
+
     # How much of the original uncompressed data has been sent successfully.
     total_original_bytes_sent = 0
 
@@ -260,7 +120,7 @@ class CompressionShim(BaseShim):
     while msg:
 
       # Create a compressed block of data out of the original message.
-      uncompressed_block = msg[0 : self._SEND_BLOCK_SIZE]
+      uncompressed_block = msg[0 : self.shim._SEND_BLOCK_SIZE]
       msg = msg[len(uncompressed_block) : ]
       block_body = zlib.compress(uncompressed_block)
 
@@ -271,21 +131,20 @@ class CompressionShim(BaseShim):
       block_header = str(len(block_body)) + ','
       block_data = block_header + block_body
 
-
       # If the send buffer is empty, place this block in the send buffer
-      empty = self._empty_lock[repr(socket)].acquire(False)
-      mutex = self._mutex_lock[repr(socket)].acquire(False)
+      empty = self._empty_lock.acquire(False)
+      mutex = self._mutex_lock.acquire(False)
       if mutex and empty:
-        self._send_buf_dict[repr(socket)] = block_data
-        self._mutex_lock[repr(socket)].release()
-        self._full_lock[repr(socket)].release()
+        self._send_buf = block_data
+        self._mutex_lock.release()
+        self._full_lock.release()
         total_original_bytes_sent += len(uncompressed_block)
       else:
         # Release any lock we may have successfully acquired:
         if empty:
-          self._empty_lock[repr(socket)].release()
+          self._empty_lock.release()
         if mutex:
-          self._mutex_lock[repr(socket)].release()
+          self._mutex_lock.release()
         break
 
     # If we have not sent any data, the system's send buffer must be full.
@@ -293,14 +152,10 @@ class CompressionShim(BaseShim):
       raise SocketWouldBlockError
 
     return total_original_bytes_sent
-        
-      
 
 
-
-
-  @_compression_shim_atomic_operation
-  def socket_recv(self, socket, bytes):
+  @_compression_socket_atomic_operation
+  def recv(self, bytes):
     """ 
     <Purpose>
       Receives as much as possible into the receive buffer until the socket
@@ -330,27 +185,28 @@ class CompressionShim(BaseShim):
     """
 
     # Get the result buffer out of the dictionary.
-    result_buf = self._result_buf_dict[repr(socket)]
+    result_buf = self._result_buf
 
     # If our buffer already has data, then we just return it.
     if len(result_buf) > bytes:
       requested_data = result_buf[0 : bytes]
-      self._result_buf_dict[repr(socket)] = result_buf[len(requested_data) : ]
+      self._result_buf = result_buf[len(requested_data) : ]
 
       return requested_data
 
+    recv_exception = None
 
     # Receive as much as possible into the receive buffer, as long as the socket
     # is active (i.e. not closed remotely or locally).
-    while repr(socket) in self._active_recv_socket_set:
+    while True:
 
       try:
-        self._recv_buf_dict[repr(socket)] += self.get_next_shim_layer().socket_recv(socket, self._RECV_BLOCK_SIZE)
+        self._recv_buf += self.socket.recv(self.shim._RECV_BLOCK_SIZE)
 
         # If we have atleast lenght of bytes of compressed data, then most likely we
         # already have bytes length uncompressed data. We do this so the application 
         # doesn't have to wait for CompressionShim to block before returning data.
-        if len(self._recv_buf_dict[repr(socket)]) > bytes:
+        if len(self._recv_buf) > bytes:
           break
       # No more data to read from socket.
       except SocketWouldBlockError:
@@ -360,20 +216,19 @@ class CompressionShim(BaseShim):
       # when we run out of data to return (i.e. empty result buffer). The socket
       # is now considered inactive. We remove it from the active socket set.
       except (SocketClosedLocal, SocketClosedRemote), err:
-        self._recv_exception_dict[repr(socket)] = err
-        self._active_recv_socket_set.remove(repr(socket))
+        self.closed_remote = True
+        recv_exception = err
         break
 
       # end-try
 
     # end-while
 
-
     # Reconstruct all the blocks of compressed messages from the raw TCP
     # stream we received in the receive buffer. For each block, decompress
     # it and add it to the result buffer.
     while True:
-      compressed_block = self._reconstruct_blocks(socket)
+      compressed_block = self._reconstruct_blocks()
       if compressed_block is None:
         break
       elif len(compressed_block) > 0:
@@ -384,8 +239,8 @@ class CompressionShim(BaseShim):
 
       # If we have saved exceptions, we raise them now, as these exceptions
       # occurred at the end of the received stream.
-      if self._recv_exception_dict[repr(socket)]:
-        raise self._recv_exception_dict[repr(socket)]
+      if recv_exception:
+        raise recv_exception
 
       # We simply run out of data without any other exceptions.
       else:
@@ -393,16 +248,53 @@ class CompressionShim(BaseShim):
 
     # Remove the portion requested by the application and return it.
     requested_data = result_buf[0 : bytes]
-    self._result_buf_dict[repr(socket)] = result_buf[len(requested_data) : ]
+    self._result_buf = result_buf[len(requested_data) : ]
 
     return requested_data
 
 
+  def _send_pending_data(self):
+    """
+    FF: Sending thread. When there is data in the send buffer (signaled by the "full"
+    lock becoming available), it keeps trying to send until the buffer is empty, 
+    at which point it signals to the compression thread by releasing the "empty" lock.
+    """
+
+    while True:
+      self._full_lock.acquire(True)
+      self._mutex_lock.acquire(True)
+
+      try:
+        send_buf = self._send_buf
+        bytes_to_send = len(send_buf)
+        
+        # Send everything in the send buffer and remove it from the buffer.
+        while send_buf:
+          sent_bytes = 0
+          try:
+            sent_bytes = self.socket.send(send_buf)
+          except SocketWouldBlockError, err:
+            pass
+          except (SocketClosedLocal, SocketClosedRemote), err:
+            self.closed_remote = True
+            return
+          send_buf = send_buf[sent_bytes : ]
+
+        if self.closed_local:
+          self.socket.close()
+          return
+
+      finally:
+        # When the send buffer is empty, release the locks and sleep until there
+        # is more data to send
+        self._mutex_lock.release()
+        try:
+          self._empty_lock.release()
+        except Exception:
+          pass
 
 
-
-
-  def _reconstruct_blocks(self, socket):
+  def _reconstruct_blocks(self):
     """
     Helper method for the socket_recv method. Reconstructs and returns the
     leftmost complete block starting from the head of the receive buffer. If
@@ -438,7 +330,7 @@ class CompressionShim(BaseShim):
 
     """
     # Get the receive buffer. 
-    recv_buf = self._recv_buf_dict[repr(socket)]
+    recv_buf = self._recv_buf
 
     # Base case: empty receive buffer. Return no blocks.
     if recv_buf == '':
@@ -449,7 +341,6 @@ class CompressionShim(BaseShim):
 
     # Position in the receive buffer to be read.
     cur_position = 0
-
 
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
     # Parse the header
@@ -481,7 +372,7 @@ class CompressionShim(BaseShim):
       # the header is being sent (e.g. '3F'). We discard this block and retry
       # from a position after the 'F' tag.
       elif char == 'F':
-        self._recv_buf_dict[repr(socket)] = recv_buf[cur_position : ]
+        self._recv_buf = recv_buf[cur_position : ]
         return ''
 
       # The character is neither a comma or 'F', so we must be still reading the
@@ -494,7 +385,6 @@ class CompressionShim(BaseShim):
         err_str = 'CompressionShim: Invalid characer at position ' + str(cur_position) 
         err_str += ' in recv buffer: ' + str(recv_buf)
         raise ShimInternalError(err_str)
-    
 
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
     # Reconstruct block
@@ -517,13 +407,13 @@ class CompressionShim(BaseShim):
     # If it is a bad block, we remove it from the buffer, ignore it and retry
     # after the 'F' tag.
     if block_body.endswith('F'):
-      self._recv_buf_dict[repr(socket)] = recv_buf[cur_position : ]
+      self._recv_buf = recv_buf[cur_position : ]
       return ''
 
     # It's a good block! Remove it from the buffer, return it (minus the 'T')
     # and keep reading the other blocks recursively.
     elif block_body.endswith('T'):
-      self._recv_buf_dict[repr(socket)] = recv_buf[cur_position : ]
+      self._recv_buf = recv_buf[cur_position : ]
       return block_body[0 : len(block_body) - 1]
 
     # The block should not end with anything else!
@@ -534,16 +424,84 @@ class CompressionShim(BaseShim):
 
 
 
+class CompressionShim(BaseShim):
 
 
+  def __init__(self, shim_stack, optional_args=None):
+    """
+    One can specify the size of the send/recv block in the optional
+    arguments. For a send/recv block size of 1024 bytes, the shim string would
+    be '(CompressionShim,1024)'. If it is not specified, the default block size
+    will be used.
+
+    """
+
+    # If optional args is provided, use them as the block sizes.
+    # SEND_BLOCK_SIZE determines the size of each block into which the original 
+    # uncompressed stream is broken up into.
+    # The RECV_BLOCK_SIZE determines how many bytes we should receive per socket.recv()
+    if optional_args:
+      block_size = int(optional_args[0])
+      self._SEND_BLOCK_SIZE = block_size
+      self._RECV_BLOCK_SIZE = block_size
+    else:
+      self._SEND_BLOCK_SIZE = 2 ** 11
+      self._RECV_BLOCK_SIZE = 2 ** 11
+
+    BaseShim.__init__(self, shim_stack, optional_args)
 
 
+  def copy(self):
+    return CompressionShim(self.shim_context['shim_stack'].copy(), self.shim_context['optional_args'])
+
+  
+  def get_advertisement_string(self):
+
+    # If an optional argument is specified (i.e. block size), we advertise it.
+
+    optional_args = self.shim_context['optional_args']
+    shim_name = '(CompressionShim'
+
+    if optional_args:
+      shim_name += ',' + str(optional_args[0]) + ')'
+    else:
+      shim_name += ')'
+
+    return shim_name + self.get_next_shim_layer().get_advertisement_string()
 
 
+  # =========================================================
+  # Initializing the proper dicts during new socket creation.
+  # =========================================================
+
+  def tcpserversocket_getconnection(self, tcpserversocket):
+    # Call the next layer of tcpserver_getconnection()
+    (remote_ip, remote_port, repy_socket) = self.get_next_shim_layer().tcpserversocket_getconnection(tcpserversocket)
+
+    return (remote_ip, remote_port, CompressionSocket(repy_socket, self))
 
 
+  def openconnection(self, destip, destport, localip, localport, timeout):
+    # Call the next layer of openconnection.
+    repy_socket = self.get_next_shim_layer().openconnection(destip, destport, localip, localport, timeout)
+
+    return CompressionSocket(repy_socket, self)
 
 
+  # ===================================================
+  # Compression and decompression of TCP streams
+  # ===================================================
+
+  def socket_send(self, socket, msg):
+    return socket.send(msg)
+
+
+  def socket_recv(self, socket, bytes):
+    return socket.recv(bytes)
+
+
+  def socket_close(self, socket):
+    return socket.close()
 
 
   # ===================================================
@@ -578,10 +536,6 @@ class CompressionShim(BaseShim):
       return len(message)
     else:
       return 0
-
-
-
-
 
 
   def udpserversocket_getmessage(self, udpserversocket):
@@ -620,5 +574,4 @@ class CompressionShim(BaseShim):
 
         # Drop packet and retry
         raise SocketWouldBlockError("No UDP messages available now")  
-
 

@@ -22,202 +22,52 @@ dy_import_module_symbols("shim_exceptions")
 # Use 'random' to select how many bytes to add, and to get random bytes
 dy_import_module_symbols('random')
 
-_hidesize_shim_global_lock = createlock()
 
-def _hidesize_shim_atomic_operation(target_func):
-  def wrapper(*args, **kwargs):
+
+
+def _hidesize_socket_atomic_operation(target_func):
+  def wrapper(self, *args, **kwargs):
     try:
-      _hidesize_shim_global_lock.acquire(True)
-      return target_func(*args, **kwargs)
+      self._atomic_lock.acquire(True)
+      return target_func(self, *args, **kwargs)
     finally:
-      _hidesize_shim_global_lock.release()
+      self._atomic_lock.release()
 
   return wrapper
 
 
 
-class HideSizeShim(BaseShim):
 
-  def __init__(self, shim_stack, optional_args=None):
-    """
-    In the optional arguments, you can specify the maximum number of bytes to 
-    append on each send call. For example, if the shim string is 
-    '(HideSizeShim,1024)' then a random number of bytes up to 1024 
-    will be appended to each chunk of data that is sent.
+class HideSizeSocket():
 
-    If it is not specified, then the default of 1024 will be used. 
-
-    """
-
-    # A dictionary that maps a socket to its send buffer, which stores any
-    # temporary data pending to be transmitted.
-    self._send_buf_dict = {}
-
-    # A dictionary that maps a socket to its receive buffer, which stores
-    # the 'bloated' TCP stream.
-    self._recv_buf_dict = {}
-
-    # A dictionary that maps a socket to any exception it raises while we try to
-    # receive as much as possible.
-    self._recv_exception_dict = {}
-
-    # A dictionary that maps a socket to the stream of unprocessed data.
-    self._result_buf_dict = {}
-
-    # A set that stores all the active sockets used in socket_send. If a socket
-    # raises an exception other than SocketWouldBlockError, it is considered
-    # inactive and thus removed from the set.
-    self._active_recv_socket_set = set()
-
-    # A dictionary that maps a socket to the locks used to synchronize the 
-    # socket's sending thread and 'bloating' thread
-    self._full_lock = {}
-    self._empty_lock = {}
-    self._mutex_lock = {}
-
-
-    # If optional args is provided, use it to limit the number of bytes that
-    # will be appended.
-    if optional_args:
-      max_size = int(optional_args[0])
-      self._MAX_BYTES = max_size
-    else:
-      self._MAX_BYTES = 1024
-
-    BaseShim.__init__(self, shim_stack, optional_args)
-
-
-
-  def copy(self):
-    return HideSizeShim(self.shim_context['shim_stack'].copy(), self.shim_context['optional_args'])
-
-
-  
-  def get_advertisement_string(self):
-
-    optional_args = self.shim_context['optional_args']
-    shim_name = '(HideSizeShim'
-
-    if optional_args:
-      shim_name += ',' + str(optional_args[0]) + ')'
-    else:
-      shim_name += ')'
-
-    return shim_name + self.get_next_shim_layer().get_advertisement_string()
-
-
-
-
-  def tcpserversocket_getconnection(self, tcpserversocket):
-    """
-    Sets up dictionaries, sets, locks, threads, and other necessary things
-
-    """
-
-    # Call the next layer of tcpserver_getconnection()
-    (remote_ip, remote_port, repy_socket) = self.get_next_shim_layer().tcpserversocket_getconnection(tcpserversocket)
-
-    if isinstance(repy_socket, ShimSocket):
-      sockobj = repy_socket._socket
-    else:
-      sockobj = repy_socket
+  def __init__(self, socket, shim):
+    self.socket = socket
+    self.shim = shim
 
     # Initialize all the necessary dictionaries and sets.
-    self._send_buf_dict[repr(sockobj)] = ''
-    self._recv_buf_dict[repr(sockobj)] = ''
-    self._recv_exception_dict[repr(sockobj)] = None
-    self._result_buf_dict[repr(sockobj)] = ''
-    self._active_recv_socket_set.add(repr(sockobj))
+    self._send_buf = ''
+    self._recv_buf = ''
+    self._result_buf = ''
 
-    # locks for synchronizing threads
-    self._full_lock[repr(sockobj)] = createlock()
-    self._empty_lock[repr(sockobj)] = createlock()
-    self._mutex_lock[repr(sockobj)] = createlock()
+    self._full_lock = createlock()
+    self._empty_lock = createlock()
+    self._mutex_lock = createlock()
+    self._atomic_lock = createlock()
 
+    self.closed_local = False
+    self.closed_remote = False
+    self.close_lock = createlock()
 
-    # The "full" lock is initialized to locked, so that the sending thread  
+    # FF: The "full" lock is initialized to locked, so that the sending thread  
     # will sleep until there is data to send (the lock will be released by the 
-    # bloating thread after it places data in the send buffer)
-    self._full_lock[repr(sockobj)].acquire(True)
+    # compression thread after it places data in the send buffer)
+    self._full_lock.acquire(True)
 
-    # Create the sending thread for this connection
-    def _send_wrapper():
-      self._send_pending_data(sockobj)
-    createthread(_send_wrapper)  
-
-    return (remote_ip, remote_port, ShimSocket(repy_socket, self))
+    # FF: Create the sending thread for this connection
+    createthread(self._send_pending_data)
 
 
-
-  def openconnection(self, destip, destport, localip, localport, timeout):
-    """
-    Sets up dictionaries, sets, locks, threads, and other necessary things
-
-    """
-
-    # Call the next layer of openconnection.
-    next_sockobj = self.get_next_shim_layer().openconnection(destip, destport, localip, localport, timeout)
-
-    if isinstance(next_sockobj, ShimSocket):
-      sockobj = next_sockobj._socket
-    else:
-      sockobj = next_sockobj
-
-    # Initialize all the necessary dictionaries and sets.
-    self._send_buf_dict[repr(sockobj)] = ''
-    self._recv_buf_dict[repr(sockobj)] = ''
-    self._recv_exception_dict[repr(sockobj)] = None
-    self._result_buf_dict[repr(sockobj)] = ''
-    self._active_recv_socket_set.add(repr(sockobj))
-
-    self._full_lock[repr(sockobj)] = createlock()
-    self._empty_lock[repr(sockobj)] = createlock()
-    self._mutex_lock[repr(sockobj)] = createlock()
-
-    # The "full" lock is initialized to locked, so that the sending thread  
-    # will sleep until there is data to send (the lock will be released by the 
-    # bloating thread after it places data in the send buffer)
-    self._full_lock[repr(sockobj)].acquire(True)
-
-    # Create the sending thread for this connection
-    def _send_wrapper():
-      self._send_pending_data(sockobj)
-    createthread(_send_wrapper)  
-
-    return ShimSocket(next_sockobj, self)
-
-
-
-  def _send_pending_data(self,socket):
-    """
-    Sending thread. When there is data in the send buffer (signaled by the "full"
-    lock becoming available), it keeps trying to send until the buffer is empty, 
-    at which point it signals to the bloating thread by releasing the "empty" lock.
-    """
-
-    while True:
-      self._full_lock[repr(socket)].acquire(True)
-      self._mutex_lock[repr(socket)].acquire(True)
-      send_buf = self._send_buf_dict[repr(socket)]
-      bytes_to_send = len(send_buf)
-      
-      # Send everything in the send buffer and remove it from the buffer.
-      while send_buf:
-        sent_bytes = 0
-        try:
-          sent_bytes = self.get_next_shim_layer().socket_send(socket, send_buf)
-        except (SocketWouldBlockError, SocketClosedLocal, SocketClosedRemote), err:
-          # ToDo: we shouldn't just pass
-          pass
-        send_buf = send_buf[sent_bytes : ]
-
-      # When the send buffer is empty, release the locks and sleep until there
-      # is more data to send
-      self._mutex_lock[repr(socket)].release()
-      self._empty_lock[repr(socket)].release()
-
-
-  def socket_send(self, socket, msg):
+  def send(self, msg):
     """ 
       Bloating thread. Picks a random int and gets that many random bytes to 
       append to the original data chunk. Prepends lengths of the data and extra 
@@ -238,7 +88,7 @@ class HideSizeShim(BaseShim):
     
       msg_length = len(msg)
       # Don't send more "junk" data than the original message data
-      extradata_length = min(random_int_below(self._MAX_BYTES),random_int_below(len(msg)))
+      extradata_length = min(random_int_below(self.shim._MAX_BYTES),random_int_below(len(msg)))
       extradata = ''.join(random_sample(list(msg),extradata_length))
 
       # Append header information to indicate the length of the block
@@ -250,19 +100,19 @@ class HideSizeShim(BaseShim):
 
 
       # If the send buffer is empty, place this block in the send buffer
-      empty = self._empty_lock[repr(socket)].acquire(False)
-      mutex = self._mutex_lock[repr(socket)].acquire(False)
+      empty = self._empty_lock.acquire(False)
+      mutex = self._mutex_lock.acquire(False)
       if mutex and empty:
-        self._send_buf_dict[repr(socket)] = block_data
-        self._mutex_lock[repr(socket)].release()
-        self._full_lock[repr(socket)].release()
+        self._send_buf = block_data
+        self._mutex_lock.release()
+        self._full_lock.release()
         total_original_bytes_sent += len(msg)
       else:
         # Release any lock we may have successfully acquired:
         if empty:
-          self._empty_lock[repr(socket)].release()
+          self._empty_lock.release()
         if mutex:
-          self._mutex_lock[repr(socket)].release()
+          self._mutex_lock.release()
         break
 
     # If we have not sent any data, then the send buffer the system's send buffer must be full 
@@ -276,8 +126,8 @@ class HideSizeShim(BaseShim):
 
 
 
-  @_hidesize_shim_atomic_operation
-  def socket_recv(self, socket, bytes):
+  @_hidesize_socket_atomic_operation
+  def recv(self, bytes):
     """ 
       Receive into the receive buffer until the socket blocks.
 
@@ -287,20 +137,22 @@ class HideSizeShim(BaseShim):
     """
 
     # Get the result buffer out of the dictionary.
-    result_buf = self._result_buf_dict[repr(socket)]
+    result_buf = self._result_buf
 
     # If result buffer already has enough data in it, then we just return it.
     if len(result_buf) > bytes:
       requested_data = result_buf[0 : bytes]
-      self._result_buf_dict[repr(socket)] = result_buf[len(requested_data) : ]
+      self._result_buf = result_buf[len(requested_data) : ]
       return requested_data
 
     # Otherwise, we need to get fresh data off the wire and process it:
 
+    recv_exception = None
+
     # Receive as much as possible into the receive buffer
-    while repr(socket) in self._active_recv_socket_set:
+    while True:
       try:
-        self._recv_buf_dict[repr(socket)] += self.get_next_shim_layer().socket_recv(socket, 4096)
+        self._recv_buf += self.socket.recv(4096)
 
       # Stop trying to receive when there is no more data to read from the socket
       except SocketWouldBlockError:
@@ -310,16 +162,15 @@ class HideSizeShim(BaseShim):
       # when we run out of data to return (i.e. empty result buffer). The socket
       # is now considered inactive. We remove it from the active socket set.
       except (SocketClosedLocal, SocketClosedRemote), err:
-        self._recv_exception_dict[repr(socket)] = err
-        self._active_recv_socket_set.remove(repr(socket))
+        self.closed_remote = True
+        recv_exception = err
         break
-
 
 
     # Reconstruct the 'real' message from the bloated TCP stream we have in the 
     # receive buffer, and add it to the result buffer.
     while True:
-      bloated_block = self._reconstruct_blocks(socket)
+      bloated_block = self._reconstruct_blocks()
       if bloated_block is None:
         break
       elif len(bloated_block) > 0:
@@ -330,8 +181,8 @@ class HideSizeShim(BaseShim):
 
       # If we have saved exceptions, we raise them now, as these exceptions
       # occurred at the end of the received stream.
-      if self._recv_exception_dict[repr(socket)]:
-        raise self._recv_exception_dict[repr(socket)]
+      if recv_exception:
+        raise recv_exception
 
       # If we run out of data without any other exceptions.
       else:
@@ -340,13 +191,27 @@ class HideSizeShim(BaseShim):
     # Otherwise, return the number of bytes requested by the application 
     # and remove from result buffer
     requested_data = result_buf[0 : bytes]
-    self._result_buf_dict[repr(socket)] = result_buf[len(requested_data) : ]
+    self._result_buf = result_buf[len(requested_data) : ]
 
     return requested_data
 
 
+  def close(self):
+    self.close_lock.acquire(True)
+    result = not self.closed_local
+    self.closed_local = True
+    self.close_lock.release()
 
-  def _reconstruct_blocks(self, socket):
+    try:
+      self._full_lock.release()
+    except Exception:
+      pass
+
+    return result
+
+
+
+  def _reconstruct_blocks(self):
     """
     Helper method for the socket_recv method. Reconstructs and returns the
     "real" data starting from the head of the receive buffer. If
@@ -354,7 +219,7 @@ class HideSizeShim(BaseShim):
 
     """
     # Get the receive buffer. 
-    recv_buf = self._recv_buf_dict[repr(socket)]
+    recv_buf = self._recv_buf
 
     # Return no blocks if the buffer is empty
     if recv_buf == '':
@@ -412,8 +277,131 @@ class HideSizeShim(BaseShim):
     block_body = recv_buf[cur_position : cur_position + msg_length]
     cur_position += msg_length
     cur_position += extradata_length
-    self._recv_buf_dict[repr(socket)] = recv_buf[cur_position : ]
+    self._recv_buf = recv_buf[cur_position : ]
     return block_body[0 : msg_length ]
 
 
+  def _send_pending_data(self):
+    """
+    FF: Sending thread. When there is data in the send buffer (signaled by the "full"
+    lock becoming available), it keeps trying to send until the buffer is empty, 
+    at which point it signals to the compression thread by releasing the "empty" lock.
+    """
+
+    while True:
+      self._full_lock.acquire(True)
+      self._mutex_lock.acquire(True)
+
+      try:
+        send_buf = self._send_buf
+        bytes_to_send = len(send_buf)
+        
+        # Send everything in the send buffer and remove it from the buffer.
+        while send_buf:
+          sent_bytes = 0
+          try:
+            sent_bytes = self.socket.send(send_buf)
+          except SocketWouldBlockError, err:
+            pass
+          except (SocketClosedLocal, SocketClosedRemote), err:
+            self.closed_remote = True
+            return
+          send_buf = send_buf[sent_bytes : ]
+
+        if self.closed_local:
+          self.socket.close()
+          return
+
+      finally:
+        # When the send buffer is empty, release the locks and sleep until there
+        # is more data to send
+        self._mutex_lock.release()
+        try:
+          self._empty_lock.release()
+        except Exception:
+          pass
+
+
+
+
+class HideSizeShim(BaseShim):
+
+  def __init__(self, shim_stack, optional_args=None):
+    """
+    In the optional arguments, you can specify the maximum number of bytes to 
+    append on each send call. For example, if the shim string is 
+    '(HideSizeShim,1024)' then a random number of bytes up to 1024 
+    will be appended to each chunk of data that is sent.
+
+    If it is not specified, then the default of 1024 will be used. 
+
+    """
+
+    # If optional args is provided, use it to limit the number of bytes that
+    # will be appended.
+    if optional_args:
+      max_size = int(optional_args[0])
+      self._MAX_BYTES = max_size
+    else:
+      self._MAX_BYTES = 1024
+
+    BaseShim.__init__(self, shim_stack, optional_args)
+
+
+
+  def copy(self):
+    return HideSizeShim(self.shim_context['shim_stack'].copy(), self.shim_context['optional_args'])
+
+
+  
+  def get_advertisement_string(self):
+
+    optional_args = self.shim_context['optional_args']
+    shim_name = '(HideSizeShim'
+
+    if optional_args:
+      shim_name += ',' + str(optional_args[0]) + ')'
+    else:
+      shim_name += ')'
+
+    return shim_name + self.get_next_shim_layer().get_advertisement_string()
+
+
+
+
+  def tcpserversocket_getconnection(self, tcpserversocket):
+    """
+    Sets up dictionaries, sets, locks, threads, and other necessary things
+
+    """
+
+    # Call the next layer of tcpserver_getconnection()
+    (remote_ip, remote_port, repy_socket) = self.get_next_shim_layer().tcpserversocket_getconnection(tcpserversocket)
+
+    return (remote_ip, remote_port, HideSizeSocket(repy_socket, self))
+
+
+
+  def openconnection(self, destip, destport, localip, localport, timeout):
+    """
+    Sets up dictionaries, sets, locks, threads, and other necessary things
+
+    """
+
+    # Call the next layer of openconnection.
+    repy_socket = self.get_next_shim_layer().openconnection(destip, destport, localip, localport, timeout)
+
+    return HideSizeSocket(repy_socket, self)
+
+
+  def socket_send(self, socket, msg):
+    return socket.send(msg)
+
+
+  def socket_recv(self, socket, bytes):
+    return socket.recv(bytes)
+
+
+  def socket_close(self, socket):
+    return socket.close()
 

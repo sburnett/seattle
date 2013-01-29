@@ -14,8 +14,8 @@ def debug_log(*p, **q):
     logstr = ' '.join([str(e) for e in p])
     logstr = 't = %.2f ' % getruntime() + logstr
     f = openfile('mobility.log', True)
-    f.writeat(logstr, _debug_log_context['written'])
-    _debug_log_context['written'] += len(logstr)
+    f.writeat(logstr, _debug_log_context['bytes_written'])
+    _debug_log_context['bytes_written'] += len(logstr)
     f.close()
   _debug_log_context['lock'].release()
 # =================================================

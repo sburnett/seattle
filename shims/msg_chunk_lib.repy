@@ -694,14 +694,13 @@ class ChunkMessage():
               except Exception:
                 pass
 
-          else:
-            for socket in self._complete_socket_set.copy():
-              try:
-                socket.close()
-              except:
-                pass
+          for socket in self._complete_socket_set.copy():
+            try:
+              socket.close()
+            except:
+              pass
 
-            self._active_socket_set.clear()
+          self._active_socket_set.clear()
 
       finally:
         self._mutex_lock.release()
