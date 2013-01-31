@@ -76,44 +76,47 @@ class HideSizeSocket():
       (If the send buffer is full, we raise SocketWouldBlockError)
 
     """
+
+    if self.closed_local:
+      raise SocketClosedLocal("Socket closed locally!")
+
+    if self.closed_remote:
+      raise SocketClosedRemote("Socket closed remotely!")
+
     # How much of the original data has been sent successfully.
     total_original_bytes_sent = 0
 
-    # Keep sending the supplied message until no more data to send.
-    while msg:
+    # Create a bloated chunk of data out of the original message.
+    header = ""
 
-      # Create a bloated chunk of data out of the original message.
-      header = ""
+  
+    msg_length = len(msg)
+    # Don't send more "junk" data than the original message data
+    extradata_length = min(random_int_below(self.shim._MAX_BYTES),random_int_below(len(msg)))
+    extradata = ''.join(random_sample(list(msg),extradata_length))
 
-    
-      msg_length = len(msg)
-      # Don't send more "junk" data than the original message data
-      extradata_length = min(random_int_below(self.shim._MAX_BYTES),random_int_below(len(msg)))
-      extradata = ''.join(random_sample(list(msg),extradata_length))
+    # Append header information to indicate the length of the block
+    header += str(msg_length) + ',' + str(extradata_length) + ','
+    body = msg + extradata
 
-      # Append header information to indicate the length of the block
-      header += str(msg_length) + ',' + str(extradata_length) + ','
-      body = msg + extradata
-
-      # Block is comprised of header and data + extra data
-      block_data = header + body
+    # Block is comprised of header and data + extra data
+    block_data = header + body
 
 
-      # If the send buffer is empty, place this block in the send buffer
-      empty = self._empty_lock.acquire(False)
-      mutex = self._mutex_lock.acquire(False)
-      if mutex and empty:
-        self._send_buf = block_data
+    # If the send buffer is empty, place this block in the send buffer
+    empty = self._empty_lock.acquire(False)
+    mutex = self._mutex_lock.acquire(False)
+    if mutex and empty:
+      self._send_buf = block_data
+      self._mutex_lock.release()
+      self._full_lock.release()
+      total_original_bytes_sent += len(msg)
+    else:
+      # Release any lock we may have successfully acquired:
+      if empty:
+        self._empty_lock.release()
+      if mutex:
         self._mutex_lock.release()
-        self._full_lock.release()
-        total_original_bytes_sent += len(msg)
-      else:
-        # Release any lock we may have successfully acquired:
-        if empty:
-          self._empty_lock.release()
-        if mutex:
-          self._mutex_lock.release()
-        break
 
     # If we have not sent any data, then the send buffer the system's send buffer must be full 
     # and we raise SocketWouldBlockError
@@ -135,6 +138,12 @@ class HideSizeSocket():
       "bloated" data.
 
     """
+
+    if self.closed_local:
+      raise SocketClosedLocal("Socket closed locally!")
+
+    if self.closed_remote:
+      raise SocketClosedRemote("Socket closed remotely!")
 
     # Get the result buffer out of the dictionary.
     result_buf = self._result_buf
@@ -202,10 +211,18 @@ class HideSizeSocket():
     self.closed_local = True
     self.close_lock.release()
 
-    try:
+    empty = self._empty_lock.acquire(False)
+    mutex = self._mutex_lock.acquire(False)
+    if mutex and empty:
+      self._send_buf = ''
+      self._mutex_lock.release()
       self._full_lock.release()
-    except Exception:
-      pass
+    else:
+      # Release any lock we may have successfully acquired:
+      if empty:
+        self._empty_lock.release()
+      if mutex:
+        self._mutex_lock.release()
 
     return result
 
@@ -316,10 +333,7 @@ class HideSizeSocket():
         # When the send buffer is empty, release the locks and sleep until there
         # is more data to send
         self._mutex_lock.release()
-        try:
-          self._empty_lock.release()
-        except Exception:
-          pass
+        self._empty_lock.release()
 
 
 

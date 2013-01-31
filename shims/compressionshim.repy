@@ -75,10 +75,18 @@ class CompressionSocket():
     self.closed_local = True
     self.close_lock.release()
 
-    try:
+    empty = self._empty_lock.acquire(False)
+    mutex = self._mutex_lock.acquire(False)
+    if mutex and empty:
+      self._send_buf = ''
+      self._mutex_lock.release()
       self._full_lock.release()
-    except Exception:
-      pass
+    else:
+      # Release any lock we may have successfully acquired:
+      if empty:
+        self._empty_lock.release()
+      if mutex:
+        self._mutex_lock.release()
 
     return result
 
@@ -184,6 +192,12 @@ class CompressionSocket():
 
     """
 
+    if self.closed_local:
+      raise SocketClosedLocal("Socket closed locally!")
+
+    if self.closed_remote:
+      raise SocketClosedRemote("Socket closed remotely!")
+
     # Get the result buffer out of the dictionary.
     result_buf = self._result_buf
 
@@ -288,10 +302,7 @@ class CompressionSocket():
         # When the send buffer is empty, release the locks and sleep until there
         # is more data to send
         self._mutex_lock.release()
-        try:
-          self._empty_lock.release()
-        except Exception:
-          pass
+        self._empty_lock.release()
 
 
   def _reconstruct_blocks(self):
