@@ -192,7 +192,6 @@ def main():
   copy_to_target("portability/*", target_dir)
   copy_to_target("seattlelib/*", target_dir)
   copy_to_target("seash/*", target_dir)
-  shutil.copytree("seash/pyreadline/", target_dir + os.sep + 'pyreadline/', ignore=shutil.ignore_patterns('*.pyc'))
   copy_to_target("softwareupdater/*", target_dir)
   copy_to_target("autograder/nm_remote_api.mix", target_dir)
   copy_to_target("keydaemon/*", target_dir)
