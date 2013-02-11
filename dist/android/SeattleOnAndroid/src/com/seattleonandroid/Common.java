@@ -17,6 +17,7 @@ public final class Common {
 	// Log -- Exceptions
 	public static final String LOG_EXCEPTION_MESSAGE_HANDLING = "Exception occured while handling message";
 	public static final String LOG_EXCEPTION_READING_LOG_FILE = "Exception occured while reading log files";
+	public static final String LOG_EXCEPTION_WRITING_LOG_FILE = "Exception occured while creating log files";
 	public static final String LOG_EXCEPTION_GETTING_IFS = "Exception occured while getting interface names";
 	public static final String LOG_EXCEPTION_ABOUT_NNF = "NameNotFound exception while displaying about box";
 	public static final String LOG_EXCEPTION_NO_PYTHON_INTERPRETER = "No suitable interpreter for python was found";

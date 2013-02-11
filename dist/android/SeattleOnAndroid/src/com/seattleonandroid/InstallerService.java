@@ -28,6 +28,12 @@ import android.os.IBinder;
 import android.os.StatFs;
 import android.util.Log;
 
+import java.io.IOException;
+import java.util.logging.FileHandler;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import java.util.logging.SimpleFormatter;
+
 import com.seattleonandroid.R;
 import com.seattleonandroid.process.SeattleScriptProcess;
 import com.googlecode.android_scripting.AndroidProxy;
@@ -42,7 +48,6 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.FileReader;
-import java.io.IOException;
 import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.UnknownHostException;
@@ -73,12 +78,14 @@ import javax.net.ssl.SSLException;
 public class InstallerService extends ForegroundService {
 
 	private final static int NOTIFICATION_ID = NotificationIdFactory.create();
+	
+	private Logger installerLogger = null;
+
 	private final IBinder mBinder;
 
 	private InterpreterConfiguration mInterpreterConfiguration;
 	private AndroidProxy mProxy;
 	private Notification notification;
-
 	// An instance of the service, used to determine whether it is running or not
 	private static InstallerService instance = null;
 	// Checks whether the service is running or not
@@ -139,8 +146,15 @@ public class InstallerService extends ForegroundService {
 		// Set instance to self
 		instance = this;
 		
-		Log.i(Common.LOG_TAG, Common.LOG_INFO_INSTALLER_STARTED);
-
+		// Start the Logger used during Installation
+		try {
+			initalizeInstallerLogger();
+		} catch (IOException e) {
+		e.printStackTrace();
+		installerLogger.log(Level.SEVERE, Common.LOG_EXCEPTION_WRITING_LOG_FILE, e);
+		}
+		
+		installerLogger.info(Common.LOG_INFO_INSTALLER_STARTED);
 		// Set up notification icon
 		String ns = Context.NOTIFICATION_SERVICE;
 		final NotificationManager mNotificationManager = (NotificationManager) getSystemService(ns);
@@ -180,7 +194,7 @@ public class InstallerService extends ForegroundService {
 				try {
 					//URL url = new URL("https://seattlegeni.cs.washington.edu/geni/download/"+user_hash+"/seattle_win.zip");
 					URL url = new URL(DownloadURLString);
-					Log.i(Common.LOG_TAG, Common.LOG_INFO_DOWNLOADING_FROM + url.toString());
+					installerLogger.info(Common.LOG_INFO_DOWNLOADING_FROM + url.toString() );
 
 					URLConnection ucon;
 					InputStream is;
@@ -194,12 +208,12 @@ public class InstallerService extends ForegroundService {
 						//
 						HostnameVerifier oldHV = HttpsURLConnection.getDefaultHostnameVerifier();
 						HttpsURLConnection.setDefaultHostnameVerifier(new HostnameVerifier() { 
-	            					public boolean verify(String hostname, SSLSession session) { 
-								Log.i(Common.LOG_TAG, hostname);                 					
+									public boolean verify(String hostname, SSLSession session) { 
+								installerLogger.info(hostname);
 								for (String trustedHostname : Common.TRUSTED_DOWNLOAD_HOSTNAMES_WHITELIST) {
 									if (trustedHostname.compareTo(hostname) == 0) {
 										// Host on whitelist --> trust
-										Log.i(Common.LOG_TAG, Common.LOG_INFO_UNTRUSTED_HOST_CHECK_WHITELIST_OK);
+										installerLogger.info(Common.LOG_INFO_UNTRUSTED_HOST_CHECK_WHITELIST_OK );
 										return true;
 									}
 								};
@@ -233,10 +247,10 @@ public class InstallerService extends ForegroundService {
 						};
 						if (!trusted) {
 							// hostname not on whitelist, abort installation
-							Log.e(Common.LOG_TAG, Common.LOG_EXCEPTION_UNTRUSTED_HOST);
+							installerLogger.severe(Common.LOG_EXCEPTION_UNTRUSTED_HOST);
 							throw new Exception("Untrusted host.");
 						}
-						Log.i(Common.LOG_TAG, Common.LOG_INFO_UNTRUSTED_HOST_CHECK_WHITELIST_OK);
+						installerLogger.info(Common.LOG_INFO_UNTRUSTED_HOST_CHECK_WHITELIST_OK);
 						ucon = url.openConnection();
 						is = ucon.getInputStream();
 					}
@@ -245,43 +259,43 @@ public class InstallerService extends ForegroundService {
 					FileOutputStream fos = new FileOutputStream(archive);
 					int len = 0;
 					byte[] buffer = new byte[4096];
-					Log.i(Common.LOG_TAG, Common.LOG_INFO_DOWNLOAD_STARTED);
+					installerLogger.info(Common.LOG_INFO_DOWNLOAD_STARTED);
 					while ((len = bis.read(buffer)) != -1) {
 						fos.write(buffer,0,len);
 					}
-					Log.i(Common.LOG_TAG, Common.LOG_INFO_DOWNLOAD_FINISHED);
+					installerLogger.info(Common.LOG_INFO_DOWNLOAD_FINISHED);
 					bis.close();
 					fos.close();
 				} catch (SSLException e) {
-					Log.e(Common.LOG_TAG, Common.LOG_EXCEPTION_UNTRUSTED_HOST, e);					
+					installerLogger.log(Level.SEVERE, Common.LOG_EXCEPTION_UNTRUSTED_HOST, e);
 					instance = null;
 					ScriptActivity.handler.sendEmptyMessage(ScriptActivity.INSTALL_FAILED);
 					// Stop service
 					stopSelf(startId);
 					return;
 				} catch (MalformedURLException e) {
-					Log.e(Common.LOG_TAG, Common.LOG_EXCEPTION_MALFORMED_URL, e);					
+					installerLogger.log(Level.SEVERE, Common.LOG_EXCEPTION_MALFORMED_URL, e);
 					instance = null;
 					ScriptActivity.handler.sendEmptyMessage(ScriptActivity.INSTALL_FAILED);
 					// Stop service
 					stopSelf(startId);
 					return;
 				} catch (UnknownHostException e) {
-					Log.e(Common.LOG_TAG, Common.LOG_EXCEPTION_COULD_NOT_RESOLVE_HOST, e);					
+					installerLogger.log(Level.SEVERE, Common.LOG_EXCEPTION_COULD_NOT_RESOLVE_HOST, e);
 					instance = null;
 					ScriptActivity.handler.sendEmptyMessage(ScriptActivity.INSTALL_FAILED);
 					// Stop service
 					stopSelf(startId);
 					return;
 				} catch (IOException e) {
-					Log.e(Common.LOG_TAG, Common.LOG_EXCEPTION_DOWNLOAD_ERROR, e);			
+					installerLogger.log(Level.SEVERE, Common.LOG_EXCEPTION_DOWNLOAD_ERROR, e);
 					instance = null;
 					ScriptActivity.handler.sendEmptyMessage(ScriptActivity.INSTALL_FAILED);
 					// Stop service
 					stopSelf(startId);
 					return;					
 				} catch (Exception e) {
-					Log.e(Common.LOG_TAG, Common.LOG_EXCEPTION_DOWNLOAD_UNKNOWN_ERROR, e);			
+					installerLogger.log(Level.SEVERE, Common.LOG_EXCEPTION_DOWNLOAD_UNKNOWN_ERROR, e);
 					instance = null;
 					ScriptActivity.handler.sendEmptyMessage(ScriptActivity.INSTALL_FAILED);
 					// Stop service
@@ -293,7 +307,7 @@ public class InstallerService extends ForegroundService {
 				try{
 					Unzip.unzip(archive.getAbsolutePath(), Environment.getExternalStorageDirectory().getAbsolutePath()+"/sl4a");
 				} catch (Exception e) {
-					Log.e(Common.LOG_TAG, Common.LOG_EXCEPTION_UNZIPPING, e);					
+					installerLogger.log(Level.SEVERE, Common.LOG_EXCEPTION_UNZIPPING, e);
 					archive.delete();				
 					instance = null;
 					ScriptActivity.handler.sendEmptyMessage(ScriptActivity.INSTALL_FAILED);
@@ -301,9 +315,7 @@ public class InstallerService extends ForegroundService {
 					stopSelf(startId);
 					return;					
 				}
-
-				Log.i(Common.LOG_TAG, Common.LOG_INFO_UNZIP_COMPLETED);
-
+				installerLogger.info(Common.LOG_INFO_UNZIP_COMPLETED);
 				// Remove archive
 				archive.delete();
 		
@@ -356,8 +368,7 @@ public class InstallerService extends ForegroundService {
 				String optionalArgs = b.getString(ScriptActivity.OPTIONAL_ARGUMENTS);
 				if (optionalArgs != null)
 					args.add(optionalArgs);
-				
-				Log.i(Common.LOG_TAG, Common.LOG_INFO_STARTING_INSTALLER_SCRIPT);
+				installerLogger.info(Common.LOG_INFO_STARTING_INSTALLER_SCRIPT);
 				// Launch installer
 				SeattleScriptProcess.launchScript(installer, mInterpreterConfiguration, mProxy, new Runnable() {
 					@Override
@@ -367,7 +378,7 @@ public class InstallerService extends ForegroundService {
 						// Mark installation terminated
 						instance = null;
 
-						Log.i(Common.LOG_TAG, Common.LOG_INFO_TERMINATED_INSTALLER_SCRIPT);
+						installerLogger.info(Common.LOG_INFO_TERMINATED_INSTALLER_SCRIPT);
 						// Check whether the installation was successful or not
 						if(checkInstallationSuccess())
 						{
@@ -393,7 +404,37 @@ public class InstallerService extends ForegroundService {
 		
 		t.start();
 	}
-
+	private void initalizeInstallerLogger()throws IOException {
+		// Make sure the InstallerLogger is only initalized once
+		if (installerLogger != null) {
+			return;
+		}
+		installerLogger = Logger.getLogger("SeattleOnAndroid");
+		installerLogger.setLevel(Level.INFO);
+		File logDir = new File(Environment.getExternalStorageDirectory()
+	            +File.separator
+	            +"sl4a" //folder name
+	            +File.separator
+	            +"seattle" //folder name
+	            +File.separator
+	            +"seattle_repy"); //folder name
+	    // Check if directory exists, if not create it     
+		if (!logDir.isDirectory()) {
+			logDir.mkdirs();
+			}
+		// Check if SDCARD is mounted
+	    if (!Environment.getExternalStorageState().equals(Environment.MEDIA_MOUNTED)){
+	        //handle case of no SDCARD present
+	    	return;
+	    } else {
+	    	// the %g is the number of the current log in the rotation
+	        String logFile = logDir.getAbsolutePath() + File.separator + "installerDebug_%g.log";  
+	        FileHandler logHandler = new FileHandler(logFile, 1024 * 1024 ,5);
+	        logHandler.setFormatter(new SimpleFormatter());        
+		    installerLogger.addHandler(logHandler);    
+		}
+	}
+	
 	// Create initial notification
 	@Override
 	protected Notification createNotification() {
