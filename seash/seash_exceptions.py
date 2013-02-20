@@ -9,6 +9,19 @@ definitions from other files, declare all new exceptions
 and errors here for easier accessibility by other files.
 """
 
+# Base class for module-related errors/exceptions.
+class ModuleError(Exception):
+  pass
+
+# There is a conflict between two modules.
+# The string passed in should be the conflicting command.
+class ModuleConflictError(ModuleError):
+  pass
+
+# Used by module system for errors in importing modules
+class ModuleImportError(ModuleError):
+  pass
+
 
 # Used by command parser for errors in reading commands
 class DispatchError(Exception):

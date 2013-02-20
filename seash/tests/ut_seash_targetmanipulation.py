@@ -3,6 +3,10 @@ Performs a few basic commands in creating groups and moving targets around.
 No errors or exceptions should be thrown.
 """
 
+# Seash's module system outputs a list of enabled modules on load.
+# We need to instruct the UTF to ignore that.
+#pragma out Enabled modules:
+#pragma out To see a list of all available modules, use the 'show modules' command.
 import seash
 import sys
 

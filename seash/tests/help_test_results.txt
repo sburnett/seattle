@@ -1,48 +1,84 @@
 
 A target can be either a host:port:vesselname, %ID, or a group name.
 
-loadkeys fn [as identity]    -- Loads filename.publickey and filename.privatekey
-as keyname [command]-- Run a command using an identity (or changes the default).
-on target [command] -- Run a command on a target (or changes the default)
-add [target] [to group]      -- Adds a target to a new or existing group 
-remove [target] [from group] -- Removes a target from a group
-show                         -- Displays shell state (see 'help show')
-set                          -- Changes the shell or vessels (see 'help set')
+See https://seattle.cs.washington.edu/wiki/RepyTutorial for more info!
+
+add [target] [to group]      -- Adds a target (a vessel name or group) to a 
+                                group
+as keyname [command]         -- Run a command using an identity (or changes the
+                                default)
 browse                       -- Find vessels I can control
-list                         -- Update and display information about the vessels
-upload localfn (remotefn)    -- Upload a file
-download remotefn (localfn)  -- Download a file (to multiple local files)
 cat remotefn                 -- Display the contents of a remote file
-delete remotefn              -- Delete a file
+delete remotefn              -- Delete a file.
+disable [modulename]         -- Disables an enabled module
+download remotefn (localfn)  -- Download a file (to multiple local files)
+enable [modulename]          -- Enables an installed module
+exit                         -- Exits the shell
+list                         -- Update and display information about the 
+                                vessels
+loadkeys fn [as identity]    -- Loads filename.publickey and 
+                                filename.privatekey
+modulehelp [modulename]      -- Shows the module-level helptext for a 
+                                particular module
+on target [command]          -- Run a command on a target (or changes the 
+                                default)
+remove [target] [from group] -- Removes a target from a group
 reset                        -- Reset the vessel (clear files / log and stop)
 run file [args ...]          -- Upload a file and start executing it
+set                          -- Changes the shell or vessels (see 'help set')
+show                         -- Displays the shell state (see 'help show')
 stop                         -- Stop an experiment but leave the log / files
-help [extended | set | show ]-- Try 'help extended' for more commands
-exit                         -- Exits the shell
+upload localfn (remotefn)    -- Upload a file
+
+For more commands, try:
+  help extended
+
+
+A target can be either a host:port:vesselname, %ID, or a group name.
 
 See https://seattle.cs.washington.edu/wiki/RepyTutorial for more info!
 
-show info       -- Display general information about the vessels
-show users      -- Display the user keys for the vessels
-show ownerinfo  -- Display owner information for the vessels
-show advertise  -- Display advertisement information about the vessels
-show ip [to file] -- Display the ip addresses of the nodes
-show hostname   -- Display the hostnames of the nodes
-show location   -- Display location information (countries) for the nodes
-show coordinates -- Display the latitude & longitude of the nodes
-show owner      -- Display a vessel's owner
-show targets    -- Display a list of targets
-show identities -- Display the known identities
-show keys       -- Display the known keys
-show log [to file] -- Display the log from the vessel (*)
-show files      -- Display a list of files in the vessel (*)
-show resources  -- Display the resources / restrictions for the vessel (*)
-show offcut     -- Display the offcut resource for the node (*)
-show timeout    -- Display the timeout for nodes
-show uploadrate -- Display the upload rate which seash uses to estimate
-                   the required time for a file upload
+contact host:port[:vessel]     -- Communicate with a node explicitly
+genkeys fn [len] [as identity] -- Creates new pub / priv keys (default 
+                                  len=1024)
+join                           -- Join vessels on the same node (requires 
+                                  owner)
+loadpriv fn [as identity]      -- Loads filename.privatekey
+loadpub fn [as identity]       -- Loads filename.publickey
+loadstate fn                   -- Load encrypted shell state from a file with 
+                                  the keyname
+move target to group           -- Add target to group, remove target from 
+                                  default
+savestate fn                   -- Save the shell's state information to a file 
+                                  with the keyname
+split resourcefn               -- Split another vessel off (requires owner)
+start file [args ...]          -- Start an experiment (doesn't upload)
+update                         -- Update information about the vessels
 
-(*) No need to update prior, the command contacts the nodes anew
+
+Displays information regarding the current state of Seattle, depending on
+the additional keywords that are passed in.
+
+  (*) No need to update prior, the command contacts the nodes anew
+
+show advertise     -- Shows whether the node manager will advertise the 
+                      vessel's keys in the advertise services.
+show files         -- Display a list of files in the vessel (*)
+show hostname      -- Display the hostnames of the nodes
+show identities    -- Display the known identities
+show info          -- Display general information about the vessels
+show ip [to file]  -- Display the ip addresses of the nodes
+show keys          -- Display the known keys
+show log [to file] -- Display the log from the vessel (*)
+show modules       -- Shows basic information about all installed modules.
+show offcut        -- Display the offcut resource for the node (*)
+show ownerinfo     -- Display owner information for the vessels
+show resources     -- Display the resources / restrictions for the vessel (*)
+show targets       -- Display a list of targets
+show timeout       -- Display the timeout for nodes
+show uploadrate    -- Display the upload rate which seash uses to estimate the 
+                      required time for a file upload
+show users         -- Display the user keys for the vessels
 
 
 show info
@@ -56,7 +92,6 @@ exampleuser@%1 !> show info
 exampleuser@%1 !> update
 exampleuser@%1 !> show info
 192.x.x.178:1224:v3 {'nodekey': {'e': 65537L, 'n': 929411623458072017781884599109L}, 'version': '0.1r', 'nodename': '192.x.x.175'}
-
 
 
 show ip 
@@ -81,5 +116,4 @@ exampleuser@browsegood !> show ip
 192.x.x.2
 193.x.x.42
 219.x.x.62
-
 

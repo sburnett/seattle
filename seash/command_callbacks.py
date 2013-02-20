@@ -51,8 +51,14 @@ would have a separate method called 'browse_args'
 import seash_helper
 # For access to various global variables kept track of throughout a seash session
 import seash_global_variables
+# To be able to modify the command dictionary
+import seash_dictionary
+# To be able to look up what a module commanddict contains (for modulehelp)
+import seash_modules
+
 # To be able to throw certain exceptions designed specifically for seash
 import seash_exceptions
+import seash_modules
 
 import os.path
 import sys
@@ -72,8 +78,6 @@ repyhelper.translate_and_import("parallelize.repy")
 repyhelper.translate_and_import("domainnameinfo.repy")
 
 repyhelper.translate_and_import("advertise.repy")   #  used to do OpenDHT lookups
-
-repyhelper.translate_and_import("geoip_client.repy") # used for `show location`
 
 repyhelper.translate_and_import("serialize.repy") # used for loadstate and savestate
 
@@ -124,31 +128,6 @@ def as_keyname(input_dict, environment_dict):
   # Set default if there's no follow-up commands
   if not input_dict[command_key]['children']:
     environment_dict['defaultkeyname'] = environment_dict['currentkeyname']
-
-
-
-
-# Prints the help text of the last command node that has one
-def help(input_dict, environment_dict):
-
-  # Iterator through the user command dictionary
-  dict_mark = input_dict
-
-  while dict_mark.keys():
-     # Pulls out the current command key word
-     command_key = dict_mark.keys()[0]
-
-     # If the command's help text isn't an empty string, sets it as the help_text
-     # that will be printed out
-     if dict_mark[command_key]['help_text'] is not '':
-        current_help_text = dict_mark[command_key]['help_text']
-
-     # Iterates into the next dictionary of children commands
-     dict_mark = dict_mark[command_key]['children']
-
-
-  print current_help_text
-
 
 
 
@@ -606,62 +585,6 @@ def show_hostname(input_dict, environment_dict):
 
 
 
-
-# show location        -- Display location information about the nodes
-def show_location(input_dict, environment_dict):
-
-  if not environment_dict['currenttarget']:
-    raise seash_exceptions.UserError("Error, command requires a target")
-
-  geoip_init_client()
-
-  # we should only visit a node once...
-  printedIPlist = []
-
-  for longname in seash_global_variables.targets[environment_dict['currenttarget']]:
-    thisnodeIP = seash_global_variables.vesselinfo[longname]['IP']
-
-    # if we haven't visited this node
-    if thisnodeIP not in printedIPlist:
-      printedIPlist.append(thisnodeIP)
-      
-      try:
-        location_dict = geoip_record_by_addr(thisnodeIP)
-      except:
-        location_dict = None
-
-      if location_dict:
-        print str(seash_global_variables.vesselinfo[longname]['ID'])+'('+str(thisnodeIP)+'): '+geoip_location_str(location_dict)
-      else:
-        print str(seash_global_variables.vesselinfo[longname]['ID'])+'('+str(thisnodeIP)+'): Location unknown'
-
-
-
-
-#show coordinates -- Display the latitude & longitude of the nodes
-def show_coordinates(input_dict, environment_dict):
-
-  if not environment_dict['currenttarget']:
-    raise seash_exceptions.UserError("Error, command requires a target")
-
-  geoip_init_client()
-
-  # we should only visit a node once...
-  printedIPlist = []
-
-  for longname in seash_global_variables.targets[environment_dict['currenttarget']]:
-    thisnodeIP = seash_global_variables.vesselinfo[longname]['IP']
-
-    # if we haven't visited this node
-    if thisnodeIP not in printedIPlist:
-      printedIPlist.append(thisnodeIP)
-      location_dict = geoip_record_by_addr(thisnodeIP)
-
-      if location_dict:
-        print str(seash_global_variables.vesselinfo[longname]['ID'])+'('+str(thisnodeIP)+'): ' + str(location_dict['latitude']) + ", " + str(location_dict['longitude'])
-
-      else:
-        print str(seash_global_variables.vesselinfo[longname]['ID'])+'('+str(thisnodeIP)+'): Location unknown'
 
 
 
@@ -2751,6 +2674,88 @@ def set_uploadrate_arg(input_dict, environment_dict):
   except ValueError:
     raise seash_exceptions.UserError("The speed value must be a number (in bytes per second)")
 
+
+# enable modulename
+def enable_module(input_dict, environment_dict):
+  # Enables an installed module.
+
+  # Get the modulename
+  dict_mark = input_dict
+  try:
+    command = dict_mark.keys()[0]
+    while dict_mark[command]['name'] != 'modulename':
+      dict_mark = input_dict[command]['children']
+      command = dict_mark.keys()[0]
+    modulename = command
+  except IndexError:
+    raise seash_exceptions.UserError("Error, command requires a modulename")
+
+  seash_modules.enable(seash_dictionary.seashcommanddict, modulename)
+
+
+# disable modulename
+def disable_module(input_dict, environment_dict):
+  # Disables an enabled module.
+
+  # Get the modulename
+  dict_mark = input_dict
+  try:
+    command = dict_mark.keys()[0]
+    while dict_mark[command]['name'] != 'modulename':
+      dict_mark = input_dict[command]['children']
+      command = dict_mark.keys()[0]
+    modulename = command
+  except IndexError:
+    raise seash_exceptions.UserError("Error, command requires a modulename")
+
+  seash_modules.disable(seash_dictionary.seashcommanddict, modulename)
+
+# modulehelp modulename
+def print_module_help(input_dict, environment_dict):
+  # Prints the helptext for a module
+
+  # Get the modulename
+  dict_mark = input_dict
+  try:
+    command = dict_mark.keys()[0]
+    while dict_mark[command]['name'] != 'modulename':
+      dict_mark = input_dict[command]['children']
+      command = dict_mark.keys()[0]
+    modulename = command
+  except IndexError:
+    raise seash_exceptions.UserError("Error, command requires a modulename")
+
+  # Is this module installed?
+  if not modulename in seash_modules.module_data:
+    raise seash_exceptions.UserError("Module is not installed.")
+
+  print seash_modules.module_data[modulename]['help_text']
+
+  # Now, print out all the commands under this module
+  print "Commands in this module:"
+  print '\n'.join(seash_helper.get_commands_from_commanddict(seash_modules.module_data[modulename]['command_dict']))
+  
+
+
+# show modules
+def list_all_modules(input_dict, environment_dict):
+  # Lists all modules and their status.
+  print "Enabled Modules:"
+  print ", ".join(seash_modules.get_enabled_modules())
+  print
+  print "Installed Modules:"
+
+  # Now print the URLs...
+  # Output format:
+  # modulename - URL not available  # URL is set to None
+  # modulename - https://seattle.poly.edu/seashplugins/modulename/ # URL is set
+  for module in seash_modules.module_data:
+    print module, '-',
+    if seash_modules.module_data[module]['url'] is None:
+      print "Install URL not available"
+    else:
+      print seash_modules.module_data[module]['url']
+  print
 
 
 

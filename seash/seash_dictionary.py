@@ -30,11 +30,100 @@ import seash_exceptions
 
 import command_callbacks
 
+import seash_modules
 
+
+# Prints the help text of the last command node that has one
+# Also lists all sub-commands that follow the command node.
+def print_help(input_dict, environment_dict):
+  # Iterate through the user command dictionary
+  dict_mark = input_dict
+
+  command_string = ""
+  cmdgroup = ''
+
+  while dict_mark.keys():
+     # Pulls out the current command key word
+     command_key = dict_mark.keys()[0]
+     if dict_mark[command_key]['name'] == 'display_group':
+       cmdgroup = command_key
+     else:
+       command_string += command_key + ' '
+
+       # If the command's help text isn't an empty string, sets it as the help_text
+       # that will be printed out
+       if dict_mark[command_key]['help_text'] is not '':
+          current_help_text = dict_mark[command_key]['help_text']
+
+     # Iterates into the next dictionary of children commands
+     dict_mark = dict_mark[command_key]['children']
+
+  # Remove the 'help' token.
+  command_string = command_string.split('help ', 1)[1]
+
+  command_summaries = get_command_summaries(input_dict)
+  
+  # summary_strings[module] = formatted string for command summary text for all
+  #                           commands under that module
+  summary_strings = {}
+  if command_summaries:
+    # cmdgroup can either be a command or a display group.
+    # However, if we get to this point, then cmdgroup can never be a command
+    # because the command dispatcher will correctly identify it as such.
+    # Therefore, if this is not a display group, we should flag it as an error.
+    if cmdgroup and not cmdgroup in command_summaries:
+      raise seash_exceptions.UserError("'"+cmdgroup+"' is not an enabled command nor a display group.")
+    for module in command_summaries[cmdgroup]:
+      summary_strings[module] = get_string_from_command_summarylist(command_summaries[cmdgroup][module], command_string)
+
+  # What should be displayed:
+  # -- Help text --
+  # (help_text that is defined at the command)
+  # A target can be either a host:port:vesselname, %ID, or a group name.
+  # -- Subcommand list --
+  # (Lists the summaries of all subcommands that fall under the display group)
+  # add       -- Adds a target (a vessel name or group) to a group.
+  # get       -- Acquires vessels from the clearinghouse.
+  # release   -- Release vessels from your control
+  # show      -- Displays shell state (see 'help show')
+  # -- Additional subcommand modifiers --
+  # (Lists all additional display groups, if the user did not specify a display group)
+  # For more commands, try:
+  #   help extended
+
+  print
+  print current_help_text.strip()
+  print
+  
+  summary_modules = summary_strings.keys()
+  summary_modules.sort()
+  for module in summary_modules:
+    if not module is None:
+      print "Commands from the", module, "module:"
+    print summary_strings[module]
+
+  # Display additional cmdgroups if the user did not enter one
+  if not cmdgroup:
+    # Are there additional keywords?
+    additional_cmdgroups = command_summaries.keys()
+    # Ignore the default '' keyword.
+    if '' in additional_cmdgroups:
+      additional_cmdgroups.remove('')
+    if None in additional_cmdgroups:
+      additional_cmdgroups.remove(None)
+
+    if additional_cmdgroups:
+      # List them alphabetically
+      additional_cmdgroups.sort()
+      print "For more commands, try:"
+      command_string = 'help ' + command_string
+      for alt_cmdgroup in additional_cmdgroups:
+        print "  " + command_string.rstrip(), alt_cmdgroup
+      print
 
 """
 Command dictionary entry format:
-  '(command key)':{'name':'', 'callback':, 'priority':, 'help_text':'', 'children':[
+  '(command key)':{'name':'', 'callback':, 'priority':, 'summary':'', 'example':'', 'help_text':'', 'children':[
 
 '(command key)' - The expected command word the user is suppose to input to
 call the command's function. If a certain type of argument is expected, a general
@@ -46,11 +135,12 @@ and '[ARGUMENT]' for everything else, so unless another category of arguments is
 needed, only use those four strings for command keys of arguments in order for 
 the parser to work correctly.
  
-For general commands like 'browse', however, the key would simply be the same 
-command word, 'browse'. 
 
-In general, the command key should only be a single word from the whole command 
-string being implemented, and with the exception of Arguments that occur at the 
+For general commands like 'browse', however, the key would simply be the same
+command word, 'browse'.
+
+In general, the command key should only be a single word from the whole command
+string being implemented, and with the exception of arguments that occur at the
 end of the command string, no user-inputted arguments should ever contain spaces.
 
 
@@ -80,7 +170,22 @@ A keyname needs to be set before executing 'browse', so the command dictionary o
 before executing 'browse's command function.
 
 
-'help_text'     - The text that will be outputted whenever a user accesses the 
+'summary'       - A short summary text that should be shown next to the command.
+This should be no longer than a sentence if possible. All commands should have a
+summary text.
+
+
+'cmdgroup'- The keyword that should be passed to 'help' to show the summary
+text for this command. Commonly used commands that should be shown by default
+should have the empty string, or omit this key.
+
+
+For example, some of the lesser used root commands (join, loadstate, etc.) should
+only be shown when the user types 'help extended'. For these commands, the
+'cmdgroup' should be set to 'extended'.
+
+
+'help_text'     - The text that will be outputted whenever a user accesses the
 help function for that command. Not every command dictionary needs a help text
 associated with it, so it defaults as a blank string, and if none of the command 
 dictionaries in the help call holds a help text, it will default at the last 
@@ -102,7 +207,9 @@ any other potential command words that can follow 'show'.
 
 
 seashcommanddict = {
-  'on':{'name':'on', 'callback':None, 'help_text':"""
+  'on':{
+    'name':'on', 'callback':None, 'example': 'target [command]',
+    'summary':'Run a command on a target (or changes the default)', 'help_text':"""
 on group
 on group [command]
 
@@ -127,15 +234,14 @@ exampleuser@browsegood !>
   }},
 
 
-  'as':{'name':'as', 'callback':None, 'help_text':"""
-as identity
-as identity [command]
-
+  'as':{
+    'name':'as', 'callback':None, 'example':'keyname [command]',
+    'summary':'Run a command using an identity (or changes the default)', 'help_text':"""
 Sets the default identity for an operation.   The credentials (i.e. public
-and private key) for this user are used for the following commands.   The 
-default identity is listed in
-the seash command prompt 'identity@group !>'.   The 'as' command can also
-be prepended to another command to set the identity for just this command.
+and private key) for this user are used for the following commands.   
+The default identity is listed in the seash command prompt 'identity@group !>'.
+The 'as' command can also be prepended to another command to set the identity 
+for just this command.
 
 Example:
 
@@ -146,78 +252,33 @@ exampleuser@browsegood !> as tom browse
 (browse output here)
 exampleuser@browsegood !>
 """, 'children':{
-      '[KEYNAME]':{'name':'askeyname', 'callback':command_callbacks.as_keyname, 'priority':True, 'help_text':'', 'children':{
+      '[KEYNAME]':{
+        'name':'askeyname', 'callback':command_callbacks.as_keyname, 'priority':True,
+      'example': '(command)', 'summary': 'Sets the default identity globally or for an operation.',
+      'help_text':'', 'children':{
       }},
   }},
 
 
-  'help':{'name':'help', 'callback':command_callbacks.help, 'priority':True, 'help_text':"""
+  'help':{
+    'name':'help', 'callback':print_help, 'priority':True,
+    'cmdgroup':None, 'help_text':"""
 A target can be either a host:port:vesselname, %ID, or a group name.
 
-loadkeys fn [as identity]    -- Loads filename.publickey and filename.privatekey
-as keyname [command]-- Run a command using an identity (or changes the default).
-on target [command] -- Run a command on a target (or changes the default)
-add [target] [to group]      -- Adds a target to a new or existing group 
-remove [target] [from group] -- Removes a target from a group
-show                         -- Displays shell state (see 'help show')
-set                          -- Changes the shell or vessels (see 'help set')
-browse                       -- Find vessels I can control
-list                         -- Update and display information about the vessels
-upload localfn (remotefn)    -- Upload a file
-download remotefn (localfn)  -- Download a file (to multiple local files)
-cat remotefn                 -- Display the contents of a remote file
-delete remotefn              -- Delete a file
-reset                        -- Reset the vessel (clear files / log and stop)
-run file [args ...]          -- Upload a file and start executing it
-stop                         -- Stop an experiment but leave the log / files
-help [extended | set | show ]-- Try 'help extended' for more commands
-exit                         -- Exits the shell
+See https://seattle.cs.washington.edu/wiki/RepyTutorial for more info!""",
+    'children':{}},
+  'show':{
+    'name':'show', 'callback':command_callbacks.show,
+    'summary': "Displays the shell state (see 'help show')", 'help_text':"""
+Displays information regarding the current state of Seattle, depending on
+the additional keywords that are passed in.
 
-See https://seattle.cs.washington.edu/wiki/RepyTutorial for more info!""", 
-    'children':{}
-  },
+  (*) No need to update prior, the command contacts the nodes anew
 
-
-  'extended':{'name':'extended', 'callback':command_callbacks.help, 'help_text':"""
-Extended commands (not commonly used):
-
-move target to group         -- Add target to group, remove target from default
-loadstate fn -- Load encrypted shell state from a file with the keyname
-savestate fn -- Save the shell's state information to a file with the keyname.
-genkeys fn [len] [as identity] -- creates new pub / priv keys (default len=1024)
-loadpub fn [as identity]     -- loads filename.publickey 
-loadpriv fn [as identity]    -- loads filename.privatekey
-start file [args ...]        -- Start an experiment (doesn't upload)
-contact host:port[:vessel]   -- Communicate with a node explicitly
-update                       -- Update information about the vessels
-split resourcefn             -- Split another vessel off (requires owner)
-join                         -- Join vessels on the same node (requires owner)
-""", 'children':{}},
-
-  'show':{'name':'show', 'callback':command_callbacks.show, 'help_text':"""
-show info       -- Display general information about the vessels
-show users      -- Display the user keys for the vessels
-show ownerinfo  -- Display owner information for the vessels
-show advertise  -- Display advertisement information about the vessels
-show ip [to file] -- Display the ip addresses of the nodes
-show hostname   -- Display the hostnames of the nodes
-show location   -- Display location information (countries) for the nodes
-show coordinates -- Display the latitude & longitude of the nodes
-show owner      -- Display a vessel's owner
-show targets    -- Display a list of targets
-show identities -- Display the known identities
-show keys       -- Display the known keys
-show log [to file] -- Display the log from the vessel (*)
-show files      -- Display a list of files in the vessel (*)
-show resources  -- Display the resources / restrictions for the vessel (*)
-show offcut     -- Display the offcut resource for the node (*)
-show timeout    -- Display the timeout for nodes
-show uploadrate -- Display the upload rate which seash uses to estimate
-                   the required time for a file upload
-
-(*) No need to update prior, the command contacts the nodes anew
 """, 'children':{
-      'info':{'name':'info', 'callback':command_callbacks.show_info, 'help_text':"""
+      'info':{
+        'name':'info', 'callback':command_callbacks.show_info,
+        'summary':'Display general information about the vessels','help_text':"""
 show info
 
 This command prints general information about vessels in the default group
@@ -231,7 +292,9 @@ exampleuser@%1 !> show info
 192.x.x.178:1224:v3 {'nodekey': {'e': 65537L, 'n': 929411623458072017781884599109L}, 'version': '0.1r', 'nodename': '192.x.x.175'}
 
 """, 'children':{}},
-      'users':{'pattern':'users', 'name':'users', 'callback':command_callbacks.show_users, 'help_text':"""
+      'users':{
+        'pattern':'users', 'name':'users', 'callback':command_callbacks.show_users,
+        'summary':'Display the user keys for the vessels','help_text':"""
 show users
 
 This command lists the set of user keys for vessels in the default group.   
@@ -249,19 +312,25 @@ exampleuser@browsegood !> show users
 192.x.x.2:1224:v3 exampleuser
 
 """, 'children':{}},
-      'ownerinfo':{'name':'ownerinfo', 'callback':command_callbacks.show_ownerinfo, 'help_text':"""
+      'ownerinfo':{
+        'name':'ownerinfo', 'callback':command_callbacks.show_ownerinfo,
+        'summary':'Display owner information for the vessels','help_text':"""
 show ownerinfo
 
 This lists the ownerinfo strings for vessels in the default group.   See
 'set ownerinfo' for more details
 """, 'children':{}},
-      'advertise':{'name':'advertise', 'callback':command_callbacks.show_advertise, 'help_text':"""
+      'advertise':{
+        'name':'advertise', 'callback':command_callbacks.show_advertise,
+        'summary':"Shows whether the node manager will advertise the vessel's keys in the advertise services.", 'help_text':"""
 show advertise
 
 This indicates whether the node manager will advertise the vessel's keys in 
 the advertise services.   See 'set advertise' for more details.
 """, 'children':{}},
-      'ip':{'name':'ip', 'callback':command_callbacks.show_ip, 'help_text':"""
+      'ip':{
+        'name':'ip', 'callback':command_callbacks.show_ip, 'example': '[to file]',
+        'summary':'Display the ip addresses of the nodes', 'help_text':"""
 show ip 
 show ip [to file]
 
@@ -286,14 +355,22 @@ exampleuser@browsegood !> show ip
 219.x.x.62
 
 """, 'children':{
-          'to':{'name':'to', 'callback':None, 'help_text':'', 'children':{
+          'to':{
+            'name':'to', 'callback':None, 'example': '[filename]',
+            'summary': 'Outputs the list of ip addresses of the vessels in the default group to [filename]',
+            'help_text':'', 'children':{
               '[FILENAME]':{'name':'filename', 'callback':command_callbacks.show_ip_to_file, 'help_text':'', 'children':{}},
           }},
-          '>':{'name':'>', 'callback':None, 'help_text':'', 'children':{
+          '>':{
+            'name':'>', 'callback':None, 'example': '[filename]',
+            'summary': 'Outputs the list of ip addresses of the vessels in the default group to [filename]',
+            'help_text':'', 'children':{
               '[FILENAME]':{'name':'filename', 'callback':command_callbacks.show_ip_to_file, 'help_text':'', 'children':{}},
           }},
       }},
-      'hostname':{'name':'hostname', 'callback':command_callbacks.show_hostname, 'help_text':"""
+      'hostname':{
+        'name':'hostname', 'callback':command_callbacks.show_hostname,
+        'summary':'Display the hostnames of the nodes','help_text':"""
 show hostname
 
 This lists the DNS host names for the vessels in the default group.   If this
@@ -308,40 +385,6 @@ exampleuser@browsegood !> show hostname
 192.x.x.2 is known as Guest-Laptop.home
 193.x.x.42 is known as pl2.maskep.aerop.fr
 219.x.x.62 has unknown host information
-
-""", 'children':{}},
-      'location':{'name':'location', 'callback':command_callbacks.show_location, 'help_text':"""
-show location
-
-Uses a geo-IP location service to return information about the position of the
-nodes in the current group.
-
-Example:
-exampleuser@browsegood !> show ip
-192.x.x.2
-193.x.x.42
-219.x.x.62
-exampleuser@browsegood !> show location
-%1(192.x.x.2): Location unknown
-%3(193.x.x.42): Cesson-svign, France
-%4(219.x.x.62): Beijing, China
-
-""", 'children':{}},
-      'coordinates':{'name':'coordinates', 'callback':command_callbacks.show_coordinates, 'help_text':"""
-show coordinates
-
-Uses a geo-IP location service to get approximate latitude and longitude 
-information about nodes in the current group.
-
-Example:
-exampleuser@browsegood !> show location
-%1(192.x.x.2): Location unknown
-%3(193.x.x.42): Cesson-svign, France
-%4(219.x.x.62): Beijing, China
-exampleuser@browsegood !> show coordinates
-%1(192.x.x.2): Location unknown
-%3(193.x.x.42): 48.1167, 1.6167
-%4(219.x.x.62): 39.9289, 116.3883
 
 """, 'children':{}},
       'owner':{'name':'owner', 'callback':command_callbacks.show_owner, 'help_text':"""
@@ -366,7 +409,9 @@ exampleuser@browsegood !> show owner
 219.x.x.62:1224:v4 65537 952875...
 
 """, 'children':{}},
-      'targets':{'name':'targets', 'callback':command_callbacks.show_targets, 'help_text':"""
+      'targets':{
+        'name':'targets', 'callback':command_callbacks.show_targets,
+        'summary':'Display a list of targets','help_text':"""
 show targets
 
 Lists the known targets (groups and individual nodes) that commands may be 
@@ -388,7 +433,9 @@ browsegood ['192.x.x.2:1224:v12', '192.x.x.2:1224:v3', '193.x.x.42:1224:v18', '2
 %2 ['192.x.x.2:1224:v3']
 
 """, 'children':{}},
-      'identities':{'name':'identities', 'callback':command_callbacks.show_identities, 'help_text':"""
+      'identities':{
+        'name':'identities', 'callback':command_callbacks.show_identities,
+        'summary':'Display the known identities', 'help_text':"""
 show identities
 
 Lists the identities loaded into the shell and whether the public or private
@@ -406,7 +453,9 @@ guest0 PUB PRIV
 guest1 PUB PRIV
 
 """, 'children':{}},
-      'keys':{'name':'keys', 'callback':command_callbacks.show_keys, 'help_text':"""
+      'keys':{
+        'name':'keys', 'callback':command_callbacks.show_keys,
+        'summary':'Display the known keys', 'help_text':"""
 show keys
 
 List the actual keys loaded by the shell.   To see identity information, see
@@ -423,17 +472,21 @@ guest0 {'e': 65537L, 'n': 9148459067481753275566379538357634516166379961L} None
 guest1 None {'q': 121028014346935113507847L, 'p': 107361553689073802754887L, 'd': 127298628609806695961451784003754746302524139001L}
 
 """, 'children':{}},
-      'log':{'name':'log', 'callback':command_callbacks.show_log, 'help_text':"""
-show log [to filename]
-
+      'log':{
+        'name':'log', 'callback':command_callbacks.show_log,
+        'example': '[to file]', 'summary':'Display the log from the vessel (*)', 'help_text':"""
 Lists the log of operations from the vessel.   This log is populated by print
 statements and exceptions from the program running in the vessel.
 """, 'children':{
-          'to':{'name':'to', 'callback':None, 'help_text':'', 'children':{
+          'to':{
+            'name':'to', 'callback':None, 'example': '[filename]',
+            'summary': 'Writes the log to a file.', 'help_text':'', 'children':{
               '[FILENAME]':{'name':'filename', 'callback':command_callbacks.show_log_to_file, 'help_text':'', 'children':{}},
           }},
       }},
-      'files':{'name':'files', 'callback':command_callbacks.show_files, 'help_text':"""
+      'files':{
+        'name':'files', 'callback':command_callbacks.show_files,
+        'summary':'Display a list of files in the vessel (*)', 'help_text':"""
 show files
 
 Lists the names of the files loaded into vessels in the default groups.   
@@ -451,19 +504,25 @@ Files on '193.x.x.42:1224:v18': 'example.1.1.repy'
 Files on '219.x.x.62:1224:v4': 'example.1.1.repy'
 
 """, 'children':{}},
-      'resources':{'name':'resources', 'callback':command_callbacks.show_resources, 'help_text':"""
+      'resources':{
+        'name':'resources', 'callback':command_callbacks.show_resources,
+        'summary':'Display the resources / restrictions for the vessel (*)', 'help_text':"""
 show resources
 
 Lists the resources allotted to vessels in the default group.
 """, 'children':{}},
-      'offcut':{'name':'offcut', 'callback':command_callbacks.show_offcut, 'help_text':"""
+      'offcut':{
+        'name':'offcut', 'callback':command_callbacks.show_offcut,
+        'summary':'Display the offcut resource for the node (*)', 'help_text':"""
 show offcut
 
 This lists the amount of resources that will be lost by splitting a vessel or
 gained by joining two vessels.   This is shown on a per-node basis amongst
 all vessels in the default group
 """, 'children':{}},
-      'timeout':{'name':'timeout', 'callback':command_callbacks.show_timeout, 'help_text':"""
+      'timeout':{
+        'name':'timeout', 'callback':command_callbacks.show_timeout,
+        'summary':'Display the timeout for nodes', 'help_text':"""
 show timeout
 
 This shows the amount of time the shell will wait for a command to timeout.   
@@ -475,7 +534,9 @@ Example:
 10
 
 """, 'children':{}},
-      'uploadrate':{'name':'uploadrate', 'callback':command_callbacks.show_uploadrate, 'help_text':"""
+      'uploadrate':{
+        'name':'uploadrate', 'callback':command_callbacks.show_uploadrate,
+        'summary':'Display the upload rate which seash uses to estimate the required time for a file upload', 'help_text':"""
 show uploadrate
 
 This lists the minimum rate at which the shell should allow uploads to occur.
@@ -487,14 +548,37 @@ Example:
 102400
 
 """, 'children':{}},
+      'modules': {
+        'name': 'modules',
+        'callback': command_callbacks.list_all_modules,
+        'summary': "Shows basic information about all installed modules.",
+        'help_text': """
+show modules
+
+Shows information on all installed modules.  Modules will be separated into
+two categories: enabled and disabled.  Each entry will be in the following
+format:
+  [module name] - [URL where the module was installed from, if available]
+
+The URL will be missing if the module was installed manually.
+
+
+user@ !> show modules
+Enabled Modules:
+geoip
+
+Installed Modules:
+geoip - Install URL not available
+selexor - https://seattle.poly.edu/plugins/selexor/
+""", 'children': {}},
   }},
 
 
-  'run':{'name':'run', 'callback':None, 'help_text':"""
-run programname [arg1, arg2, ...]
-
-Uploads programname to a vessel and starts it running.   (This command is 
-actually just a short-cut for the 'upload' and 'start' commands).   The 
+  'run':{
+    'name':'run', 'callback':None, 'example':'file [args ...]',
+    'summary':'Upload a file and start executing it', 'help_text':"""
+Uploads a program to a vessel and starts it running.   (This command is
+actually just a short-cut for the 'upload' and 'start' commands).   The
 arguments listed will be passed to the command when it is started.
 
 Example:
@@ -522,13 +606,18 @@ Log from '192.x.x.2:1224:v12':
 Hello World
 
 """, 'children':{
-      '[FILENAME]':{'name':'filename', 'callback':command_callbacks.run_localfn, 'help_text':'','children':{
+      '[FILENAME]':{
+        'name':'filename', 'callback':command_callbacks.run_localfn, 'example':'[arg1, arg2, ...]',
+        'summary': 'Uploads the file to the vessels and starts running them, passing arguments if specified.',
+        'help_text':'','children':{
           '[ARGUMENT]':{'name':'args', 'callback':command_callbacks.run_localfn_arg, 'help_text':'', 'children':{}},
       }},
   }},
 
 
-  'add':{'name':'add', 'callback':None, 'help_text':"""
+  'add':{
+    'name':'add', 'callback':None, 'example': '[target] [to group]',
+    'summary':'Adds a target (a vessel name or group) to a group', 'help_text':"""
 add target [to group]
 add to group
 
@@ -552,24 +641,30 @@ exampleuser@new_group !> list
   %2  *         192.x.x.2:1224:v12      Fresh    
 
 """, 'children':{
-      '[TARGET]':{'name':'target', 'callback':command_callbacks.add_target, 'help_text':'', 'children':{
+      '[TARGET]':{
+        'name':'target', 'callback':command_callbacks.add_target,
+        'example': 'to group', 'summary': 'Adds a target to a group.', 'help_text':'', 'children':{
           'to':{'name':'to', 'callback':None, 'help_text':'', 'children':{
               '[ARGUMENT]':{'name':'args', 'callback':command_callbacks.add_target_to_group, 'help_text':'', 'children':{}},
           }},
       }},
-      'to':{'name':'to', 'callback':None, 'help_text':'', 'children':{
+      'to':{
+        'name':'to', 'callback':None, 'example': 'group',
+        'summary':'Adds the default target to a group.', 'help_text':'', 'children':{
           '[ARGUMENT]':{'name':'args', 'callback':command_callbacks.add_to_group, 'help_text':'', 'children':{}},
       }},
   }},
 
 
-  'move':{'name':'move', 'callback':None, 'help_text':"""
-move target to group
-
+  'move':{
+    'name':'move', 'callback':None, 'example': 'target to group',
+    'summary': 'Add target to group, remove target from default', 'cmdgroup': 'extended', 'help_text':"""
 This is essentially a shortcut for removing the target from the default group
 and adding it to group.   See 'add' and 'remove' for more information.
 """, 'children':{
-      '[TARGET]':{'name':'target', 'callback':None, 'help_text':'', 'children':{
+      '[TARGET]':{
+        'name':'target', 'callback':None, 'example': 'to group',
+        'summary': 'Moves the target to the group', 'help_text':'', 'children':{
           'to':{'name':'to', 'callback':None, 'help_text':'', 'children':{
               '[GROUP]':{'name':'group', 'callback':command_callbacks.move_target_to_group, 'help_text':'', 'children':{}},
           }},
@@ -577,9 +672,10 @@ and adding it to group.   See 'add' and 'remove' for more information.
   }},
 
 
-  'remove':{'name':'remove', 'callback':None, 'help_text':"""
-remove target [from group]
-remove from group
+  'remove':{
+    'name':'remove', 'callback':None, 'example':'[target] [from group]',
+    'summary':'Removes a target from a group', 'help_text':"""
+remove [target] from group
 
 This command removes a target (vesselname or group) from a group.   This means
 that future group operations will not include the listed vesselname or group.
@@ -603,37 +699,32 @@ exampleuser@new_group !> list
   %3             192.x.x.2:1224:v3      Fresh   
 
 """, 'children':{
-      '[TARGET]':{'name':'target', 'callback':command_callbacks.remove_target, 'help_text':'', 'children':{
+      '[TARGET]':{
+        'name':'target', 'callback':command_callbacks.remove_target, 'example':'from group',
+        'summary': 'Removes the target from the default group', 'help_text':'', 'children':{
           'from':{'name':'from', 'callback':None, 'help_text':'', 'children':{
-              '[GROUP]':{'name':'group', 'callback':command_callbacks.remove_target_from_group, 'help_text':'', 'children':{}},
+            '[GROUP]':{
+              'name':'group', 'callback':command_callbacks.remove_target_from_group,
+              'summary': 'Removes the target from the group', 'help_text':'',
+              'children':{}},
           }},
       }},
-      'from':{'name':'from', 'callback':None, 'help_text':'', 'children':{
+      'from':{
+        'name':'from', 'callback':None, 'example': 'group',
+        'summary': 'Removes the default group from group', 'help_text':'', 'children':{
           '[GROUP]':{'name':'group', 'callback':command_callbacks.remove_from_group, 'help_text':'', 'children':{}},
       }},
   }},
 
 
-  'set':{'name':'set', 'callback':command_callbacks.set, 'help_text':"""
-Commands requiring owner credentials on a vessel:
-set users [ identity ... ]  -- Change a vessel's users
-set ownerinfo [ data ... ]    -- Change owner information for the vessels
-set advertise [ on | off ] -- Change advertisement of vessels
-set owner identity        -- Change a vessel's owner
-
-Shell settings:
-set timeout count  -- Sets the time that seash is willing to wait on a node
-set uploadrate speed -- Sets the upload rate which seash will use to estimate
-                        the time needed for a file to be uploaded to a vessel.
-                        The estimated time would be set as the temporary 
-                        timeout count during actual process. Speed should be 
-                        in bytes/sec.
-set autosave [ on | off ] -- Sets whether to save the state after every command.
-                             Set to 'off' by default. The state is saved to a
-                             file called 'autosave_keyname', where keyname is 
-                             the name of the current key you're using.
+  'set':{
+    'name':'set', 'callback':command_callbacks.set,
+    'summary': "Changes the shell or vessels (see 'help set')", 'help_text':"""
+Changes the shell or vessels.
 """, 'children':{
-      'users':{'name':'users', 'callback':None, 'help_text':"""
+      'users':{
+        'name':'users', 'callback':None, 'example':'[identity ...]',
+        'summary':"Change a vessel's users", 'help_text':"""
 set users [identity1, identity2, ...]
 
 Sets the user keys for vessels in the default group.   The current identity
@@ -657,7 +748,9 @@ Failure 'Node Manager error 'Insufficient Permissions'' on  192.x.x.2:1224:v3
 """, 'children':{
           '[ARGUMENT]':{'name':'args', 'callback':command_callbacks.set_users_arg, 'help_text':'', 'children':{}},
       }},
-      'ownerinfo':{'name':'ownerinfo', 'callback':None, 'help_text':"""
+      'ownerinfo':{
+        'name':'ownerinfo', 'callback':None, 'example': '[ data ... ]',
+        'summary': 'Change owner information for the vessels', 'help_text':"""
 set ownerinfo 'string'
 
 This command sets the owner information for each vessel in the default group.
@@ -681,7 +774,9 @@ exampleuser@browsegood !> show ownerinfo
 """, 'children':{
           '[ARGUMENT]':{'name':'args', 'callback':command_callbacks.set_ownerinfo_arg, 'help_text':'', 'children':{}},
       }},
-      'advertise':{'name':'advertise', 'callback':None, 'help_text':"""
+      'advertise':{
+        'name':'advertise', 'callback':None,
+        'summary':'Change advertisement information about the vessels','help_text':"""
 set advertise [on/off]
 
 This setting is changable only by the vessel owner and indicates whether or
@@ -708,7 +803,9 @@ Failure 'Node Manager error 'Insufficient Permissions'' on  192.x.x.2:1224:v3
 """, 'children':{
           '[ARGUMENT]':{'name':'args', 'callback':command_callbacks.set_advertise_arg, 'help_text':'', 'children':{}},
       }},
-      'owner':{'name':'owner', 'callback':None, 'help_text':"""
+      'owner':{
+        'name':'owner', 'callback':None, 'example': 'identity',
+        'summary': "Changes a vessel's owner.", 'help_text':"""
 set owner identity
 
 This changes the owner key for all vessels in the default group to the
@@ -735,7 +832,10 @@ Failure 'Node Manager error 'Insufficient Permissions'' on  192.x.x.2:1224:v3
 """, 'children':{
           '[ARGUMENT]':{'name':'args', 'callback':command_callbacks.set_owner_arg, 'help_text':'', 'children':{}},
       }},
-      'timeout':{'name':'timeout', 'callback':None, 'help_text':"""
+      'timeout':{
+        'name':'timeout', 'callback':None, 'example': 'count',
+        'summary': 'Sets the time that seash is willing to wait on a node',
+        'help_text':"""
 set timeout timeoutval
 
 This sets the timeout for network related commands.   Most commands will then
@@ -758,7 +858,10 @@ Hello World
 """, 'children':{
           '[ARGUMENT]':{'name':'args', 'callback':command_callbacks.set_timeout_arg, 'help_text':'', 'children':{}},
       }},
-      'uploadrate':{'name':'uploadrate', 'callback':None, 'help_text':"""
+      'uploadrate':{
+        'name':'uploadrate', 'callback':None, 'example': 'speed',
+        'summary': 'Sets the upload rate which seash will use to estimate the time needed for a file to be uploaded to a vessel. The estimated time would be set as the temporary timeout count during actual process. Speed should be in bytes/sec.',
+        'help_text':"""
 set uploadrate rate_in_bps
 
 This value is used along with the timeout value to determine when to declare an
@@ -780,7 +883,10 @@ exampleuser@%1 !>
 """, 'children':{
           '[ARGUMENT]':{'name':'args', 'callback':command_callbacks.set_uploadrate_arg, 'help_text':'', 'children':{}},
       }},
-      'autosave':{'name':'autosave', 'callback':None, 'help_text':"""
+      'autosave':{
+        'name':'autosave', 'callback':None, 'example': '[ on | off ]',
+        'summary': "Sets whether to save the state after every command. Set to 'off' by default. The state is saved to a file called 'autosave_keyname', where keyname is the name of the current key you're using.",
+        'help_text':"""
 set autosave [on/off]
 
 When turned on, the shell settings such as keys, targets, timeout value, etc.
@@ -803,7 +909,9 @@ exampleuser@%1 !>
   }},
 
 
-  'browse':{'name':'browse', 'callback':command_callbacks.browse, 'help_text':"""
+  'browse':{
+    'name':'browse', 'callback':command_callbacks.browse,
+    'summary': 'Find vessels I can control', 'help_text':"""
 browse [advertisetype]
 
 This command will use the default identity to search for vessels that can
@@ -833,7 +941,9 @@ browsegood ['192.x.x.2:1224:v3', '193.x.x.42:1224:v18', '219.x.x.62:1224:v4']
   }},
 
 
-  'genkeys':{'name':'genkeys', 'callback':None, 'help_text':"""
+  'genkeys':{
+    'name':'genkeys', 'callback':None, 'example':'fn [len] [as identity]',
+    'summary':'Creates new pub / priv keys (default len=1024)', 'cmdgroup': 'extended', 'help_text':"""
 genkeys keyprefix [as identity]
 
 Generates a new set of keys, writing them to files keyprefix.publickey and
@@ -864,7 +974,9 @@ userA PUB PRIV
   }},
 
 
-  'loadkeys':{'name':'loadkeys', 'callback':None, 'help_text':"""
+  'loadkeys':{
+    'name':'loadkeys', 'callback':None, 'example': 'fn [as identity]',
+    'summary':'Loads filename.publickey and filename.privatekey', 'help_text':"""
 loadkeys keyprefix [as identity]
 
 Loads a public key named keyprefix.publickey and a private key named
@@ -888,7 +1000,9 @@ exampleuser@ !>
   }},
 
 
-  'loadpub':{'name':'loadpub', 'callback':None, 'help_text':"""
+  'loadpub':{
+    'name':'loadpub', 'callback':None, 'example':'fn [as identity]',
+    'summary':'Loads filename.publickey', 'cmdgroup': 'extended', 'help_text':"""
 loadpub pubkeyfile [as identity]
 
 Loads a public key named keyprefix.publickey.  If identity is specified, the 
@@ -908,7 +1022,10 @@ exampleuser PUB
   }},
 
 
-  'loadpriv':{'name':'loadpriv', 'callback':None, 'help_text':"""
+  'loadpriv':{
+    'name':'loadpriv', 'callback':None, 'example':'fn [as identity]',
+    'summary':'Loads filename.privatekey', 'cmdgroup': 'extended',
+    'help_text':"""
 loadpriv privkeyfile [as identity]
 
 Loads a private key named keyprefix.privatekey.  If identity is specified, the 
@@ -928,7 +1045,9 @@ exampleuser PRIV
   }},
 
   
-  'list':{'name':'list', 'callback':command_callbacks.list, 'help_text':"""
+  'list':{
+    'name':'list', 'callback':command_callbacks.list,
+    'summary':'Update and display information about the vessels', 'help_text':"""
 list
 
 Display status information about a set of vessels.   This indicates whether
@@ -945,7 +1064,9 @@ exampleuser@browsegood !> list
 """, 'children':{}},
 
 
-  'upload':{'name':'upload', 'callback':None, 'help_text':"""
+  'upload':{
+    'name':'upload', 'callback':None, 'example':'localfn (remotefn)',
+    'summary': 'Upload a file', 'help_text':"""
 upload srcfilename [destfilename]
 
 Uploads a file into all vessels in the default group.   The file name that is
@@ -965,7 +1086,9 @@ Files on '192.x.x.2:1224:v3': 'example.1.1.repy'
   }},
 
 
-  'download':{'name':'download', 'callback':None, 'help_text':"""
+  'download':{
+    'name':'download', 'callback':None, 'example':'remotefn (localfn)',
+    'summary': 'Download a file (to multiple local files)', 'help_text':"""
 download srcfilename [destfilename]
 
 Retrieves a copy of srcfilename from every vessel in the default group.   The
@@ -987,7 +1110,9 @@ Wrote files: test_download.192.x.x.2_1224_v3
   }},
 
 
-  'delete':{'name':'delete', 'callback':None, 'help_text':"""
+  'delete':{
+    'name':'delete', 'callback':None, 'example': 'remotefn',
+    'summary': 'Delete a file.', 'help_text':"""
 delete filename
 
 Erases filename from every vessel in the default group.
@@ -1003,7 +1128,9 @@ Files on '192.x.x.2:1224:v3': ''
       '[FILENAME]':{'name':'filename', 'callback':command_callbacks.delete_remotefn, 'help_text':'', 'children':{}},
   }},
 
-  'cat':{'name':'cat', 'callback':None, 'help_text':"""
+  'cat':{
+    'name':'cat', 'callback':None, 'example':'remotefn',
+    'summary':'Display the contents of a remote file', 'help_text':"""
 cat filename
 
 Displays the content of filename from every vessel in the default group.
@@ -1022,7 +1149,9 @@ if callfunc == 'initialize':
   }},
 
 
-  'reset':{'name':'reset', 'callback':command_callbacks.reset, 'help_text':"""
+  'reset':{
+    'name':'reset', 'callback':command_callbacks.reset,
+    'summary':'Reset the vessel (clear files / log and stop)', 'help_text':"""
 reset
 
 Clears the log, stops any programs, and deletes all files from every vessel
@@ -1051,7 +1180,9 @@ Files on '192.x.x.2:1224:v3': ''
 """, 'children':{}},
 
 
-  'start':{'name':'start', 'callback':None, 'help_text':"""
+  'start':{
+    'name':'start', 'callback':None, 'example':'file [args ...]',
+    'summary':"Start an experiment (doesn't upload)", 'cmdgroup': 'extended', 'help_text':"""
 start programname [arg1 arg2 ...]
 
 Begins executing a file in the vessel named programname with the given 
@@ -1072,7 +1203,9 @@ Hello World
   }},
 
 
-  'stop':{'name':'stop', 'callback':command_callbacks.stop, 'help_text':"""
+  'stop':{
+    'name':'stop', 'callback':command_callbacks.stop,
+    'summary':'Stop an experiment but leave the log / files', 'help_text':"""
 stop
 
 Stops executing the running program in every vessel in the default group.   
@@ -1092,7 +1225,9 @@ exampleuser@%1 !> list
 """, 'children':{}},
 
 
-  'split':{'name':'split', 'callback':None, 'help_text':"""
+  'split':{
+    'name':'split', 'callback':None, 'example':'resourcefn',
+    'summary':'Split another vessel off (requires owner)', 'cmdgroup': 'extended', 'help_text':"""
 split resourcefile
 
 Divides the vessels in the default group into two new vessels.   The first
@@ -1128,7 +1263,9 @@ joinfail (empty)
   }},
 
 
-  'join':{'name':'join', 'callback':command_callbacks.join, 'help_text':"""
+  'join':{
+    'name':'join', 'callback':command_callbacks.join,
+    'summary':'Join vessels on the same node (requires owner)', 'cmdgroup': 'extended', 'help_text':"""
 join
 
 Joins any vessels in the default group that are on the same node.   The 
@@ -1161,14 +1298,19 @@ joinfail (empty)
 """, 'children':{}},
 
 
-  'exit':{'name':'exit', 'callback':command_callbacks.exit, 'help_text':"""
+  'exit':{
+    'name':'exit', 'callback':command_callbacks.exit,
+    'summary':'Exits the shell', 'help_text':"""
 exit
 
 Exits seash.
 """, 'children':{}},
 
 
-  'loadstate':{'name':'loadstate', 'callback':None, 'help_text':"""
+  'loadstate':{
+    'name':'loadstate', 'callback':None, 'example':'fn',
+    'summary':'Load encrypted shell state from a file with the keyname', 'cmdgroup': 'extended',
+    'help_text':"""
 loadstate filename
 
 Loads state information from filename using the default identity to decrypt
@@ -1189,7 +1331,10 @@ exampleuser@%1 !>
   }},
 
 
-  'savestate':{'name':'savestate', 'callback':None, 'help_text':"""
+  'savestate':{
+    'name':'savestate', 'callback':None, 'example':'fn',
+    'summary':"Save the shell's state information to a file with the keyname", 'cmdgroup': 'extended',
+    'help_text':"""
 savestate filename
 
 Saves state information into a filename, encrypting the data with the default 
@@ -1210,7 +1355,10 @@ exampleuser@%1 !>
   }},
 
 
-  'update':{'name':'update', 'callback':command_callbacks.update, 'help_text':"""
+  'update':{
+    'name':'update', 'callback':command_callbacks.update,
+    'summary': 'Update information about the vessels', 'cmdgroup': 'extended',
+  'help_text':"""
 update
 
 Reacquire cached state from the vessels.   This state is used for many of the
@@ -1226,7 +1374,10 @@ exampleuser@%1 !> show info
 """, 'children':{}},
 
 
-  'contact':{'name':'contact', 'callback':None, 'help_text':"""
+  'contact':{
+    'name':'contact', 'callback':None, 'example':'host:port[:vessel]',
+    'summary': 'Communicate with a node explicitly', 'cmdgroup': 'extended',
+    'help_text':"""
 contact IP:port[:vesselname]
 
 Add the specified vessel to the shell.   This bypasses advertise lookups and
@@ -1241,6 +1392,65 @@ Added targets: %1(192.x.x.2:1224:v3)
       '[ARGUMENT]':{'name':'args', 'callback':command_callbacks.contact, 'help_text':'', 'children':{}},
   }},
 
+  'enable':{
+    'name':'enable',
+    'callback': command_callbacks.enable_module,
+    'summary': "Enables an installed module",
+    'example': "[modulename]",
+    'help_text': """
+enable [modulename]
+
+Enables use of the specified module.  You can only enable modules if they do
+not contain commands that conflict with existing commands.
+
+user@ !> enable modulename
+user@ !> enable modulename
+Module 'modulename' is already enabled.
+user@ !> enable conflictingmodule
+Module 'conflictingmodule' cannot be enabled due to these conflicting commands:
+show info (default)
+get (selexor)
+""",'children': {
+      '[ARGUMENT]': {
+        'name':'modulename',
+        'callback': None,
+        'children':{}},}},
+  'disable': {
+    'name':'disable',
+    'callback': command_callbacks.disable_module,
+    'example': "[modulename]",
+    'summary': "Disables an enabled module",
+    'help_text': """
+disable [modulename]
+
+Disables the specified module.  You will no longer be able to access the
+commands that were found in the disabled module until the module is re-enabled.
+
+user@ !> disable modulename
+user@ !> disable modulename
+Module 'modulename' is not enabled.
+
+""", 'children': {
+      '[ARGUMENT]': {
+        'name':'modulename',
+        'callback': None,
+        'children':{}},}},
+  'modulehelp': {
+    'name': 'modulehelp',
+    'callback': command_callbacks.print_module_help,
+    'example': '[modulename]',
+    'summary': "Shows the module-level helptext for a particular module",
+    'help_text': """
+help module [modulename]
+
+Displays the module-level help for a particular module.  The module must 
+already be installed.
+
+""", 'children': {
+      '[ARGUMENT]':{
+        'name':'modulename',
+        'callback': None,
+        'children':{}},}},
 }
 
 
@@ -1311,13 +1521,131 @@ def return_command_dictionary():
   # Sets the entire seash command dictionary as 'as keyname' children except itself
   seashcommanddict['as']['children']['[KEYNAME]']['children'] = _deep_copy_main_dict(['as'])
 
+  # Preserve the old children
+  old_help_children = seashcommanddict['help']['children'] 
   # Sets the entire seash command dictionary as 'help' children except itself
   seashcommanddict['help']['children'] = _deep_copy_main_dict(['help'])
+  
+  for child in old_help_children:
+    seashcommanddict['help']['children'][child] = old_help_children[child]
 
   return seashcommanddict
 
 
+# Returns the summaries of all children commands to the passed in input_dict. 
+def get_command_summaries(input_dict):
+  inputdict_mark = input_dict 
+  seashdict_mark = seashcommanddict
+  
+  # Go to one level above the last command node, the last node can be a display 
+  # group node.
+  while (inputdict_mark[inputdict_mark.keys()[0]]['children']):
+    current_command = inputdict_mark.keys()[0]
+    # Take 1 step deeper into the commanddict
+    seashdict_mark = seashdict_mark[current_command]['children']
+    inputdict_mark = inputdict_mark[current_command]['children']
+  
+  # If it isn't a display group node, then it is a command node.
+  # We want to print out its contents.  If we don't do this, we'll end up 
+  # printing one level higher than what we intended.
+  if inputdict_mark[inputdict_mark.keys()[0]]['name'] != 'display_group':
+    # This is a known command identified directly
+    if inputdict_mark.keys()[0] in seashdict_mark:
+      seashdict_mark = seashdict_mark[inputdict_mark.keys()[0]]['children']
+    # This could be a user argument, such as a filename or a target.  These 
+    # names wouldn't be in the commanddict directly.  Replace it with an 
+    # argument 
+    else:  
+      for command in seashdict_mark.keys():
+        if command.startswith('[') and command.endswith(']'):
+          seashdict_mark = seashdict_mark[command]['children']
 
+  # Compile the list of all command summaries with the specified name
+  # summaries[commandgroup][module] = [(commandstr, summary), (commandstr, summary), ...]
+  summaries = {}
+  commandkeys = seashdict_mark.keys()
+  commandkeys.sort()  # Display the list in alphabetical order
+
+  for command in commandkeys:
+    # Skip user arguments
+    if command.startswith('[') and command.endswith(']'):
+      continue
+    
+    # If cmdgroup is unspecified, put the command in the default summary list
+    if 'cmdgroup' in seashdict_mark[command]:
+      cmdgroup = seashdict_mark[command]['cmdgroup']
+    else:
+      cmdgroup = ''
+    # If a summary is not specified, then treat it as having '' as a summary.
+    if 'summary' in seashdict_mark[command]:
+      summary = seashdict_mark[command]['summary']
+    else:
+      summary = ''
+
+    # commandstr is the command that is displayed to the user, with examples
+    # e.g. "show ip [to file]" 
+    commandstr = command[:]
+    if 'example' in seashdict_mark[command]:
+      commandstr +=' ' + seashdict_mark[commandstr]['example']
+    # If this command is part of a module, mark it as such in the summary
+    # e.g. "Shows the longitude and latitude of the node. (geoip module)"
+    if 'module' in seashdict_mark[command]:
+      module = seashdict_mark[command]['module']
+    else:
+      module = None
+    if not cmdgroup in summaries:
+      summaries[cmdgroup] = {}
+    if module not in summaries[cmdgroup]:
+      summaries[cmdgroup][module] = []
+    summaries[cmdgroup][module].append((commandstr, summary))
+  return summaries
+
+  
+def get_string_from_command_summarylist(command_summarylist, command_string):
+  # Command string is the list of commands to list up to that point
+  # e.g. for help show info, the command_string would be 'help show'.
+  # Find longest commandcchildhild key
+  longest_command = ''
+  for (command, summary) in command_summarylist:
+    if len(command) > len(longest_command):
+      longest_command = command
+
+  # Default terminals are often 79 chars wide
+  max_linelen = 79
+  divider = ' -- '
+  max_summary_len = max_linelen - len(longest_command + command_string) - len(divider)
+  retstring = ''
+  # Resulting string looks like this...
+  # show files        -- helptext for show files
+  # show ip [to file] -- helptext for show ip
+  #                   -- continued...
+  # show keys         -- helptext for show keys
+  # ...
+  formatstr = ('%-'+str(len(longest_command + command_string))
+      +'s%'+str(len(divider))+'s'
+      +'%s\n')
+  for (command, summary) in command_summarylist:
+    command = command_string + command
+    divider = ' -- '
+    while summary:
+      # Extract the data to print on this line
+      show_this_line = summary[:max_summary_len]
+      summary = summary[max_summary_len:]
+      # At the point that where we split, if we are in the middle of a word, 
+      # backtrack to the closest whitespace and split there
+      if (not show_this_line[-1].isspace() and  # char before split point
+          summary and  # summary could be empty at this point
+          not summary[0].isspace()): # char after split point        
+        # Take the last word away from this line and put it back into summary
+        last_word = show_this_line.split()[-1]
+        show_this_line = show_this_line[:-len(last_word)]
+        summary = last_word + summary
+      retstring += formatstr % (command, divider, show_this_line)
+      # Don't show the command/divider after the first line
+      command = ''
+      divider = ''
+      summary = summary.lstrip()
+  return retstring
 
 
 ##### User input parsing related methods #####
@@ -1435,13 +1763,20 @@ def parse_command(userinput):
 
           break
 
-
-
-      # If the user input doesn't match any of the pattern words and there's no
-      # pattern that suggest it may be a user input argument, raise an exception
-      # for going outside of seash's command dictionary
       else:
-        raise seash_exceptions.ParseError("Command not understood")
+        # If the user command started with 'help', this could be the display keyword.
+        # We then append a node that will appear only in the input_dict so that the command parser can 
+        # retrieve the display keyword.
+        # We use this to determine if a user wanted to show commands in a specific group of commands.
+        # e.g. help set, help extended, etc.
+        if userinput.startswith('help'):
+          input_dict_builder[user_string] = {'name': 'display_group', 'children': {}}
+
+        # If the user input doesn't match any of the pattern words and there's no
+        # pattern that suggest it may be a user input argument, raise an exception
+        # for going outside of seash's command dictionary
+        else:    
+          raise seash_exceptions.ParseError("Command not understood")
 
 
 
@@ -1520,3 +1855,6 @@ def command_dispatch(input_dict, environment_dict):
   # Executes current_callback's method if it's not the same one as interrupt_callback
   elif not interrupt_callback == current_callback:
     current_callback(input_dict.copy(), environment_dict)
+
+
+seash_modules.enable_modules_from_last_session(seashcommanddict)

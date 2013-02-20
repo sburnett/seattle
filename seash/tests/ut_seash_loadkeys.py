@@ -1,6 +1,11 @@
 """
 Loads a series of keys and make sures seash recognizes them correctly.
 """
+
+# Seash's module system outputs a list of enabled modules on load.
+# We need to instruct the UTF to ignore that.
+#pragma out Enabled modules:
+#pragma out To see a list of all available modules, use the 'show modules' command.
 import seash
 import sys
 import repyhelper

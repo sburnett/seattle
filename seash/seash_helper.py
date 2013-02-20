@@ -915,3 +915,37 @@ def print_vessel_errors(retdict):
       # Unknown error. 
       print "An error occurred: " + errorid
     print "Affected vessels:", nodestring + '.'
+
+
+def get_commands_from_commanddict(commanddict):
+  """
+  <Purpose>
+    Extracts the commands that are contained in the command dictionary.
+    The arguments of these commands are not included.
+    
+  <Arguments>
+    commanddict: A command dictionary in the format specified in 
+      seash_dictionary.
+      
+  <Exceptions>
+    None
+    
+  <Side Effects>
+    None
+    
+  <Return>
+    A list of commands that are in the commanddict.
+  """
+  if not commanddict:
+    return []
+  
+  commands = []
+  for command in commanddict: 
+    has_user_argument = False
+    subcommands = get_commands_from_commanddict(commanddict[command]['children'])
+    if subcommands:
+      for subcommand in subcommands:
+        commands.append(command + " " + subcommand)
+    else:
+      commands.append(command)
+  return commands

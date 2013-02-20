@@ -4,6 +4,11 @@ proceeds to download and remove the file from the node to test seash's file
 recognition.
 """
 
+# Seash's module system outputs a list of enabled modules on load.
+# We need to instruct the UTF to ignore that.
+#pragma out Enabled modules:
+#pragma out To see a list of all available modules, use the 'show modules' command.
+
 #pragma out The specified file(s) could not be found. Please check the filename.
 
 import seash
