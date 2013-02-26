@@ -1769,7 +1769,11 @@ def parse_command(userinput):
         # retrieve the display keyword.
         # We use this to determine if a user wanted to show commands in a specific group of commands.
         # e.g. help set, help extended, etc.
-        if userinput.startswith('help'):
+
+        # We need to check for a space after 'help', otherwise a command such as
+        # 'helpnonexistent' would be treated as valid, even if 'helpnonexistent'
+        # is not in the command dictionary.
+        if userinput.startswith('help '):
           input_dict_builder[user_string] = {'name': 'display_group', 'children': {}}
 
         # If the user input doesn't match any of the pattern words and there's no
