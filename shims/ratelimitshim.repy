@@ -44,12 +44,10 @@ class RateLimitShim(BaseShim):
     # We need to use locks to ensure that we send and receive one msg at
     # a time, so we don't accidentally go over the upload/download limit.
     self.net_resources = {'netsend' : {'resource_limit' : 1024 * 1024 * 64, # 64MB/s
-                                       'update_time' : 0.0,
-                                       'consumption' : 1024 * 1024 * 64 * 1.0,
+                                       'drained_time' : 0.0,
                                        'lock' : createlock()},
                           'netrecv' : {'resource_limit' : 1024 * 1024 * 64, # 64MB/s
-                                       'update_time' : 0.0,
-                                       'consumption' : 1024 * 1024 * 64 * 1.0,
+                                       'drained_time' : 0.0,
                                        'lock' : createlock()}
                           }
 
@@ -72,21 +70,6 @@ class RateLimitShim(BaseShim):
       except ValueError:
         raise ShimInternalError("Download rate provided is not of type int.")
 
-      # We set the consumption to the limit in order to avoid a burst of data at the beginning.
-      # Here is an example scenario that we want to avoid:
-      #
-      # Scenario:
-      # * Actual bandwidth is 10MB/s download
-      # * We set the limit to 5MB/s
-      # * We download 4MB of data, which takes 0.4s to download.
-      # * We don't sleep since we did not download more then 5MB.
-      # * We return to application layer.
-      # * Thus the application perceives a download rate of 10MB/s 
-      #   rather then 5MB/s
-
-      self.net_resources['netsend']['consumption'] = 1.0 * self.net_resources['netsend']['resource_limit']
-      self.net_resources['netrecv']['consumption'] = 1.0 * self.net_resources['netrecv']['resource_limit']
-
     BaseShim.__init__(self, shim_stack, optional_args)
 
 
@@ -102,8 +85,8 @@ class RateLimitShim(BaseShim):
       (SYN/ACK)
     """
 
-    self.consume_resource('netsend', 0)
-    self.consume_resource('netrecv', 0)
+    self.check_resource('netsend')
+    self.check_resource('netrecv')
 
     sockobj = self.get_next_shim_layer().openconnection(destip, destport, localip, localport, timeout)
 
@@ -122,8 +105,8 @@ class RateLimitShim(BaseShim):
       bytes (SYN and ACK) of netrecv and 64 bytes of netsend (ACK packet)
     """
 
-    self.consume_resource('netsend', 0)
-    self.consume_resource('netrecv', 0)
+    self.check_resource('netsend')
+    self.check_resource('netrecv')
 
     (remote_ip, remote_port, repy_socket) = self.get_next_shim_layer().tcpserversocket_getconnection(tcpserversocket)
 
@@ -141,8 +124,8 @@ class RateLimitShim(BaseShim):
       of data sent + 64. Consumes netrecv of 64.
     """
 
-    self.consume_resource('netsend', 0)
-    self.consume_resource('netrecv', 0)
+    self.check_resource('netsend')
+    self.check_resource('netrecv')
 
     data_sent = self.get_next_shim_layer().socket_send(socket, msg)
 
@@ -163,8 +146,8 @@ class RateLimitShim(BaseShim):
       received + 64. Consumes netsend of 64.
     """
 
-    self.consume_resource('netsend', 0)
-    self.consume_resource('netrecv', 0)
+    self.check_resource('netsend')
+    self.check_resource('netrecv')
 
     data_recv = self.get_next_shim_layer().socket_recv(socket, bytes)
 
@@ -183,9 +166,6 @@ class RateLimitShim(BaseShim):
       Closes the socket. Consumes 64 bytes of netrecv and 128 bytes of
       netsend.
     """
-    
-    self.consume_resource('netsend', 0)
-    self.consume_resource('netrecv', 0)
 
     return_val = self.get_next_shim_layer().socket_close(socket)
 
@@ -207,7 +187,7 @@ class RateLimitShim(BaseShim):
       so we take that into account. Consumes the amount of data sent
       + 64 bytes
     """
-    self.consume_resource('netsend', 0)
+    self.check_resource('netsend')
 
     data_sent = self.get_next_shim_layer().sendmessage(destip, destport, message, localip, localport)
  
@@ -226,7 +206,7 @@ class RateLimitShim(BaseShim):
       Calls on the next level of udpserver_getmessage. We consume
       netrecv in the amount of the lenght of the message + 64 bytes.
     """
-    self.consume_resource('netrecv', 0)
+    self.check_resource('netrecv')
 
     msg = self.get_next_shim_layer().udpserversocket_getmessage(udpserversocket)
 
@@ -244,20 +224,15 @@ class RateLimitShim(BaseShim):
   def consume_resource(self, resource, quantity):
     """
     <Purpose>
-      Consume resources of the provided quantity. If the resource consumption
-      is over the limit, then we might wait to drain the resources.
+      Consume resources of the provided quantity.
 
     <Arguments>
       resource - the type of resource (netsend/netrecv)
 
       quantity - the amount of resource that will be consumed.
 
-    <Side Effects>
-      We might sleep to drain the resources.
-
     <Exceptions>
       ShimInternalError - if the quantity is below 0.
-      SocketWouldBlockError - will be raised if unable to acquire the lock.
 
     <Return>
       None
@@ -269,108 +244,46 @@ class RateLimitShim(BaseShim):
     if resource not in self.net_resources.keys():
       raise ShimInternalError("Resource '%s' not a valid resource." % resource)
 
-    if not self.net_resources[resource]['lock'].acquire(False):
-      raise SocketWouldBlockError
+    self.net_resources[resource]['lock'].acquire(True)
 
     try:
-      # Update the resource consumption as some time has passed since last
-      # consumption of resource.
-      self.update_resource_consumption(resource)
+      consume_elapsed_time = float(quantity) / self.net_resources[resource]['resource_limit']
+      consume_start_time = max(getruntime(), self.net_resources[resource]['drained_time'])
+      self.net_resources[resource]['drained_time'] = consume_start_time + consume_elapsed_time
 
-      # Consume the resource.
-      self.net_resources[resource]['consumption'] += quantity
-      
-      # Drain the resource if we are over the limit.
-      self.sleep_and_drain(resource)
     finally:
       self.net_resources[resource]['lock'].release()
 
 
 
 
-
-  def sleep_and_drain(self, resource):
+  def check_resource(self, resource):
     """
     <Purpose>
-      Until the resource consumed drains below the upper limit, we
-      will sleep and drain.
+      Checks if the resource consumption is over the limit.
 
     <Arguments>
-      resource - which resource we should drain on.
-
-    <Side Effects>
-      None
+      resource - the type of resource (netsend/netrecv)
 
     <Exceptions>
-      ShimInternalError - raised if the limit of the resource is 0.
+      ShimInternalError - if the quantity is below 0.
+      SocketWouldBlockError - there are no resources available to be consumed
 
     <Return>
       None
     """
 
-    # Make sure that the upper limit for the resource is not 0. Otherwise
-    # the resource will never drain.
-    if self.net_resources[resource]['resource_limit'] == 0:
-      raise ShimInternalError("The limit for resource '%s' is 0." % resource)
+    if resource not in self.net_resources.keys():
+      raise ShimInternalError("Resource '%s' not a valid resource." % resource)
 
+    self.net_resources[resource]['lock'].acquire(True)
 
-    while self.net_resources[resource]['consumption'] > self.net_resources[resource]['resource_limit']:
-        
-      consumed = self.net_resources[resource]['consumption']
-      limit = self.net_resources[resource]['resource_limit']
-      # Sleep for the amount of time that we expect we need to sleep for.
-      sleeptime = 1.0 * (consumed - limit) / limit
+    try:
+      if getruntime() < self.net_resources[resource]['drained_time']:
+        raise SocketWouldBlockError()
 
-      sleep(sleeptime)
-
-      self.update_resource_consumption(resource)
-    
-
-    
-
-
-
-  def update_resource_consumption(self, resource):
-    """
-    <Purpose>
-      Figure out how much time has elapsed and decreased consumed resource
-      accordingly. For example if the upload limit was set to 1KB per second, and
-      we have spent 5 second since last upload, we can upload 5KB more now.
-
-    <Arguments>
-      resource - which resource we are updating on.
-
-    <Side Effects> 
-      None
-
-    <Exceptions>
-      None
-
-    <Return>
-      None
-    """
-
-    curtime = getruntime()
-    # Update the resource time, and find out how much time has elapsed 
-    # since last update.
-    elapsedtime = curtime - self.net_resources[resource]['update_time']
-    self.net_resources[resource]['update_time'] = curtime
-    
-    if elapsedtime < 0:
-      return
-
-
-    resource_reduction = elapsedtime * self.net_resources[resource]['resource_limit']
-
-    if resource_reduction > self.net_resources[resource]['consumption']:
-      self.net_resources[resource]['consumption'] = 0.0
-
-    else:
-      self.net_resources[resource]['consumption'] = self.net_resources[resource]['consumption'] - resource_reduction
-
-    if self.net_resources[resource]['consumption'] < 0:
-      raise ShimInternalError("Resource consumed has gone below 0 for '%s'" % resource)
-      
+    finally:
+      self.net_resources[resource]['lock'].release()
 
 
 
