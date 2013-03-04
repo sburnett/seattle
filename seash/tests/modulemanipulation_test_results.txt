@@ -3,12 +3,14 @@ Enabled Modules:
 
 Installed Modules:
 geoip - Install URL not available
+variables - Install URL not available
 
 Enabled Modules:
 geoip
 
 Installed Modules:
 geoip - Install URL not available
+variables - Install URL not available
 
 
 GeoIP Module

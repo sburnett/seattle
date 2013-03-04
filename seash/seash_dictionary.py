@@ -1677,6 +1677,7 @@ at and there are no argument keys to suggest the inputted word is an user argume
 def parse_command(userinput):
 
   userinput = userinput.strip()
+  userinput = seash_modules.preprocess_input(userinput)
 
   userstringlist = userinput.split()
 
@@ -1690,8 +1691,19 @@ def parse_command(userinput):
   seash_dict_mark = return_command_dictionary()
 
 
+  result_string_list = []
   # Cycles through the user's input string by string
-  for user_string in userstringlist:
+  while userstringlist:
+    user_string = userstringlist.pop(0)
+    # Adds the user string directly to the result string by default.  
+    # Some nodes (like the [ARGUMENT] node) need to change what is added to the
+    # result string, and they can modify it as needed.
+
+    # For example, if a user types in add %1 to mygroup, %1 and mygroup both
+    # will trigger the [GROUP] user argument.  We want %1 and mygroup to be
+    # inserted into the result string, not [GROUP].  However, we will use
+    # [GROUP] to identify the node. 
+    result_string_list.append(user_string)
 
     # First, an initial check to see if user's input matches a specified command word
     for cmd_pattern in seash_dict_mark.iterkeys():
@@ -1740,13 +1752,15 @@ def parse_command(userinput):
             # If ARGUMENT doesn't have any children, joins the rest of the user's input
             # into a single string
             if not seash_dict_mark[cmd_pattern]['children']:
-              arg_string = " ".join(userstringlist[userstringlist.index(user_string):])
-              for string in userstringlist[userstringlist.index(user_string):]:
-                userstringlist.remove(string)
+              # Take off the current token from the result string list, and then
+              # add it to the user string list for concatenation
+              userstringlist = [result_string_list.pop()] + userstringlist
+              user_string = " ".join(userstringlist)
+              # We are now done, we must clear the list to indicate that
+              userstringlist = []
 
               # Resets the user_string as arg_string for consistency in rest of code
-              user_string = arg_string
-              userstringlist.append(user_string)
+              result_string_list.append(user_string)
   
 
           # Appends a copy of the dictionary to avoid changing the master list of command dictionaries

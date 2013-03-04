@@ -444,6 +444,30 @@ def enable_modules_from_last_session(seashcommanddict):
   print "To see a list of all available modules, use the 'show modules' command."
 
 
+def preprocess_input(userinput):
+  """
+  <Purpose>
+    Preprocess the raw command line input string.
+
+  <Arguments>
+    The raw command line input string.  We assume it is pre-stripped.
+
+  <Side Effects>
+    The string will be processed by each module that has a defined preprocessor.
+
+  <Exceptions>
+    None
+
+  <Returns>
+    The preprocessed string.
+  """
+  for module in get_enabled_modules():
+    # Not every module has a preprocessor...
+    if 'input_preprocessor' in module_data[module]:
+      userinput = module_data[module]['input_preprocessor'](userinput)
+  return userinput
+
+
 def _attach_module_identifier(command_dict, modulefn):
   """
   Attaches a 'module': modulename entry to each node in the dictionary.
