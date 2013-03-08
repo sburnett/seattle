@@ -3,11 +3,6 @@ A simple test to make sure seash's parser is catching wrong commands correctly.
 """
 
 #pragma error Command not understood
-
-# Seash's module system outputs a list of enabled modules on load.
-# We need to instruct the UTF to ignore that.
-#pragma out Enabled modules:
-#pragma out To see a list of all available modules, use the 'show modules' command.
 import seash_dictionary
 
 # Parser should recognize these commands as valid

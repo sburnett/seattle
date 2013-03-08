@@ -2,11 +2,8 @@
 Ensure that when all modules do not conflict with each other
 
 """
+#pragma out
 import os
-
-#pragma out Enabled modules:
-#pragma out To see a list of all available modules, use the 'show modules' command.
-
 import seash
 
 commands = [

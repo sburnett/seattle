@@ -6,11 +6,6 @@ import seash
 import os.path
 import sys
 
-# Seash's module system outputs a list of enabled modules on load.
-# We need to instruct the UTF to ignore that.
-#pragma out Enabled modules:
-#pragma out To see a list of all available modules, use the 'show modules' command.
-
 orig_stdout = sys.stdout
 sys.stdout = open("test_results.txt", "w")
 

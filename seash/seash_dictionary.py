@@ -30,6 +30,7 @@ import seash_exceptions
 
 import command_callbacks
 
+# Used for module preprocessing of user input
 import seash_modules
 
 
@@ -1873,6 +1874,3 @@ def command_dispatch(input_dict, environment_dict):
   # Executes current_callback's method if it's not the same one as interrupt_callback
   elif not interrupt_callback == current_callback:
     current_callback(input_dict.copy(), environment_dict)
-
-
-seash_modules.enable_modules_from_last_session(seashcommanddict)

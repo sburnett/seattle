@@ -8,11 +8,6 @@ show ownerinfo
 set autosave
 upload
 """
-
-# Seash's module system outputs a list of enabled modules on load.
-# We need to instruct the UTF to ignore that.
-#pragma out Enabled modules:
-#pragma out To see a list of all available modules, use the 'show modules' command.
 import seash_dictionary
 import command_callbacks
 

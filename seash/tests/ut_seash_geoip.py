@@ -2,13 +2,11 @@
 Test that the geoip module functions correctly.
 
 """
+#pragma out
 import os
 # Make sure the geoip module is disabled before starting seash
 if not 'geoip.disabled' in os.listdir('./modules/'):
   open('./modules/geoip.disabled', 'w')
-
-#pragma out Enabled modules:
-#pragma out To see a list of all available modules, use the 'show modules' command.
 
 import seash
 

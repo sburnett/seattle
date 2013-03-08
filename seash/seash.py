@@ -97,6 +97,9 @@ if rename_readline_so_file:
 # Needed for parsing user commands and executing command functions
 import seash_dictionary
 
+# Used for re-enabling modules on the last run
+import seash_modules
+
 # To be able to catch certain exceptions thrown throughout the program
 import seash_exceptions
 
@@ -291,5 +294,7 @@ def command_loop(test_command_list):
   
 if __name__=='__main__':
   time_updatetime(34612)
+  seash_modules.enable_modules_from_last_session(seash_dictionary.seashcommanddict)
+  
   # For general usage, empty list is passed to prompt for user input
   command_loop([])

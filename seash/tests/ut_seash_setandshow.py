@@ -3,10 +3,6 @@ Runs a series of set and show commands to make sure no errors are being thrown
 during command executions. Due to variations in output caused by the user's
 IP address, output results are not being tested too extensively.
 """
-# Seash's module system outputs a list of enabled modules on load.
-# We need to instruct the UTF to ignore that.
-#pragma out Enabled modules:
-#pragma out To see a list of all available modules, use the 'show modules' command.
 import seash
 import sys
 

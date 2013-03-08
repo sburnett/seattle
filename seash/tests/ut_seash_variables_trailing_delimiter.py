@@ -3,9 +3,6 @@ Makes sure the Variables module for seash works as intended.
 In particular, we check that trailing delimiters are not recognized as a
 variable.
 """
-#pragma out Enabled modules:
-#pragma out To see a list of all available modules, use the 'show modules' command.
-
 import seash
 
 # This error should come up since %all contains nothing as we don't browse for
