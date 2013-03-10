@@ -20,6 +20,31 @@ import seash_exceptions
 import command_callbacks
 
 
+def autocomplete(input_list):
+  """
+  <Purpose>
+    Returns all valid input completions for the specified command line input.
+  
+  <Arguments>
+    input_list: A list of tokens.
+  
+  <Side Effects>
+    None
+  
+  <Exceptions>
+    None
+    
+  <Returns>
+    A list of strings representing valid completions.
+  """
+  if input_list[0] in ['modulehelp', 'enable', 'disable']:
+    commands = []
+    for modulename in seash_modules.module_data.keys():
+      commands.append(input_list[0] + ' ' + modulename)
+    return commands
+  return []
+
+
 
 module_level_help = """
 Modules Module

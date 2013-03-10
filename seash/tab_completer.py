@@ -33,6 +33,7 @@ import os
 import os.path
 import seash_dictionary
 import seash_global_variables
+import seash_modules
 
 class Completer:
   def __init__(self):
@@ -234,6 +235,10 @@ class Completer:
       # Retrieves the list of children of the current command dictionary based on
       # the current input of the user
       self._words = self._get_all_commands(input_list)
+      
+      # Retrieves the list of words from modules based on the current input of 
+      # the user
+      self._words += seash_modules.tab_complete(input_list)
       
       for word in self._words:
         if word.startswith(prefix):

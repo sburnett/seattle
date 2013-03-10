@@ -472,6 +472,26 @@ def enable_modules_from_last_session(seashcommanddict):
   print "To see a list of all available modules, use the 'show modules' command."
 
 
+def tab_complete(input_list):
+  """
+  <Purpose>
+    Gets the list of all valid tab-complete strings from all enabled modules.
+  <Arguments>
+    input_list: The list of words the user entered.
+  <Side Effects>
+    None
+  <Exceptions>
+    None
+  <Returns>
+    A list of valid tab-complete strings
+  """
+  commands = []
+  for module in get_enabled_modules():
+    if 'tab_completer' in module_data[module]:
+      commands += module_data[module]['tab_completer'](input_list)
+  return commands
+
+
 def preprocess_input(userinput):
   """
   <Purpose>
