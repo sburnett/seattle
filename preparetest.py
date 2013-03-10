@@ -219,6 +219,7 @@ def main():
     copy_to_target("nodemanager/tests/*", target_dir)
     copy_to_target("portability/tests/*", target_dir)  	
     copy_to_target("seash/tests/*", target_dir)
+    copy_tree("seash/tests/modules/", target_dir + os.sep + 'modules/')
     copy_to_target("oddball/tests/*", target_dir)
     copy_to_target("seattlelib/tests/*", target_dir)
     copy_to_target("keydaemon/tests/*", target_dir)
@@ -316,6 +317,37 @@ def replace_string(old_string, new_string, file_name_pattern="*"):
     outFile.close()
 
 
+def copy_tree(source_root, destination_root, dir_to_copy = None, overwrite=False):
+  """
+  <Purpose>
+    Copies a directory tree.
+
+  <Arguments>
+    source_root:
+      The source folder to copy from.
+    destination_root:
+      The destination folder to copy to.
+
+  <Side Effects>
+    All folders within the source folder will be copied over to the destination
+    folder.  If there are any duplicates, the old file is overwritten.
+
+  <Exceptions>
+    None
+
+  <Return>
+    None
+  """
+  for source_relative_path, dirs, files in os.walk(source_root):
+    destination_relative_path = source_relative_path.replace(source_root, destination_root)
+    # Make sure the target directory exists
+    if not os.path.exists(destination_relative_path):
+      os.mkdir(destination_relative_path)
+
+    # Copy over the files
+    for filename in files:
+      shutil.copy(source_relative_path + os.sep + filename, 
+                  destination_relative_path + os.sep + filename)
 
 
 

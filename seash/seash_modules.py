@@ -148,18 +148,21 @@ def ensure_no_conflicts_in_commanddicts(originaldict, comparedict):
     # both are defined and they are identical
     if ((comparechild_defined ^ originalchild_defined) or
         (comparechild_defined and originalchild_defined and 
-         comparedict[child]['callback'] == comparedict[child]['callback'] and 
-         comparedict[child]['help_text'] == comparedict[child]['help_text'] and
-         comparedict[child]['summary'] == comparedict[child]['summary'])):
+         _are_cmd_nodes_same(originaldict[child], comparedict[child]))):
       try:
         ensure_no_conflicts_in_commanddicts(comparedict[child]['children'], originaldict[child]['children'])
       except seash_exceptions.ModuleConflictError, e:
         # Reconstruct the full command recursively
-        raise seash_exceptions.ModuleConflictError(child + " " + str(e))
+        raise seash_exceptions.ModuleConflictError(child + " " + str(e) + " ("+module_name+")")
       continue
     
     # Not identical.  Conflict found.
-    raise seash_exceptions.ModuleConflictError(child)
+    # Also include which module the conflicting module was found from.
+    if 'module' in originaldict[child]:
+        module_name = originaldict['module'][child]      
+    else:
+      module_name = "default"
+    raise seash_exceptions.ModuleConflictError(child + ' ('+module_name+')')
 
 
 def is_commanddictnode_defined(node):
@@ -170,6 +173,21 @@ def is_commanddictnode_defined(node):
   return (('callback' in node and not node['callback'] is None) or
            'help_text' in node or
            'summary' in node)
+
+
+def _are_cmd_nodes_same(node1, node2):
+  """ 
+  Checks to see if two cmddnodes are the same.
+  Two cmdnodes are defined to be the same if they have the same callbacks/
+  helptexts/summaries. 
+  """
+
+  # Everything in node1 should be in node2
+  for propertytype in node1:
+    if (not propertytype in node2 or
+        node1[propertytype] != node2[propertytype]):
+      return False
+  return True
 
 
 def are_cmddicts_same(dict1, dict2):
@@ -309,7 +327,11 @@ def remove_commanddict(originaldict, removedict):
       if is_commanddictnode_defined(removedict[child]):
         # Remove everything except for children.  We remove those recursively.
         for propertytype in removedict[child]:
-          if propertytype != 'children':
+          # Not all properties (i.e. module) will be defined in the original 
+          # dictionary.  We may raise an exception when trying to delete one
+          # such property.
+          if (propertytype != 'children' and
+              propertytype in originaldict[child]):
             del originaldict[child][propertytype]
       # Remove this node if this node is no longer defined, and if there are no 
       # remaining child nodes.
@@ -436,8 +458,14 @@ def enable_modules_from_last_session(seashcommanddict):
     # The only thing that should happen is that the modulename.disabled file
     # gets created (temporarily)
     disable(seashcommanddict, modulename)
-    enable(seashcommanddict, modulename)
-  
+    try:
+      enable(seashcommanddict, modulename)
+    except seash_exceptions.ModuleConflictError, e:
+      print "Failed to enable the '"+modulename+"' module due to the following conflicting command:"
+      print str(e)
+
+      # We mark this module as disabled by adding a modulename.disabled file.
+      open(MODULES_FOLDER_PATH + os.sep + modulename + ".disabled", 'w')
   modules_to_enable.sort()
   
   print 'Enabled modules:', ', '.join(modules_to_enable)
