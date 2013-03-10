@@ -235,7 +235,7 @@ def merge_commanddict_recursive(originaldict, mergedict):
       # Replace properties if they exist, and then merge over the children.
       if not is_commanddictnode_defined(originaldict[commandnode]):
         for entry in mergedict[commandnode]:
-          if entry != 'children':
+          if not entry in ['children', 'module']:
             originaldict[commandnode][entry] = mergedict[commandnode][entry]
       
       merge_commanddict_recursive(originaldict[commandnode]['children'], mergedict[commandnode]['children'])

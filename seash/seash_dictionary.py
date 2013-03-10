@@ -549,29 +549,6 @@ Example:
 102400
 
 """, 'children':{}},
-      'modules': {
-        'name': 'modules',
-        'callback': command_callbacks.list_all_modules,
-        'summary': "Shows basic information about all installed modules.",
-        'help_text': """
-show modules
-
-Shows information on all installed modules.  Modules will be separated into
-two categories: enabled and disabled.  Each entry will be in the following
-format:
-  [module name] - [URL where the module was installed from, if available]
-
-The URL will be missing if the module was installed manually.
-
-
-user@ !> show modules
-Enabled Modules:
-geoip
-
-Installed Modules:
-geoip - Install URL not available
-selexor - https://seattle.poly.edu/plugins/selexor/
-""", 'children': {}},
   }},
 
 
@@ -1392,66 +1369,6 @@ Added targets: %1(192.x.x.2:1224:v3)
 """, 'children':{
       '[ARGUMENT]':{'name':'args', 'callback':command_callbacks.contact, 'help_text':'', 'children':{}},
   }},
-
-  'enable':{
-    'name':'enable',
-    'callback': command_callbacks.enable_module,
-    'summary': "Enables an installed module",
-    'example': "[modulename]",
-    'help_text': """
-enable [modulename]
-
-Enables use of the specified module.  You can only enable modules if they do
-not contain commands that conflict with existing commands.
-
-user@ !> enable modulename
-user@ !> enable modulename
-Module 'modulename' is already enabled.
-user@ !> enable conflictingmodule
-Module 'conflictingmodule' cannot be enabled due to these conflicting commands:
-show info (default)
-get (selexor)
-""",'children': {
-      '[ARGUMENT]': {
-        'name':'modulename',
-        'callback': None,
-        'children':{}},}},
-  'disable': {
-    'name':'disable',
-    'callback': command_callbacks.disable_module,
-    'example': "[modulename]",
-    'summary': "Disables an enabled module",
-    'help_text': """
-disable [modulename]
-
-Disables the specified module.  You will no longer be able to access the
-commands that were found in the disabled module until the module is re-enabled.
-
-user@ !> disable modulename
-user@ !> disable modulename
-Module 'modulename' is not enabled.
-
-""", 'children': {
-      '[ARGUMENT]': {
-        'name':'modulename',
-        'callback': None,
-        'children':{}},}},
-  'modulehelp': {
-    'name': 'modulehelp',
-    'callback': command_callbacks.print_module_help,
-    'example': '[modulename]',
-    'summary': "Shows the module-level helptext for a particular module",
-    'help_text': """
-help module [modulename]
-
-Displays the module-level help for a particular module.  The module must 
-already be installed.
-
-""", 'children': {
-      '[ARGUMENT]':{
-        'name':'modulename',
-        'callback': None,
-        'children':{}},}},
 }
 
 

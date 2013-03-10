@@ -2690,7 +2690,11 @@ def enable_module(input_dict, environment_dict):
   except IndexError:
     raise seash_exceptions.UserError("Error, command requires a modulename")
 
-  seash_modules.enable(seash_dictionary.seashcommanddict, modulename)
+  try:
+    seash_modules.enable(seash_dictionary.seashcommanddict, modulename)
+  except seash_exceptions.ModuleConflictError, e:
+    print "Module cannot be imported due to the following conflicting command:"
+    print str(e)
 
 
 # disable modulename

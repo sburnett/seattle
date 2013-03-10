@@ -6,6 +6,12 @@ modified
 import seash
 import sys
 
+# We need to do module manipulation
+import seash_dictionary
+import seash_modules
+#pragma out Enabled modules: modules
+#pragma out To see a list of all available modules, use the 'show modules' command.
+seash_modules.enable_modules_from_last_session(seash_dictionary.seashcommanddict)
 
 orig_stdout = sys.stdout
 sys.stdout = open("test_results.txt", "w")

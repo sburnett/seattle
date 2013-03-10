@@ -18,7 +18,7 @@ seash_process.stdin.close()
 stdout = seash_process.stdout.read().replace('\r\n', '\n')
 stderr = seash_process.stderr.read().replace('\r\n', '\n')
 
-expected_out = """Enabled modules: 
+expected_out = """Enabled modules: modules
 To see a list of all available modules, use the 'show modules' command."""
 
 # If we have any mismatched/unexpected output, print them to the relevant streams

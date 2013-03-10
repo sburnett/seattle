@@ -4,6 +4,12 @@ Make sure that disabling a disabled module fails
 import seash
 import seash_exceptions
 
+# We need to do module manipulation
+import seash_dictionary
+import seash_modules
+#pragma out Enabled modules: modules
+#pragma out To see a list of all available modules, use the 'show modules' command.
+seash_modules.enable_modules_from_last_session(seash_dictionary.seashcommanddict)
 
 seash.command_loop(["enable geoip"])
 

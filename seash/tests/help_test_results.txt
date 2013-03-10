@@ -10,16 +10,12 @@ as keyname [command]         -- Run a command using an identity (or changes the
 browse                       -- Find vessels I can control
 cat remotefn                 -- Display the contents of a remote file
 delete remotefn              -- Delete a file.
-disable [modulename]         -- Disables an enabled module
 download remotefn (localfn)  -- Download a file (to multiple local files)
-enable [modulename]          -- Enables an installed module
 exit                         -- Exits the shell
 list                         -- Update and display information about the 
                                 vessels
 loadkeys fn [as identity]    -- Loads filename.publickey and 
                                 filename.privatekey
-modulehelp [modulename]      -- Shows the module-level helptext for a 
-                                particular module
 on target [command]          -- Run a command on a target (or changes the 
                                 default)
 remove [target] [from group] -- Removes a target from a group
@@ -70,7 +66,6 @@ show info          -- Display general information about the vessels
 show ip [to file]  -- Display the ip addresses of the nodes
 show keys          -- Display the known keys
 show log [to file] -- Display the log from the vessel (*)
-show modules       -- Shows basic information about all installed modules.
 show offcut        -- Display the offcut resource for the node (*)
 show ownerinfo     -- Display owner information for the vessels
 show resources     -- Display the resources / restrictions for the vessel (*)

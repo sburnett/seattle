@@ -4,6 +4,13 @@ In particular, we check that trailing delimiters are not recognized as a
 variable.
 """
 import seash
+import seash_dictionary
+import seash_modules
+
+#pragma out Enabled modules: modules
+#pragma out To see a list of all available modules, use the 'show modules' command.
+seash_modules.enable_modules_from_last_session(seash_dictionary.seashcommanddict)
+
 
 # This error should come up since %all contains nothing as we don't browse for
 # anything prior to this.  This is not a problem though as we are just testing
@@ -12,5 +19,6 @@ import seash
 
 seash.command_loop([
   'enable variables',
-  'add %all to $'
+  'add %all to $',
+  'disable variables'
 ])

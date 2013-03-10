@@ -12,6 +12,10 @@ module system before running.
 # created
 import seash_modules
 for module in seash_modules.get_enabled_modules():
+  # The modules module must always be enabled.  Otherwise, we have no way of
+  # enabling/disabling modules through the command loop.
+  if module == 'modules':
+    continue
   seash_modules.disable({}, module)
 
 import repyhelper
