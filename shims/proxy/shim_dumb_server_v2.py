@@ -14,7 +14,7 @@
 import os
 import sys
 import time
-#import random
+import random
 
 dy_import_module_symbols("shimstackinterface")
 
@@ -116,9 +116,9 @@ def tcp_file_server_incoming(remoteip, remoteport, sockobj):
                 if server_port == shim_port:
                     print "Creating outgoing connection with shim_stack: " + shim_string
                     shim_obj = ShimStackInterface(shim_string)
-                    server_sockobj = shim_obj.openconnection(server_address, server_port, localhost_name, int(1 * 30000 + 10000), 10)
+                    server_sockobj = shim_obj.openconnection(server_address, server_port, localhost_name, random.randint(4000,60000), 10)
                 else:
-                    server_sockobj = openconnection(server_address, server_port, getmyip(), int(1 * 30000 + 10000), 10)
+                    server_sockobj = openconnection(server_address, server_port, localhost_name, random.randint(4000,60000), 10)
             except CleanupInProgressError:
                 # We sleep if we get cleanup in progress.
                 time.sleep(SLEEP_TIME)
@@ -283,7 +283,7 @@ def main():
         shim_string = sys.argv[6]
                          
     print "Starting shim proxy"
-    start_server(getmyip(), incoming_connection_port)
+    start_server(localhost_name, incoming_connection_port)
 
 
 
