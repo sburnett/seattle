@@ -82,10 +82,11 @@ def tcp_forwarder_listener():
     else:
       try:
         conn_init_message = session_recvmessage(sockobj)
-      except (SocketClosedLocal, SocketClosedRemote):
+        (conn_type, conn_id) = conn_init_message.split(',')
+      except Exception, err:
+        logmsg("Error in connection establishment: " + str(err), DEBUG_MSG)
+        sockobj.close()
         continue
-
-      (conn_type, conn_id) = conn_init_message.split(',')
     
       if conn_type == SERVER_REGISTER:
         # This is the case where a new server wants to register to this
