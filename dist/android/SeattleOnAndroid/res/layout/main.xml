@@ -16,9 +16,6 @@
 		    android:linksClickable="true"
 		    android:text="@string/autostart"
 		    android:checked="true"></CheckBox>
-		<SeekBar android:layout_height="wrap_content" android:id="@+id/seekBarAutostart" android:layout_width="fill_parent"></SeekBar>
-		<TextView android:textAppearance="?android:attr/textAppearanceMedium" android:text="@string/startup_delay" android:layout_height="wrap_content" android:id="@+id/textViewAutostart" android:layout_width="wrap_content"></TextView>
-				<View android:layout_width="fill_parent" android:layout_height="40dp"/>
 		
 		<TextView
 		    android:id="@+id/sensorlink"

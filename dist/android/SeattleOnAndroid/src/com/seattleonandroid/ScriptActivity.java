@@ -91,12 +91,6 @@ public class ScriptActivity extends Activity {
 	public final static int MAXIMUM_DONATE = 100;
 	public final static int DEFAULT_DONATE = 20;
 	public final static int MAXIMUM_SEEKBAR= MAXIMUM_DONATE-MINIMUM_DONATE+1;
-	// Constants used in calculating the autostart delay
-	public final static int MINIMUM_AUTOSTART = 0;
-	public final static int MAXIMUM_AUTOSTART = 60;
-	public final static int STEP_AUTOSTART= 30;
-	public final static int UNIT_AUTOSTART= 1000; // Seconds
-	public final static int DEFAULT_DELAY = 300*UNIT_AUTOSTART; // 5 mins
 	// Some private variables
 	private int donate = -1;
 	private int currentContentView;
@@ -429,36 +423,6 @@ public class ScriptActivity extends Activity {
 				}
 			}
 		});
-		// Set up autostart textview and slider
-		final TextView twAutostart = (TextView) findViewById(R.id.textViewAutostart);
-		final SeekBar sbAutostart = (SeekBar) findViewById(R.id.seekBarAutostart);
-		sbAutostart.setMax(MAXIMUM_AUTOSTART-MINIMUM_AUTOSTART+1);
-		final ScriptActivity scrAct = this;
-		sbAutostart.setOnSeekBarChangeListener(new OnSeekBarChangeListener(){
-
-			@Override
-			public void onProgressChanged(SeekBar seekBar, int progress,
-					boolean fromUser) {
-				if (fromUser) {
-					twAutostart.setText(scrAct.getString(R.string.startup_delay) + " " + (progress+MINIMUM_AUTOSTART)*STEP_AUTOSTART);
-					SharedPreferences.Editor editor = settings.edit();
-					editor.putInt(AUTOSTART_DELAY, (progress+MINIMUM_AUTOSTART)*STEP_AUTOSTART*UNIT_AUTOSTART);
-					editor.commit();
-				}
-			}
-			@Override
-			public void onStartTrackingTouch(SeekBar seekBar) {}
-			@Override
-			public void onStopTrackingTouch(SeekBar seekBar) {}
-			
-		});
-		int delay = settings.getInt(AUTOSTART_DELAY, -1);
-		if(delay == -1)
-			delay = DEFAULT_DELAY;
-		twAutostart.setText(getString(R.string.startup_delay) + " " + (delay)/UNIT_AUTOSTART);
-		sbAutostart.setProgress(delay/UNIT_AUTOSTART/STEP_AUTOSTART);
-		twAutostart.setVisibility(View.VISIBLE);
-		sbAutostart.setVisibility(View.VISIBLE);
 		// Set up autostart checkbox
 		final CheckBox checkBoxAutostart = (CheckBox) findViewById(R.id.checkBoxAutostart);
 		checkBoxAutostart.setOnCheckedChangeListener(new OnCheckedChangeListener(){
@@ -468,13 +432,6 @@ public class ScriptActivity extends Activity {
 				SharedPreferences.Editor editor = settings.edit();
 				editor.putBoolean(AUTOSTART_ON_BOOT, isChecked);
 				editor.commit();
-				if(isChecked){
-					twAutostart.setVisibility(View.VISIBLE);
-					sbAutostart.setVisibility(View.VISIBLE);
-				} else {
-					twAutostart.setVisibility(View.INVISIBLE);
-					sbAutostart.setVisibility(View.INVISIBLE);
-				}
 			}
 		});
 		checkBoxAutostart.setChecked(settings.getBoolean(AUTOSTART_ON_BOOT, true));
@@ -697,7 +654,7 @@ public class ScriptActivity extends Activity {
 				// Check if a python interpreter is available
 				InterpreterConfiguration mInterpreterConfiguration = ((BaseApplication) getApplication()).getInterpreterConfiguration();
 				Interpreter interpreter = mInterpreterConfiguration.getInterpreterForScript("foo.py");
-				// Interpreter was not found -> present user with the option to install it  
+				// Interpreter was not found -> present user with the option to install it 
 				if (interpreter == null || !interpreter.isInstalled()) {
 					if (FeaturedInterpreters.isSupported("foo.py")) {
 						Intent i = new Intent(this, DialogActivity.class);
