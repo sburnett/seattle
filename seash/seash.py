@@ -161,7 +161,7 @@ def command_loop(test_command_list):
 
   # If passed a list of commands, do not prompt for user input
   if test_command_list:
-    time_updatetime(34612)
+    seash_helper.update_time()
     # Iterates through test_command_list in sequential order
     for command_strings in test_command_list:
       # Saving state after each command? (Added by Danny Y. Huang)
@@ -293,7 +293,7 @@ def command_loop(test_command_list):
   
   
 if __name__=='__main__':
-  time_updatetime(34612)
+  seash_helper.update_time()
   seash_modules.enable_modules_from_last_session(seash_dictionary.seashcommanddict)
   
   # For general usage, empty list is passed to prompt for user input

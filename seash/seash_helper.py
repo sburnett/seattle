@@ -18,6 +18,9 @@ import repyhelper
 #repyhelper.translate_and_import("nmclient.repy")
 import fastnmclient
 
+# Use local clock for time if there is no network connectivity
+import time
+
 repyhelper.translate_and_import("time.repy")
 
 repyhelper.translate_and_import("rsa.repy")
@@ -33,6 +36,65 @@ repyhelper.translate_and_import("advertise.repy")   #  used to do OpenDHT lookup
 repyhelper.translate_and_import("geoip_client.repy") # used for `show location`
 
 repyhelper.translate_and_import("serialize.repy") # used for loadstate and savestate
+
+
+
+def update_time():
+  """
+  <Purpose>
+    Updates the time that is used internally for nodemanager communications.
+
+  <Arguments>
+    None
+
+  <Side Effects>
+    Updates the time within time.repy.
+    If there is no network connection, the local clock is used.
+
+  <Exceptions>
+    None
+
+  <Returns>
+    None  
+  """
+  # Since we import time.repy, we will only use the local clock if none of 
+  # the default time servers respond.
+  time_register_method('local', local_updatetime)
+  time_updatetime(34612)
+
+
+
+def local_updatetime(port):
+  """
+  <Purpose>
+    Callback for time_interface.repy to update the time that is used 
+    internally for nodemanager communications.
+
+  <Arguments>
+    port:
+        The port to update on.  This is not used however.  It is only
+        specified to adhere to the function signature expected by
+        time_interface.repy.
+
+  <Side Effects>
+    If we reach this function, then it means that other time server updates
+    failed.  We will notify the user of the failure, and set time.repy to
+    use the local clock.
+
+  <Exceptions>
+    None
+
+  <Returns>
+    None  
+  """
+  print 'Time update failed, could not connect to any time servers...'
+  print 'Your network connection may be down.'
+  print "Falling back to using your computer's local clock."
+  print
+
+  # time.time() gives us the # of seconds since 1970, whereas the NTP
+  # services gives us the # of seconds since 1900.
+  time_settime(time.time() + time_seconds_from_1900_to_1970)
 
 
 
