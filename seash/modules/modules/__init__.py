@@ -155,4 +155,5 @@ moduledata = {
   'command_dict': command_dict,
   'help_text': module_level_help,
   'url': None,
+  'tab_completer': autocomplete
 }
