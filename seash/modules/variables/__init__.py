@@ -178,6 +178,41 @@ def preprocess_user_variables(userinput):
   return retstr
 
 
+def autocomplete(input_list):
+  """
+  <Purpose>
+    Returns all valid input completions for the specified command line input.
+
+  <Arguments>
+    input_list: A list of tokens.
+
+  <Side Effects>
+    None
+
+  <Exceptions>
+    None
+
+  <Returns>
+    A list of strings representing valid completions.
+  """
+  # We are only interested if the last token starts with a single '$'
+  # Double $$'s indicate that it is meant to be a '$', so we don't do anything.
+  if input_list[-1].startswith('$') and not input_list[-1].startswith('$$'):
+    # Omit the '$'
+    partial_variable = input_list[-1][1:]
+    commands = []
+
+    for variable in uservariables:
+      # No need to include variables that don't match...
+      if variable.startswith(partial_variable):
+        # Reconstruct the string
+        tokens = input_list[:-1] + ['$'+variable]
+        commands.append(' '.join(tokens))
+    return commands
+  return []
+
+
+
 command_dict = {
   'set': {'children': {
     '[ARGUMENT]': {'name':'variable_name', 'callback':set_user_variable, 'help_text':'', 'summary': 'Sets a custom user variable.', 'children':{
@@ -196,4 +231,5 @@ moduledata = {
   'help_text': help_text,
   'url': None,
   'input_preprocessor': preprocess_user_variables,
+  'tab_completer': autocomplete
 }
