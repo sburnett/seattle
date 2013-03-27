@@ -884,6 +884,26 @@ exampleuser@%1 !>
 """, 'children':{
           '[ARGUMENT]':{'name':'args', 'callback':command_callbacks.set_autosave_arg, 'help_text':'', 'children':{}},
       }},
+      'showparse': {
+        'name':'showparse', 'callback': None, 'example': '[ on | off ]', 
+        'summary': 'Toggle display of parsed command line input', 'help_text':"""
+set showparse [on/off]
+
+When turned on, when any modules modify the command line input, the resulting
+input will be printed to the screen.
+
+Example:
+exampleuser@%1 !> set showparse on
+exampleuser@%1 !> set username exampleuser2
+exampleuser@%1 !> as $username
+as exampleuser2
+exampleuser2@%1 !> set showparse off
+exampleuser2@%1 !> as $username
+exampleuser2@%1 !>
+
+""", 'children': {
+          '[ARGUMENT]':{'name':'args', 'callback':command_callbacks.set_showparse_args, 'help_text':'', 'children':{}},
+      }},
   }},
 
 
@@ -1592,11 +1612,16 @@ exist, and also if the user inputted command word does not correspond to any of 
 command keys of the current dictionaries of dictionaries the iterator is looking
 at and there are no argument keys to suggest the inputted word is an user argument.
 """
-def parse_command(userinput):
-
+def parse_command(userinput, display_parsed_result=False):
   userinput = userinput.strip()
-  userinput = seash_modules.preprocess_input(userinput)
+  parsed_input = seash_modules.preprocess_input(userinput)
 
+  # If any modules performed some operation on the user's input, print out the 
+  # result here...
+  if display_parsed_result and userinput != parsed_input:
+    print "Parsed as:", parsed_input
+
+  userinput = parsed_input
   userstringlist = userinput.split()
 
 

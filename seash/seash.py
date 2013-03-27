@@ -139,7 +139,8 @@ def command_loop(test_command_list):
     'currenttarget': None,
     'currentkeyname': None,
     'autosave': False,
-    'handleinfo': {}
+    'handleinfo': {},
+    'showparse': True,
     }
 
   
@@ -180,7 +181,7 @@ def command_loop(test_command_list):
 
       # Returns the dictionary of dictionaries that correspond to the
       # command string
-      cmd_input = seash_dictionary.parse_command(command_strings)
+      cmd_input = seash_dictionary.parse_command(command_strings, display_parsed_result=environment_dict['showparse'])
       
       # by default, use the target specified in the prompt
       environment_dict['currenttarget'] = environment_dict['defaulttarget']
@@ -248,7 +249,7 @@ def command_loop(test_command_list):
       
         # Returns the dictionary of dictionaries that correspond to the
         # command the user inputted
-        cmd_input = seash_dictionary.parse_command(userinput)
+        cmd_input = seash_dictionary.parse_command(userinput, display_parsed_result=environment_dict['showparse'])
       
       
         # by default, use the target specified in the prompt

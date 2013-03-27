@@ -2675,6 +2675,24 @@ def set_uploadrate_arg(input_dict, environment_dict):
     raise seash_exceptions.UserError("The speed value must be a number (in bytes per second)")
 
 
+# set showparse [on | off] -- Toggles display of the parsed commandline input
+def set_showparse_args(input_dict, environment_dict):
+  command_key = input_dict.keys()[0]
+
+  # Iterates through the dictionary to retrieve the user's argument
+  while input_dict[command_key]['name'] is not 'args':
+    input_dict = input_dict[command_key]['children']
+    command_key = input_dict.keys()[0]
+
+  command_key = command_key.lower()
+  if command_key == 'on':
+    environment_dict['showparse'] = True
+  elif command_key == 'off':
+    environment_dict['showparse'] = False
+  else:
+    raise seash_exceptions.UserError("Value can be either 'on' or 'off'") 
+
+
 # enable modulename
 def enable_module(input_dict, environment_dict):
   # Enables an installed module.
