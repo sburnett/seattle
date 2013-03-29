@@ -526,8 +526,8 @@ class ShimStack:
     """
 
     # Sanity check.
-    assert(shim_str)
     assert(isinstance(shim_str, str)), "Bad arg type. shim_str must be string."
+    assert(shim_str), "shim_str must not be empty"
 
     open_paren_count = 0
     cur_shim_config = ""

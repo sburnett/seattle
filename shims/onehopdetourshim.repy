@@ -63,14 +63,22 @@ class OneHopDetourShim(BaseShim):
     
     # If optional args was provided, make sure it was a list type.
     if optional_args:
-      assert(isinstance(optional_args, list))
-      assert(len(optional_args) == 4)
-    
+      assert(isinstance(optional_args, list)), "Bad optional args. Optional arg must be a list."
+      assert(len(optional_args) == 4), "Bad optional args. Optional arg if provided must contain " + \
+          "4 elements: [tcp_forwarder_ip, tcp_forwarder_port, udp_forwarder_ip, udp_forwarder_port]."
+
       # If optional args was provided, then we use it to determine
       # the ip address and port of the forwarder for both tcp connection
       # and udp connections.
-      self.forwarder_context['tcp_forwarder'] = (optional_args[0], int(optional_args[1]))
-      self.forwarder_context['udp_forwarder'] = (optional_args[2], int(optional_args[3]))
+      try:
+        self.forwarder_context['tcp_forwarder'] = (optional_args[0], int(optional_args[1]))
+      except ValueError, err:
+        raise ShimArgumentError("Bad optional args. " + optional_args[1] + " is not an integer.")
+
+      try:
+        self.forwarder_context['udp_forwarder'] = (optional_args[2], int(optional_args[3]))
+      except ValueError, err:
+        raise ShimArgumentError("Bad optional args. " + optional_args[3] + " is not an integer.")
       
       
     BaseShim.__init__(self, shim_stack, optional_args)

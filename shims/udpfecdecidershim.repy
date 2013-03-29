@@ -44,13 +44,22 @@ class UdpFECDeciderShim(BaseUdpDeciderShim):
 
     BaseUdpDeciderShim.__init__(self, shim_stack, optional_args)
 
+    if len(optional_args) > 2:
+      raise ShimArgumentError("UdpFECDeciderShim takes at most 2 optional arguments.")
+
     if optional_args:
-      self._throughput_threshold = int(optional_args[0])
+      try:
+        self._throughput_threshold = int(optional_args[0])
+      except ValueError, err:
+        raise ShimArgumentError("Bad optional args. " + optional_args[0] + " is not an int.")
     else:
       self._throughput_threshold = _DEFAULT_THROUGHPUT_THRESHOLD
 
-    if optional_args and len(optional_args) > 1:
-      self._drop_rate_threshold = float(optional_args[1])
+    if optional_args and len(optional_args) == 1:
+      try:
+        self._drop_rate_threshold = float(optional_args[1])
+      except ValueError, err:
+        raise ShimArgumentError("Bad optional args. " + optional_args[1] + " is not a float.")
     else:
       self._drop_rate_threshold = _DEFAULT_DROP_RATE_THRESHOLD
 

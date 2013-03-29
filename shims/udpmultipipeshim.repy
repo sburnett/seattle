@@ -181,11 +181,17 @@ class UdpMultiPipeShim(BaseShim):
     extra_paths = len(optional_args)/2
 
     for index in range(extra_paths):
-      port = int(optional_args[index*2])
+      try:
+        port = int(optional_args[index*2])
+      except ValueError, err:
+        raise ShimArgumentError("Bad optional args. " + optional_args[index*2] + " is not an int.")
       shim_str = optional_args[index*2+1]
       localhost = shim_stack.shim_stack_context['localhost']
 
-      cur_stack = ShimStack(shim_str, localhost)
+      try:
+        cur_stack = ShimStack(shim_str, localhost)
+      except Exception, err:
+        raise ShimArgumentError("Error intializing shim stack " + shim_str + ": " + str(err))
       self.shim_stack_list.append((port, cur_stack))
 
     BaseShim.__init__(self, shim_stack, optional_args)

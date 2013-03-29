@@ -445,7 +445,7 @@ class MultiPathShim(BaseShim):
 
     # If optional args was provided, make sure it was a list type.
     if optional_args:
-      assert(isinstance(optional_args, list))
+      assert(isinstance(optional_args, list)), "Bad optional args. Optional arg must be a list."
 
 
     # Everything that is beneath the MultiPathShim becomes the default
@@ -457,9 +457,13 @@ class MultiPathShim(BaseShim):
     # MultiPathShim.
     if optional_args:
       for shim_str in optional_args:
-        localhost = shim_stack.shim_stack_context['localhost']
-        cur_stack = ShimStack(shim_str, localhost)
-        self.shim_stack_dict[shim_str] = cur_stack
+        try:
+          localhost = shim_stack.shim_stack_context['localhost']
+          cur_stack = ShimStack(shim_str, localhost)
+          self.shim_stack_dict[shim_str] = cur_stack
+
+        except Exception, err:
+          raise ShimArgumentError("Error intializing shim stack " + shim_str + ": " + str(err))
 
     BaseShim.__init__(self, shim_stack, optional_args)
 

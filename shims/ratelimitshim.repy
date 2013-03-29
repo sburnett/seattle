@@ -55,7 +55,7 @@ class RateLimitShim(BaseShim):
     if optional_args:
       # Ensure that both the arguments that are provided are of the right 
       # format.
-      assert(isinstance(optional_args, list))
+      assert(isinstance(optional_args, list)), "Bad optional args. Optional arg must be a list."
       assert(len(optional_args) == 2), "Bad optional args. Optional args must contain 2 values (upload_rate/download_rate)"
 
       # Set the upload rate.

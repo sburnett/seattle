@@ -96,7 +96,7 @@ class NatPunchShim(BaseShim):
 
     # If optional arguments are provided, then store it as the default forwarder.
     if optional_args:
-      assert(isinstance(optional_args, list))
+      assert(isinstance(optional_args, list)), "Bad optional args. Optional arg must be a list."
       assert(len(optional_args) == 1), "Bad optional args. Optional args must contain 1 value. (IP:port)"
 
       try:

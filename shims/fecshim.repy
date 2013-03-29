@@ -113,7 +113,11 @@ class FECShim(BaseShim):
     BaseShim.__init__(self, shim_stack, optional_args)
 
     if optional_args:
-      self._packets_per_bundle = int(optional_args[0])
+      assert(len(optional_args) == 1), "Bad optional args. FECShim takes at most one argument."
+      try:
+        self._packets_per_bundle = int(optional_args[0])
+      except ValueError, err:
+        raise ShimArgumentError("Bad optional args. " + optional_args[0] + " is not an integer.")
     else:
       self._packets_per_bundle = 2
 

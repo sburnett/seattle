@@ -44,16 +44,18 @@ class BindLocalAddressShim(BaseShim):
 
     # Check if optional arguments are provided.
     if optional_args:
-      assert(isinstance(optional_args, list))
+      assert(isinstance(optional_args, list)), "Bad optional args. Optional arg must be a list."
       assert(len(optional_args) == 1), "Bad optional args. Optional arg must contain one value. (IP:Port)"
 
       try:
         localip, localport = optional_args[0].split(':')
+        
+        self.bind_localip = localip
+        self.bind_localport = int(localport)
+
       except ValueError:
         raise ShimInternalError("Optional arg provided is not of valid format. Must be IP:Port")
 
-      self.bind_localip = localip
-      self.bind_localport = int(localport)
     else:
       self.bind_localip = None
       self.bind_localport = None
