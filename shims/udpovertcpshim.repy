@@ -287,11 +287,11 @@ class UdpOverTcpShim(BaseShim):
 
         except (SocketClosedLocal,SocketClosedRemote):
           sockobj.close()
-          del self.udp_over_tcp_context['flow_dictionary'][sockobj]
-          del self.udp_over_tcp_context['recv_buf'][repr(sockobj)]
-          del self.udp_over_tcp_context['recv_lock'][repr(sockobj)]
-          self.udp_over_tcp_context['socket_list'].remove((destport, destip, sockobj))
+          del self.udp_over_tcp_context['flow_dictionary'][str(ip)+':'+str(port)]
+          # del self.udp_over_tcp_context['recv_buf'][repr(sockobj)]
+          self.udp_over_tcp_context['socket_list'].remove((port, ip, sockobj))
           self.udp_over_tcp_context['recv_lock'][repr(sockobj)].release()
+          # del self.udp_over_tcp_context['recv_lock'][repr(sockobj)]
           pass
 
       # When we finish going through the list once, we make another copy (in case 

@@ -53,7 +53,7 @@ class UdpFECDeciderShim(BaseUdpDeciderShim):
       except ValueError, err:
         raise ShimArgumentError("Bad optional args. " + optional_args[0] + " is not an int.")
     else:
-      self._throughput_threshold = _DEFAULT_THROUGHPUT_THRESHOLD
+      self._throughput_threshold = self._DEFAULT_THROUGHPUT_THRESHOLD
 
     if optional_args and len(optional_args) == 1:
       try:
@@ -61,7 +61,7 @@ class UdpFECDeciderShim(BaseUdpDeciderShim):
       except ValueError, err:
         raise ShimArgumentError("Bad optional args. " + optional_args[1] + " is not a float.")
     else:
-      self._drop_rate_threshold = _DEFAULT_DROP_RATE_THRESHOLD
+      self._drop_rate_threshold = self._DEFAULT_DROP_RATE_THRESHOLD
 
 
   def _get_next_stack_id(self, statistics_list, has_remote_stats, time_elapsed, state_context):
