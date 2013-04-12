@@ -1,4 +1,6 @@
-package com.seattleonandroid;
+package com.seattletestbed;
+
+
 
 // Contains common constants 
 public final class Common {

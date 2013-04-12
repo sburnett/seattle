@@ -14,7 +14,7 @@
  * the License.
  */
 
-package com.seattleonandroid;
+package com.seattletestbed;
 
 import android.app.Notification;
 import android.app.PendingIntent;
@@ -25,8 +25,8 @@ import android.os.Environment;
 import android.os.IBinder;
 import android.util.Log;
 
-import com.seattleonandroid.R;
-import com.seattleonandroid.process.SeattleScriptProcess;
+import com.seattletestbed.R;
+import com.seattletestbed.process.SeattleScriptProcess;
 import com.googlecode.android_scripting.AndroidProxy;
 import com.googlecode.android_scripting.ForegroundService;
 import com.googlecode.android_scripting.NotificationIdFactory;

@@ -1,4 +1,4 @@
-package com.seattleonandroid;
+package com.seattletestbed;
 
 import java.io.File;
 
@@ -8,7 +8,6 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.AsyncTask;
 import android.util.Log;
-import com.seattleonandroid.ScriptActivity;
 /***
  * 
  * Listens for a BOOT_COMPLETED intent and starts the application if AUTOSTART_ON_BOOT is set
@@ -34,7 +33,7 @@ public class AutostartListener extends BroadcastReceiver {
 	    		// Check if the app is installed and is to be run on startup
 	    		if(isInstalled&&settings.getBoolean(ScriptActivity.AUTOSTART_ON_BOOT,true)) {
 			    	  Intent serviceIntent = new Intent();
-			    	  serviceIntent.setAction("com.seattleonandroid.ScriptService");
+			    	  serviceIntent.setAction("com.seattletestbed.ScriptService");
 			    	  ScriptService.serviceInitiatedByUser = true;
 			    	  // Start the service
 					  Log.i(Common.LOG_TAG, Common.LOG_INFO_SEATTLE_STARTED_AUTOMATICALLY);

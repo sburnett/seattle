@@ -1,10 +1,11 @@
-package com.seattleonandroid;
+package com.seattletestbed;
 
 import com.googlecode.android_scripting.BaseApplication;
 import android.util.Log;
 import com.googlecode.android_scripting.interpreter.InterpreterConfiguration;
 import com.googlecode.android_scripting.interpreter.InterpreterConstants;
 import com.googlecode.android_scripting.interpreter.InterpreterConfiguration.ConfigurationObserver;
+import com.seattletestbed.R;
 
 import java.util.concurrent.CountDownLatch;
 

@@ -14,7 +14,7 @@
  * the License.
  */
 
-package com.seattleonandroid.process;
+package com.seattletestbed.process;
 
 import com.googlecode.android_scripting.Exec;
 import com.googlecode.android_scripting.Log;

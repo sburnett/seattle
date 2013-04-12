@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest
-	package="com.seattleonandroid"
+	package="com.seattletestbed"
 	android:versionCode="3"
 	android:versionName="1.0"
 	xmlns:android="http://schemas.android.com/apk/res/android">
@@ -8,9 +8,9 @@
 		android:debuggable="true"
 		android:icon="@drawable/seattlelogo"
 		android:label="@string/app_name"
-		android:name="com.seattleonandroid.ScriptApplication">
+		android:name="com.seattletestbed.ScriptApplication">
 		<activity
-			android:name=".ScriptActivity"
+			android:name="com.seattletestbed.ScriptActivity"
 			android:configChanges="keyboardHidden|orientation"
 			android:launchMode="singleTop"
 			android:theme="@android:style/Theme.Black">
@@ -28,22 +28,22 @@
 			</intent-filter>
 		</activity>
 		<service
-			android:name="com.seattleonandroid.ScriptService"/>
+			android:name="com.seattletestbed.ScriptService"/>
 		<service
-			android:name="com.seattleonandroid.InstallerService" />
+			android:name="com.seattletestbed.InstallerService" />
 		<activity
 			android:configChanges="keyboardHidden|orientation"
 			android:name="com.googlecode.android_scripting.activity.FutureActivity" 
 			android:theme="@android:style/Theme.Translucent"/>
 		<activity android:theme="@android:style/Theme.Translucent.NoTitleBar" 
 			android:configChanges="keyboardHidden|orientation" 
-			android:name="com.seattleonandroid.DialogActivity"/>
-		<receiver android:name="com.seattleonandroid.AutostartListener">
+			android:name="com.seattletestbed.DialogActivity"/>
+		<receiver android:name="com.seattletestbed.AutostartListener">
 			<intent-filter>
 				<action android:name="android.intent.action.BOOT_COMPLETED"/>
 			</intent-filter>
 		</receiver>
-		<receiver android:name="com.seattleonandroid.ReferralReceiver" android:exported="true">
+		<receiver android:name="com.seattletestbed.ReferralReceiver" android:exported="true">
 	      		<intent-filter>
 	        		<action android:name="com.android.vending.INSTALL_REFERRER" />
 	      		</intent-filter>

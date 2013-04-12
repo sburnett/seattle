@@ -14,7 +14,7 @@
  * the License.
  */
 
-package com.seattleonandroid;
+package com.seattletestbed;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -64,6 +64,7 @@ import com.googlecode.android_scripting.FeaturedInterpreters;
 import com.googlecode.android_scripting.FileUtils;
 import com.googlecode.android_scripting.interpreter.Interpreter;
 import com.googlecode.android_scripting.interpreter.InterpreterConfiguration;
+import com.seattletestbed.R;
 
 /**
  * 

@@ -14,7 +14,7 @@
  * the License.
  */
 
-package com.seattleonandroid.process;
+package com.seattletestbed.process;
 
 import android.app.Service;
 import android.content.Intent;

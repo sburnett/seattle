@@ -1,4 +1,4 @@
-package com.seattleonandroid;
+package com.seattletestbed;
 
 import android.app.Activity;
 import android.app.AlertDialog;

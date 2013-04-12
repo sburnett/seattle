@@ -1,6 +1,7 @@
-package com.seattleonandroid;
+package com.seattletestbed;
 
 import android.util.Log;
+import com.seattletestbed.R;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;

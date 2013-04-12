@@ -1,4 +1,4 @@
-package com.seattleonandroid;
+package com.seattletestbed;
 
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;

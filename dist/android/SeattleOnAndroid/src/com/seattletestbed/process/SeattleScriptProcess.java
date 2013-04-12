@@ -1,4 +1,4 @@
-package com.seattleonandroid.process;
+package com.seattletestbed.process;
 
 import com.googlecode.android_scripting.AndroidProxy;
 import com.googlecode.android_scripting.interpreter.InterpreterConfiguration;

@@ -14,7 +14,7 @@
  * the License.
  */
 
-package com.seattleonandroid;
+package com.seattletestbed;
 
 import android.app.Notification;
 import android.app.NotificationManager;
@@ -34,8 +34,8 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.logging.SimpleFormatter;
 
-import com.seattleonandroid.R;
-import com.seattleonandroid.process.SeattleScriptProcess;
+import com.seattletestbed.R;
+import com.seattletestbed.process.SeattleScriptProcess;
 import com.googlecode.android_scripting.AndroidProxy;
 import com.googlecode.android_scripting.BaseApplication;
 import com.googlecode.android_scripting.FileUtils;
