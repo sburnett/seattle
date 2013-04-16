@@ -17,7 +17,8 @@
 package com.seattletestbed.process;
 
 import com.googlecode.android_scripting.Exec;
-import com.googlecode.android_scripting.Log;
+import android.util.Log;
+import com.seattletestbed.Common;
 import com.googlecode.android_scripting.interpreter.InterpreterConstants;
 import com.trilead.ssh2.StreamGobbler;
 
@@ -120,7 +121,7 @@ public class Process {
     }
 
     String binaryPath = mBinary.getAbsolutePath();
-    Log.v("Executing " + binaryPath + " with arguments " + mArguments + " and with environment "
+    Log.v(Common.LOG_TAG, "Executing " + binaryPath + " with arguments " + mArguments + " and with environment "
         + mEnvironment.toString());
 
     int[] pid = new int[1];
@@ -140,16 +141,16 @@ public class Process {
     	returnValue = Exec.waitFor(mPid.get());
         mEndTime = System.currentTimeMillis();
         int pid = mPid.getAndSet(PID_INIT_VALUE);
-        Log.v("Process " + pid + " exited with result code " + returnValue + ".");
+        Log.v(Common.LOG_TAG, "Process " + pid + " exited with result code " + returnValue + ".");
         try {
           mIn.close();
         } catch (IOException e) {
-          Log.e(e);
+          Log.e(Common.LOG_TAG, "error closing mIn "+e.getStackTrace());
         }
         try {
           mOut.close();
         } catch (IOException e) {
-          Log.e(e);
+          Log.e(Common.LOG_TAG, "error closing mOut "+ e.getStackTrace());
         }
         if (shutdownHook != null) {
           shutdownHook.run();
@@ -170,7 +171,7 @@ public class Process {
   public void kill() {
     if (isAlive()) {
       android.os.Process.killProcess(mPid.get());
-      Log.v("Killed process " + mPid);
+      Log.v(Common.LOG_TAG, "Killed process " + mPid);
     }
   }
 
