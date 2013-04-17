@@ -101,6 +101,17 @@ import servicelogger
 # I will re-use the code repy uses in emulcomm
 import emulcomm
 
+
+# Add AFFIX to Seattle nodemanager. The two keys allows us to 
+# control the AFFIX stack as well as enable or disable AFFIX
+# in Seattle.
+dy_import_module_symbols("advertise.repy")
+dy_import_module_symbols("shimstackinterface")
+affix_service_key = "SeattleAffixStack"
+enable_affix_key = "EnableSeattleAffix"
+
+
+
 # JAC: Fix for #1000: This needs to be after ALL repyhhelper calls to prevent 
 # sha from being replaced
 warnings.simplefilter('ignore')
@@ -258,8 +269,29 @@ def start_accepter():
           # 1) Use a raw (python) socket, and so we can have a timeout, as per ticket #881
           # 2) Use a repy socket, but then possibly leak many connections.
           
-          # For now, we'll use the second method.
-          serversocket = listenforconnection(bind_ip, possibleport)
+          # Check to see if AFFIX is enabled.
+          try:
+            affix_enabled_lookup = advertise_lookup(enable_affix_key)
+            # Now we check if the last entry is True or False.
+            if affix_enabled_lookup[-1] == 'True':
+              affix_stack_string = advertise_lookup(affix_service_key)
+              affix_enabled = True
+            else:
+              affix_enabled = False
+          except AdvertiseError:
+            affix_enabled = False
+          except ValueError:
+            affix_enabled = False
+
+      
+          # If AFFIX is enabled, then we use AFFIX to open up a tcpserversocket.
+          if affix_enabled:
+            affix_object = ShimStackInterface(affix_stack_string)
+            serversocket = affix_object.listenforconnection(bind_ip, possibleport)
+          else:
+            # If AFFIX is not enabled, then we open up a normal tcpserversocket.
+            # For now, we'll use the second method.
+            serversocket = listenforconnection(bind_ip, possibleport)
           
           # If there is no error, we were able to successfully start listening.
           # Create the thread, and start it up!

@@ -282,7 +282,12 @@ def signeddata_iscurrent(expiretime):
     return True
 
   # may throw TimeError...
-  currenttime = time_gettime()
+  try:
+    currenttime = time_gettime()
+  except TimeError:
+    time_updatetime(34612)
+    currenttime = time_gettime()
+
   if expiretime > currenttime:
     return True
   else:

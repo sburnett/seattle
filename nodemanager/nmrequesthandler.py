@@ -44,6 +44,7 @@ import traceback
 
 import servicelogger
 
+DEBUG_MODE = False
 
 def initialize(myip, publickey, version):
   
@@ -162,6 +163,7 @@ API_dict = { \
   'GetVesselResources': (1, 'Public', nmAPI.getvesselresources), \
   'GetOffcutResources': (0, 'Public', nmAPI.getoffcutresources), \
   'StartVessel': (2, 'User', nmAPI.startvessel), \
+  'StartVesselEx': (3, 'User', nmAPI.startvessel_ex), \
   'StopVessel': (1, 'User', nmAPI.stopvessel), \
   'AddFileToVessel': (3, 'User', nmAPI.addfiletovessel), \
   'ListFilesInVessel': (1, 'User', nmAPI.listfilesinvessel), \
@@ -183,6 +185,9 @@ API_dict = { \
 def process_API_call(fullrequest):
 
   callname = fullrequest.split('|')[0]
+
+  if DEBUG_MODE:
+    servicelogger.log("Now handling call: " + callname)
 
   if callname not in API_dict:
     raise nmAPI.BadRequest("Unknown Call")
@@ -249,7 +254,8 @@ def ensure_is_correctly_signed(fullrequest, allowedkeys, oldmetadata):
     time_gettime()
   except TimeError:
     time_updatetime(34612)
-  
+    
+
   # check if request is still valid and has not expired
   # this code has been added to resolve an issue where we are not checking of the request is expired in the case that there is no old metadata
   thesigneddata, signature = fullrequest.rsplit('!',1)

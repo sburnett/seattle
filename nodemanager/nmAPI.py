@@ -52,6 +52,17 @@ import nmstatusmonitor
 # used to check file size restrictions...
 import nonportable
 
+# Used for logging information.
+import servicelogger
+
+# This dictionary keeps track of all the programming
+# platform that Seattle supports and where they are
+# located.
+prog_platform_dir = {'repyV1' : 'repyV1',
+                     'repyV2' : 'repyV2'
+                     }
+
+
 # need this to check uploaded keys for validity
 def rsa_is_valid_publickey(key):
   """
@@ -286,11 +297,25 @@ def getoffcutresources():
 allowedchars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890.-_ "
 
 def startvessel(vesselname, argstring):
+  """
+  This is the old startvessel call that will become obsolete eventually.
+  startvessel now calls startvessel_ex using repyV1 as the programming
+  language.
+  """
+  return startvessel_ex(vesselname, 'repyV1', argstring)
+
+
+
+
+def startvessel_ex(vesselname, prog_platform, argstring):
   if vesselname not in vesseldict:
     raise BadRequest, "No such vessel"
 
   if vesseldict[vesselname]['status'] == 'Started':
     raise BadRequest("Vessel has already been started")
+
+  if prog_platform not in prog_platform_dir.keys():
+    raise BadRequest("Programming language platform is not supported.")
 
   # remove any prior stop file so that we can start
   if os.path.exists(vesseldict[vesselname]['stopfilename']):
@@ -335,10 +360,13 @@ def startvessel(vesselname, argstring):
         ip_iface_preference_flags.append("--nootherips")
         ip_iface_preference_str += "--nootherips "
     
+  # Find the location where the sandbox files is located. Location of repyV1, repyV2 etc.
+  prog_platform_location = os.path.join(prog_platform_dir[prog_platform], "repy.py")
+ 
   # Armon: Check if we are using windows API, and if it is windows mobile
-  if windowsAPI != None and windowsAPI.MobileCE:
+  if windowsAPI and windowsAPI.MobileCE:
     # First element should be the script (repy)
-    command[0] = "\"" + repy_constants.PATH_SEATTLE_INSTALL + "repy.py"  + "\""
+    command[0] = "\"" + repy_constants.PATH_SEATTLE_INSTALL + prog_platform_location  + "\""
     # Second element should be the parameters
     command[1] = ip_iface_preference_str + "--logfile \"" + vesseldict[vesselname]['logfilename'] + "\" --stop \""+ vesseldict[vesselname]['stopfilename'] + "\" --status \"" + vesseldict[vesselname]['statusfilename'] + "\" --cwd \"" + updir + "\" --servicelog \"" + vesseldict[vesselname]['resourcefilename']+"\" "+argstring
     raise Exception, "This will need to be changed to use absolute paths"
@@ -349,7 +377,7 @@ def startvessel(vesselname, argstring):
     
     # Conrad: switched this to sequence-style Popen invocation so that spaces
     # in files work. Switched it back to absolute paths.
-    command = ["python", "repy.py"] + ip_iface_preference_flags + [
+    command = ["python", prog_platform_location] + ip_iface_preference_flags + [
         "--logfile", os.path.abspath(vesseldict[vesselname]['logfilename']),
         "--stop",    os.path.abspath(vesseldict[vesselname]['stopfilename']),
         "--status",  os.path.abspath(vesseldict[vesselname]['statusfilename']),
