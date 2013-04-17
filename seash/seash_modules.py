@@ -89,10 +89,7 @@ def import_all_modules():
     passed in commanddict.
 
   """
-  for module_folder in os.listdir(MODULES_FOLDER_PATH): 
-    if os.path.isfile(MODULES_FOLDER_PATH + os.sep + module_folder):
-      continue
-    
+  for module_folder in get_installed_modules(): 
     try:
       if module_folder in module_data:
         raise seash_exceptions.ModuleImportError("Module already imported")
@@ -437,10 +434,9 @@ def get_enabled_modules():
     The list of all enabled modules.
   """
   enabled = []
-  directory_contents = os.listdir('./modules/')
-  for fname in directory_contents:
-    if (os.path.isdir('./modules/'+fname) and 
-        not fname+'.disabled' in directory_contents):
+  directory_contents = os.listdir(MODULES_FOLDER_PATH)
+  for fname in get_installed_modules():
+    if not fname+'.disabled' in directory_contents:
       enabled.append(fname)
   return enabled
 
@@ -525,5 +521,23 @@ def _attach_module_identifier(command_dict, modulefn):
   for command in command_dict:
     command_dict[command]['module'] = modulefn
     _attach_module_identifier(command_dict[command]['children'], modulefn)
+
+
+
+def get_installed_modules():
+  modules = []
+  for folder in os.listdir(MODULES_FOLDER_PATH): 
+    if os.path.isfile(MODULES_FOLDER_PATH + os.sep + folder):
+      continue
+
+    # Needed to differentiate modules from other folders that are not part of the 
+    # module system that are system-generated, like .svn/
+    if not '__init__.py' in os.listdir(MODULES_FOLDER_PATH + os.sep + folder):
+      continue
+
+    modules.append(folder)
+  return modules
+
+
 
 import_all_modules()
