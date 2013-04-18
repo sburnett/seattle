@@ -448,6 +448,7 @@ def enable_modules_from_last_session(seashcommanddict):
   else.  A module is marked as disabled when there is a modulename.disabled 
   file.
   """
+  successfully_enabled_modules = []
   modules_to_enable = get_enabled_modules()
   for modulename in modules_to_enable:
     # There are no bad side effects to seash's state when we do this
@@ -456,15 +457,16 @@ def enable_modules_from_last_session(seashcommanddict):
     disable(seashcommanddict, modulename)
     try:
       enable(seashcommanddict, modulename)
+      successfully_enabled_modules.append(modulename)
     except seash_exceptions.ModuleConflictError, e:
       print "Failed to enable the '"+modulename+"' module due to the following conflicting command:"
       print str(e)
 
       # We mark this module as disabled by adding a modulename.disabled file.
       open(MODULES_FOLDER_PATH + os.sep + modulename + ".disabled", 'w')
-  modules_to_enable.sort()
+  successfully_enabled_modules.sort()
   
-  print 'Enabled modules:', ', '.join(modules_to_enable)
+  print 'Enabled modules:', ', '.join(successfully_enabled_modules)
   print "To see a list of all available modules, use the 'show modules' command."
 
 
@@ -534,7 +536,7 @@ def get_installed_modules():
     # module system that are system-generated, like .svn/
     if not '__init__.py' in os.listdir(MODULES_FOLDER_PATH + os.sep + folder):
       continue
-
+    
     modules.append(folder)
   return modules
 
