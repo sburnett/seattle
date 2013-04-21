@@ -44,6 +44,10 @@ import java.util.Map;
  * 
  * Loosely based on the Service found in the ScriptForAndroidTemplate package in SL4A
  * 
+ * modified to allow embedded python interpreter and scripts in the APK
+ * 
+ * based off Anthony Prieur & Daniel Oppenheim work https://code.google.com/p/android-python27/
+ * 
  */
 public class ScriptService extends ForegroundService {
 	private final static int NOTIFICATION_ID = NotificationIdFactory.create();
@@ -56,7 +60,7 @@ public class ScriptService extends ForegroundService {
 	private SeattleScriptProcess updaterProcess;
 	private SeattleScriptProcess seattlemainProcess;
 
-	private InterpreterConfiguration mInterpreterConfiguration;
+	private InterpreterConfiguration mInterpreterConfiguration = null;
 	private AndroidProxy mProxy;
 
 	// workaround to make sure the service does not get restarted
@@ -103,9 +107,6 @@ public class ScriptService extends ForegroundService {
 		super.onCreate();
 		if(!serviceInitiatedByUser){
 			this.stopSelf();
-		} else {
-			if(((ScriptApplication) getApplication()).readyToStart())
-				mInterpreterConfiguration = ((ScriptApplication) getApplication()).getInterpreterConfiguration();
 		}
 	}
 
@@ -121,6 +122,12 @@ public class ScriptService extends ForegroundService {
 
 		// Get updater script file
 		File updater = new File(Environment.getExternalStorageDirectory().getAbsolutePath()+"/sl4a/seattle/seattle_repy/softwareupdater.py");
+		
+		List<String> args = new ArrayList<String>();
+		args.add(updater.toString()); //script to run
+		
+		//set python Binary
+		File pythonBinary = new File(this.getFilesDir().getAbsolutePath() + "/python/bin/python");
 
 		mProxy = new AndroidProxy(this, null, true);
 		mProxy.startLocal();
@@ -129,6 +136,24 @@ public class ScriptService extends ForegroundService {
 		Map<String, String> env = new HashMap<String, String>();
 		env.put("SEATTLE_RUN_NODEMANAGER_IN_FOREGROUND", "True");
 		env.put("SEATTLE_RUN_SOFTWAREUPDATER_IN_FOREGROUND", "True");
+
+		//2.7 set python environmental variables
+		env.put("PYTHONPATH", 
+				Environment.getExternalStorageDirectory().getAbsolutePath() + "/"
+				+ this.getPackageName() + "/extras/python"
+				+ ":"
+				+ this.getFilesDir().getAbsolutePath() + "/python/lib/python2.7/lib-dynload"
+				+ ":"
+				+ this.getFilesDir().getAbsolutePath() + "/python/lib/python2.7");
+		
+		env.put("TEMP", Environment.getExternalStorageDirectory()
+				.getAbsolutePath() + "/" + this.getPackageName() + "/extras/tmp");
+		
+		env.put("PYTHONHOME", this.getFilesDir().getAbsolutePath() + "/python");
+		
+		env.put("LD_LIBRARY_PATH", this.getFilesDir().getAbsolutePath()
+				+ "/python/lib" + ":" + this.getFilesDir().getAbsolutePath()
+				+ "/python/lib/python2.7/lib-dynload");
 
 		// Start script
 		updaterProcess = SeattleScriptProcess.launchScript(updater, mInterpreterConfiguration, mProxy, new Runnable() {
@@ -158,7 +183,8 @@ public class ScriptService extends ForegroundService {
 					}
 				}
 			}
-		}, updater.getParent(), null, env);
+		}, updater.getParent(), Environment.getExternalStorageDirectory().getAbsolutePath()
+				+ "/" + this.getPackageName(), args, env, pythonBinary);
 	}
 
 	// Starts the nodemanager process
@@ -171,14 +197,42 @@ public class ScriptService extends ForegroundService {
 		
 		Log.i(Common.LOG_TAG, Common.LOG_INFO_STARTING_SEATTLE_MAIN);
 		// Get nodemanager script file
-		File seattlemain = new File(Environment.getExternalStorageDirectory().getAbsolutePath()+"/sl4a/seattle/seattle_repy/nmmain.py");
-
-		mProxy = new AndroidProxy(this, null, true);
-		mProxy.startLocal();
+		File seattlemain = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + "/sl4a/seattle/seattle_repy/nmmain.py");
 
 		// Set arguments
 		List<String> args = new ArrayList<String>();
+		args.add(seattlemain.toString()); //name of script to run
 		args.add("--foreground");
+
+		File pythonBinary = new File(this.getFilesDir().getAbsolutePath() + "/python/bin/python");
+		
+		//env variables
+		Map<String, String> environmentVariables = null;	
+		environmentVariables = new HashMap<String, String>();
+		
+		// set python 2.7 environmental variables to pass to interpreter
+		environmentVariables.put("PYTHONPATH",
+				Environment.getExternalStorageDirectory().getAbsolutePath() + "/" 
+						+ this.getPackageName() + "/extras/python" 
+						+ ":"
+						+ this.getFilesDir().getAbsolutePath() + "/python/lib/python2.7/lib-dynload" 
+						+ ":"
+						+ this.getFilesDir().getAbsolutePath() + "/python/lib/python2.7");
+		
+		environmentVariables.put("TEMP",
+				Environment.getExternalStorageDirectory().getAbsolutePath()
+						+ "/" + this.getPackageName() + "/extras/tmp");
+		
+		environmentVariables.put("PYTHONHOME", this.getFilesDir()
+				.getAbsolutePath() + "/python");
+		
+		environmentVariables.put("LD_LIBRARY_PATH", this.getFilesDir().getAbsolutePath()
+				+ "/python/lib"
+				+ ":"
+				+ this.getFilesDir().getAbsolutePath() + "/python/lib/python2.7/lib-dynload");
+
+		mProxy = new AndroidProxy(this, null, true);
+		mProxy.startLocal();
 
 		// Start process
 		seattlemainProcess = SeattleScriptProcess.launchScript(seattlemain, mInterpreterConfiguration, mProxy, new Runnable() {
@@ -192,7 +246,8 @@ public class ScriptService extends ForegroundService {
 					startSeattleMain();
 				}
 			}
-		}, seattlemain.getParent(), args, null);
+		}, seattlemain.getParent(), Environment.getExternalStorageDirectory().getAbsolutePath()
+				+ "/" + this.getPackageName(), args, environmentVariables, pythonBinary);
 	}
 
 	private void killProcesses(){

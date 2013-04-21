@@ -1,13 +1,8 @@
 package com.seattletestbed;
 
 import com.googlecode.android_scripting.BaseApplication;
-import android.util.Log;
-import com.googlecode.android_scripting.interpreter.InterpreterConfiguration;
-import com.googlecode.android_scripting.interpreter.InterpreterConstants;
+import android.content.Context;
 import com.googlecode.android_scripting.interpreter.InterpreterConfiguration.ConfigurationObserver;
-import com.seattletestbed.R;
-
-import java.util.concurrent.CountDownLatch;
 
 /**
  * 
@@ -19,29 +14,34 @@ import java.util.concurrent.CountDownLatch;
  *
  */
 public class ScriptApplication extends BaseApplication implements ConfigurationObserver {
+
+	private static Context context = null;
+	private static String thePackageName = null;
+	private static String theFilesDir = null;
 	
-	private volatile boolean receivedConfigUpdate = false;
-	private final CountDownLatch mLatch = new CountDownLatch(1);
+		public static Context getAppContext() {
+			return ScriptApplication.context;
+		}
+
+		public static String getThePackageName() {
+			return thePackageName;
+		}
+		
+	  public static String getTheFilesDir() {
+			return theFilesDir;
+		}
 
 	@Override
 	public void onCreate() {
-		mConfiguration = new InterpreterConfiguration(this);
-		mConfiguration.registerObserver(this);
-		mConfiguration.startDiscovering(InterpreterConstants.MIME + ".py");
+		
+		// dirty way to access some needed info in GlobalConstants
+		ScriptApplication.context = getApplicationContext();
+		ScriptApplication.theFilesDir = this.getFilesDir().getAbsolutePath();
+		ScriptApplication.thePackageName = this.getPackageName();
 	}
 
 	@Override
 	public void onConfigurationChanged() {
-		receivedConfigUpdate = true;
-		mLatch.countDown();
-	}
-
-	public boolean readyToStart() {
-		try {
-			mLatch.await();
-		} catch (InterruptedException e) {
-			Log.e(Common.LOG_TAG, Common.LOG_EXCEPTION_UNKNOWN_APPLICATION, e);
-		}
-		return receivedConfigUpdate;
+	//this fn is empty because its an inherited abstract method and we dont use it 
 	}
 }

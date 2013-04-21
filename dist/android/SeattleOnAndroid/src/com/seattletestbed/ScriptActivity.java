@@ -20,18 +20,21 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileFilter;
 import java.io.FileReader;
+import java.io.InputStream;
 import java.net.NetworkInterface;
 import java.net.SocketException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Enumeration;
-
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.app.AlertDialog.Builder;
+import android.app.ProgressDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager.NameNotFoundException;
+import android.content.res.Resources;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
@@ -57,14 +60,7 @@ import android.widget.SeekBar.OnSeekBarChangeListener;
 import android.widget.TextView;
 import android.widget.ToggleButton;
 import android.util.Log;
-
-import com.googlecode.android_scripting.BaseApplication;
-import com.googlecode.android_scripting.Constants;
-import com.googlecode.android_scripting.FeaturedInterpreters;
 import com.googlecode.android_scripting.FileUtils;
-import com.googlecode.android_scripting.interpreter.Interpreter;
-import com.googlecode.android_scripting.interpreter.InterpreterConfiguration;
-import com.seattletestbed.R;
 
 /**
  * 
@@ -97,7 +93,8 @@ public class ScriptActivity extends Activity {
 	private int currentContentView;
 	private File currentLogFile;
 	private ArrayList<File> files;
-
+	// this shows a progress indicator when unpacking python
+	private ProgressDialog pythonProgress;
 	// Workaround -- status toggle-button could be set incorrectly right after installation
 	private static boolean autostartedAfterInstallation = false;
 
@@ -116,7 +113,16 @@ public class ScriptActivity extends Activity {
 	private boolean isSeattleInstalled() {
 		return (new File(getSeattlePath()+"seattle_repy/nmmain.py")).exists();
 	}
-
+	
+	// setup python progressDialog 
+	private void preparePythonProgress() {
+		this.pythonProgress = new ProgressDialog(this);
+		pythonProgress.setMessage("unpacking python");
+		pythonProgress.setIndeterminate(true);
+		pythonProgress.setCancelable(false);
+		pythonProgress.show();
+	}
+	
 	// Message handler class
 	public class MyMessageHandler extends Handler {
 		private ScriptActivity a;
@@ -638,41 +644,85 @@ public class ScriptActivity extends Activity {
 		}
 		currentContentView = R.layout.about;
 	}
+	// Unpack and set file permission for python files located in res/raw based off of
+	// Anthony Prieur & Daniel Oppenheim work https://code.google.com/p/android-python27/
+	private void copyPythonToLocal() {
+		String zipPath, zipName;
+		InputStream content;
+		R.raw a = new R.raw();
+		java.lang.reflect.Field[] t = R.raw.class.getFields();
+		Resources resources = getResources();
+		Log.i(Common.LOG_TAG, Common.LOG_INFO_PYTHON_UNZIP_STARTED);
+		for (int i = 0; i < t.length; i++) {
+			try {
+				// Get path of zip to unpack
+				zipPath = resources.getText(t[i].getInt(a)).toString();
+				// Extract the zipName from zipPath
+				zipName = zipPath.substring(zipPath.lastIndexOf('/') + 1, zipPath.length());
+				content = getResources().openRawResource(t[i].getInt(a));
+				content.reset();
+				
+				// Python_27 we unpack to -> /data/data/com.seattletestbed/files/python
+				if (zipName.endsWith(Common.PYTHON_ZIP_NAME)) {
+					Utils.unzip(content, this.getFilesDir().getAbsolutePath()+ "/", true);
+					// set file permissions
+					FileUtils.chmod(new File(this.getFilesDir().getAbsolutePath()+ "/python/bin/python" ), 0755);
+				}
+				// Python_extras_27 we unpack to -> /sdcard/com.seattletestbed/extras/python
+				else if (zipName.endsWith(Common.PYTHON_EXTRAS_ZIP_NAME)) {
+					Utils.createDirectoryOnExternalStorage("com.seattletestbed/extras");
+					Utils.createDirectoryOnExternalStorage("com.seattletestbed/extras/tmp");
+					Utils.unzip(content, Environment.getExternalStorageDirectory().getAbsolutePath()
+							+ "/com.seattletestbed/extras/", true);
+				}
+			} catch (Exception e) {
+				Log.e(Common.LOG_TAG, Common.LOG_EXCEPTION_PYTHON_UNZIPPING, e);
+				}
+		} 
+		Log.i(Common.LOG_TAG, Common.LOG_INFO_PYTHON_UNZIP_COMPLETED);
+	}
 	// Executed after the activity is started / resumed
 	@Override
 	protected void onStart() {
 		super.onStart();
-
-		ScriptApplication application = (ScriptApplication) getApplication();
-
 		// Load settings
 		settings = getSharedPreferences(SEATTLE_PREFERENCES, MODE_WORLD_WRITEABLE);
 		if(!Environment.getExternalStorageState().equals(Environment.MEDIA_MOUNTED)){
 			// External storage device not mounted
 			showNotMountedLayout();
 		} else {
-			if(application.readyToStart()){
-				// Check if a python interpreter is available
-				InterpreterConfiguration mInterpreterConfiguration = ((BaseApplication) getApplication()).getInterpreterConfiguration();
-				Interpreter interpreter = mInterpreterConfiguration.getInterpreterForScript("foo.py");
-				// Interpreter was not found -> present user with the option to install it 
-				if (interpreter == null || !interpreter.isInstalled()) {
-					if (FeaturedInterpreters.isSupported("foo.py")) {
-						Intent i = new Intent(this, DialogActivity.class);
-						i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-						i.putExtra(Constants.EXTRA_SCRIPT_PATH, "foo.py");
-						startActivity(i);
-					} else {
-						// No available python installers; should not happen
-						Log.e(Common.LOG_TAG, Common.LOG_EXCEPTION_NO_PYTHON_INTERPRETER);
+			File pythonBinary = new File(this.getFilesDir().getAbsolutePath() + "/python/bin/python");
+			// Check if python is installed
+			if(!pythonBinary.exists()){
+				Log.e(Common.LOG_TAG, Common.LOG_EXCEPTION_NO_PYTHON_INTERPRETER);
+				// Setup dialog to display when python unpacking is complete
+				final Builder pythonComplete = new AlertDialog.Builder(this)
+					.setMessage("Python unpack complete!")
+					.setNeutralButton("Ok", new DialogInterface.OnClickListener() {
+						@Override
+						public void onClick(DialogInterface dialog, int which) {}
+				});
+				// Setup and display python unpacking progress dialog
+				preparePythonProgress();
+				new Thread(new Runnable() {
+					@Override
+					public void run() {
+						// Python binary was not found -> install python
+						copyPythonToLocal();
+						runOnUiThread(new Runnable() { 
+							@Override
+							public void run() {
+								// Python unpacking finished so kill the displayed progress bar
+								pythonProgress.dismiss();
+								// Show dialogue confirming python unpacking success
+								pythonComplete.create().show();
+							}
+						});
 					}
-					// Finish activity
-					finish();
-				}
-
-				// Show layout
-				showFrontendLayout();
+				}).start();
 			}
+			// Python installation found -> Show main layout
+			showFrontendLayout();
 		}
 	}
 

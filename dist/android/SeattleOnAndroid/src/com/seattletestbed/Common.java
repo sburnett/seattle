@@ -13,6 +13,10 @@ public final class Common {
 		"blackbox.poly.edu", "custombuilder.poly.edu"
 	};
 
+	//Embedded Python Interpreter Zip Names	
+	//2.7
+	public static final String PYTHON_ZIP_NAME = "python_27.zip";
+	public static final String PYTHON_EXTRAS_ZIP_NAME = "python_extras_27.zip";
 	// Log -- Tag
 	public static final String LOG_TAG = "SeattleOnAndroid";
 
@@ -28,6 +32,7 @@ public final class Common {
 	public static final String LOG_EXCEPTION_COULD_NOT_RESOLVE_HOST = "Could not resolve download url host (check network connection)";
 	public static final String LOG_EXCEPTION_DOWNLOAD_ERROR = "I/O or networking exception occured while downloading seattle";
 	public static final String LOG_EXCEPTION_EXCEPTION_UNZIPPING = "Exception occured while extracting seattle";
+	public static final String LOG_EXCEPTION_PYTHON_UNZIPPING = "Exception occured while extracting python files to local";
 	public static final String LOG_EXCEPTION_UNZIPPING = "Exception occured while extracting seattle";
 	public static final String LOG_EXCEPTION_UNKNOWN_APPLICATION = "Unknown exception occured in ScriptApplication";
 	public static final String LOG_EXCEPTION_UNZIPPING_FILE = "Exception occured while extracting archive: ";
@@ -43,6 +48,8 @@ public final class Common {
 	public static final String LOG_INFO_DOWNLOAD_STARTED = "Download started"; 
 	public static final String LOG_INFO_DOWNLOAD_FINISHED = "Download finished";
 	public static final String LOG_INFO_UNZIP_COMPLETED = "Seattle extracted successfully";
+	public static final String LOG_INFO_PYTHON_UNZIP_STARTED = "Python extraction started";
+	public static final String LOG_INFO_PYTHON_UNZIP_COMPLETED = "Python extracted successfully";
 	public static final String LOG_INFO_STARTING_INSTALLER_SCRIPT = "Starting installer script";
 	public static final String LOG_INFO_TERMINATED_INSTALLER_SCRIPT = "Installer script finished (not sure if successful)";
 	public static final String LOG_INFO_STORED_REFERRAL_PARAMS = "Stored referral parameters: ";

@@ -19,7 +19,6 @@ package com.seattletestbed.process;
 import com.googlecode.android_scripting.Exec;
 import android.util.Log;
 import com.seattletestbed.Common;
-import com.googlecode.android_scripting.interpreter.InterpreterConstants;
 import com.trilead.ssh2.StreamGobbler;
 
 import java.io.File;
@@ -126,7 +125,7 @@ public class Process {
 
     int[] pid = new int[1];
     String[] argumentsArray = mArguments.toArray(new String[mArguments.size()]);
-    mLog = new File(String.format("%s/%s.log", InterpreterConstants.SDCARD_SL4A_ROOT, getName()));
+    mLog = new File(String.format("%s/%s.log", getSdcardPackageDirectory() + "/", getName()));
 
     mFd =
         Exec.createSubprocess(binaryPath, argumentsArray, getEnvironmentArray(),
@@ -177,6 +176,9 @@ public class Process {
 
   public boolean isAlive() {
     return (mFd != null && mFd.valid()) && mPid.get() != PID_INIT_VALUE;
+  }
+  public String getSdcardPackageDirectory() {
+    return null;
   }
 
   public String getUptime() {

@@ -37,7 +37,6 @@ import java.util.logging.SimpleFormatter;
 import com.seattletestbed.R;
 import com.seattletestbed.process.SeattleScriptProcess;
 import com.googlecode.android_scripting.AndroidProxy;
-import com.googlecode.android_scripting.BaseApplication;
 import com.googlecode.android_scripting.FileUtils;
 import com.googlecode.android_scripting.ForegroundService;
 import com.googlecode.android_scripting.NotificationIdFactory;
@@ -46,6 +45,7 @@ import com.googlecode.android_scripting.interpreter.InterpreterConfiguration;
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.InputStream;
@@ -73,6 +73,10 @@ import javax.net.ssl.SSLException;
  * SeattleOnAndroid Installer Service
  * 
  * Loosely based on the Service found in the ScriptForAndroidTemplate project in SL4A
+ * 
+ * modified to allow embedded python interpreter and scripts in the APK
+ * 
+ * based off Anthony Prieur & Daniel Oppenheim work https://code.google.com/p/android-python27/
  *  
  */
 public class InstallerService extends ForegroundService {
@@ -83,11 +87,18 @@ public class InstallerService extends ForegroundService {
 
 	private final IBinder mBinder;
 
-	private InterpreterConfiguration mInterpreterConfiguration;
+	private InterpreterConfiguration mInterpreterConfiguration = null;
 	private AndroidProxy mProxy;
 	private Notification notification;
 	// An instance of the service, used to determine whether it is running or not
 	private static InstallerService instance = null;
+	private static Context context = null;
+		static {
+			instance = null;
+		}
+	private File pythonBinary;
+	private String packageName;
+	private File fileDir;
 	// Checks whether the service is running or not
 	public static boolean isInstalling(){
 		return instance!=null;
@@ -113,7 +124,7 @@ public class InstallerService extends ForegroundService {
 	@Override
 	public void onCreate() {
 		super.onCreate();
-		mInterpreterConfiguration = ((BaseApplication) getApplication()).getInterpreterConfiguration();
+		InstallerService.context = getApplicationContext();
 	}
 
 	// Checks whether the installation was successful by inspecting the installInfo log file
@@ -145,6 +156,10 @@ public class InstallerService extends ForegroundService {
 		
 		// Set instance to self
 		instance = this;
+		// Set python binary located at /data/data/com.seattleonandroid/files/python/bin/python
+		pythonBinary = new File(this.getFilesDir().getAbsolutePath() + "/python/bin/python");
+		packageName = this.getPackageName();
+		fileDir = this.getFilesDir();
 		
 		// Start the Logger used during Installation
 		try {
@@ -305,7 +320,8 @@ public class InstallerService extends ForegroundService {
 		
 				// Unzip archive
 				try{
-					Unzip.unzip(archive.getAbsolutePath(), Environment.getExternalStorageDirectory().getAbsolutePath()+"/sl4a");
+					FileInputStream fis = new FileInputStream(archive); 
+					Utils.unzip(fis, Environment.getExternalStorageDirectory().getAbsolutePath()+"/sl4a/", false);
 				} catch (Exception e) {
 					installerLogger.log(Level.SEVERE, Common.LOG_EXCEPTION_UNZIPPING, e);
 					archive.delete();				
@@ -325,10 +341,8 @@ public class InstallerService extends ForegroundService {
 				mNotificationManager.notify(NOTIFICATION_ID, notification);
 		
 				// Get installer script file
-				File installer = new File(Environment.getExternalStorageDirectory().getAbsolutePath()+"/sl4a/seattle/seattle_repy/seattleinstaller.py");
-				
-				mProxy = new AndroidProxy(s, null, true);
-				mProxy.startLocal();
+				File installer = new File(Environment.getExternalStorageDirectory().getAbsolutePath() 
+						+ "/sl4a/seattle/seattle_repy/seattleinstaller.py");
 		
 				// Get percentage of resources to donate 
 				Bundle b = fInt.getExtras();
@@ -346,8 +360,31 @@ public class InstallerService extends ForegroundService {
 				env.put("SEATTLE_AVAILABLE_CORES", Integer.toString(cores));
 				env.put("SEATTLE_AVAILABLE_SPACE", Integer.toString(freeSpace));
 		
+				//set python 2.7 environmental variables to pass to interpreter
+				env.put("PYTHONPATH",
+						Environment.getExternalStorageDirectory()
+								.getAbsolutePath() + "/"
+								+ packageName + "/extras/python"
+								+ ":"
+								+ fileDir.getAbsolutePath()
+								+ "/python/lib/python2.7/lib-dynload"
+								+ ":"
+								+ fileDir.getAbsolutePath()
+								+ "/python/lib/python2.7");
+				
+				env.put("TEMP", Environment.getExternalStorageDirectory().getAbsolutePath()
+						+ "/" + packageName + "/extras/tmp");
+				
+				env.put("PYTHONHOME", fileDir.getAbsolutePath() + "/python");
+				
+				env.put("LD_LIBRARY_PATH", fileDir.getAbsolutePath()
+						+ "/python/lib"
+						+ ":" 
+						+ fileDir.getAbsolutePath() + "/python/lib/python2.7/lib-dynload");
+				
 				// Set arguments
 				List<String> args = new ArrayList<String>();
+				args.add(installer.toString());
 				args.add("--percent");
 				args.add(Integer.toString(donate)); // make sure that dot is used as the decimal separator instead of comma
 				args.add("--disable-startup-script");
@@ -369,6 +406,10 @@ public class InstallerService extends ForegroundService {
 				if (optionalArgs != null)
 					args.add(optionalArgs);
 				installerLogger.info(Common.LOG_INFO_STARTING_INSTALLER_SCRIPT);
+				
+				mProxy = new AndroidProxy(s, null, true);
+				mProxy.startLocal();
+				//mLatch.countDown();
 				// Launch installer
 				SeattleScriptProcess.launchScript(installer, mInterpreterConfiguration, mProxy, new Runnable() {
 					@Override
@@ -398,7 +439,8 @@ public class InstallerService extends ForegroundService {
 						// Stop service
 						stopSelf(startId);
 					}
-				}, installer.getParent(), args, env);
+				}, installer.getParent(),Environment.getExternalStorageDirectory().getAbsolutePath() 
+				+ "/" + packageName, args, env, pythonBinary);
 			};
 		};
 		

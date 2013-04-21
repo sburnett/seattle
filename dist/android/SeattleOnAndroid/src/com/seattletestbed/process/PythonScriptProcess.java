@@ -17,7 +17,6 @@
 package com.seattletestbed.process;
 
 import com.googlecode.android_scripting.AndroidProxy;
-import com.googlecode.android_scripting.interpreter.Interpreter;
 import com.googlecode.android_scripting.interpreter.InterpreterConfiguration;
 import com.googlecode.android_scripting.interpreter.MyInterpreter;
 
@@ -33,12 +32,14 @@ public class PythonScriptProcess extends InterpreterProcess {
   private final File mScript;
 
   public PythonScriptProcess(File script, InterpreterConfiguration configuration, AndroidProxy proxy) {
-    super(new MyInterpreter(configuration.getInterpreterForScript("foo.py")), proxy);
+    super(new MyInterpreter(null), proxy);
     mScript = script;
     String scriptName = script.getName();
     setName(scriptName);
-    Interpreter interpreter = configuration.getInterpreterForScript("foo.py");
-    setCommand(String.format(interpreter.getScriptCommand(), script.getAbsolutePath()));
+    String str = "";
+    Object[] arrayOfObject = new Object[1];
+    arrayOfObject[0] = script.getAbsolutePath();
+    setCommand(String.format(str, arrayOfObject));
   }
 
   public String getPath() {

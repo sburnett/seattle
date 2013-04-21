@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest
 	package="com.seattletestbed"
-	android:versionCode="3"
-	android:versionName="1.0"
+	android:versionCode="4"
+	android:versionName="1.1"
 	xmlns:android="http://schemas.android.com/apk/res/android">
 	<application
 		android:debuggable="true"
@@ -35,9 +35,6 @@
 			android:configChanges="keyboardHidden|orientation"
 			android:name="com.googlecode.android_scripting.activity.FutureActivity" 
 			android:theme="@android:style/Theme.Translucent"/>
-		<activity android:theme="@android:style/Theme.Translucent.NoTitleBar" 
-			android:configChanges="keyboardHidden|orientation" 
-			android:name="com.seattletestbed.DialogActivity"/>
 		<receiver android:name="com.seattletestbed.AutostartListener">
 			<intent-filter>
 				<action android:name="android.intent.action.BOOT_COMPLETED"/>

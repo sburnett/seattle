@@ -16,6 +16,8 @@
 
 package com.seattletestbed.process;
 
+import android.os.Environment;
+import com.seattletestbed.ScriptApplication;
 import com.googlecode.android_scripting.Analytics;
 import com.googlecode.android_scripting.AndroidProxy;
 import com.googlecode.android_scripting.interpreter.Interpreter;
@@ -24,6 +26,9 @@ import com.googlecode.android_scripting.interpreter.MyInterpreter;
 import com.googlecode.android_scripting.jsonrpc.RpcReceiverManagerFactory;
 
 import java.util.List;
+import java.io.File;
+import java.util.ArrayList;
+import java.util.Map;
 
 /**
  * Slightly modified version of the InterpreterProcess from SL4A
@@ -31,6 +36,9 @@ import java.util.List;
  * This is a skeletal implementation of an interpreter process.
  * 
  * @author Damon Kohler (damonkohler@gmail.com)
+ * @modified by Gaetano Pressimone 
+ * 				modified to allow embedded python interpreter and scripts in the APK
+ * 				based off Anthony Prieur & Daniel Oppenheim work https://code.google.com/p/android-python27/
  */
 public class InterpreterProcess extends Process {
 
@@ -38,6 +46,13 @@ public class InterpreterProcess extends Process {
   private final Interpreter mInterpreter;
   private String mCommand;
 
+  private String pyname = "python";
+  private File binary = null;
+  private String niceName = "Python 2.7.2";
+  private String interactiveCommand = "";
+  private List<String> arguments = new ArrayList<String>();
+  private Map<String, String> environmentVariables = null;
+  
   /**
    * Creates a new {@link InterpreterProcess}.
    * 
@@ -50,17 +65,23 @@ public class InterpreterProcess extends Process {
     mProxy = proxy;
     mInterpreter = interpreter.getInterpreter();
 
-    setBinary(mInterpreter.getBinary());
-    setName(mInterpreter.getNiceName());
-    setCommand(mInterpreter.getInteractiveCommand());
-    addAllArguments(interpreter.getArguments());
+    if(binary != null) {
+        setBinary(binary);
+    }
+    
+    setName(niceName);
+    setCommand(interactiveCommand);
+    addAllArguments(arguments);
+  
     putAllEnvironmentVariables(System.getenv());
     putEnvironmentVariable("AP_HOST", getHost());
     putEnvironmentVariable("AP_PORT", Integer.toString(getPort()));
     if (proxy.getSecret() != null) {
       putEnvironmentVariable("AP_HANDSHAKE", getSecret());
     }
-    putAllEnvironmentVariables(mInterpreter.getEnvironmentVariables());
+    if(environmentVariables != null) {
+        putAllEnvironmentVariables(environmentVariables);
+    }
   }
 
   protected void setCommand(String command) {
@@ -93,7 +114,7 @@ public class InterpreterProcess extends Process {
   }
 
   public void start(final Runnable shutdownHook, List<String> args) {
-    Analytics.track(mInterpreter.getName());
+    Analytics.track(pyname);
     // NOTE(damonkohler): String.isEmpty() doesn't work on Cupcake.
     if (!mCommand.equals("")) {
       addArgument(mCommand);
@@ -112,5 +133,9 @@ public class InterpreterProcess extends Process {
   @Override
   public String getWorkingDirectory() {
     return InterpreterConstants.SDCARD_SL4A_ROOT;
+  }
+  @Override
+  public String getSdcardPackageDirectory() {
+    return Environment.getExternalStorageDirectory().getAbsolutePath() + "/" + ScriptApplication.getThePackageName();
   }
 }
