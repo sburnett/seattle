@@ -374,6 +374,11 @@ def enable(commanddict, modulename):
     # be a problem.
     if not "cannot find the file" in str(e):
       raise
+  
+  try:
+    initialize(modulename)
+  except seash_exceptions.InitializeError, e:
+    raise seash_exceptions.InitializeError(e)
 
 
 def disable(commanddict, modulename):
@@ -406,6 +411,7 @@ def disable(commanddict, modulename):
     raise seash_exceptions.UserError("Module is not enabled.")
 
   remove_commanddict(commanddict, module_data[modulename]['command_dict'])
+  cleanup(modulename)
 
   # We mark this module as disabled by adding a modulename.disabled file.
   open(MODULES_FOLDER_PATH + os.sep + modulename + ".disabled", 'w')
@@ -464,10 +470,12 @@ def enable_modules_from_last_session(seashcommanddict):
 
       # We mark this module as disabled by adding a modulename.disabled file.
       open(MODULES_FOLDER_PATH + os.sep + modulename + ".disabled", 'w')
+    except seash_exceptions.InitializeError, e:
+      print "Failed to enable the '"+modulename+"' module."
+      disable(seashcommanddict, modulename)
   successfully_enabled_modules.sort()
   
-  print 'Enabled modules:', ', '.join(successfully_enabled_modules)
-  print "To see a list of all available modules, use the 'show modules' command."
+  print 'Enabled modules:', ', '.join(successfully_enabled_modules), '\n'
 
 
 def tab_complete(input_list):
@@ -540,6 +548,51 @@ def get_installed_modules():
     modules.append(folder)
   return modules
 
+
+def initialize(modulename):
+  """
+  <Purpose>
+    Performs initialization steps for the module.
+
+  <Arguments>
+    None
+
+  <Side Effects>
+    None
+
+  <Exceptions>
+    None
+
+  <Returns>
+    None
+  """
+  
+  # Not every module needs initialization...
+  if 'initialize' in module_data[modulename]:
+    module_data[modulename]['initialize']()
+  
+
+def cleanup(modulename):
+  """
+  <Purpose>
+    Performs cleanup steps for the module.
+
+  <Arguments>
+    None
+
+  <Side Effects>
+    None
+
+  <Exceptions>
+    None
+
+  <Returns>
+    None
+  """
+  
+  # Not every module needs cleanup...
+  if 'cleanup' in module_data[modulename]:
+    module_data[modulename]['cleanup']()
 
 
 import_all_modules()
