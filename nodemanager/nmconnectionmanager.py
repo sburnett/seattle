@@ -117,7 +117,14 @@ class AccepterThread(threading.Thread):
         IP, port, client_socket = self.serversocket.getconnection()
         connection_handler(IP, port, client_socket)
       except SocketWouldBlockError:
-        sleep(0.5)      
+        sleep(0.5)
+
+  def close_serversocket(self):
+    # Close down the serversocket.
+    self.serversocket.close()
+    # We sleep for half a second to give the OS some time
+    # to clean things up.
+    sleep(0.5)
 
 
 ##### ORDER IN WHICH CONNECTIONS ARE HANDLED

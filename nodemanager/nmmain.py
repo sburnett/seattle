@@ -109,7 +109,8 @@ dy_import_module_symbols("advertise.repy")
 dy_import_module_symbols("shimstackinterface")
 affix_service_key = "SeattleAffixStack"
 enable_affix_key = "EnableSeattleAffix"
-
+affix_enabled = False
+affix_stack_string = None
 
 
 # JAC: Fix for #1000: This needs to be after ALL repyhhelper calls to prevent 
@@ -248,6 +249,8 @@ def is_accepter_started():
 
 def start_accepter():
   global accepter_thread
+  global affix_enabled
+  global affix_stack_string
 
   # do this until we get the accepter started...
   while True:
@@ -274,16 +277,19 @@ def start_accepter():
           
           # Check to see if AFFIX is enabled.
           try:
-            affix_enabled_lookup = advertise_lookup(enable_affix_key)
+            affix_enabled_lookup = advertise_lookup(enable_affix_key)[-1]
             # Now we check if the last entry is True or False.
-            if affix_enabled_lookup[-1] == 'True':
-              affix_stack_string = advertise_lookup(affix_service_key)
+            if affix_enabled_lookup == 'True':
+              affix_stack_string = advertise_lookup(affix_service_key)[-1]
               affix_enabled = True
             else:
               affix_enabled = False
           except AdvertiseError:
             affix_enabled = False
           except ValueError:
+            affix_enabled = False
+          except IndexError:
+            # This will occur if the advertise server returns an empty list.
             affix_enabled = False
 
       
@@ -298,13 +304,14 @@ def start_accepter():
             # listenforconnection call.
             for shimportindex in range(portindex+1, len(configuration['ports'])):
               shimport = configuration['ports'][shimportindex]
-              affix_legacy_string = "(CoordinationShim)(LegacyShim," + shimport + ",0)" + affix_stack_string
+              affix_legacy_string = "(CoordinationShim)(LegacyShim," + str(shimport) + ",0)" + affix_stack_string
               serversocket = affix_object.listenforconnection(bind_ip, possibleport)
+              servicelogger.log("[INFO]Started accepter thread with Affix string: " + affix_legacy_string)
               break
             else:
               # This is the case if we weren't able to find any port to listen on
               # With the legacy shim.
-              raise ShimError("Unable to create create tcpserversocket with shims using port:" + possibleport)
+              raise ShimError("Unable to create create tcpserversocket with shims using port:" + str(possibleport))
 
           else:
             # If AFFIX is not enabled, then we open up a normal tcpserversocket.
@@ -596,13 +603,40 @@ def main():
 
       # Restart the accepter thread and update nodename in node_reset_config
       node_reset_config['reset_accepter'] = True
-      myname = start_accepter()
-      node_reset_config['name'] = myname
 
       # Restart the advertisement thread
       node_reset_config['reset_advert'] = True
       start_advert_thread(vesseldict, myname, configuration['publickey'])
 
+
+
+    # Check to see if we need to restart the accepter thread due to affix
+    # string changing or it being turned on/off.
+    try:
+      affix_enabled_lookup = advertise_lookup(enable_affix_key)[-1]
+      if affix_enabled_lookup and str(affix_enabled_lookup) != str(affix_enabled):
+        servicelogger.log('[WARN]:At ' + str(time.time()) + ' affix_enabled set to: ' + affix_enabled_lookup)
+        servicelogger.log('Previous flag for affix_enabled was: ' + str(affix_enabled))
+        node_reset_config['reset_accepter'] = True
+        accepter_thread.close_serversocket()
+        
+      elif affix_enabled_lookup == 'True':
+        affix_stack_string_lookup = advertise_lookup(affix_service_key)[-1]
+        # If the affix string has changed, we reset our accepter listener.
+        if affix_stack_string_lookup != affix_stack_string:
+          servicelogger.log('[WARN]:At ' + str(time.time()) + ' affix string chaged to: ' + affix_stack_string_lookup)
+          node_reset_config['reset_accepter'] = True
+          accepter_thread.close_serversocket()
+    except (AdvertiseError, IndexError, ValueError):
+      # IndexError and ValueError will occur if the advertise lookup
+      # returns an empty list.
+      pass
+
+    # If the reset accepter flag has been turned on, we call start_accepter
+    # and update our name. 
+    if node_reset_config['reset_accepter']:
+      myname = start_accepter()
+      node_reset_config['name'] = myname 
 
 
     time.sleep(configuration['pollfrequency'])
