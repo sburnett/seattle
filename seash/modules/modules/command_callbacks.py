@@ -90,6 +90,9 @@ def enable_module(input_dict, environment_dict):
   except seash_exceptions.ModuleConflictError, e:
     print "Module cannot be imported due to the following conflicting command:"
     print str(e)
+  except seash_exceptions.InitializeError, e:
+    print "Error while enabling the '"+modulename+"' module."
+    seash_modules.disable(seash_dictionary.seashcommanddict, modulename)
 
 
 
