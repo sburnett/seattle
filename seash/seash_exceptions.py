@@ -35,3 +35,7 @@ class ParseError(Exception):
 class UserError(Exception):
   """This indicates the user typed an incorrect command"""
   pass
+
+# Use this to signal an error during initializing module.
+class InitializeError(Exception):
+  pass
