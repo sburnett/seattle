@@ -15,17 +15,21 @@ pass them to the appropriate API function
 """
 
 from repyportability import *
+_context = locals()
+add_dy_support(_context)
   
-import repyhelper
 
 # repy signeddata to protect request information
-repyhelper.translate_and_import("signeddata.repy")
+import fastsigneddata 
 
 # get requests (encapsulated in session messages)
-repyhelper.translate_and_import("session.repy")
+dy_import_module_symbols("session.repy")
 
 # for using time_updatetime
-repyhelper.translate_and_import("time.repy")
+dy_import_module_symbols("time.repy")
+
+# For using rsa key conversion
+dy_import_module_symbols("rsa.repy")
 
 # the API for the node manager
 import nmAPI
@@ -40,6 +44,7 @@ import traceback
 
 import servicelogger
 
+DEBUG_MODE = False
 
 def initialize(myip, publickey, version):
   
@@ -47,7 +52,7 @@ def initialize(myip, publickey, version):
   # public key which should be unique)
   #BUG FIX: we are storing rsa_publickey_to_string(publickey) instead of str(publickey) so that the entry is in the same format as 
   #the way the data is stored and used by the client
-  signeddata_set_identity(rsa_publickey_to_string(publickey))
+  fastsigneddata.signeddata_set_identity(rsa_publickey_to_string(publickey))
 
   # init the node manager's API (mostly for information it returns when a call
   # gets generic node information)
@@ -58,71 +63,76 @@ def initialize(myip, publickey, version):
 
   
 # Armon: Safely closes a socket object
-def safe_close(socket):
-  try:
-    socket.close()
-  except:
-    pass
-
 
 # this takes a connection and safely processes the request.   
 def handle_request(socketobj):
 
-
+  # always close the socketobj
   try:
-    # let's get the request...
-    # BUG: Should prevent endless data / slow retrival attacks
-    fullrequest = session_recvmessage(socketobj)
+
+
+    try:
+      # let's get the request...
+      # BUG: Should prevent endless data / slow retrival attacks
+      fullrequest = session_recvmessage(socketobj)
   
-  # Armon: Catch a vanilla exception because repy emulated_sockets
-  # will raise Exception when the socket has been closed.
-  # This is changed from just passing through socket.error,
-  # which we were catching previously.
-  except Exception, e:
-    # close if possible
-    safe_close(socketobj)
+    # Armon: Catch a vanilla exception because repy emulated_sockets
+    # will raise Exception when the socket has been closed.
+    # This is changed from just passing through socket.error,
+    # which we were catching previously.
+    except Exception, e:
 
-    # I can't handle this, let's exit
-    # BUG: REMOVE LOGGING IN PRODUCTION VERSION (?)
-    servicelogger.log_last_exception()
-    return
+      #JAC: Fix for the exception logging observed in #992
+      if 'Socket closed' in str(e) or 'timed out!' in str(e):
+        servicelogger.log('Connection abruptly closed during recv')
+        return
+      elif 'Bad message size' in str(e):
+        servicelogger.log('Received bad message size')
+        return
+      else:
+        # I can't handle this, let's exit
+        # BUG: REMOVE LOGGING IN PRODUCTION VERSION (?)
+        servicelogger.log_last_exception()
+        return
 
-  # handle the request as appropriate
-  try:
-    retstring = process_API_call(fullrequest)
 
-  # Bad parameters, signatures, etc.
-  except nmAPI.BadRequest,e:
+
+    # handle the request as appropriate
     try:
+      retstring = process_API_call(fullrequest)
+
+    # Bad parameters, signatures, etc.
+    except nmAPI.BadRequest,e:
       session_sendmessage(socketobj, str(e)+"\nError")
-    except:
-      pass
-    # Armon: Moved out from the same try/catch because if session_sendmessage fails
-    # then, the socket would not be closed, this is to prevent leaks
-    safe_close(socketobj)
-    return
+      return
 
-  # Other exceptions only should happen on an internal error and should be
-  # captured by servicelogger.log
-  except Exception,e:
-    try:
+    # Other exceptions only should happen on an internal error and should be
+    # captured by servicelogger.log
+    except Exception,e:
       servicelogger.log_last_exception()
       session_sendmessage(socketobj,"Internal Error\nError")
-    except:
-      pass
-    # Armon: Prevent socket leaks
-    safe_close(socketobj)
-    return
+      return
  
-  
-  # send any output from the command
-  try:
+    # send the output of the command...
     session_sendmessage(socketobj,retstring)
-  except:
-    pass
+
+  except Exception, e:
+    #JAC: Fix for the exception logging observed in #992
+    if 'Socket closed' in str(e) or 'timed out!' in str(e):
+      servicelogger.log('Connection abruptly closed in send')
+      return
+    else:
+      raise
   
-  # Prevent leaks
-  safe_close(socketobj)
+  finally:
+    # Prevent leaks
+    try:
+      socketobj.close()
+    except Exception, e:
+      servicelogger.log_last_exception()
+   
+      
+  
 
 
 
@@ -153,6 +163,7 @@ API_dict = { \
   'GetVesselResources': (1, 'Public', nmAPI.getvesselresources), \
   'GetOffcutResources': (0, 'Public', nmAPI.getoffcutresources), \
   'StartVessel': (2, 'User', nmAPI.startvessel), \
+  'StartVesselEx': (3, 'User', nmAPI.startvessel_ex), \
   'StopVessel': (1, 'User', nmAPI.stopvessel), \
   'AddFileToVessel': (3, 'User', nmAPI.addfiletovessel), \
   'ListFilesInVessel': (1, 'User', nmAPI.listfilesinvessel), \
@@ -166,14 +177,17 @@ API_dict = { \
   'ChangeAdvertise': (2, 'Owner', nmAPI.changeadvertise), \
   'SplitVessel': (2, 'Owner', nmAPI.splitvessel), \
   'JoinVessels': (2, 'Owner', nmAPI.joinvessels), \
-# obsoleted
-#  'SetRestrictions': (2, 'Owner', nmAPI.setrestrictions) \
+  # obsoleted 
+  # 'SetRestrictions': (2, 'Owner', nmAPI.setrestrictions) \
 }
 
 
 def process_API_call(fullrequest):
 
   callname = fullrequest.split('|')[0]
+
+  if DEBUG_MODE:
+    servicelogger.log("Now handling call: " + callname)
 
   if callname not in API_dict:
     raise nmAPI.BadRequest("Unknown Call")
@@ -197,7 +211,7 @@ def process_API_call(fullrequest):
 
   else:
     # strip off the signature and get the requestdata
-    requestdata, requestsignature = signeddata_split_signature(fullrequest)
+    requestdata, requestsignature = fastsigneddata.signeddata_split_signature(fullrequest)
     
 
     # NOTE: the first argument *must* be the vessel name!!!!!!!!!!!
@@ -240,12 +254,13 @@ def ensure_is_correctly_signed(fullrequest, allowedkeys, oldmetadata):
     time_gettime()
   except TimeError:
     time_updatetime(34612)
-  
+    
+
   # check if request is still valid and has not expired
   # this code has been added to resolve an issue where we are not checking of the request is expired in the case that there is no old metadata
   thesigneddata, signature = fullrequest.rsplit('!',1)
   junk, rawpublickey, junktimestamp, expiration, sequencedata, junkdestination = thesigneddata.rsplit('!',5)
-  if not signeddata_iscurrent(float(expiration)):
+  if not fastsigneddata.signeddata_iscurrent(float(expiration)):
     raise nmAPI.BadRequest,"Bad Signature on '"+fullrequest+"'"
     
   
@@ -258,12 +273,12 @@ def ensure_is_correctly_signed(fullrequest, allowedkeys, oldmetadata):
         raise nmAPI.BadRequest, "Illegal sequence id on '"+fullrequest+"'"
     
   # ensure it's correctly signed, if not report this and exit
-  if not signeddata_issignedcorrectly(fullrequest):
+  if not fastsigneddata.signeddata_issignedcorrectly(fullrequest):
     raise nmAPI.BadRequest,"Bad Signature on '"+fullrequest+"'"
 
-  request, requestsignature = signeddata_split_signature(fullrequest)
+  request, requestsignature = fastsigneddata.signeddata_split_signature(fullrequest)
 
-  signingpublickey = signeddata_split(fullrequest)[1]
+  signingpublickey = fastsigneddata.signeddata_split(fullrequest)[1]
 
   # If they care about the key, do they have a valid key?
   if allowedkeys and signingpublickey not in allowedkeys:
@@ -282,9 +297,9 @@ def ensure_is_correctly_signed(fullrequest, allowedkeys, oldmetadata):
   
   #BUG FIX: only signature should be passed in for oldmetadata since full request may take extensive space
   if metadata_is_fullrequest:
-    (shouldtrust, reasons) = signeddata_shouldtrust(oldmetadata, fullrequest)
+    (shouldtrust, reasons) = fastsigneddata.signeddata_shouldtrust(oldmetadata, fullrequest)
   else:
-    (shouldtrust, reasons) = signeddata_shouldtrustmeta(oldmetadata, fullrequest)
+    (shouldtrust, reasons) = fastsigneddata.signeddata_shouldtrustmeta(oldmetadata, fullrequest)
     
   if not shouldtrust:
     # let's tell them what is wrong.

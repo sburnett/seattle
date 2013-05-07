@@ -196,8 +196,20 @@ def main():
   # Return to previous working directory
   os.chdir(current_dir) 
 
+  # Create the two required directories
+  repy_dir_dict = {'repyv1' : os.path.join(target_dir, "repyV1"),
+                   'repyv2' : os.path.join(target_dir, "repyV2")
+                   }
+
+  for repy_dir in repy_dir_dict.values():
+    if not os.path.exists(repy_dir):
+      os.makedirs(repy_dir)
+
+
   # Copy the necessary files to the test folder
   copy_to_target("repy/*", target_dir)
+  copy_to_target("repy/*", os.path.join(target_dir,"repyV2"))
+  copy_to_target("repy/repyV1/*", os.path.join(target_dir,"repyV1"))
   copy_to_target("nodemanager/*", target_dir)
   copy_to_target("portability/*", target_dir)
   copy_to_target("seattlelib/*", target_dir)

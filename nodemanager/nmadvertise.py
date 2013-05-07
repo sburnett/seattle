@@ -10,28 +10,23 @@ The advertisement functionality for the node manager
 
 # needed for getruntime
 from repyportability import *
+_context = locals()
+add_dy_support(_context)
 
 # needed to convert keys to strings
-include rsa.repy
+dy_import_module_symbols('rsa.repy')
 
 # Comment out following line by Danny Y. Huang. Potentially unsafe operation if it contains repy-specific symbols like mycontext.
 # include advertise.repy
 
-import repyhelper
-repyhelper.translate_and_import("advertise.repy")
-
-
-include listops.repy
-
-import misc
-
+import sys
+import time
 import threading
-
+import traceback
 import servicelogger
 
-import sys
-
-import traceback
+dy_import_module_symbols('listops.repy')
+dy_import_module_symbols("advertise.repy")
 
 
 # The frequency of updating the advertisements
@@ -133,7 +128,7 @@ class advertthread(threading.Thread):
             advertise_announce(advertisekey, str(myname), adTTL)
             # mark when we advertise
             lastadvertisedict[rsa_publickey_to_string(advertisekey)] = getruntime()
-          
+         
             # If the announce succeeded, and node was offline, log info message
             # and switch it back to online mode.
             if self.is_offline:
@@ -158,22 +153,22 @@ class advertthread(threading.Thread):
             else:
               servicelogger.log('AdvertiseError occured, continuing: '+str(e))
           except Exception, e:
-            servicelogger.log_last_exception(e)
+            servicelogger.log_last_exception()
             # an unexpected exception occured, exit and restart
             return
            
 
         # wait to avoid sending too frequently
-        misc.do_sleep(adsleepfrequency)
+        time.sleep(adsleepfrequency)
     except Exception, e:
       exceptionstring = "[ERROR]:"
-      (type, value, tb) = sys.exc_info()
+      (etype, value, tb) = sys.exc_info()
     
       for line in traceback.format_tb(tb):
         exceptionstring = exceptionstring + line
   
       # log the exception that occurred.
-      exceptionstring = exceptionstring + str(type)+" "+str(value)+"\n"
+      exceptionstring = exceptionstring + str(etype)+" "+str(value)+"\n"
 
       servicelogger.log(exceptionstring)
       raise e

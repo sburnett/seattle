@@ -14,20 +14,10 @@ The individual functions in here are called from nmrequesthandler.   The
 functions are listed in the API_dict.
 """
 
-# Built-in imports
-# needed for path.exists and remove
-import os 
+from repyportability import *
+_context = locals()
+add_dy_support(_context)
 
-# Required for sys.executable
-import sys
-
-import time
-# needed for copy
-import shutil
-
-import threading
-
-# Relative imports
 # used to persist data...
 import persist
 
@@ -43,8 +33,15 @@ class BadRequest(Exception):
 # deletefileinvessel
 from emulfile import assert_is_allowed_filename
 
+# needed for path.exists and remove
+import os 
 
+# needed for copy
+import shutil
 
+import threading
+
+import time
 
 # used in startvessel and stopvessel
 import statusstorage
@@ -55,8 +52,127 @@ import nmstatusmonitor
 # used to check file size restrictions...
 import nonportable
 
+# Used for logging information.
+import servicelogger
+
+# This dictionary keeps track of all the programming
+# platform that Seattle supports and where they are
+# located.
+prog_platform_dir = {'repyV1' : 'repyV1',
+                     'repyV2' : 'repyV2'
+                     }
+
+
 # need this to check uploaded keys for validity
-include rsa.repy
+def rsa_is_valid_publickey(key):
+  """
+  <Purpose>
+    This tries to determine if a key is valid.   If it returns False, the
+    key is definitely invalid.   If True, the key is almost certainly valid
+  
+  <Arguments>
+    key:
+        A dictionary of the form {'n': 1.., 'e': 6..} with the 
+        keys 'n' and 'e'.  
+                  
+  <Exceptions>
+    None
+
+  <Side Effects>
+    None
+    
+  <Return>
+    If the key is valid, True will be returned. Otherwise False will
+    be returned.
+    
+  """
+  # must be a dict
+  if type(key) is not dict:
+    return False
+
+  # missing the right keys
+  if 'e' not in key or 'n' not in key:
+    return False
+
+  # has extra data in the key
+  if len(key) != 2:
+    return False
+
+  for item in ['e', 'n']:
+    # must have integer or long types for the key components...
+    if type(key[item]) is not int and type(key[item]) is not long:
+      return False
+
+  if key['e'] < key['n']:
+    # Seems valid...
+    return True
+  else:
+    return False
+  
+  
+
+def rsa_publickey_to_string(publickey):
+  """
+  <Purpose>
+    To convert a publickey to a string. It will read the
+    publickey which should a dictionary, and return it in
+    the appropriate string format.
+  
+  <Arguments>
+    publickey:
+              Must be a valid publickey dictionary of 
+              the form {'n': 1.., 'e': 6..} with the keys
+              'n' and 'e'.
+    
+  <Exceptions>
+    ValueError if the publickey is invalid.
+
+  <Side Effects>
+    None
+    
+  <Return>
+    A string containing the publickey. 
+    Example: if the publickey was {'n':21, 'e':3} then returned
+    string would be "3 21"
+  
+  """
+  if not rsa_is_valid_publickey(publickey):
+    raise ValueError, "Invalid public key"
+
+  return str(publickey['e'])+" "+str(publickey['n'])
+
+
+def rsa_string_to_publickey(mystr):
+  """
+  <Purpose>
+    To read a private key string and return a dictionary in 
+    the appropriate format: {'n': 1.., 'e': 6..} 
+    with the keys 'n' and 'e'.
+  
+  <Arguments>
+    mystr:
+          A string containing the publickey, should be in the format
+          created by the function rsa_publickey_to_string.
+          Example if e=3 and n=21, mystr = "3 21"
+          
+  <Exceptions>
+    ValueError if the string containing the privateky is 
+    in a invalid format.
+
+  <Side Effects>
+    None
+    
+  <Return>
+    Returns a publickey dictionary of the form 
+    {'n': 1.., 'e': 6..} with the keys 'n' and 'e'.
+  
+  """
+  if len(mystr.split()) != 2:
+    raise ValueError, "Invalid public key string"
+  
+  return {'e':long(mystr.split()[0]), 'n':long(mystr.split()[1])}
+
+
 # MIX: fix with repy <-> python integration changes
 import random
 randomfloat = random.random()
@@ -181,11 +297,25 @@ def getoffcutresources():
 allowedchars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890.-_ "
 
 def startvessel(vesselname, argstring):
+  """
+  This is the old startvessel call that will become obsolete eventually.
+  startvessel now calls startvessel_ex using repyV1 as the programming
+  language.
+  """
+  return startvessel_ex(vesselname, 'repyV1', argstring)
+
+
+
+
+def startvessel_ex(vesselname, prog_platform, argstring):
   if vesselname not in vesseldict:
     raise BadRequest, "No such vessel"
 
   if vesseldict[vesselname]['status'] == 'Started':
     raise BadRequest("Vessel has already been started")
+
+  if prog_platform not in prog_platform_dir.keys():
+    raise BadRequest("Programming language platform is not supported.")
 
   # remove any prior stop file so that we can start
   if os.path.exists(vesseldict[vesselname]['stopfilename']):
@@ -202,16 +332,10 @@ def startvessel(vesselname, argstring):
   # Armon: this is required to fetch the networkrestrictions information from the configuration
   configuration = persist.restore_object("nodeman.cfg")
 
-  # If the nodemanager is configured to use one or more custom security layers, 
-  # then prepend the security layers to the user program arguments. 
-  if 'repy_prepend' in configuration: 
-    prependstring = "" 
-    for prependarg in configuration['repy_prepend']: 
-      prependstring += prependarg + " " 
-      argstring = prependstring + argstring 
   
   # Armon: Generate the IP/Iface preferences if they exist
   ip_iface_preference_flags = []
+  ip_iface_preference_str = ""    # Needed for Win Mobile
 
   # Only add the flags if everything necessary exists
   if 'networkrestrictions' in configuration and 'repy_restricted' in configuration['networkrestrictions'] \
@@ -221,31 +345,46 @@ def startvessel(vesselname, argstring):
         # Append the correct flag
         if is_ip:
           ip_iface_preference_flags.append("--ip")
+          ip_iface_preference_str += "--ip "
         else:
           ip_iface_preference_flags.append("--iface")
+          ip_iface_preference_str += "--iface "
           
         # Append the value
         ip_iface_preference_flags.append(value)
+        ip_iface_preference_str += "'" + value + "' "
         
       # Check for the --nootherips flag
       if 'repy_nootherips' in configuration['networkrestrictions'] and configuration['networkrestrictions']['repy_nootherips']:
         # Append the flag
         ip_iface_preference_flags.append("--nootherips")
+        ip_iface_preference_str += "--nootherips "
     
+  # Find the location where the sandbox files is located. Location of repyV1, repyV2 etc.
+  prog_platform_location = os.path.join(prog_platform_dir[prog_platform], "repy.py")
+ 
+  # Armon: Check if we are using windows API, and if it is windows mobile
+  if windowsAPI and windowsAPI.MobileCE:
+    # First element should be the script (repy)
+    command[0] = "\"" + repy_constants.PATH_SEATTLE_INSTALL + prog_platform_location  + "\""
+    # Second element should be the parameters
+    command[1] = ip_iface_preference_str + "--logfile \"" + vesseldict[vesselname]['logfilename'] + "\" --stop \""+ vesseldict[vesselname]['stopfilename'] + "\" --status \"" + vesseldict[vesselname]['statusfilename'] + "\" --cwd \"" + updir + "\" --servicelog \"" + vesseldict[vesselname]['resourcefilename']+"\" "+argstring
+    raise Exception, "This will need to be changed to use absolute paths"
+    
+  else:  
+    # I use absolute paths so that repy can still find the files after it 
+    # changes directories...
+    
+    # Conrad: switched this to sequence-style Popen invocation so that spaces
+    # in files work. Switched it back to absolute paths.
+    command = ["python", prog_platform_location] + ip_iface_preference_flags + [
+        "--logfile", os.path.abspath(vesseldict[vesselname]['logfilename']),
+        "--stop",    os.path.abspath(vesseldict[vesselname]['stopfilename']),
+        "--status",  os.path.abspath(vesseldict[vesselname]['statusfilename']),
+        "--cwd",     os.path.abspath(vesselname),
+        "--servicelog", os.path.abspath(vesseldict[vesselname]['resourcefilename'])] + argstring.split()
 
-  # I use absolute paths so that repy can still find the files after it 
-  # changes directories...
-  
-  # Conrad: switched this to sequence-style Popen invocation so that spaces
-  # in files work. Switched it back to absolute paths.
-  command = [sys.executable, "repy.py"] + ip_iface_preference_flags + [
-      "--logfile", os.path.abspath(vesseldict[vesselname]['logfilename']),
-      "--stop",    os.path.abspath(vesseldict[vesselname]['stopfilename']),
-      "--status",  os.path.abspath(vesseldict[vesselname]['statusfilename']),
-      "--cwd",     os.path.abspath(vesselname),
-      "--servicelog", os.path.abspath(vesseldict[vesselname]['resourcefilename'])] + argstring.split()
-
-  portable_popen.Popen(command)
+    start_task(command)
 
 
   starttime = nonportable.getruntime()
@@ -273,6 +412,20 @@ def startvessel(vesselname, argstring):
 
   return newstatus+"\nSuccess"
 
+
+
+# A helper for startvessel.   private to this module
+# Armon: if MobileCE treat command as an array with 2 elements,
+# one with the script (full path), and the second with the parameters
+def start_task(command):
+  # Check if we are using windows API, and if it is windows mobile
+  if windowsAPI != None and windowsAPI.MobileCE:
+    windowsAPI.launchPythonScript(command[0], command[1])
+
+  # If not, use the portable_popen.Popen interface.
+  else:
+    portable_popen.Popen(command)
+    
 
 # Armon: Takes an optional exitparams tuple, which should contain
 # an integer exit code and a string message,
@@ -323,12 +476,6 @@ def addfiletovessel(vesselname,filename, filedata):
   if vesselname not in vesseldict:
     raise BadRequest, "No such vessel"
 
-
-  # The user is restricted from using filename starting with 'private_' since 
- 	# this part of the namespace is reserved for custom security layers. 
-  if filename.startswith("private_"): 
-    raise BadRequest("User is not allowed to use file names starting with 'private_'") 
-
   # get the current amount of data used by the vessel...
   currentsize = nonportable.compute_disk_use(vesselname+"/")
   # ...and the allowed amount
@@ -362,14 +509,8 @@ def listfilesinvessel(vesselname):
   # the directory should exist.   If not, it's an Internal error...
   filelist = os.listdir(vesselname+"/")
 
-  # remove any files in the protect part of the namespace 
- 	filteredfilelist = [] 
- 	for filename in filelist: 
- 	  if not filename.startswith("private_"): 
- 	    filteredfilelist.append(filename) 
- 	
   # return the list of files, separated by spaces
-  return ' '.join(filteredfilelist) + "\nSuccess"
+  return ' '.join(filelist) + "\nSuccess"
   
 
 
@@ -378,9 +519,6 @@ def retrievefilefromvessel(vesselname,filename):
   if vesselname not in vesseldict:
     raise BadRequest, "No such vessel"
 
-  if filename.startswith("private_"): 
- 	  raise BadRequest("User is not allowed to use file names starting with 'private_'") 
- 	
   try:
     assert_is_allowed_filename(filename)
   except TypeError, e:
@@ -506,12 +644,8 @@ def resetvessel(vesselname,exitparams=(44, '')):
       break
 
   # Okay, it is stopped now.   Now I'll clean up the file system...
-  filelist = os.listdir(vesselname+os.sep) 
-
- 	# don't delete any files in the protected part of the namespace 
- 	for filename in filelist: 
- 	  if not filename.startswith("private_"): 
- 	    os.remove(vesselname+os.sep+filename) 
+  shutil.rmtree(vesselname)
+  os.mkdir(vesselname)
   
   # and remove the log files and stop file...
   if os.path.exists(vesseldict[vesselname]['logfilename']):
@@ -673,13 +807,8 @@ def _setup_vessel(vesselname, examplevessel, resourcedict):
     item['advertise'] = vesseldict[examplevessel]['advertise']
     item['ownerinformation'] = vesseldict[examplevessel]['ownerinformation']
 
-  # create the directory on the file system and, if neccessary, populate it with 
-  # the private files for the security layers 
-  configuration = persist.restore_object("nodeman.cfg") 
-  if 'repy_prepend_dir' in configuration and configuration['repy_prepend_dir'] is not None: 
-    shutil.copytree(configuration['repy_prepend_dir'], vesselname) 
-  else: 
-    os.mkdir(vesselname) 
+  # create the directory on the file system
+  os.mkdir(vesselname)
 
   # now we're ready to add the entry to the table (so other threads can use it)
   vesseldict[vesselname] = item
