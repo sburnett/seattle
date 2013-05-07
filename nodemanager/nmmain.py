@@ -244,6 +244,8 @@ def is_accepter_started():
   return result
 
 
+
+
 def start_accepter():
   global accepter_thread
 
@@ -263,7 +265,8 @@ def start_accepter():
       # Attempt to have the nodemanager listen on an available port.
       # Once it is able to listen, create a new thread and pass it the socket.
       # That new thread will be responsible for handling all of the incoming connections.     
-      for possibleport in configuration['ports']:
+      for portindex in range(len(configuration['ports'])):
+        possibleport = configuration['ports'][portindex]
         try:
           # There are two possible implementations available here:
           # 1) Use a raw (python) socket, and so we can have a timeout, as per ticket #881
@@ -287,7 +290,22 @@ def start_accepter():
           # If AFFIX is enabled, then we use AFFIX to open up a tcpserversocket.
           if affix_enabled:
             affix_object = ShimStackInterface(affix_stack_string)
-            serversocket = affix_object.listenforconnection(bind_ip, possibleport)
+
+            # Here we are going to use a for loop to find a second available port
+            # for us to use for the LegacyShim. Since the LegacyShim opens up two
+            # tcpserversocket, it needs two available ports. The first for a normal
+            # repy listenforconnection call, the second for shim enabled 
+            # listenforconnection call.
+            for shimportindex in range(portindex+1, len(configuration['ports'])):
+              shimport = configuration['ports'][shimportindex]
+              affix_legacy_string = "(CoordinationShim)(LegacyShim," + shimport + ",0)" + affix_stack_string
+              serversocket = affix_object.listenforconnection(bind_ip, possibleport)
+              break
+            else:
+              # This is the case if we weren't able to find any port to listen on
+              # With the legacy shim.
+              raise ShimError("Unable to create create tcpserversocket with shims using port:" + possibleport)
+
           else:
             # If AFFIX is not enabled, then we open up a normal tcpserversocket.
             # For now, we'll use the second method.
@@ -306,7 +324,7 @@ def start_accepter():
           node_reset_config['reset_accepter'] = False
         except Exception, e:
           # print bind_ip, port, e
-          servicelogger.log("[ERROR]: when calling waitforconn for the connection_handler: " + str(e))
+          servicelogger.log("[ERROR]: when calling listenforconnection for the connection_handler: " + str(e))
           servicelogger.log_last_exception()
         else:
           # assign the nodemanager name
