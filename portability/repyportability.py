@@ -73,7 +73,7 @@ def override_restrictions():
   nanny.get_resource_limit = _do_nothing
   nanny._resources_allowed_dict = default_restrictions
   nanny._resources_consumed_dict = resource_used
-  emulfile.assert_is_allowed_filename = _do_nothing
+  emulfile._assert_is_allowed_filename = _do_nothing
   
 
 
