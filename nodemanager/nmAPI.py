@@ -31,7 +31,7 @@ class BadRequest(Exception):
 
 # used to check file names in addfiletovessel, retrievefilefromvessel, and
 # deletefileinvessel
-from emulfile import assert_is_allowed_filename
+from emulfile import _assert_is_allowed_filename
 
 # needed for path.exists and remove
 import os 
