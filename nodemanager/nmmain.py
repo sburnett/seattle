@@ -240,7 +240,7 @@ def set_accepter(accepter):
 # Has the accepter thread started?
 def is_accepter_started():
   accepter_state['lock'].acquire(True)
-  result = accepter_thread is not None and accepter_thread.is_alive()
+  result = accepter_thread is not None and accepter_thread.isAlive()
   accepter_state['lock'].release()
   return result
 
