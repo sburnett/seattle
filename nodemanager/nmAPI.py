@@ -486,7 +486,7 @@ def addfiletovessel(vesselname,filename, filedata):
     raise BadRequest("Not enough free disk space")
   
   try:
-    assert_is_allowed_filename(filename)
+    _assert_is_allowed_filename(filename)
   except TypeError, e:
     raise BadRequest(str(e))
     
@@ -520,7 +520,7 @@ def retrievefilefromvessel(vesselname,filename):
     raise BadRequest, "No such vessel"
 
   try:
-    assert_is_allowed_filename(filename)
+    _assert_is_allowed_filename(filename)
   except TypeError, e:
     raise BadRequest(str(e))
 
@@ -547,7 +547,7 @@ def deletefileinvessel(vesselname,filename):
     raise BadRequest, "No such vessel"
   
   try:
-    assert_is_allowed_filename(filename)
+    _assert_is_allowed_filename(filename)
   except TypeError, e:
     raise BadRequest(str(e))
 
