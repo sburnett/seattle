@@ -181,9 +181,41 @@ def getresources():
 for builtin_type in dir(__builtin__):
   if builtin_type not in safe._BUILTIN_OK:
     safe._BUILTIN_OK.append(builtin_type)
+
+
+def initialize_safe_module():
+    """
+    A helper private function that helps initialize
+    the safe module.
+    """
+
+    # Allow Import Errors.
+    safe._NODE_CLASS_OK.append("Import")
+
+    # needed to allow primitive marshalling to be built
+    safe._BUILTIN_OK.append("__import__")
+    safe._BUILTIN_OK.append("open")
+    safe._BUILTIN_OK.append("eval")
+
+
+    # Allow all built-ins
+    for builtin_type in dir(__builtins__):
+      if builtin_type not in safe._BUILTIN_OK:
+        safe._BUILTIN_OK.append(builtin_type)
+    
+    for str_type in dir(__name__):
+      if str_type not in safe._STR_OK:
+        safe._STR_OK.append(str_type)
+
+    safe.serial_safe_check = _do_nothing
+    safe._check_node = _do_nothing
+
+
   
 # Override by default!
 override_restrictions()
+initialize_safe_module()
+
 
 # This function makes the dy_* functions available.
 def add_dy_support(_context):

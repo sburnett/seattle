@@ -59,12 +59,12 @@ class BaseShim:
 
     # Ensure that the reference to the shimstack that we get
     # is of the type ShimStack.
-    try:
-      assert(isinstance(shim_stack, ShimStack))
-    except:
-      err = "Bad arg provided. shim_stack must be of type ShimStack."
-      err += " Type provided: '%s'" % str(type(shim_stack))
-      raise ShimArgumentError(err)
+    #try:
+    #  assert(isinstance(shim_stack, ShimStack))
+    #except:
+    #  err = "Bad arg provided. shim_stack must be of type ShimStack."
+    #  err += " Type provided: '%s'" % str(type(shim_stack))
+    #  raise ShimArgumentError(err)
 
     self.shim_context['optional_args'] = optional_args
     

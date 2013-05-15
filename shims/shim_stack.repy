@@ -125,7 +125,7 @@ def find_and_register_shim(shim_name):
     
     except Exception, err:
       err_str = "Unable to import the shim: %s. %s" % (shim_name, str(err))
-      raise ShimNotFoundError(err_str)
+      raise #ShimNotFoundError(err_str)
     else:
       break
 
@@ -483,7 +483,7 @@ class ShimStack:
     # Sanity check.
     assert(isinstance(shim_name, str)), "Bad arg type. shim_name must be a string."
     assert(isinstance(shim_args, list)), "Bad arg type. shim_args must be a list."
-    assert(isinstance(shim_stack_object, ShimStack)), "Bad arg type. shim_stack_object must be a ShimStack."
+    #assert(isinstance(shim_stack_object, ShimStack)), "Bad arg type. shim_stack_object must be a ShimStack."
 
     if shim_name not in SHIM_CLASS_DICT.keys():
       raise ShimNotFoundError("Shim '%s' has not been registered yet." % shim_name)
