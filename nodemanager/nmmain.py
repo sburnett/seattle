@@ -304,7 +304,7 @@ def start_accepter():
             # listenforconnection call.
             for shimportindex in range(portindex+1, len(configuration['ports'])):
               shimport = configuration['ports'][shimportindex]
-              affix_legacy_string = "(CoordinationShim)(LegacyShim," + str(shimport) + ",0)" + affix_stack_string
+              affix_legacy_string = "(LegacyShim," + str(shimport) + ",0)" + affix_stack_string
               serversocket = affix_object.listenforconnection(bind_ip, possibleport)
               servicelogger.log("[INFO]Started accepter thread with Affix string: " + affix_legacy_string)
               break
