@@ -1,4 +1,4 @@
-
+#!python
 class NoopShim(BaseShim):
   """
   A shim that does nothing (no-operation). For debug purpose only.
