@@ -295,8 +295,6 @@ def start_accepter():
       
           # If AFFIX is enabled, then we use AFFIX to open up a tcpserversocket.
           if affix_enabled:
-            affix_object = ShimStackInterface(affix_stack_string)
-
             # Here we are going to use a for loop to find a second available port
             # for us to use for the LegacyShim. Since the LegacyShim opens up two
             # tcpserversocket, it needs two available ports. The first for a normal
@@ -305,6 +303,7 @@ def start_accepter():
             for shimportindex in range(portindex+1, len(configuration['ports'])):
               shimport = configuration['ports'][shimportindex]
               affix_legacy_string = "(LegacyShim," + str(shimport) + ",0)" + affix_stack_string
+              affix_object = ShimStackInterface(affix_legacy_string)
               serversocket = affix_object.listenforconnection(bind_ip, possibleport)
               servicelogger.log("[INFO]Started accepter thread with Affix string: " + affix_legacy_string)
               break
