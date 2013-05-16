@@ -12,8 +12,9 @@ class LegacyShimTCPServerSocket():
   This is a wrapper TCPServerSocket for the legacy shim.
   """
 
-  def __init__(self, tcpserversocket_dict):
+  def __init__(self, tcpserversocket_dict, shim_object):
     self.tcpserversocket_dict = tcpserversocket_dict
+    self.shim_object = shim_object
 
   def getconnection(self):
     """
@@ -34,7 +35,8 @@ class LegacyShimTCPServerSocket():
     # connection.
     if self.tcpserversocket_dict['shim_tcpsocket']:
       try:
-        return self.tcpserversocket_dict['shim_tcpsocket'].getconnection()
+        rip, rport, sockobj = self.tcpserversocket_dict['shim_tcpsocket'].getconnection()
+        return (rip, rport, ShimSocket(sockobj, self.shim_object)) 
       except SocketWouldBlockError:
         pass
 
@@ -90,7 +92,7 @@ class LegacyShim(BaseShim):
 
       try:
         self.tcp_listenport = int(optional_args[0])
-        self.udp_listenport = int(optional_args[0])
+        self.udp_listenport = int(optional_args[1])
       except ValueError:
         raise ShimInternalError("TCP or UDP listenport provided is not of type int.")
 
@@ -114,14 +116,14 @@ class LegacyShim(BaseShim):
       of exceptions can be found here: https://seattle.cs.washington.edu/wiki/FutureRepyAPI
      
     <Return>
-      The call will return a LegacyTCPServerSocket object.
+      The call will return a LegacyShimTCPServerSocket object.
     """
     tcpserversocket_dict = {}
 
     tcpserversocket_dict['shim_tcpsocket'] = self.get_next_shim_layer().listenforconnection(localip, self.tcp_listenport)
     tcpserversocket_dict['repy_tcpsocket'] = listenforconnection(localip, localport)
 
-    return LegacyTcpServerSocket(tcpserversocket_dict)
+    return LegacyShimTCPServerSocket(tcpserversocket_dict, self)
 
 
 
@@ -141,10 +143,9 @@ class LegacyShim(BaseShim):
     # First try to open a connection using our shim stack. If we get a ConnectionRefusedError
     # or a DuplicateTupleError, then we default to the repy openconnection.
     try:
-      return self.get_next_shim_layer().openconnection(destip, self.tcp_listenport, localip, localport, timeout)
+      return ShimSocket(self.get_next_shim_layer().openconnection(destip, self.tcp_listenport, localip, localport, timeout), self)
     except (DuplicateTupleError, ConnectionRefusedError):
       pass
-
     return openconnection(destip, destport, localip, localport, timeout)
       
 
@@ -156,4 +157,4 @@ class LegacyShim(BaseShim):
 
   
   def get_advertisement_string(self):
-    return '(NoopShim)' + self.get_next_shim_layer().get_advertisement_string()
+    return '(LegacyShim,%d,%d)' % (self.tcp_listenport, self.udp_listenport) + self.get_next_shim_layer().get_advertisement_string()
