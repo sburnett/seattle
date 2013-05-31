@@ -14,7 +14,7 @@ dy_import_module_symbols("session")
 dy_import_module_symbols("serialize")
 
 serverport = 10102
-servername = '128.208.4.96' # Blackbox IP
+servername = getmyip() # IP of the local box (our production udpadvertiserver located on blackbox)
 
 # These are storage locations for data pertinent to logging.
 mycontext["get_times"] = []

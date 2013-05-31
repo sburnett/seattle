@@ -19,7 +19,7 @@
 
   More information on pygeoip at http://code.google.com/p/pygeoip/.
   More information on geoip_server.py at
-  http://seattle.cs.washington.edu/wiki/GeoIPServer
+  http://seattle.poly.edu/wiki/GeoIPServer
 """
 
 import sys
