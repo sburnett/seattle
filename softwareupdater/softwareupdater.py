@@ -68,7 +68,7 @@ repyhelper.translate_and_import("sha.repy")
 TIME_PORT = 51234
 TIME_PORT_2 = 42345
 
-softwareurl = "http://seattle.cs.washington.edu/couvb/updatesite/0.1/"
+softwareurl = "http://seattlesoftwareupdater.poly.edu/updatesite/"
 
 # embedded this because it seems easier to update it along with this file
 # Every computer running Seattle will have this same public key, and will trust
