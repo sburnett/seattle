@@ -7,7 +7,7 @@ trunk of revision 4015.  To get the most up to date version of Seattle and
 Seattle Clearinghouse you can check out our latest version using subversion by 
 running the command:
 
-  > svn co http://seattle.cs.washington.edu/svn/seattle/trunk
+  > svn co http://seattle.poly.edu/svn/seattle/trunk
 
 
 Installation:
