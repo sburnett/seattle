@@ -5,6 +5,7 @@ Installed Modules:
 geoip - Install URL not available
 variables - Install URL not available
 modules - Install URL not available
+factoids - Install URL not available
 conflict - Install URL not available
 
 Enabled Modules:
@@ -14,6 +15,7 @@ Installed Modules:
 geoip - Install URL not available
 variables - Install URL not available
 modules - Install URL not available
+factoids - Install URL not available
 conflict - Install URL not available
 
 

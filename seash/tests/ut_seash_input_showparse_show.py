@@ -9,7 +9,6 @@ seash_modules.enable_modules_from_last_session(seash_dictionary.seashcommanddict
 
 
 #pragma out Enabled modules:
-#pragma out To see a list of all available modules, use the 'show modules' command.
 
 #pragma out loadkeys guest0
 #pragma out as guest0

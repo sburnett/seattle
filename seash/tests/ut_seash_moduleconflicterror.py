@@ -7,7 +7,6 @@ command was found.
 import seash_dictionary
 import seash_modules
 #pragma out Enabled modules: modules
-#pragma out To see a list of all available modules, use the 'show modules' command.
 seash_modules.enable_modules_from_last_session(seash_dictionary.seashcommanddict)
 
 #pragma out Module cannot be imported due to the following conflicting command:

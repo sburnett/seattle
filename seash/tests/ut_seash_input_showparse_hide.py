@@ -7,7 +7,6 @@ import sys
 import seash_dictionary
 
 #pragma out Enabled modules:
-#pragma out To see a list of all available modules, use the 'show modules' command.
 import seash
 
 import seash_modules
