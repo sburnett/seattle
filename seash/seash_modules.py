@@ -595,4 +595,18 @@ def cleanup(modulename):
     module_data[modulename]['cleanup']()
 
 
+def _ensure_module_folder_exists():
+  """ 
+  Checks to see if the module folder exists. If it does not, create it.
+  If there is an existing file with the same name, we raise a RuntimeError.
+  """
+  if not os.path.isdir(MODULES_FOLDER_PATH):
+    try:
+      os.mkdir(MODULES_FOLDER_PATH)
+    except OSError, e:
+      if "file already exists" in str(e):
+        raise RuntimeError("Could not create modules folder: file exists with the same name")
+
+
+_ensure_module_folder_exists()
 import_all_modules()
