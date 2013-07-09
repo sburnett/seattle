@@ -435,6 +435,13 @@ def main():
   # BUG: Do this better?   Is this the right way to engineer this?
   configuration = persist.restore_object("nodeman.cfg")
   
+  # Lucas: if we are in unit test mode, write to the configuration file
+  # so that nmAPI's startvessel do not output execution information
+  if TEST_NM:
+    configuration['test_mode'] = True
+  else:
+    configuration['test_mode'] = False
+  persist.commit_object(configuration, "nodeman.cfg")
   
   # Armon: initialize the network restrictions
   initialize_ip_interface_restrictions(configuration)

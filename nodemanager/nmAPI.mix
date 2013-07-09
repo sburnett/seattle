@@ -232,11 +232,19 @@ def startvessel(vesselname, argstring):
         ip_iface_preference_flags.append("--nootherips")
         ip_iface_preference_str += "--nootherips "
     
+  # Lucas: if we are not in unit test mode, output execution information.
+  # The execution output was inadvertently causing the failure of some unit tests
+  exec_info_flag = []
+  if not configuration['test_mode']:
+    # Append the flag
+    exec_info_flag.append("--execinfo")
+      
   # Armon: Check if we are using windows API, and if it is windows mobile
   if windowsAPI != None and windowsAPI.MobileCE:
     # First element should be the script (repy)
     command[0] = "\"" + repy_constants.PATH_SEATTLE_INSTALL + "repy.py"  + "\""
     # Second element should be the parameters
+    # Lucas: bug - why --execinfo is not being called here?
     command[1] = ip_iface_preference_str + "--logfile \"" + vesseldict[vesselname]['logfilename'] + "\" --stop \""+ vesseldict[vesselname]['stopfilename'] + "\" --status \"" + vesseldict[vesselname]['statusfilename'] + "\" --cwd \"" + updir + "\" --norestrictions --servicelog \"" + vesseldict[vesselname]['resourcefilename']+"\" "+argstring
     raise Exception, "This will need to be changed to use absolute paths"
     
@@ -246,8 +254,7 @@ def startvessel(vesselname, argstring):
     
     # Conrad: switched this to sequence-style Popen invocation so that spaces
     # in files work. Switched it back to absolute paths.
-    command = [sys.executable, "repy.py"] + ip_iface_preference_flags + [
-        "--execinfo",
+    command = [sys.executable, "repy.py"] + ip_iface_preference_flags + exec_info_flag + [
         "--logfile", os.path.abspath(vesseldict[vesselname]['logfilename']),
         "--stop",    os.path.abspath(vesseldict[vesselname]['stopfilename']),
         "--status",  os.path.abspath(vesseldict[vesselname]['statusfilename']),
