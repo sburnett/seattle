@@ -175,6 +175,30 @@ def show_targets(input_dict, environment_dict):
 
 
 
+# show groups    -- Display a list of groups 
+def show_groups(input_dict, environment_dict):
+
+  for target in seash_global_variables.targets:
+
+    if target == "%all":
+      print target, seash_global_variables.targets[target]
+      continue
+	
+    # this is individual target number
+    if target.startswith('%'):
+      continue
+	
+    if len(seash_global_variables.targets[target]) == 0:
+      print target, seash_global_variables.targets[target]
+      continue
+	  
+    # this is a vesselentry
+    if target == seash_global_variables.targets[target][0]:
+      continue
+	  
+    print target, seash_global_variables.targets[target]
+
+
 
 # show keys       -- Display the known keys
 def show_keys(input_dict, environment_dict):

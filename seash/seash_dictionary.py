@@ -434,6 +434,25 @@ browsegood ['192.x.x.2:1224:v12', '192.x.x.2:1224:v3', '193.x.x.42:1224:v18', '2
 %2 ['192.x.x.2:1224:v3']
 
 """, 'children':{}},
+      'groups':{
+        'name':'groups', 'callback':command_callbacks.show_groups,
+        'summery':'Display a list of groups','help_text':"""
+show groups
+
+Lists available groups.
+
+Example:
+exampleuser@ !> show groups
+%all []
+exampleuser@ !> browse
+['192.x.x.2:1224', '219.x.x.62:1224', '193.x.x.42:1224']
+Added targets: %3(193.x.x.42:1224:v18), %4(219.x.x.62:1224:v4), %1(192.x.x.2:1224:v12), %2(192.x.x.2:1224:v3)
+Added group 'browsegood' with 4 targets
+exampleuser@ !> show groups
+browsegood ['192.x.x.2:1224:v12', '192.x.x.2:1224:v3', '193.x.x.42:1224:v18', '219.x.x.62:1224:v4']
+%all ['192.x.x.2:1224:v12', '192.x.x.2:1224:v3', '193.x.x.42:1224:v18', '219.x.x.62:1224:v4']
+
+""", 'children':{}},
       'identities':{
         'name':'identities', 'callback':command_callbacks.show_identities,
         'summary':'Display the known identities', 'help_text':"""
