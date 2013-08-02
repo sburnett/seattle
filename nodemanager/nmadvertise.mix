@@ -126,6 +126,12 @@ class advertthread(threading.Thread):
         # there should be no dups.   
         assert(advertisekeylist == listops_uniq(advertisekeylist))
 
+        # Code to make node tracking easier (#1231)
+        try:
+          advertise_announce('nodetrack', str(myname)+':'+rsa_publickey_to_string(self.nodekey), adTTL)
+        except AdvertiseError, e:
+          servicelogger.log('nodetrack AdvertiseError occured, continuing: '+str(e))
+
         # now that I know who to announce to, send messages to annouce my IP and 
         # port to all keys I support
         for advertisekey in advertisekeylist:
