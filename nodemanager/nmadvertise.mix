@@ -128,7 +128,7 @@ class advertthread(threading.Thread):
 
         # Code to make node tracking easier (#1231)
         try:
-          advertise_announce('nodetrack', str(myname)+':'+rsa_publickey_to_string(self.nodekey), adTTL)
+          advertise_announce('nodetrack', str(myname)+':'+rsa_publickey_to_string(self.nodekey)+":"+str(len(self.addict)), adTTL)
         except AdvertiseError, e:
           servicelogger.log('nodetrack AdvertiseError occured, continuing: '+str(e))
 
