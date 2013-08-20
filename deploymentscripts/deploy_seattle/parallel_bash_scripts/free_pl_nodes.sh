@@ -35,5 +35,4 @@ CURDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 if [ -z "$seattle_installed" ]; then
     echo "Seattle available on $IP"
     echo "$IP" >> $CURDIR/../free_planetlab_nodes.txt
-  fi
 fi
