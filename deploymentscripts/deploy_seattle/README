@@ -1,7 +1,11 @@
-Deploy and Monitor Seattle Nodes
+Deploy and Monitor Seattle Nodes on PlanetLab
 ---------------------------------
 
-Since Seattle is a distributed system, it may often be 
+Seattle deploys on many environments, including PlanetLab.
+This gives us an effective test environment for Seattle
+nodes that have geographic distribution, but allow us to
+SSH into them.   Since the testing on PlanetLab often 
+is a beta or alpha version of Seattle, it may often be 
 necessary to install and monitor Seattle on a large amount
 of nodes at once. We can always install Seattle manually
 on each individual nodes, however that is time consuming

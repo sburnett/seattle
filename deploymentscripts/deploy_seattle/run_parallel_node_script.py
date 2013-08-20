@@ -83,7 +83,7 @@ if __name__ == "__main__":
   if len(sys.argv) < 5:
     print "Incorrect amount of arguments provided."
     print "Usage:\n\tpythnon run_parallel_node_script ip_file_path bash_script_path ssh_login_name seattle_user_name "
-    print "Example:\n\tpython run_parallel_node_script ip_list.txt install_seattle.sh uw_affiliate test_seattle_user"
+    print "Example:\n\tpython run_parallel_node_script ip_list.txt install_seattle.sh poly_seattle flibble"
     sys.exit(1)
 
   fd = open(sys.argv[1],"r").read().split('\n')
