@@ -16,11 +16,18 @@ We have broken down this into single scripts that perform
 simple tasks and a python script that allows us to run the
 bash scripts on a large amount of nodes in parallel. A 
 prerequisite for running the scripts is, you must be able
-to ssh into the node using public/privatekey.
+to ssh into the node using public/privatekey.   THIS MEANS
+YOU MOST LIKELY NEED TO RUN ssh-agent / ssh-add FIRST!!!
 
 An example of running the script is:
 
 $ python run_parallel_node_script.py NODE_LIST.txt parallel_bash_scripts/install_fresh_seattle.sh uw_seattle flibble
+
+
+NOTE: THE SCRIPT WILL PRINT A HORRIBLE SET OF ERROR MESSAGES!   This
+is normal.   The scripts print errors when failing to unpack 
+tarballs due to trying both .tar.gz and .tgz file names.
+
 
 This line will run the script install_fresh_seattle.sh on all the nodes
 whose IP address is listed in NODE_LIST.txt. It uses the username
