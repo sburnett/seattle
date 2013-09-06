@@ -1,5 +1,5 @@
 """
-Ensure that when all modules do not conflict with each other
+Ensure that all modules do not conflict with each other
 
 """
 #pragma out
@@ -13,17 +13,14 @@ seash_modules.enable_modules_from_last_session(seash_dictionary.seashcommanddict
 
 
 commands = [
-  'loadkeys guest0',
-  'as guest0',
-  'browse',
-  'on %1',
   # Enable all the modules
   'enable geoip',
-  # Test geoip module
-  'on %1 show location',
-  'on %1 show coordinates',
+  'enable factoids',
+  'enable variables',
   # Disable all the modules
-  'disable geoip'
-]
+  'disable geoip',
+  'disable factoids',
+  'disable variables',
+  ]
 
 seash.command_loop(commands)
