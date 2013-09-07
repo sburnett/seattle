@@ -28,6 +28,7 @@ import os
 import tempfile
 import sys
 import getopt
+import threading
 import time
 # Derek Cheng: This is for detecting Nokia N800/900 tablets.
 import platform
@@ -36,6 +37,7 @@ import platform
 import errno
 
 # Import seattle modules
+import harshexit
 import persist
 import nonportable
 import stop_all_seattle_processes
@@ -329,7 +331,7 @@ def uninstall_Windows():
                                      + "uninstall.")
   elif removed_from_registry or removed_from_startup_folder:
     # Stop all instances of seattle from running before returning.
-    stop_all_seattle_processes.main()
+    _stop_seattle_processes()
     return True
 
 
@@ -418,7 +420,7 @@ def uninstall_nokia():
       return False
 
   # Stop all instances of seattle from running.
-  stop_all_seattle_processes.main()
+  _stop_seattle_processes()
 
   return True
 
@@ -501,7 +503,7 @@ def uninstall_Linux_and_Mac():
     return False
   else:
     # Stop all instances of seattle from running before returning.
-    stop_all_seattle_processes.main()
+    _stop_seattle_processes()
 
     configuration = persist.restore_object("nodeman.cfg")
     configuration['crontab_updated_for_2009_installer'] = False
@@ -510,6 +512,47 @@ def uninstall_Linux_and_Mac():
     return True
 
 
+
+def _stop_seattle_processes():
+  """
+  <Purpose>
+    Kills all the seattle programs that are running.
+
+  <Arguments>
+    None
+
+  <Side Effects>
+    Kills all the seattle programs that are running.
+    If this fails, this process will be terminated.
+
+  <Exceptions>
+    None.
+
+  <Returns>
+    None.
+  """
+  # Wrap the lock_acquired value so that it can referred to by reference
+  context = {'lock_acquired': False}
+
+  # 10 seconds should be enough time to get the lock on normal operation.
+  # Otherwise, assume we have a deadlock and exit.
+  wait_time = 10
+  def check_failed_lock_acquire():
+    for i in xrange(wait_time):
+      if context['lock_acquired']:
+        break
+      time.sleep(1)
+    else:
+      print>>sys.stderr, "Uninstallation cannot be completed; Failed to acquire lock."
+      harshexit.harshexit(1)
+
+  lock_check_thread = threading.Thread(target=check_failed_lock_acquire)
+  lock_check_thread.daemon = True
+  lock_check_thread.start()
+
+  # Stop all instances of seattle from running before returning.
+  stop_all_seattle_processes.main()
+  context['lock_acquired'] = True
 
 
 def prepare_uninstall(options,arguments):
