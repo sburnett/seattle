@@ -1,7 +1,7 @@
 """
 Author: Alan Loh
 Module: Holds all non-callback seash-related methods here.
-        
+
 This would include:
 -Helper functions
 -Functions that operate on a target
@@ -55,9 +55,9 @@ def update_time():
     None
 
   <Returns>
-    None  
+    None
   """
-  # Since we import time.repy, we will only use the local clock if none of 
+  # Since we import time.repy, we will only use the local clock if none of
   # the default time servers respond.
   time_register_method('local', local_updatetime)
   time_updatetime(34612)
@@ -67,7 +67,7 @@ def update_time():
 def local_updatetime(port):
   """
   <Purpose>
-    Callback for time_interface.repy to update the time that is used 
+    Callback for time_interface.repy to update the time that is used
     internally for nodemanager communications.
 
   <Arguments>
@@ -85,7 +85,7 @@ def local_updatetime(port):
     None
 
   <Returns>
-    None  
+    None
   """
   print 'Time update failed, could not connect to any time servers...'
   print 'Your network connection may be down.'
@@ -100,7 +100,7 @@ def local_updatetime(port):
 
 # Saves the current state to file. Helper method for the savestate
 # command. (Added by Danny Y. Huang)
-def savestate(statefn, handleinfo, host, port, expnum, filename, cmdargs, 
+def savestate(statefn, handleinfo, host, port, expnum, filename, cmdargs,
               defaulttarget, defaultkeyname, autosave, currentkeyname):
 
   # obtain the handle info dictionary
@@ -174,8 +174,8 @@ def atomically_get_nextid():
   nextidlock.release()
 
   return myid
-    
-  
+
+
 
 # adds a vessel and returns the new ID...
 def add_vessel(longname, keyname, vesselhandle):
@@ -188,7 +188,7 @@ def add_vessel(longname, keyname, vesselhandle):
   seash_global_variables.vesselinfo[longname]['vesselname'] = longname.split(':')[2]
   # miscelaneous information about the vessel (version, nodeID, etc.)
   seash_global_variables.vesselinfo[longname]['information'] = {}
-  
+
   # set up a reference to myself...
   seash_global_variables.targets[longname] = [longname]
 
@@ -239,7 +239,7 @@ def delete_vessel(longname):
 
 
 def longnamelist_to_nodelist(longnamelist):
-  
+
   retlist = []
   for longname in longnamelist:
     nodename = seash_global_variables.vesselinfo[longname]['IP']+":"+str(seash_global_variables.vesselinfo[longname]['port'])
@@ -251,7 +251,7 @@ def longnamelist_to_nodelist(longnamelist):
 
 
 def find_handle_for_node(nodename):
-  
+
   for longname in seash_global_variables.vesselinfo:
     if longname.rsplit(':',1)[0] == nodename:
       return seash_global_variables.vesselinfo[longname]['handle']
@@ -267,17 +267,17 @@ def find_handle_for_node(nodename):
 MAX_CONTACT_WORKER_THREAD_COUNT = 10
 
 
-# This function abstracts out contacting different nodes.   It spawns off 
+# This function abstracts out contacting different nodes.   It spawns off
 # multiple worker threads to handle the clients...
 # by a threaded model in the future...
 # NOTE: entries in targetlist are assumed by me to be unique
 def contact_targets(targetlist, func,*args):
-  
+
   phandle = parallelize_initfunction(targetlist, func, MAX_CONTACT_WORKER_THREAD_COUNT, *args)
 
   while not parallelize_isfunctionfinished(phandle):
     sleep(.1)
-  
+
   # I'm going to change the format slightly...
   resultdict = parallelize_getresults(phandle)
 
@@ -285,16 +285,16 @@ def contact_targets(targetlist, func,*args):
   if resultdict['exception']:
     print "WARNING: ",resultdict['exception']
 
-  # I'm going to convert the format to be targetname (as the key) and 
+  # I'm going to convert the format to be targetname (as the key) and
   # a value with the return value...
   retdict = {}
   for nameandretval in resultdict['returned']:
     retdict[nameandretval[0]] = nameandretval[1]
 
   return retdict
-    
 
-    
+
+
 
 # This function abstracts out contacting different nodes.   It is obsoleted by
 # the threaded model...   This code is retained for testing reasons only
@@ -307,7 +307,7 @@ def simple_contact_targets(targetlist, func,*args):
     retdict[target] = func(target,*args)
 
   return retdict
-    
+
 
 
 
@@ -378,14 +378,14 @@ def showoffcut_target(nodename):
 
   else:
     return (True, offcutdata)
-  
 
 
 
 
-def browse_target(node, currentkeyname):
 
-  # NOTE: I almost think I should skip those nodes that I know about from 
+def browse_target(node, currentkeyname, targetgroup='browsegood'):
+
+  # NOTE: I almost think I should skip those nodes that I know about from
   # previous browse commands.   Perhaps I should have an option on the browse
   # command?
 
@@ -394,9 +394,9 @@ def browse_target(node, currentkeyname):
 
   # get information about the node's vessels
   try:
-    nodehandle = fastnmclient.nmclient_createhandle(host, port, 
-                                       privatekey = seash_global_variables.keys[currentkeyname]['privatekey'], 
-                                       publickey = seash_global_variables.keys[currentkeyname]['publickey'], 
+    nodehandle = fastnmclient.nmclient_createhandle(host, port,
+                                       privatekey = seash_global_variables.keys[currentkeyname]['privatekey'],
+                                       publickey = seash_global_variables.keys[currentkeyname]['publickey'],
                                        timeout=seash_global_variables.globalseashtimeout)
 
   except fastnmclient.NMClientException,e:
@@ -422,10 +422,10 @@ def browse_target(node, currentkeyname):
         fastnmclient.nmclient_set_handle_info(newhandle, handleinfo)
 
         # then add the vessel to the target list, etc.
-        # add_vessel has no race conditions as long as longname is unique 
+        # add_vessel has no race conditions as long as longname is unique
         # (and it should be unique)
         id = add_vessel(longname,currentkeyname,newhandle)
-        seash_global_variables.targets['browsegood'].append(longname)
+        seash_global_variables.targets[targetgroup].append(longname)
 
         # and append some information to be printed...
         retlist.append('%'+str(id)+"("+longname+")")
@@ -449,7 +449,7 @@ def list_or_update_target(longname):
     return (False, str(e))
 
   else:
-    # updates the dictionary of our node information (dictionary used in show, 
+    # updates the dictionary of our node information (dictionary used in show,
     # etc.)
     for key in vesseldict['vessels'][vesselname]:
       seash_global_variables.vesselinfo[longname][key] = vesseldict['vessels'][vesselname][key]
@@ -626,13 +626,13 @@ def split_target(longname, resourcedata):
 
 # didn't test...
 def join_target(nodename,nodedict):
- 
+
   if len(nodedict[nodename]) < 2:
     # not enough vessels, nothing to do
     return (False, None)
-            
 
-  # I'll iterate through the vessels, joining one with the current 
+
+  # I'll iterate through the vessels, joining one with the current
   # (current starts as the first vessel and becomes the "new vessel")
   currentvesselname = seash_global_variables.vesselinfo[nodedict[nodename][0]]['vesselname']
   currentlongname = nodedict[nodename][0]
@@ -677,7 +677,7 @@ def setowner_target(longname,newowner):
 
   else:
     return (True,)
-  
+
 
 
 
@@ -697,7 +697,7 @@ def setadvertise_target(longname,newadvert):
     return (True,)
 
 
-  
+
 
 def setownerinformation_target(longname,newownerinformation):
 
@@ -714,7 +714,7 @@ def setownerinformation_target(longname,newownerinformation):
     return (True,)
 
 
-  
+
 
 def setusers_target(longname,userkeystring):
 
@@ -749,10 +749,10 @@ def check_key_pair_compatibility(name):
     # Check for both sets of keys
     setPublic = seash_global_variables.keys[name]['publickey']
     setPrivate = seash_global_variables.keys[name]['privatekey']
-    
+
     # Check for a mis-match
     match = rsa_matching_keys(setPrivate, setPublic)
-    
+
     return match
 
 
@@ -810,34 +810,34 @@ def reload_target(longname, handleinfo):
 
 
 
-# Determines if there's a need to temporarily change the vessel timeout 
-# to avoid timing out on bad connection speeds when uploading file. 
-def set_upload_timeout(filedata): 
-	 
-  filesize = len(filedata) 
-  est_upload_time = filesize / seash_global_variables.globaluploadrate 
-  
-  # sets the new timeout if necessary 
-  if est_upload_time > seash_global_variables.globalseashtimeout: 
- 
-    for longname in seash_global_variables.vesselinfo: 
-      thisvesselhandle = seash_global_variables.vesselinfo[longname]['handle'] 
-      thisvesselhandledict = fastnmclient.nmclient_get_handle_info(thisvesselhandle) 
-      thisvesselhandledict['timeout'] = est_upload_time 
-      fastnmclient.nmclient_set_handle_info(thisvesselhandle,thisvesselhandledict) 
-      
-        
+# Determines if there's a need to temporarily change the vessel timeout
+# to avoid timing out on bad connection speeds when uploading file.
+def set_upload_timeout(filedata):
+
+  filesize = len(filedata)
+  est_upload_time = filesize / seash_global_variables.globaluploadrate
+
+  # sets the new timeout if necessary
+  if est_upload_time > seash_global_variables.globalseashtimeout:
+
+    for longname in seash_global_variables.vesselinfo:
+      thisvesselhandle = seash_global_variables.vesselinfo[longname]['handle']
+      thisvesselhandledict = fastnmclient.nmclient_get_handle_info(thisvesselhandle)
+      thisvesselhandledict['timeout'] = est_upload_time
+      fastnmclient.nmclient_set_handle_info(thisvesselhandle,thisvesselhandledict)
 
 
-# Resets each vessel's timeout to the value of globalseashtimeout 
-def reset_vessel_timeout(): 
 
-  # resets each vessel's timeout to the original values before file upload 
-  for longname in seash_global_variables.vesselinfo: 
-    thisvesselhandle = seash_global_variables.vesselinfo[longname]['handle'] 
-    thisvesselhandledict = fastnmclient.nmclient_get_handle_info(thisvesselhandle) 
-    thisvesselhandledict['timeout'] = seash_global_variables.globalseashtimeout 
-    fastnmclient.nmclient_set_handle_info(thisvesselhandle,thisvesselhandledict) 
+
+# Resets each vessel's timeout to the value of globalseashtimeout
+def reset_vessel_timeout():
+
+  # resets each vessel's timeout to the original values before file upload
+  for longname in seash_global_variables.vesselinfo:
+    thisvesselhandle = seash_global_variables.vesselinfo[longname]['handle']
+    thisvesselhandledict = fastnmclient.nmclient_get_handle_info(thisvesselhandle)
+    thisvesselhandledict['timeout'] = seash_global_variables.globalseashtimeout
+    fastnmclient.nmclient_set_handle_info(thisvesselhandle,thisvesselhandledict)
 
 
 
@@ -848,12 +848,12 @@ def print_vessel_errors(retdict):
   <Purpose>
     Prints out any errors that occurred while performing an action on vessels,
     in a human readable way.
-    
+
     Errors will be printed out in the following format:
     description [reason]
     Affected vessels: nodelist
 
-    To define a new error, add the following entry to ERROR_RESPONSES in this 
+    To define a new error, add the following entry to ERROR_RESPONSES in this
     function:
       'error_identifier': {
         'error': 'description for the error',
@@ -868,22 +868,22 @@ def print_vessel_errors(retdict):
     'reason' (optional)
       This is where you put clarification for the error to ease the user.
       Additionally, you may put things that they could do to fix the error here,
-      if applicable. If you don't want to show a reason, don't include this key 
+      if applicable. If you don't want to show a reason, don't include this key
       in the dictionary.
-      Examples when you would not put a reason is if you received a timeout, 
+      Examples when you would not put a reason is if you received a timeout,
       since the user can't do anything to fix them.
 
   <Arguments>
     retdict:
       A list of longnames mapped against a tuple (Success?, Message/Errortext).
-      
+
   <Side Effects>
     Prints error messages onto the screen. See documentation for ERROR_RESPONSES
     for more information.
-    
+
   <Exceptions>
     Exception
-    
+
   <Return>
     None
 
@@ -898,8 +898,8 @@ def print_vessel_errors(retdict):
       'error': "The specified file(s) could not be found.",
       'reason': "Please check the filename."},
     }
-  
-  # A dictionary mapping error identifiers to a list of vessels that share 
+
+  # A dictionary mapping error identifiers to a list of vessels that share
   # that error.
   error_longnames = {}
 
@@ -917,17 +917,17 @@ def print_vessel_errors(retdict):
             # This is a better match, forget about the previous matches
             if len(error_string) > len(matches[0]):
               matches = [error_string]
-            
+
             elif len(error_string) == len(matches[0]):
               matches.append(error_string)
 
       # If there isn't a match, use the error string as an error identifier
       if not matches:
         errorid = retdict[longname][1]
-      
+
       else:
-        # There should not be more than 1 match for any error. 
-        # If there is, log the error to a file. 
+        # There should not be more than 1 match for any error.
+        # If there is, log the error to a file.
         if len(matches) != 1:
           errfile = open('seasherrors.txt', 'a')
           errorstring = "Multiple matches with same priority:" + '\n'.join(matches)
@@ -935,7 +935,7 @@ def print_vessel_errors(retdict):
           errfile.close()
           raise Exception(errorstring)
         errorid = matches[0]
-      
+
       # Create the longname list if it doesn't already exist
       if errorid not in error_longnames:
         error_longnames[errorid] = []
@@ -957,7 +957,7 @@ def print_vessel_errors(retdict):
       else:
         # We will always have at least 2 nodes at this point, since if there
         # is only one node, it will be treated as the first node. Therefore,
-        # we only have two cases, where there are exactly 2 nodes, or more than 
+        # we only have two cases, where there are exactly 2 nodes, or more than
         # 2 nodes.
         # If we have two nodes, we want: "node_1 and node_2".
         # Otherwise, we want: "node_1, node_2, ..., and node_n".
@@ -965,7 +965,7 @@ def print_vessel_errors(retdict):
         if len(error_longnames[errorid]) > 2:
           divider = ',' + divider
       nodestring += divider + node
-    
+
     if errorid in ERROR_RESPONSES:
       print ERROR_RESPONSES[errorid]['error'],
       if 'reason' in ERROR_RESPONSES[errorid]:
@@ -974,7 +974,7 @@ def print_vessel_errors(retdict):
         # Caret is still on the same line as the list of nodes
         print
     else:
-      # Unknown error. 
+      # Unknown error.
       print "An error occurred: " + errorid
     print "Affected vessels:", nodestring + '.'
 
@@ -984,25 +984,25 @@ def get_commands_from_commanddict(commanddict):
   <Purpose>
     Extracts the commands that are contained in the command dictionary.
     The arguments of these commands are not included.
-    
+
   <Arguments>
-    commanddict: A command dictionary in the format specified in 
+    commanddict: A command dictionary in the format specified in
       seash_dictionary.
-      
+
   <Exceptions>
     None
-    
+
   <Side Effects>
     None
-    
+
   <Return>
     A list of commands that are in the commanddict.
   """
   if not commanddict:
     return []
-  
+
   commands = []
-  for command in commanddict: 
+  for command in commanddict:
     has_user_argument = False
     subcommands = get_commands_from_commanddict(commanddict[command]['children'])
     if subcommands:
