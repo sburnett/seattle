@@ -39,7 +39,6 @@ import glob
 import os
 import random
 import shutil
-import distutils.dir_util
 import optparse
 import subprocess
 
@@ -60,6 +59,41 @@ def copy_to_target(file_expr, target):
   for file_path in files_to_copy:
     if os.path.isfile(file_path):
       shutil.copyfile(file_path,target +"/"+os.path.basename(file_path))
+
+
+def copy_tree_to_target(source, target, ignore=None):
+  """
+  Copies a directory to the target destination.
+
+  If you pass a string for ignore, then subdirectories that contain the ignore
+  string will not be copied over (as well as the files they contain).
+  """
+
+  full_source_path = os.path.abspath(source)
+  full_target_path = os.path.abspath(target)
+
+  for root, directories, filenames in os.walk(source):
+    # Relative path is needed to build the absolute target path.
+
+    # If we leave a leading '/' in the relative folder path, then attempts to join
+    # it will cause the relative folder path to be treated as an absolute path.
+    relative_folder_path = os.path.abspath(root)[len(full_source_path):].lstrip('/')
+
+    # If the ignore string is in the relative path, skip this directory.
+    if ignore and ignore in relative_folder_path:
+      continue
+
+    # Attempts to copy over a file when the containing directories above it do not
+    # exist will trigger an exception.
+    full_target_subdir_path = os.path.join(full_target_path, relative_folder_path)
+    if not os.path.isdir(full_target_subdir_path):
+      os.makedirs(full_target_subdir_path)
+
+    for name in filenames:
+      relative_path = os.path.join(relative_folder_path, name)
+      shutil.copyfile(
+        os.path.join(full_source_path, relative_path),
+        os.path.join(full_target_path, relative_path))
 
 
 #iterate through the .mix files in current folder and run them through the preprocessor
@@ -193,8 +227,8 @@ def main():
   copy_to_target("portability/*", target_dir)
   copy_to_target("seattlelib/*", target_dir)
   copy_to_target("seash/*", target_dir)
-  shutil.copytree("seash/pyreadline/", target_dir + os.sep + 'pyreadline/')
-  shutil.copytree("seash/modules/", target_dir + os.sep + 'modules/')
+  copy_tree_to_target("seash/pyreadline/", os.path.join(target_dir, 'pyreadline/'), ignore=".svn")
+  copy_tree_to_target("seash/modules/", os.path.join(target_dir, 'modules/'), ignore=".svn")
   copy_to_target("softwareupdater/*", target_dir)
   copy_to_target("autograder/nm_remote_api.mix", target_dir)
   copy_to_target("keydaemon/*", target_dir)
@@ -220,8 +254,7 @@ def main():
     copy_to_target("nodemanager/tests/*", target_dir)
     copy_to_target("portability/tests/*", target_dir)  	
     copy_to_target("seash/tests/*", target_dir)
-    # shutil.copytree fails because the modules folder already exists at this point.
-    distutils.dir_util.copy_tree("seash/tests/modules/", target_dir + os.sep + 'modules/')
+    copy_tree_to_target("seash/tests/modules/", os.path.join(target_dir, 'modules/'), ignore=".svn")
     copy_to_target("oddball/tests/*", target_dir)
     copy_to_target("seattlelib/tests/*", target_dir)
     copy_to_target("keydaemon/tests/*", target_dir)
