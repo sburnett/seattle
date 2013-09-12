@@ -75,9 +75,10 @@ def copy_tree_to_target(source, target, ignore=None):
   for root, directories, filenames in os.walk(source):
     # Relative path is needed to build the absolute target path.
 
-    # If we leave a leading '/' in the relative folder path, then attempts to join
-    # it will cause the relative folder path to be treated as an absolute path.
-    relative_folder_path = os.path.abspath(root)[len(full_source_path):].lstrip('/')
+    # If we leave a leading directory separator in the relative folder
+    # path, then attempts to join it will cause the relative folder path
+    # to be treated as an absolute path.
+    relative_folder_path = os.path.abspath(root)[len(full_source_path):].lstrip(os.sep)
 
     # If the ignore string is in the relative path, skip this directory.
     if ignore and ignore in relative_folder_path:
