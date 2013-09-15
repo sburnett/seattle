@@ -10,7 +10,7 @@
 
 <Started>
   2009-07-11
-  
+
 
 <Requirements>
 
@@ -25,22 +25,22 @@
     <Example>
       ut_semaphore_simple_create.py
       ut_semaphore_simple_destroy.py
-    
+
   <Pragma Directives>
 
-    The token-string is a series of characters that gives a specific framework 
-    instruction and arguments, if any. The number sign (#) must be the first 
-    non-white-space character on the line containing the pragma; white-space 
-    characters can separate the number sign and the word pragma. Following 
-    #pragma, write any text that the translator can parse as preprocessing 
+    The token-string is a series of characters that gives a specific framework
+    instruction and arguments, if any. The number sign (#) must be the first
+    non-white-space character on the line containing the pragma; white-space
+    characters can separate the number sign and the word pragma. Following
+    #pragma, write any text that the translator can parse as preprocessing
     tokens.
-    
+
     <Example>
       #pragma repy [RESTRICTIONS]
       #pragma out [TEXT]
       #pragma error [TEXT]
 
-    The parser throws an exception on unrecognized pragmas. 
+    The parser throws an exception on unrecognized pragmas.
 
 <Modified>
   Modified on Nov. 16, 2010 by Monzur Muhammad to add functionality for the
@@ -77,9 +77,9 @@ VERBOSE = False
 SHOW_TIME = False
 
 # UTF Exceptions.
-class InvalidTestFileError(Exception): 
+class InvalidTestFileError(Exception):
   pass
-class InvalidPragmaError(Exception): 
+class InvalidPragmaError(Exception):
   pass
 
 
@@ -91,13 +91,13 @@ def main():
     Executes the main program that is the unit testing framework.
     Tests different modules, files, capabilities, dependent on command
     line arguments.
-    
+
   <Arguments>
     None
 
   <Exceptions>
     None.
-    
+
   <Side Effects>
     None
 
@@ -111,7 +111,7 @@ def main():
 
   ### Generic Option Category.
   group_generic = optparse.OptionGroup(parser, "Generic")
-  
+
   # Verbose flag.
   group_generic.add_option("-v", "--verbose",
                     action="store_true", dest="verbose", default=False,
@@ -126,15 +126,15 @@ def main():
 
   ### Testing Option Category.
   group_test = optparse.OptionGroup(parser, "Testing")
-  
+
   # Test for a specific module.
   group_test.add_option("-m", "--module", dest="module",
-                        help="run tests for a specific module", 
+                        help="run tests for a specific module",
                         metavar="MODULE")
 
   # Run a specific test file.
   group_test.add_option("-f", "--file", dest="file",
-                        help="execute a specific test file", 
+                        help="execute a specific test file",
                         metavar="FILE")
 
   # Run all tests in current directory
@@ -143,9 +143,12 @@ def main():
                         metavar="ALL")
 
   parser.add_option_group(group_test)
-  
+
   # All files in the current working directory.
   all_files = glob.glob("*")
+
+  # Sort so that it is easier to keep track if a test passed/failed.
+  all_files.sort()
 
   # Valid test files in the current working directory.
   valid_files = filter_files(all_files)
@@ -168,7 +171,7 @@ def main():
   # Test for mutual exclusion.
   if i > 1:
     parser.error("Options are mutually exclusive!")
-    
+
 
   # Check if the show_time option is on.
   if (options.show_time):
@@ -187,11 +190,11 @@ def main():
     else:
       module_name = file_path.split('_')[1]
 
-    # the test_module code is really poorly structured.   I need to tell it to 
+    # the test_module code is really poorly structured.   I need to tell it to
     # consider the shutdown, setup, and subprocess scripts...
     files_to_use = [file_path]
     module_file_list = filter_files(valid_files, module = module_name)
-    
+
     files_to_use = files_to_use + filter_files(module_file_list, descriptor = 'setup')
     files_to_use = files_to_use + filter_files(module_file_list, descriptor = 'shutdown')
     files_to_use = files_to_use + filter_files(module_file_list, descriptor = 'subprocess')
@@ -199,10 +202,10 @@ def main():
     test_module(module_name, files_to_use)
 
   elif (options.module): # Entire module.
-    
+
     # Retrieve the module name.
     module_name = options.module
-    
+
     module_file_list = filter_files(valid_files, module = module_name)
 
     # is the module empty? we should print something to indicate this is likely
@@ -212,12 +215,12 @@ def main():
       return
 
     test_module(module_name, module_file_list)
-    
+
   elif (options.all): #all test files
     test_all(valid_files)
 
   else: # If no options are present, print the usage
-    
+
     print "Usage: python utf.py (-f filename | -m modulename | -a)"
     print "-f -- test a specific filename"
     print "-m -- test a module of modulename"
@@ -231,13 +234,13 @@ def execute_and_check_program(file_path):
   <Purpose>
     Given the test file path, this function will execute the program and
     monitor its behavior
-    
+
   <Arguments>
     Test file path.
 
   <Exceptions>
     None.
-    
+
   <Side Effects>
     None
 
@@ -266,40 +269,40 @@ def test_module(module_name, module_file_list):
 
   <Side Effects>
     None
-  
+
   <Returns>
     None
   """
   print 'Testing module:', module_name
-  
+
   setup_file = None
-  
+
   # Given all test files for the specified module name, find the file whose
   # descriptor equals 'setup' (there can be only one such file name).
   filtered_files = filter_files(module_file_list, descriptor = 'setup')
-  
+
   if filtered_files:
     setup_file = filtered_files.pop()
     module_file_list.remove(setup_file)
 
   subprocess_file = None
-  
+
   filtered_files = filter_files(module_file_list, descriptor = 'subprocess')
   if filtered_files:
     subprocess_file = filtered_files.pop()
     module_file_list.remove(subprocess_file)
-  
+
   shutdown_file = None
-  
+
   # Given all test files for the specified module name, find the file whose
   # descriptor equals 'shutdown' (there can be only one such file name).
-  
+
   filtered_files = filter_files(module_file_list, descriptor = 'shutdown')
   if filtered_files:
     shutdown_file = filtered_files.pop()
     module_file_list.remove(shutdown_file)
 
-  
+
   sub = None
   # If we must open a process to run concurrently with the tests, we will use
   # its stdin to indicate when to stop...
@@ -311,12 +314,12 @@ def test_module(module_name, module_file_list):
 
   if setup_file:
     print "Now running setup script: " + setup_file
-    execute_and_check_program(setup_file)    
+    execute_and_check_program(setup_file)
 
   start_time = time.time()
 
   # Run the module tests
-  for test_file in module_file_list: 
+  for test_file in module_file_list:
     execute_and_check_program(test_file)
 
   end_time = time.time()
@@ -328,7 +331,7 @@ def test_module(module_name, module_file_list):
 
   #If we opened a subprocess, we need to stop it by shutting its stdin
   if sub:
-    print "Now stopping subprocess: " + subprocess_file    
+    print "Now stopping subprocess: " + subprocess_file
     sub.stdin.close()
     sub.wait()
 
@@ -344,13 +347,13 @@ def test_all(file_list):
   <Purpose>
     Given the list of valid test files, this function will test each module
     within the test file list
-    
-  <Arguments> 
+
+  <Arguments>
     file_list: List of test files to be ran
 
   <Exceptions>
     None
-    
+
   <Side Effects>
     None
 
@@ -361,14 +364,14 @@ def test_all(file_list):
 
   # Map test files to their respective modules.
   # dictionary[module name] -> list(test files)
-  for test_file in file_list: 
+  for test_file in file_list:
     (module, descriptor) = parse_file_name(test_file)
-    
+
     if module_dictionary.has_key(module):
       module_dictionary[module].append(test_file)
     else:
       module_dictionary[module] = [test_file]
-  
+
   # Test each module.
   for module_name, module_file_list in module_dictionary.iteritems():
     test_module(module_name, module_file_list)
@@ -380,8 +383,8 @@ def testing_monitor(file_path):
   """
   <Purpose>
     Executes and prints the results of the unit test contained within 'file_path'
-    
- 
+
+
   <Arguments>
     file_path: File to be used within the testing_monitor
 
@@ -407,14 +410,14 @@ def testing_monitor(file_path):
   sys.stdout.flush()
 
   # Parse all pragma directives for that file.
-  try: 
+  try:
     pragmas = parse_pragma(source)
   except InvalidPragmaError:
     print '[ ERROR ]'
     print_dashes()
     print 'Invalid pragma directive.'
     print_dashes()
-    
+
     return
 
   # Now, execute the test file.
@@ -437,14 +440,14 @@ def testing_monitor(file_path):
 
 
     print_dashes()
-    
+
     for key, value in report.items():
       print 'Standard', key, ':'
       produced_val, expected_val = value
       print "."*30 + "Produced" + "."*30 + "\n" + str(produced_val)
       print "."*30 + "Expected" + "."*30 + "\n" + str(expected_val)
       print_dashes()
-    
+
   else:
     if SHOW_TIME:
       print '[ PASS ] [ %ss ]' % time_taken
@@ -462,7 +465,7 @@ def execution_monitor(file_path, pragma_dictionary):
     framework creates the report differently. If there is a repy pragma, the test
     executes in repy, not python. If there is an out or err pragma, the unit testing
     framework will include that there was to be output in the report.
- 
+
   <Arguments>
     file_path: file to be executed under the framework
     pragma_dictionary: dictionary of pragmas within this test file
@@ -487,12 +490,12 @@ def execution_monitor(file_path, pragma_dictionary):
   if pragma_dictionary.has_key(REPY_PRAGMA):
     repy = 'repy.py'
     default_restriction = 'restrictions.default'
-    
+
     # Did the user specify a non-default restrictions file?
     repyArgs = pragma_dictionary[REPY_PRAGMA]
-    if not repyArgs: 
+    if not repyArgs:
       repyArgs = default_restriction
-   
+
     popen_args.append(repy)
 
     # For tests requiring repy arguments besides restrictions.default
@@ -500,18 +503,18 @@ def execution_monitor(file_path, pragma_dictionary):
     arguments = repyArgs.split(" ")
     for element in arguments:
       popen_args.append(element)
-  
+
   popen_args.append(file_path)
 
   # Execute the program.
   (out, error) = utfutil.execute(popen_args)
 
   report = {}
-  
+
   verify_results(OUT_PRAGMA, pragma_dictionary, out, report)
   verify_results(ERROR_PRAGMA, pragma_dictionary, error, report)
-  
-  
+
+
   return report
 
 
@@ -522,38 +525,38 @@ def verify_results(pragma_type, pragma_dictionary, output, report):
   '''
   <Purpose>
     Checks output to ensure that what is expected to be printed to the screen
-    has been printed. 
-    
+    has been printed.
+
   <Arguments>
     pragma_type: string
-      A token indicating which pragma to check. 
+      A token indicating which pragma to check.
     pragma_dictionary: dict
       The pragma_dictionary generated by parse_pragma()
     output: string
       This should be the contents of stdout or stderr.
     report:
-      A dictionary to store the report in.  This value will be modified. 
-  
+      A dictionary to store the report in.  This value will be modified.
+
   <Side Effects>
     If an expected string is not found in the given output string, a tuple
     corresponding to the current pragma will be added to the report, in the
     form: (expected output, actual output).
-  
+
   <Exceptions>
     InvalidPragmaError:
-      The specified pragma already exists in the report.  This indicates an 
+      The specified pragma already exists in the report.  This indicates an
       internal error with the UTF.
-    
+
   <Return>
     None
-    
+
   '''
-  
+
   # Check to make sure this report does not already exist.
   # This is to ensure we don't mask any bugs.
   if pragma_type in report:
     raise InvalidPragmaError("Pragma already exists in report")
-  
+
   # Standardize newlines
   out = output.replace('\r\n', '\n')
 
@@ -566,29 +569,29 @@ def verify_results(pragma_type, pragma_dictionary, output, report):
 
   # Get rid of debug output on Android, #1084.
   out = strip_android_debug_messages(out)
-  
+
   # Is this executable suppose to produce any output on standard out?
   if pragma_dictionary.has_key(pragma_type):
     outlines = out.split('\n')
     expected_out_lines = pragma_dictionary[pragma_type]
-    
+
     # Preserve the original
     remaining_out_lines = expected_out_lines[:]
-    
+
     for outline in outlines:
-      # Are there any wildcards?  
+      # Are there any wildcards?
       # We use '' to indicate wildcards.
       while remaining_out_lines and not remaining_out_lines[0]:
         remaining_out_lines = remaining_out_lines[1:]
-      
+
       # Are there remaining expected lines?
       if remaining_out_lines and remaining_out_lines[0] in outline:
         remaining_out_lines = remaining_out_lines[1:]
-    
+
     # Get rid of any remaining wildcards that may still exist
     while remaining_out_lines and not remaining_out_lines[0]:
       remaining_out_lines = remaining_out_lines[1:]
-    
+
     if remaining_out_lines:
       # Mark wildcards
       expected_output = ""
@@ -597,7 +600,7 @@ def verify_results(pragma_type, pragma_dictionary, output, report):
         if not line:
           continue
         expected_output += line + '\n'
-        
+
       report[pragma_type] = (out, expected_output)
   elif out: # If not, make sure the standard out is empty.
     report[pragma_type] = (out, None)
@@ -615,7 +618,7 @@ def parse_pragma(source_text):
       #pragma out arg
       #pragma err arg
       #pragma repy arg
- 
+
   <Arguments>
     source_text: the content of a particular file
 
@@ -637,14 +640,14 @@ def parse_pragma(source_text):
   for (directive, pragma_type, arg) in pragma_directives:
     if pragma_type == REPY_PRAGMA:
       pragma_dictionary[pragma_type] = arg
-      
+
     # Only out and error pragmas are used for output checking
     elif pragma_type in (OUT_PRAGMA, ERROR_PRAGMA):
       if not pragma_type in pragma_dictionary:
         pragma_dictionary[pragma_type] = []
       pragma_dictionary[pragma_type].append(arg)
-      
-    else: 
+
+    else:
       print "Unknown pragma: ", pragma_type
       raise InvalidPragmaError(pragma_type)
 
@@ -657,27 +660,27 @@ def parse_file_name(file_name):
   """
   <Purpose>
     Parses a file name to identify its module and its descriptor
- 
-  <Arguments> 
+
+  <Arguments>
     file_name: the name of the test file
 
   <Exceptions>
     InvalidTestFileError: if you provide a test file which does not follow the
       naming convention of 'ut_<module>_<descriptor>.py'
-      
+
   <Side Effects>
     None
 
   <Returns>
-    A tuple containing (module, descriptor) in the file's naming convention of 
+    A tuple containing (module, descriptor) in the file's naming convention of
       'ut_<module>_<descriptor>.py'
-    
+
   """
   if not file_name.startswith(SYNTAX_PREFIX):
     raise InvalidTestFileError(file_name)
   if not file_name.endswith(SYNTAX_SUFFIX):
     raise InvalidTestFileError(file_name)
-  
+
   # Remove prefix and suffix.
   stripped = file_name[len(SYNTAX_PREFIX):-len(SYNTAX_SUFFIX)]
   # Partition the string.
@@ -697,9 +700,9 @@ def filter_files(file_list, module = None, descriptor = None):
   <Purpose>
     Given the list of files 'file_list', filter out all invalid test files, that is,
     test files which do not have a module name of 'module' or a descriptor of 'descriptor'
-    in the form of 'ut_<module>_<descriptor>.py. 
- 
-  <Arguments> 
+    in the form of 'ut_<module>_<descriptor>.py.
+
+  <Arguments>
     Module name.
     Descriptor.
 
@@ -715,29 +718,29 @@ def filter_files(file_list, module = None, descriptor = None):
     [Filtered File Name list]
   """
   result = []
-  
+
   for file_name in file_list:
-    
+
     try:
       (file_module, file_descrriptor) = parse_file_name(file_name)
     except InvalidTestFileError: # This is not a valid test file.
       continue
-    
+
     # Filter based on the module name.
     if module and file_module != module:
       continue
     # Filter based on the descriptor.
     if descriptor and file_descrriptor != descriptor:
       continue
-    
-    result.append(file_name) 
-  
+
+    result.append(file_name)
+
   return result
 
 
 
 
-def print_dashes(): 
+def print_dashes():
   print '-' * 80
 
 
@@ -748,7 +751,7 @@ def strip_android_debug_messages(rawoutput):
   Interim fix for #1084: Get rid of stray debugging output on Android
   of the form "dlopen libpython2.6.so" and "dlopen /system/lib/libc.so",
   yet preserve all of the other output (including empty lines).
-  
+
   Note that almost the same code is used in trunk/repy/safe.py as of r5639.
   """
 
@@ -777,11 +780,11 @@ def strip_android_debug_messages(rawoutput):
         # The version number should be a string convertible to float.
         # If it's not, raise an exception.
         try:
-          versionstring = (wordlist[-1].replace("libpython", 
+          versionstring = (wordlist[-1].replace("libpython",
             "")).replace(".so", "")
           junk = float(versionstring)
         except TypeError, ValueError:
-          raise Exception("Unexpected debug output '" + line + 
+          raise Exception("Unexpected debug output '" + line +
             "' while evaluating code safety!")
     else:
       output += line + "\n"
