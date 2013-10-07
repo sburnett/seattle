@@ -94,13 +94,16 @@ class advertthread(threading.Thread):
         # we're using membership in the dict to indicate a need to advertise
         clean_advertise_dict()
 
-        # this list contains the keys we will advertise
-        advertisekeylist = []
+        # this list contains the key-value pairs we will advertise
+        advertisepairs = []
+
+        # This is the ip:port of the node.
+        # It is set initially to NULL, then changes to a string.
+        mynamestr = str(myname)
 
         # JAC: advertise under the node's key
-        if rsa_publickey_to_string(self.nodekey) not in lastadvertisedict and self.nodekey not in advertisekeylist:
-          advertisekeylist.append(self.nodekey)
-
+        node_advertise_keyvalue = (rsa_publickey_to_string(self.nodekey), mynamestr)
+        advertisepairs.append(node_advertise_keyvalue)
 
         # make a copy so there isn't an issue with a race
         for vesselname in self.addict.keys()[:]:
@@ -114,31 +117,39 @@ class advertthread(threading.Thread):
           # if I advertise the vessel...
           if thisentry['advertise']:
             # add the owner key if not there already...
-            if rsa_publickey_to_string(thisentry['ownerkey']) not in lastadvertisedict and thisentry['ownerkey'] not in advertisekeylist:
-              advertisekeylist.append(thisentry['ownerkey'])
+            owner_advertise_keyvalue = (rsa_publickey_to_string(thisentry['ownerkey']), mynamestr)
+            advertisepairs.append(owner_advertise_keyvalue)
 
             # and all user keys if not there already
             for userkey in thisentry['userkeys']:
-              if rsa_publickey_to_string(userkey) not in lastadvertisedict and userkey not in advertisekeylist:
-                advertisekeylist.append(userkey)
-
-
-        # there should be no dups.   
-        assert(advertisekeylist == listops_uniq(advertisekeylist))
+              user_advertise_keyvalue = (rsa_publickey_to_string(userkey), mynamestr)
+              advertisepairs.append(user_advertise_keyvalue)
 
         # Code to make node tracking easier (#1231)
-        try:
-          advertise_announce('nodetrack', str(myname)+':'+rsa_publickey_to_string(self.nodekey)+":"+str(len(self.addict)), adTTL)
-        except AdvertiseError, e:
-          servicelogger.log('nodetrack AdvertiseError occured, continuing: '+str(e))
+        nodetrack_advertise_keyvalue = ('nodetrack', str(myname)+':'+rsa_publickey_to_string(self.nodekey)+":"+str(len(self.addict)))
+        advertisepairs.append(nodetrack_advertise_keyvalue)
+
+        # Remove any pairs whose TTLs have not yet expired
+        # The results are re-stored back into advertisepairs when done.
+        actual_advertisepairs = []
+        for advertisepair in advertisepairs:
+          if advertisepair not in lastadvertisedict and advertisepair not in actual_advertisepairs:
+            actual_advertisepairs.append(advertisepair)
+        advertisepairs = actual_advertisepairs
+
+        # there should be no dups, since we remove any duplicates in the
+        # loop above. If this assert fails, this thread will 
+        # automatically be restarted by the nodemanager.
+        assert(advertisepairs == listops_uniq(advertisepairs))
 
         # now that I know who to announce to, send messages to annouce my IP and 
         # port to all keys I support
-        for advertisekey in advertisekeylist:
+        for advertisepair in advertisepairs:
+          advertisekey, advertisevalue = advertisepair
           try:
-            advertise_announce(advertisekey, str(myname), adTTL)
+            advertise_announce(advertisekey, advertisevalue, adTTL)
             # mark when we advertise
-            lastadvertisedict[rsa_publickey_to_string(advertisekey)] = getruntime()
+            lastadvertisedict[advertisepair] = getruntime()
          
             # If the announce succeeded, and node was offline, log info message
             # and switch it back to online mode.
