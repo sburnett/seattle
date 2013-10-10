@@ -102,7 +102,7 @@ class advertthread(threading.Thread):
         mynamestr = str(myname)
 
         # JAC: advertise under the node's key
-        node_advertise_keyvalue = (rsa_publickey_to_string(self.nodekey), mynamestr)
+        node_advertise_keyvalue = (self.nodekey, mynamestr)
         advertisepairs.append(node_advertise_keyvalue)
 
         # make a copy so there isn't an issue with a race
@@ -117,12 +117,12 @@ class advertthread(threading.Thread):
           # if I advertise the vessel...
           if thisentry['advertise']:
             # add the owner key if not there already...
-            owner_advertise_keyvalue = (rsa_publickey_to_string(thisentry['ownerkey']), mynamestr)
+            owner_advertise_keyvalue = (thisentry['ownerkey'], mynamestr)
             advertisepairs.append(owner_advertise_keyvalue)
 
             # and all user keys if not there already
             for userkey in thisentry['userkeys']:
-              user_advertise_keyvalue = (rsa_publickey_to_string(userkey), mynamestr)
+              user_advertise_keyvalue = (userkey, mynamestr)
               advertisepairs.append(user_advertise_keyvalue)
 
         # Code to make node tracking easier (#1231)
@@ -133,7 +133,7 @@ class advertthread(threading.Thread):
         # The results are re-stored back into advertisepairs when done.
         actual_advertisepairs = []
         for advertisepair in advertisepairs:
-          if advertisepair not in lastadvertisedict and advertisepair not in actual_advertisepairs:
+          if str(advertisepair) not in lastadvertisedict and advertisepair not in actual_advertisepairs:
             actual_advertisepairs.append(advertisepair)
         advertisepairs = actual_advertisepairs
 
@@ -149,7 +149,10 @@ class advertthread(threading.Thread):
           try:
             advertise_announce(advertisekey, advertisevalue, adTTL)
             # mark when we advertise
-            lastadvertisedict[advertisepair] = getruntime()
+            # since some keys will be dictionaries and dictionaries
+            # cannot be hashed, they cannot be placed in
+            # lastadvertisedict without first being casted into a string.
+            lastadvertisedict[str(advertisepair)] = getruntime()
          
             # If the announce succeeded, and node was offline, log info message
             # and switch it back to online mode.
