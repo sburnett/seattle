@@ -106,6 +106,7 @@ def main():
   """
   ###
   ### Define allowed arguments.
+  ### Update ut_utftests_utf.py with the changes in Options list
   ###
   parser = optparse.OptionParser()
 
@@ -220,11 +221,7 @@ def main():
     test_all(valid_files)
 
   else: # If no options are present, print the usage
-
-    print "Usage: python utf.py (-f filename | -m modulename | -a)"
-    print "-f -- test a specific filename"
-    print "-m -- test a module of modulename"
-    print "-a -- run all tests in current directory"
+    parser.print_help()
 
 
 
