@@ -308,6 +308,11 @@ def startvessel(vesselname, argstring):
 
 
 def startvessel_ex(vesselname, prog_platform, argstring):
+  
+  # Convert the programming platform to lowercase to make
+  # it case insensitive.
+  prog_platform = prog_platform.lower()
+
   if vesselname not in vesseldict:
     raise BadRequest, "No such vessel"
 
