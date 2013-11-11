@@ -856,6 +856,49 @@ def read_environmental_options():
 
 
 
+def enable_safe_logging_ntptime():
+  """
+  <Purpose>
+    Fortifies the repy NTP time implementation so that it does not crash
+    when it receives a bad response from an NTP server.  In addition, it
+    will log any exceptions that arise to the softwareupdater log.
+
+  <Arguments>
+    None
+
+  <Side Effects>
+    The repy NTP time update will be disabled.  This is because it
+    causes the process to terminate if an exception occurs in its UDP
+    recvmess handler.  This function will swap the NTP time update
+    routine with one that will suppress these exceptions, but log the
+    exception so that we know what went wrong.
+
+  <Exceptions>
+    None
+
+  <Return>
+    None
+  """
+  # Since the NTP packet recvmess callback lives in ntp.repy's global
+  # namespace, we have to ensure that the recvmess in that namespace
+  # gets replaced.
+
+  ntp_updatetime = time_updatetime.func_globals['TIME_IMP_DICT']['ntp']
+
+  # This is the unsafe recvmess callback that is prone to crashing on
+  # bad input.
+  _time_decode_NTP_packet = ntp_updatetime.func_globals['_time_decode_NTP_packet']
+
+  # Wrap around the default _time_decode_NTP_packet that performs
+  # logging if an exception is raised.
+  def _safelog_time_decode_NTP_packet(ip, port, mess, ch):
+    try:
+      _time_decode_NTP_packet(ip, port, mess, ch)
+    except Exception, e:
+      safe_log_last_exception()
+
+  ntp_updatetime.func_globals['_time_decode_NTP_packet'] = _safelog_time_decode_NTP_packet
+
 
 if __name__ == '__main__':
   read_environmental_options()
@@ -865,6 +908,13 @@ if __name__ == '__main__':
   # Initialize the service logger.
   safe_servicelogger_init()
   
+  # repy's NTP time module is prone to terminating the process if we get
+  # bad NTP data on the UDP recvmess handler.  Here we switch to a
+  # modified version that will suppress exceptions so that the software
+  # updater doesn't die, but logs them so that we can see what's going
+  # on.
+  enable_safe_logging_ntptime()
+
   # problems here are fatal.   If they occur, the old updater won't stop...
   try:
     init()
