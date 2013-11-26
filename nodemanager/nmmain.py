@@ -39,6 +39,12 @@ import sys
 import daemon
 import optparse
 
+# runonce relies on tempfile, whose components utilize the abc library.
+# Since we clobber built-ins in repyV2, we have to be sure that any
+# python libraries that require the built-ins intact be initialized
+# before we import repy code.  See #1273 for more information.
+import runonce
+
 import repyhelper #used to bring in NAT Layer
 
 # needed to log OS type / Python version
@@ -83,8 +89,6 @@ import nmconnectionmanager
 import nmrequesthandler
 
 import persist
-
-import runonce
 
 # for getruntime...
 import nonportable
