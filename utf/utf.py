@@ -250,6 +250,77 @@ def execute_and_check_program(file_path):
 
 
 
+
+def test_file(file_path, script_files):
+  """
+  <Purpose>
+    Run tests on file_path. If  setup, shutdown, or subprocess scripts exist for the 
+    file_path, they will be taken from the script_files list, and run as well
+
+  <Arguments>
+    file_path: The ut file to be tested
+    script_files: A list of setup, shutdown, and subprocess files in the module
+
+  <Exceptions>
+    None
+
+  <Side Effects>
+    None
+
+  <Returns>
+    None
+  """
+  # Grabs the individual components of the file_path, and removes
+  # the extension(.py) from the last componenet
+  components = file_path.split('_')
+  components[-1] = components[-1].split('.')[0]
+
+  setup_file = None
+  subprocess_file = None
+  shutdown_file = None
+
+  # Locates and stores setup/subprocess/shutdown files, if any exist.
+  for file_name in script_files:
+    file_components = file_name.split('_')
+    if components == file_components[:-1]:
+      descriptor = file_components[-1].split('.')[0]
+      if descriptor == 'setup':
+        setup_file = file_name
+      elif descriptor == 'subprocess':
+        subprocess_file = file_name
+      elif descriptor == 'shutdown':
+        shutdown_file = file_name
+
+  sub = None
+  # If we must open a process to run concurrently with the tests, we will use
+  # its stdin to indicate when to stop...
+  if subprocess_file:
+    script_files.remove(subprocess_file)
+    print "Now starting subprocess: " + subprocess_file
+    sub = subprocess.Popen([sys.executable, subprocess_file], stdin=subprocess.PIPE)
+    # Give the process time to start
+    time.sleep(30)
+
+  if setup_file:
+    script_files.remove(setup_file)
+    execute_and_check_program(setup_file)
+
+  execute_and_check_program(file_path)
+
+  if shutdown_file:
+    script_files.remove(shutdown_file)
+    execute_and_check_program(shutdown_file)
+
+  #If we opened a subprocess, we need to stop it by shutting its stdin
+  if sub:
+    print "Now stopping subprocess: " + subprocess_file
+    sub.stdin.close()
+    sub.wait()
+
+
+
+
+
 def test_module(module_name, module_file_list):
   """
   <Purpose>
@@ -313,11 +384,27 @@ def test_module(module_name, module_file_list):
     print "Now running setup script: " + setup_file
     execute_and_check_program(setup_file)
 
+
+  # Filters all files in the directory by module name, and stores all the 
+  # setup, shutdown, and subprocess scripts into script_files.
+  valid_files = filter_files(glob.glob("*"))
+  all_module_files = filter_files(valid_files, module=module_name)
+  valid_scripts = ['setup', 'shutdown', 'subprocess']
+  script_files = []
+  for mod_file in all_module_files:
+    # If, after removing the extension, the file ends with a
+    # valid script descriptor i.e. setup, shutdown, or subprocess
+    if mod_file.split('_')[-1].split('.')[0] in valid_scripts:
+      script_files.append(mod_file)
+      if mod_file in module_file_list:
+        module_file_list.remove(mod_file)
+
+
   start_time = time.time()
 
   # Run the module tests
-  for test_file in module_file_list:
-    execute_and_check_program(test_file)
+  for file_path in module_file_list:
+    test_file(file_path, script_files)
 
   end_time = time.time()
 
