@@ -58,8 +58,8 @@ import servicelogger
 # This dictionary keeps track of all the programming
 # platform that Seattle supports and where they are
 # located.
-prog_platform_dir = {'repyV1' : 'repyV1',
-                     'repyV2' : 'repyV2'
+prog_platform_dir = {'repyv1' : 'repyV1',
+                     'repyv2' : 'repyV2'
                      }
 
 
