@@ -215,6 +215,8 @@ def main():
   copy_to_target("portability/*", os.path.join(target_dir,"repyV2"))
   copy_to_target("seattlelib/*", target_dir)
   copy_to_target("seattlelib/dylink.repy", os.path.join(target_dir, "repyV2"))
+  copy_to_target("seattlelib/textops.py", os.path.join(target_dir, "repyV2"))
+  copy_to_target("nodemanager/servicelogger.py", os.path.join(target_dir, "repyV2"))
   copy_to_target("seash/*", target_dir)
   copy_to_target("shims/*", target_dir)
   copy_to_target("shims/proxy/*", target_dir)
