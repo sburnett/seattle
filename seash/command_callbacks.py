@@ -82,6 +82,8 @@ repyhelper.translate_and_import("advertise.repy")   #  used to do OpenDHT lookup
 repyhelper.translate_and_import("serialize.repy") # used for loadstate and savestate
 
 
+# The versions of Seattle that we officially support.
+SUPPORTED_PROG_PLATFORMS = ["repyV1", "repyV2"]
 
 
 # set the target, then handle other operations
@@ -2108,12 +2110,22 @@ def start_remotefn(input_dict, environment_dict):
 
   command_key = input_dict.keys()[0]
 
+  # Iterates through the dictionary to retrieve the repy version to run
+  while input_dict[command_key]['name'] is not 'start':
+    input_dict = input_dict[command_key]['children']
+    command_key = input_dict.keys()[0]
+
+  command = command_key
+
   # Iterates through the dictionary to retrieve the user's filename
   while input_dict[command_key]['name'] is not 'filename':
     input_dict = input_dict[command_key]['children']
     command_key = input_dict.keys()[0]
 
   argstring = ' '.join([command_key])
+
+  prog_platform = seash_helper.get_execution_platform(command,
+    command_key)
 
   if not environment_dict['currenttarget']:
     raise seash_exceptions.UserError("Must specify a target")
@@ -2122,7 +2134,9 @@ def start_remotefn(input_dict, environment_dict):
   faillist = []
   goodlist = []
 
-  retdict = seash_helper.contact_targets(seash_global_variables.targets[environment_dict['currenttarget']],seash_helper.start_target, argstring)
+  retdict = seash_helper.contact_targets(
+    seash_global_variables.targets[environment_dict['currenttarget']],
+    seash_helper.start_target, argstring, prog_platform)
 
   for longname in retdict:
     if retdict[longname][0]:
@@ -2147,6 +2161,13 @@ def start_remotefn_arg(input_dict, environment_dict):
 
   command_key = input_dict.keys()[0]
 
+  # Iterates through the dictionary to retrieve the repy version to run
+  while input_dict[command_key]['name'] is not 'start':
+    input_dict = input_dict[command_key]['children']
+    command_key = input_dict.keys()[0]
+
+  command = command_key
+
   # Iterates through the dictionary to retrieve the user's filename
   while input_dict[command_key]['name'] is not 'filename':
     input_dict = input_dict[command_key]['children']
@@ -2163,6 +2184,9 @@ def start_remotefn_arg(input_dict, environment_dict):
 
   argstring = ' '.join([filename] + [arguments])
 
+  prog_platform = seash_helper.get_execution_platform(command,
+    filename)
+
   if not environment_dict['currenttarget']:
     raise seash_exceptions.UserError("Must specify a target")
 
@@ -2170,7 +2194,9 @@ def start_remotefn_arg(input_dict, environment_dict):
   faillist = []
   goodlist = []
 
-  retdict = seash_helper.contact_targets(seash_global_variables.targets[environment_dict['currenttarget']],seash_helper.start_target, argstring)
+  retdict = seash_helper.contact_targets(
+    seash_global_variables.targets[environment_dict['currenttarget']],
+    seash_helper.start_target, argstring, prog_platform)
 
   for longname in retdict:
     if retdict[longname][0]:
@@ -2225,6 +2251,13 @@ def run_localfn(input_dict, environment_dict):
 
   command_key = input_dict.keys()[0]
 
+  # Iterates through the dictionary to retrieve the repy version to run
+  while input_dict[command_key]['name'] is not 'run':
+    input_dict = input_dict[command_key]['children']
+    command_key = input_dict.keys()[0]
+
+  command = command_key
+
   # Iterates through the dictionary to retrieve the user's filename
   while input_dict[command_key]['name'] is not 'filename':
      input_dict = input_dict[command_key]['children']
@@ -2239,6 +2272,8 @@ def run_localfn(input_dict, environment_dict):
   if not environment_dict['currenttarget']:
     raise seash_exceptions.UserError("Must specify a target")
 
+  prog_platform = seash_helper.get_execution_platform(command,
+    onlyfilename)
 
   # read the local file...
   fileobj = open(fileandpath,"r")
@@ -2255,7 +2290,10 @@ def run_localfn(input_dict, environment_dict):
   faillist = []
   goodlist = []
 
-  retdict = seash_helper.contact_targets(seash_global_variables.targets[environment_dict['currenttarget']],seash_helper.run_target,onlyfilename,filedata, argstring)
+  retdict = seash_helper.contact_targets(
+    seash_global_variables.targets[environment_dict['currenttarget']],
+    seash_helper.run_target, onlyfilename, filedata, argstring,
+    prog_platform)
 
   for longname in retdict:
     if retdict[longname][0]:
@@ -2284,6 +2322,13 @@ def run_localfn_arg(input_dict, environment_dict):
 
   command_key = input_dict.keys()[0]
 
+  # Iterates through the dictionary to retrieve the repy version to run
+  while input_dict[command_key]['name'] is not 'run':
+    input_dict = input_dict[command_key]['children']
+    command_key = input_dict.keys()[0]
+
+  command = command_key
+
   # Iterates through the dictionary to retrieve the user's filename
   while input_dict[command_key]['name'] is not 'filename':
     input_dict = input_dict[command_key]['children']
@@ -2302,6 +2347,8 @@ def run_localfn_arg(input_dict, environment_dict):
   if not environment_dict['currenttarget']:
     raise seash_exceptions.UserError("Must specify a target")
 
+  prog_platform = seash_helper.get_execution_platform(command,
+    onlyfilename)
 
   # read the local file...
   fileobj = open(fileandpath,"r")
@@ -2318,7 +2365,10 @@ def run_localfn_arg(input_dict, environment_dict):
   faillist = []
   goodlist = []
 
-  retdict = seash_helper.contact_targets(seash_global_variables.targets[environment_dict['currenttarget']],seash_helper.run_target,onlyfilename,filedata, argstring)
+  retdict = seash_helper.contact_targets(
+    seash_global_variables.targets[environment_dict['currenttarget']],
+    seash_helper.run_target, onlyfilename, filedata, argstring,
+    prog_platform)
 
   for longname in retdict:
     if retdict[longname][0]:

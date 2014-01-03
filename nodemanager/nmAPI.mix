@@ -176,11 +176,32 @@ def getoffcutresources():
 allowedchars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890.-_ "
 
 def startvessel(vesselname, argstring):
+  """
+  This is the old startvessel call that will become obsolete eventually.
+  startvessel now calls startvessel_ex using repyV1 as the programming
+  language.
+  """
+  return startvessel_ex(vesselname, 'repyV1', argstring)
+
+
+
+
+def startvessel_ex(vesselname, prog_platform, argstring):
+  
+  # Convert the programming platform to lowercase to make
+  # it case insensitive.
+  prog_platform = prog_platform.lower()
+
   if vesselname not in vesseldict:
     raise BadRequest, "No such vessel"
 
   if vesseldict[vesselname]['status'] == 'Started':
     raise BadRequest("Vessel has already been started")
+
+  # Only repyV1 is supported, until the repy_v2 branch merges with
+  # trunk.
+  if prog_platform not in ['repyv1']:
+    raise BadRequest("Programming language platform is not supported.")
 
   # remove any prior stop file so that we can start
   if os.path.exists(vesseldict[vesselname]['stopfilename']):

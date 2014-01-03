@@ -161,6 +161,7 @@ API_dict = { \
   'GetVesselResources': (1, 'Public', nmAPI.getvesselresources), \
   'GetOffcutResources': (0, 'Public', nmAPI.getoffcutresources), \
   'StartVessel': (2, 'User', nmAPI.startvessel), \
+  'StartVesselEx': (3, 'User', nmAPI.startvessel_ex), \
   'StopVessel': (1, 'User', nmAPI.stopvessel), \
   'AddFileToVessel': (3, 'User', nmAPI.addfiletovessel), \
   'ListFilesInVessel': (1, 'User', nmAPI.listfilesinvessel), \

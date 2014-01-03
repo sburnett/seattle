@@ -578,6 +578,172 @@ Uploads a program to a vessel and starts it running.   (This command is
 actually just a short-cut for the 'upload' and 'start' commands).   The
 arguments listed will be passed to the command when it is started.
 
+This command will make an educated guess as to what platform your
+program is written for (i.e. repyV1 or repyV2).  You can override this
+by using 'runv1' or 'runv2', respectively.
+
+Example:
+exampleuser@browsegood !> show log
+Log from '192.x.x.2:1224:v3':
+
+Log from '193.x.x.42:1224:v18':
+
+Log from '219.x.x.62:1224:v4':
+
+Log from '192.x.x.2:1224:v12':
+
+exampleuser@browsegood !> run example.1.1.repy
+exampleuser@browsegood !> show log
+Log from '192.x.x.2:1224:v3':
+Hello World
+
+Log from '193.x.x.42:1224:v18':
+Hello World
+
+Log from '219.x.x.62:1224:v4':
+Hello World
+
+Log from '192.x.x.2:1224:v12':
+Hello World
+
+""", 'children':{
+      '[FILENAME]':{
+        'name':'filename', 'callback':command_callbacks.run_localfn, 'example':'[arg1, arg2, ...]',
+        'summary': 'Uploads the file to the vessels and starts running them, passing arguments if specified.',
+        'help_text':'','children':{
+          '[ARGUMENT]':{'name':'args', 'callback':command_callbacks.run_localfn_arg, 'help_text':'', 'children':{}},
+      }},
+  }},
+
+  'runv1':{
+    'name':'run', 'callback':None, 'example':'file [args ...]',
+    'summary':'Upload a file and start executing it as repyV1', 'help_text':"""
+Uploads a program to a vessel and starts it running.   (This command is
+actually just a short-cut for the 'upload' and 'startv1' commands).
+The arguments listed will be passed to the command when it is started.
+
+Example:
+exampleuser@browsegood !> show log
+Log from '192.x.x.2:1224:v3':
+
+Log from '193.x.x.42:1224:v18':
+
+Log from '219.x.x.62:1224:v4':
+
+Log from '192.x.x.2:1224:v12':
+
+exampleuser@browsegood !> run example.1.1.repy
+exampleuser@browsegood !> show log
+Log from '192.x.x.2:1224:v3':
+Hello World
+
+Log from '193.x.x.42:1224:v18':
+Hello World
+
+Log from '219.x.x.62:1224:v4':
+Hello World
+
+Log from '192.x.x.2:1224:v12':
+Hello World
+
+""", 'children':{
+      '[FILENAME]':{
+        'name':'filename', 'callback':command_callbacks.run_localfn, 'example':'[arg1, arg2, ...]',
+        'summary': 'Uploads the file to the vessels and starts running them, passing arguments if specified.',
+        'help_text':'','children':{
+          '[ARGUMENT]':{'name':'args', 'callback':command_callbacks.run_localfn_arg, 'help_text':'', 'children':{}},
+      }},
+  }},
+
+
+  'runv2':{
+    'name':'run', 'callback':None, 'example':'file [args ...]',
+    'summary':'Upload a file and start executing it as repyV2', 'help_text':"""
+Uploads a program to a vessel and starts it running.   (This command is
+actually just a short-cut for the 'upload' and 'startv2' commands).
+The arguments listed will be passed to the command when it is started.
+
+Example:
+exampleuser@browsegood !> show log
+Log from '192.x.x.2:1224:v3':
+
+Log from '193.x.x.42:1224:v18':
+
+Log from '219.x.x.62:1224:v4':
+
+Log from '192.x.x.2:1224:v12':
+
+exampleuser@browsegood !> run example.1.1.repy
+exampleuser@browsegood !> show log
+Log from '192.x.x.2:1224:v3':
+Hello World
+
+Log from '193.x.x.42:1224:v18':
+Hello World
+
+Log from '219.x.x.62:1224:v4':
+Hello World
+
+Log from '192.x.x.2:1224:v12':
+Hello World
+
+""", 'children':{
+      '[FILENAME]':{
+        'name':'filename', 'callback':command_callbacks.run_localfn, 'example':'[arg1, arg2, ...]',
+        'summary': 'Uploads the file to the vessels and starts running them, passing arguments if specified.',
+        'help_text':'','children':{
+          '[ARGUMENT]':{'name':'args', 'callback':command_callbacks.run_localfn_arg, 'help_text':'', 'children':{}},
+      }},
+  }},
+
+  'runv1':{
+    'name':'run', 'callback':None, 'example':'file [args ...]',
+    'summary':'Upload a file and start executing it as repyV1', 'help_text':"""
+Uploads a program to a vessel and starts it running.   (This command is
+actually just a short-cut for the 'upload' and 'startv1' commands).
+The arguments listed will be passed to the command when it is started.
+
+Example:
+exampleuser@browsegood !> show log
+Log from '192.x.x.2:1224:v3':
+
+Log from '193.x.x.42:1224:v18':
+
+Log from '219.x.x.62:1224:v4':
+
+Log from '192.x.x.2:1224:v12':
+
+exampleuser@browsegood !> run example.1.1.repy
+exampleuser@browsegood !> show log
+Log from '192.x.x.2:1224:v3':
+Hello World
+
+Log from '193.x.x.42:1224:v18':
+Hello World
+
+Log from '219.x.x.62:1224:v4':
+Hello World
+
+Log from '192.x.x.2:1224:v12':
+Hello World
+
+""", 'children':{
+      '[FILENAME]':{
+        'name':'filename', 'callback':command_callbacks.run_localfn, 'example':'[arg1, arg2, ...]',
+        'summary': 'Uploads the file to the vessels and starts running them, passing arguments if specified.',
+        'help_text':'','children':{
+          '[ARGUMENT]':{'name':'args', 'callback':command_callbacks.run_localfn_arg, 'help_text':'', 'children':{}},
+      }},
+  }},
+
+
+  'runv2':{
+    'name':'run', 'callback':None, 'example':'file [args ...]',
+    'summary':'Upload a file and start executing it as repyV2', 'help_text':"""
+Uploads a program to a vessel and starts it running.   (This command is
+actually just a short-cut for the 'upload' and 'startv2' commands).
+The arguments listed will be passed to the command when it is started.
+
 Example:
 exampleuser@browsegood !> show log
 Log from '192.x.x.2:1224:v3':
@@ -1205,6 +1371,98 @@ start programname [arg1 arg2 ...]
 Begins executing a file in the vessel named programname with the given 
 arguments.   This program must first be uploaded to the vessel (the 'run'
 command does this for the user).
+
+This command will make an educated guess as to what platform your
+program is written for (i.e. repyV1 or repyV2).  You can override this
+by using 'startv1' or 'startv2', respectively.
+
+Example:
+exampleuser@%1 !> upload example.1.1.repy
+exampleuser@%1 !> start example.1.1.repy
+exampleuser@%1 !> show log
+Log from '192.x.x.2:1224:v3':
+Hello World
+
+""", 'children':{
+      '[FILENAME]':{'name':'filename', 'callback':command_callbacks.start_remotefn, 'help_text':'', 'children':{
+          '[ARGUMENT]':{'name':'args', 'callback':command_callbacks.start_remotefn_arg, 'help_text':'', 'children':{}},
+      }},
+  }},
+
+  'startv1':{
+    'name':'start', 'callback':None, 'example':'file [args ...]',
+    'summary':"Start an experiment (doesn't upload) in repyV1", 'cmdgroup': 'extended', 'help_text':"""
+start programname [arg1 arg2 ...]
+
+Begins executing a file in the vessel named programname with the given
+arguments in repyv1.   This program must first be uploaded to the vessel
+(the 'run' command does this for the user).
+
+Example:
+exampleuser@%1 !> upload example.1.1.repy
+exampleuser@%1 !> start example.1.1.repy
+exampleuser@%1 !> show log
+Log from '192.x.x.2:1224:v3':
+Hello World
+
+""", 'children':{
+      '[FILENAME]':{'name':'filename', 'callback':command_callbacks.start_remotefn, 'help_text':'', 'children':{
+          '[ARGUMENT]':{'name':'args', 'callback':command_callbacks.start_remotefn_arg, 'help_text':'', 'children':{}},
+      }},
+  }},
+
+  'startv2':{
+    'name':'start', 'callback':None, 'example':'file [args ...]',
+    'summary':"Start an experiment (doesn't upload) in repyV2", 'cmdgroup': 'extended', 'help_text':"""
+start programname [arg1 arg2 ...]
+
+Begins executing a file in the vessel named programname with the given
+arguments in repyv2.   This program must first be uploaded to the vessel
+(the 'run' command does this for the user).
+
+Example:
+exampleuser@%1 !> upload example.1.1.repy
+exampleuser@%1 !> start example.1.1.repy
+exampleuser@%1 !> show log
+Log from '192.x.x.2:1224:v3':
+Hello World
+
+""", 'children':{
+      '[FILENAME]':{'name':'filename', 'callback':command_callbacks.start_remotefn, 'help_text':'', 'children':{
+          '[ARGUMENT]':{'name':'args', 'callback':command_callbacks.start_remotefn_arg, 'help_text':'', 'children':{}},
+      }},
+  }},
+
+  'startv1':{
+    'name':'start', 'callback':None, 'example':'file [args ...]',
+    'summary':"Start an experiment (doesn't upload) in repyV1", 'cmdgroup': 'extended', 'help_text':"""
+start programname [arg1 arg2 ...]
+
+Begins executing a file in the vessel named programname with the given
+arguments in repyv1.   This program must first be uploaded to the vessel
+(the 'run' command does this for the user).
+
+Example:
+exampleuser@%1 !> upload example.1.1.repy
+exampleuser@%1 !> start example.1.1.repy
+exampleuser@%1 !> show log
+Log from '192.x.x.2:1224:v3':
+Hello World
+
+""", 'children':{
+      '[FILENAME]':{'name':'filename', 'callback':command_callbacks.start_remotefn, 'help_text':'', 'children':{
+          '[ARGUMENT]':{'name':'args', 'callback':command_callbacks.start_remotefn_arg, 'help_text':'', 'children':{}},
+      }},
+  }},
+
+  'startv2':{
+    'name':'start', 'callback':None, 'example':'file [args ...]',
+    'summary':"Start an experiment (doesn't upload) in repyV2", 'cmdgroup': 'extended', 'help_text':"""
+start programname [arg1 arg2 ...]
+
+Begins executing a file in the vessel named programname with the given
+arguments in repyv2.   This program must first be uploaded to the vessel
+(the 'run' command does this for the user).
 
 Example:
 exampleuser@%1 !> upload example.1.1.repy

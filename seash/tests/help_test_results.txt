@@ -21,6 +21,8 @@ on target [command]          -- Run a command on a target (or changes the
 remove [target] [from group] -- Removes a target from a group
 reset                        -- Reset the vessel (clear files / log and stop)
 run file [args ...]          -- Upload a file and start executing it
+runv1 file [args ...]        -- Upload a file and start executing it as repyV1
+runv2 file [args ...]        -- Upload a file and start executing it as repyV2
 set                          -- Changes the shell or vessels (see 'help set')
 show                         -- Displays the shell state (see 'help show')
 stop                         -- Stop an experiment but leave the log / files
@@ -49,6 +51,10 @@ savestate fn                   -- Save the shell's state information to a file
                                   with the keyname
 split resourcefn               -- Split another vessel off (requires owner)
 start file [args ...]          -- Start an experiment (doesn't upload)
+startv1 file [args ...]        -- Start an experiment (doesn't upload) in 
+                                  repyV1
+startv2 file [args ...]        -- Start an experiment (doesn't upload) in 
+                                  repyV2
 update                         -- Update information about the vessels
 
 

@@ -536,15 +536,18 @@ def delete_target(longname,remotefn):
 
 
 
-def start_target(longname, argstring):
+def start_target(longname, argstring, prog_platform):
 
   vesselname = seash_global_variables.vesselinfo[longname]['vesselname']
 
   try:
     # start the program
-    fastnmclient.nmclient_signedsay(seash_global_variables.vesselinfo[longname]['handle'], "StartVessel", vesselname, argstring)
+    fastnmclient.nmclient_signedsay(
+      seash_global_variables.vesselinfo[longname]['handle'],
+      "StartVesselEx", vesselname, prog_platform, argstring)
 
   except fastnmclient.NMClientException, e:
+    print str(e)
     return (False, str(e))
 
   else:
@@ -587,13 +590,15 @@ def reset_target(longname):
 
 
 
-def run_target(longname,filename,filedata, argstring):
+def run_target(longname,filename,filedata, argstring, prog_platform):
 
   vesselname = seash_global_variables.vesselinfo[longname]['vesselname']
 
   try:
     fastnmclient.nmclient_signedsay(seash_global_variables.vesselinfo[longname]['handle'], "AddFileToVessel", vesselname, filename, filedata)
-    fastnmclient.nmclient_signedsay(seash_global_variables.vesselinfo[longname]['handle'], "StartVessel", vesselname, argstring)
+    fastnmclient.nmclient_signedsay(
+      seash_global_variables.vesselinfo[longname]['handle'],
+      "StartVesselEx", vesselname, prog_platform, argstring)
 
   except fastnmclient.NMClientException, e:
     return (False, str(e))
@@ -840,7 +845,37 @@ def reset_vessel_timeout():
     fastnmclient.nmclient_set_handle_info(thisvesselhandle,thisvesselhandledict)
 
 
+def get_execution_platform(command, filename):
+  """
+  <Purpose>
+    Returns the execution platform based on a best-guess approach using
+    the specified command, as well as the a file's extension.  The
+    command takes precedence over the file extension.  If the extension
+    is not recognized, then it will be assumed that it is repyV2.
 
+  <Arguments>
+    command: The command that should be parsed.
+    filename: The file whose repy version should be returned.
+
+  <Side Effects>
+    None
+
+  <Exceptions>
+    None
+
+  <Returns>
+    A string indicating which version of repy a program is in, based on
+    its file extension.  This will be either "v1" or "v2".
+  """
+  if command.endswith('v2'):
+    return 'repyV2'
+  elif command.endswith('v1'):
+    return 'repyV1'
+
+  if filename.endswith('.repy'):
+    return 'repyV1'
+  else:
+    return 'repyV2'
 
 
 def print_vessel_errors(retdict):
@@ -897,6 +932,8 @@ def print_vessel_errors(retdict):
     "file not found": {
       'error': "The specified file(s) could not be found.",
       'reason': "Please check the filename."},
+    "Node Manager error 'Programming language platform is not supported.'": {
+      'error': "Requested platform is not supported by the target vessel."},
     }
 
   # A dictionary mapping error identifiers to a list of vessels that share
