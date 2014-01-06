@@ -481,6 +481,11 @@ def addfiletovessel(vesselname,filename, filedata):
   if vesselname not in vesseldict:
     raise BadRequest, "No such vessel"
 
+  # The user is restricted from using filename starting with 'private_' since
+  # this part of the namespace is reserved for custom security layers.
+  if filename.startswith("private_"):
+    raise BadRequest("User is not allowed to use file names starting with 'private_'")
+
   # get the current amount of data used by the vessel...
   currentsize = nonportable.compute_disk_use(vesselname+"/")
   # ...and the allowed amount
@@ -513,6 +518,13 @@ def listfilesinvessel(vesselname):
 
   # the directory should exist.   If not, it's an Internal error...
   filelist = os.listdir(vesselname+"/")
+  filelist.sort()
+
+  # remove any files in the protect part of the namespace
+  filteredfilelist = []
+  for filename in filelist:
+    if not filename.startswith("private_"):
+      filteredfilelist.append(filename)
 
   # return the list of files, separated by spaces
   return ' '.join(filelist) + "\nSuccess"
@@ -523,6 +535,9 @@ def listfilesinvessel(vesselname):
 def retrievefilefromvessel(vesselname,filename):
   if vesselname not in vesseldict:
     raise BadRequest, "No such vessel"
+
+  if filename.startswith("private_"):
+    raise BadRequest("User is not allowed to use file names starting with 'private_'")
 
   try:
     check_repy_filename(filename)
@@ -551,6 +566,9 @@ def deletefileinvessel(vesselname,filename):
   if vesselname not in vesseldict:
     raise BadRequest, "No such vessel"
   
+  if filename.startswith("private_"):
+    raise BadRequest("User is not allowed to use file names starting with 'private_'")
+
   try:
     check_repy_filename(filename)
   except TypeError, e:
@@ -649,9 +667,13 @@ def resetvessel(vesselname,exitparams=(44, '')):
       break
 
   # Okay, it is stopped now.   Now I'll clean up the file system...
-  shutil.rmtree(vesselname)
-  os.mkdir(vesselname)
-  
+  filelist = os.listdir(vesselname+"/")
+
+  # don't delete any files in the protect part of the namespace
+  for filename in filelist:
+    if not filename.startswith("private_"):
+      os.remove(vesselname+"/"+filename)
+
   # and remove the log files and stop file...
   if os.path.exists(vesseldict[vesselname]['logfilename']):
     os.remove(vesseldict[vesselname]['logfilename'])
