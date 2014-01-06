@@ -110,7 +110,7 @@ import emulcomm
 # control the AFFIX stack as well as enable or disable AFFIX
 # in Seattle.
 dy_import_module_symbols("advertise.repy")
-dy_import_module_symbols("shimstackinterface")
+dy_import_module_symbols("affixstackinterface")
 affix_service_key = "SeattleAffixStack"
 enable_affix_key = "EnableSeattleAffix"
 affix_enabled = False
@@ -300,21 +300,21 @@ def start_accepter():
           # If AFFIX is enabled, then we use AFFIX to open up a tcpserversocket.
           if affix_enabled:
             # Here we are going to use a for loop to find a second available port
-            # for us to use for the LegacyShim. Since the LegacyShim opens up two
+            # for us to use for the LegacyAffix. Since the LegacyAffix opens up two
             # tcpserversocket, it needs two available ports. The first for a normal
-            # repy listenforconnection call, the second for shim enabled 
+            # repy listenforconnection call, the second for affix enabled 
             # listenforconnection call.
-            for shimportindex in range(portindex+1, len(configuration['ports'])):
-              shimport = configuration['ports'][shimportindex]
-              affix_legacy_string = "(LegacyShim," + str(shimport) + ",0)" + affix_stack_string
-              affix_object = ShimStackInterface(affix_legacy_string)
+            for affixportindex in range(portindex+1, len(configuration['ports'])):
+              affixport = configuration['ports'][affixportindex]
+              affix_legacy_string = "(LegacyAffix," + str(affixport) + ",0)" + affix_stack_string
+              affix_object = AffixStackInterface(affix_legacy_string)
               serversocket = affix_object.listenforconnection(bind_ip, possibleport)
               servicelogger.log("[INFO]Started accepter thread with Affix string: " + affix_legacy_string)
               break
             else:
               # This is the case if we weren't able to find any port to listen on
-              # With the legacy shim.
-              raise ShimError("Unable to create create tcpserversocket with shims using port:" + str(possibleport))
+              # With the legacy affix.
+              raise AffixError("Unable to create create tcpserversocket with affixs using port:" + str(possibleport))
 
           else:
             # If AFFIX is not enabled, then we open up a normal tcpserversocket.
