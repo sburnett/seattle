@@ -65,11 +65,6 @@ import warnings
 # Ignores all warnings
 warnings.simplefilter("ignore")
 
-from repyportability import *
-_context = locals()
-add_dy_support(_context)
-
-
 
 import time
 
@@ -109,6 +104,11 @@ import emulcomm
 # Add AFFIX to Seattle nodemanager. The two keys allows us to 
 # control the AFFIX stack as well as enable or disable AFFIX
 # in Seattle.
+from repyportability import *
+_context = locals()
+add_dy_support(_context)
+
+
 dy_import_module_symbols("advertise.repy")
 dy_import_module_symbols("affixstackinterface")
 affix_service_key = "SeattleAffixStack"
