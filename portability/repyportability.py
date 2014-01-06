@@ -4,6 +4,7 @@ import __builtin__
 # I'm importing these so I can neuter the calls so that they aren't 
 # restricted...
 
+import sys
 import safe
 import nanny
 import emulfile
@@ -217,6 +218,8 @@ override_restrictions()
 initialize_safe_module()
 
 
+
+
 # This function makes the dy_* functions available.
 def add_dy_support(_context):
   # Add dylink support
@@ -224,7 +227,30 @@ def add_dy_support(_context):
   
   # The dy_* functions are only added to the namespace after init_dylink is called.
   init_dylink(_context,{})
-  
+
+  original_import_module = _context['dy_import_module']
+
+  def _new_dy_import_module_symbols(module, callfunc="import"):
+    # If we are using repyportability, we want to check all pythonpath for
+    # the file we are looking to import.
+    COMMON_EXTENSIONS = ["", ".py", ".repy",".py.repy", ".pp"] 
+    
+    # Check all combination of filepath with file extension and try to import the
+    # file if we have found it.
+    for possible_extension in COMMON_EXTENSIONS:
+      for pathdir in sys.path:
+        possiblefilenamewithpath = os.path.join(pathdir, module+possible_extension)
+   
+        # If we have found a path, then we can import the module and
+        # return so we do not continue to look in other paths.
+        if os.path.isfile(possiblefilenamewithpath):
+          filenamewithpath = possiblefilenamewithpath
+          return original_import_module(filenamewithpath, callfunc)
+
+
+  _context['dy_import_module'] = _new_dy_import_module_symbols
+
+
   # Make our own `dy_import_module_symbols` and  add it to the context.
   # It is not currently possible to use the real one (details at ticket #1046)
   def _dy_import_module_symbols(module,new_callfunc="import"):
@@ -234,4 +260,9 @@ def add_dy_support(_context):
       if symbol not in _context: # Prevent the imported object from destroying our namespace.
         _context[symbol] = new_context[symbol]
 
+
+ 
   _context['dy_import_module_symbols'] = _dy_import_module_symbols
+
+
+

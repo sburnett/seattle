@@ -212,14 +212,10 @@ def main():
   copy_to_target("repy/repyV1/*", os.path.join(target_dir,"repyV1"))
   copy_to_target("nodemanager/*", target_dir)
   copy_to_target("portability/*", target_dir)
-  copy_to_target("portability/*", os.path.join(target_dir,"repyV2"))
   copy_to_target("seattlelib/*", target_dir)
-  copy_to_target("seattlelib/dylink.repy", os.path.join(target_dir, "repyV2"))
-  copy_to_target("seattlelib/textops.py", os.path.join(target_dir, "repyV2"))
-  copy_to_target("nodemanager/servicelogger.py", os.path.join(target_dir, "repyV2"))
   copy_to_target("seash/*", target_dir)
-  copy_to_target("shims/*", target_dir)
-  copy_to_target("shims/proxy/*", target_dir)
+  copy_to_target("affix/*", target_dir)
+  #copy_to_target("shims/proxy/*", target_dir)
   copy_to_target("softwareupdater/*", target_dir)
   copy_to_target("autograder/nm_remote_api.mix", target_dir)
   copy_to_target("keydaemon/*", target_dir)
@@ -235,9 +231,9 @@ def main():
     copy_to_target("repy/tests/restrictions.*", target_dir)
     copy_to_target("utf/*.py", target_dir)
     copy_to_target("repy/testsV2/*", target_dir)
-    #copy_to_target("nodemanager/tests/*", target_dir)
-    #copy_to_target("portability/tests/*", target_dir)
-    #copy_to_target("seash/tests/*", target_dir)
+    copy_to_target("nodemanager/tests/*", target_dir)
+    copy_to_target("portability/tests/*", target_dir)
+    copy_to_target("seash/tests/*", target_dir)
     copy_to_target("seattlelib/tests/*", target_dir)
     #copy_to_target("keydaemon/tests/*", target_dir)
     copy_to_target("dist/update_crontab_entry.py", target_dir)
@@ -252,12 +248,10 @@ def main():
 
   # Call process_mix to process all mix files in the target directory
   process_mix("repypp.py", verbose)
-  os.chdir("repyV1")
-  process_mix("repypp.py", verbose)
-  os.chdir(target_dir)
 
   # Set up dynamic port information
   if RANDOMPORTS:
+    print "\n[ Randomports option was chosen ]\n"+'-'*50
     ports_as_ints = random.sample(range(52000, 53000), 3)
     ports_as_strings = []
     for port in ports_as_ints:
@@ -265,12 +259,73 @@ def main():
     
     print "Randomly chosen ports: ", ports_as_strings
     testportfiller.replace_ports(ports_as_strings, ports_as_strings)
+
+    # Replace the string <nodemanager_port> with a random port
+    random_nodemanager_port = random.randint(53000, 54000)
+    print "Chosen random nodemanager port: " + str(random_nodemanager_port)
+    print '-'*50 + "\n"
+    replace_string("<nodemanager_port>", str(random_nodemanager_port), "*nm*")
+    replace_string("<nodemanager_port>", str(random_nodemanager_port), "*securitylayers*")
+
   else:
     # Otherwise use the default ports...
     testportfiller.replace_ports(['12345','12346','12347'], ['12345','12346','12347'])
 
+    # Use default port 1224 for the nodemanager port if --random flag is not provided.
+    replace_string("<nodemanager_port>", '1224', "*nm*")
+    replace_string("<nodemanager_port>", '1224', "*securitylayers*")
+
   # Change back to root project directory
   os.chdir(current_dir) 
+
+
+
+
+
+def replace_string(old_string, new_string, file_name_pattern="*"):
+  """
+  <Purpose>
+    Go through all the files in the current folder and replace
+    every match of the old string in the file with the new
+    string.
+
+  <Arguments>
+    old_string - The string we want to replace.
+ 
+    new_string - The new string we want to replace the old string
+      with.
+
+    file_name_pattern - The pattern of the file name if you want
+      to reduce the number of files we look at. By default the 
+      function looks at all files.
+
+  <Exceptions>
+    None.
+
+  <Side Effects>
+    Many files may get modified.
+
+  <Return>
+    None
+  """
+
+  for testfile in glob.glob(file_name_pattern):
+    # Read in the initial file.
+    inFile = file(testfile, 'r')
+    filestring = inFile.read()
+    inFile.close()
+
+    # Replace any form of the matched old string with
+    # the new string.
+    filestring = filestring.replace(old_string, new_string)
+
+    # Write the file back.
+    outFile = file(testfile, 'w')
+    outFile.write(filestring)
+    outFile.close()
+
+
+
 
 
 if __name__ == '__main__':
