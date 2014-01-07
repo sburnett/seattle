@@ -489,7 +489,7 @@ def addfiletovessel(vesselname,filename, filedata):
   # get the current amount of data used by the vessel...
   currentsize = nonportable.compute_disk_use(vesselname+"/")
   # ...and the allowed amount
-  resourcedict = resourcemanipulation.read_resourcedict_from_file(vesseldict[vesselname]['resourcefilename'])
+  resourcedict, call_list = resourcemanipulation.read_resourcedict_from_file(vesseldict[vesselname]['resourcefilename'])
 
   # If the current size + the size of the new data is too large, then deny
   if currentsize + len(filedata) > resourcedict['diskused']:
@@ -527,7 +527,7 @@ def listfilesinvessel(vesselname):
       filteredfilelist.append(filename)
 
   # return the list of files, separated by spaces
-  return ' '.join(filelist) + "\nSuccess"
+  return ' '.join(filteredfilelist) + "\nSuccess"
   
 
 
@@ -801,12 +801,12 @@ def get_new_vessel_name():
 
 
 # Private.   Creates a new vessel's state in the dictionary and on disk
-def _setup_vessel(vesselname, examplevessel, resourcedict):
+def _setup_vessel(vesselname, examplevessel, resourcedict, call_list):
   if vesselname in vesseldict:
     raise Exception, "Internal Error, setting up vessel '"+vesselname+"' already in vesseldict"
 
   # write the new resource file
-  resourcemanipulation.write_resourcedict_to_file(resourcedict, 'resource.'+vesselname)
+  resourcemanipulation.write_resourcedict_to_file(resourcedict, 'resource.'+vesselname, call_list)
 
   # Set the invariants up...
   item = {}
@@ -882,14 +882,14 @@ def splitvessel(vesselname, resourcedata):
   newname2 = get_new_vessel_name()
 
   try:
-    proposedresourcedict = resourcemanipulation.parse_resourcedict_from_string(resourcedata)
+    proposedresourcedict, call_list = resourcemanipulation.parse_resourcedict_from_string(resourcedata)
   except resourcemanipulation.ResourceParseError, e:
     raise BadRequest(str(e))
   
   # we must have enough so that starting - offcut - proposed > 0
-  startingresourcedict = resourcemanipulation.read_resourcedict_from_file(vesseldict[vesselname]['resourcefilename'])
+  startingresourcedict, call_list_vessel = resourcemanipulation.read_resourcedict_from_file(vesseldict[vesselname]['resourcefilename'])
 
-  offcutresourcedict = resourcemanipulation.read_resourcedict_from_file(offcutfilename)
+  offcutresourcedict, offcut_call_list = resourcemanipulation.read_resourcedict_from_file(offcutfilename)
 
   # let's see what happens if we just remove the offcut...
   try:
@@ -904,11 +904,10 @@ def splitvessel(vesselname, resourcedata):
   except resourcemanipulation.ResourceMathError, e:
     raise BadRequest('Proposed vessel is too large.\n'+str(e))
 
-
   # newname1 becomes the leftovers...
-  _setup_vessel(newname1, vesselname, finalresourcedict)
+  _setup_vessel(newname1, vesselname, finalresourcedict, call_list_vessel)
   # newname2 is what the user requested
-  _setup_vessel(newname2, vesselname, proposedresourcedict)
+  _setup_vessel(newname2, vesselname, proposedresourcedict, call_list_vessel)
   _destroy_vessel(vesselname)
     
   persist.commit_object(vesseldict, "vesseldict")
@@ -934,9 +933,9 @@ def joinvessels(vesselname1, vesselname2):
   newname = get_new_vessel_name()
 
 
-  currentresourcedict1 = resourcemanipulation.read_resourcedict_from_file(vesseldict[vesselname1]['resourcefilename'])
-  currentresourcedict2 = resourcemanipulation.read_resourcedict_from_file(vesseldict[vesselname2]['resourcefilename'])
-  offcutresourcedict = resourcemanipulation.read_resourcedict_from_file(offcutfilename)
+  currentresourcedict1, call_list_v1 = resourcemanipulation.read_resourcedict_from_file(vesseldict[vesselname1]['resourcefilename'])
+  currentresourcedict2, call_list_v2 = resourcemanipulation.read_resourcedict_from_file(vesseldict[vesselname2]['resourcefilename'])
+  offcutresourcedict, offcut_call_list = resourcemanipulation.read_resourcedict_from_file(offcutfilename)
 
 
   # the final resources are reconstructed from the offcut + vessel1 + vessel2
@@ -944,7 +943,10 @@ def joinvessels(vesselname1, vesselname2):
 
   finalresourcedict = resourcemanipulation.add_resourcedicts(intermediateresourcedict, offcutresourcedict)
 
-  _setup_vessel(newname, vesselname1, finalresourcedict)
+  # MMM: We add in the call list of resources from one of the original 
+  # resource file. Since this is for backward compatibility for Repy V1,
+  # it does not matter which call list we add in to the final resource file.
+  _setup_vessel(newname, vesselname1, finalresourcedict, call_list_v1)
   _destroy_vessel(vesselname1)
   _destroy_vessel(vesselname2)
     
