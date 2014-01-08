@@ -368,28 +368,19 @@ def startvessel_ex(vesselname, prog_platform, argstring):
   # Find the location where the sandbox files is located. Location of repyV1, repyV2 etc.
   prog_platform_location = os.path.join(prog_platform_dir[prog_platform], "repy.py")
  
-  # Armon: Check if we are using windows API, and if it is windows mobile
-  if windowsAPI and windowsAPI.MobileCE:
-    # First element should be the script (repy)
-    command[0] = "\"" + repy_constants.PATH_SEATTLE_INSTALL + prog_platform_location  + "\""
-    # Second element should be the parameters
-    command[1] = ip_iface_preference_str + "--logfile \"" + vesseldict[vesselname]['logfilename'] + "\" --stop \""+ vesseldict[vesselname]['stopfilename'] + "\" --status \"" + vesseldict[vesselname]['statusfilename'] + "\" --cwd \"" + updir + "\" --servicelog \"" + vesseldict[vesselname]['resourcefilename']+"\" "+argstring
-    raise Exception, "This will need to be changed to use absolute paths"
-    
-  else:  
-    # I use absolute paths so that repy can still find the files after it 
-    # changes directories...
-    
-    # Conrad: switched this to sequence-style Popen invocation so that spaces
-    # in files work. Switched it back to absolute paths.
-    command = ["python", prog_platform_location] + ip_iface_preference_flags + [
-        "--logfile", os.path.abspath(vesseldict[vesselname]['logfilename']),
-        "--stop",    os.path.abspath(vesseldict[vesselname]['stopfilename']),
-        "--status",  os.path.abspath(vesseldict[vesselname]['statusfilename']),
-        "--cwd",     os.path.abspath(vesselname),
-        "--servicelog", os.path.abspath(vesseldict[vesselname]['resourcefilename'])] + argstring.split()
+  # I use absolute paths so that repy can still find the files after it 
+  # changes directories...
+  
+  # Conrad: switched this to sequence-style Popen invocation so that spaces
+  # in files work. Switched it back to absolute paths.
+  command = ["python", prog_platform_location] + ip_iface_preference_flags + [
+      "--logfile", os.path.abspath(vesseldict[vesselname]['logfilename']),
+      "--stop",    os.path.abspath(vesseldict[vesselname]['stopfilename']),
+      "--status",  os.path.abspath(vesseldict[vesselname]['statusfilename']),
+      "--cwd",     os.path.abspath(vesselname),
+      "--servicelog", os.path.abspath(vesseldict[vesselname]['resourcefilename'])] + argstring.split()
 
-    start_task(command)
+  portable_popen.Popen(command)
 
 
   starttime = nonportable.getruntime()
@@ -419,17 +410,7 @@ def startvessel_ex(vesselname, prog_platform, argstring):
 
 
 
-# A helper for startvessel.   private to this module
-# Armon: if MobileCE treat command as an array with 2 elements,
-# one with the script (full path), and the second with the parameters
-def start_task(command):
-  # Check if we are using windows API, and if it is windows mobile
-  if windowsAPI != None and windowsAPI.MobileCE:
-    windowsAPI.launchPythonScript(command[0], command[1])
 
-  # If not, use the portable_popen.Popen interface.
-  else:
-    portable_popen.Popen(command)
     
 
 # Armon: Takes an optional exitparams tuple, which should contain
