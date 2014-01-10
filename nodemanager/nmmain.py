@@ -110,7 +110,10 @@ add_dy_support(_context)
 
 
 dy_import_module_symbols("advertise.repy")
+dy_import_module_symbols("sockettimeout.repy")
 dy_import_module_symbols("affixstackinterface")
+
+
 affix_service_key = "SeattleAffixStack"
 enable_affix_key = "EnableSeattleAffix"
 affix_enabled = False
@@ -319,7 +322,7 @@ def start_accepter():
           else:
             # If AFFIX is not enabled, then we open up a normal tcpserversocket.
             # For now, we'll use the second method.
-            serversocket = listenforconnection(bind_ip, possibleport)
+            serversocket = timeout_listenforconnection(bind_ip, possibleport,10)
           
           # If there is no error, we were able to successfully start listening.
           # Create the thread, and start it up!
@@ -634,6 +637,8 @@ def main():
       # IndexError and ValueError will occur if the advertise lookup
       # returns an empty list.
       pass
+    except Exception, err:
+      servicelogger.log('[Exception]:At ' + str(time.time()) + ' Uncaught exception: ' + str(err))
 
     # If the reset accepter flag has been turned on, we call start_accepter
     # and update our name. 
