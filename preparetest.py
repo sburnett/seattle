@@ -212,7 +212,11 @@ def main():
   copy_to_target("repy/repyV1/*", os.path.join(target_dir,"repyV1"))
   copy_to_target("nodemanager/*", target_dir)
   copy_to_target("portability/*", target_dir)
+  copy_to_target("portability/*", os.path.join(target_dir,"repyV2"))
   copy_to_target("seattlelib/*", target_dir)
+  copy_to_target("seattlelib/dylink.repy", os.path.join(target_dir, "repyV2"))
+  copy_to_target("seattlelib/textops.py", os.path.join(target_dir, "repyV2"))
+  copy_to_target("nodemanager/servicelogger.py", os.path.join(target_dir, "repyV2"))
   copy_to_target("seash/*", target_dir)
   copy_to_target("affix/*", target_dir)
   #copy_to_target("shims/proxy/*", target_dir)
@@ -244,10 +248,9 @@ def main():
     #copy_to_target("softwareupdater/test/*", target_dir)
 
   # Set working directory to the target
-  os.chdir(target_dir)
-
-  # Call process_mix to process all mix files in the target directory
+  os.chdir(os.path.join(target_dir, "repyV1"))
   process_mix("repypp.py", verbose)
+
 
   # Set up dynamic port information
   if RANDOMPORTS:

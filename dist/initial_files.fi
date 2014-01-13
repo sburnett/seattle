@@ -75,7 +75,6 @@ req repy_constants.py
 req repyhelper.py
 req repyportability.py
 req repypp.py
-req restrictions.py
 req rsa.repy
 req safe.py
 req safe_check.py
