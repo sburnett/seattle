@@ -86,50 +86,40 @@ def measure_resources():
   memInfo = windows_api.global_memory_info()
   totalMem = memInfo["totalPhysical"]
 
-  if windows_api.MobileCE:
-    totalMem = min(totalMem, 32*1024*1024) # 32 Meg limit per process
-  else:
-    totalMem = memInfo["totalPhysical"]
-  
   # Default to None, for WinCE
   numCPU = None
 
-  # Don't even bother on WinCE
-  if not windows_api.MobileCE:
-    import subprocess
+  import subprocess
 
-    cmd="echo %NUMBER_OF_PROCESSORS%"
-    try:
-      proc=subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
-      output = proc.stdout.read()
-      proc.stdout.close()
-    except Exception, e:
-      # SP: if something goes wrong, return a string giving some information
-      # on what happened. The None return value is reserved for tests that
-      # aren't implemented.
-      numCPU = "unable to read number of processors: " + str(e)
-    else:
-      # Attempt to parse output for a number of CPU's
-      try:
-        num=int(output)
-      except ValueError:
-        numCPU = "bad value for number of processors: " + str(output)
-      else:
-        if num >= 1:
-          numCPU = num
-        else:
-          numCPU = "non-positive value returned for number of processors: " \
-                      + str(num)
-
-  if windows_api.MobileCE:
-    threadMax = 8
+  cmd="echo %NUMBER_OF_PROCESSORS%"
+  try:
+    proc=subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
+    output = proc.stdout.read()
+    proc.stdout.close()
+  except Exception, e:
+    # SP: if something goes wrong, return a string giving some information
+    # on what happened. The None return value is reserved for tests that
+    # aren't implemented.
+    numCPU = "unable to read number of processors: " + str(e)
   else:
-    # Hard limit at 512
-    # Anthony, we will have a default for all systems because
-    # of the problems with measuring, using None here will trigger
-    # the default in benchmark_resources.py .
-    # threadMax = min(128*numCPU,512)
-    threadMax = None
+    # Attempt to parse output for a number of CPU's
+    try:
+      num=int(output)
+    except ValueError:
+      numCPU = "bad value for number of processors: " + str(output)
+    else:
+      if num >= 1:
+        numCPU = num
+      else:
+        numCPU = "non-positive value returned for number of processors: " \
+                    + str(num)
+
+  # Hard limit at 512
+  # Anthony, we will have a default for all systems because
+  # of the problems with measuring, using None here will trigger
+  # the default in benchmark_resources.py .
+  # threadMax = min(128*numCPU,512)
+  threadMax = None
 
   libc = ctypes.cdll.msvcrt  
   handleMax = libc._getmaxstdio() # Query C run-time for maximum file handles
@@ -137,10 +127,7 @@ def measure_resources():
   # Anthony - we have chosen to use the default limit except for mobile
   # using None for socketMax here will trigger the default in 
   # benchmark_resources.py .
-  if windows_api.MobileCE:
-    socketMax = 64 / 2 # By default, only 64 sockets per app, both mobile
-  else:
-    socketMax = None
+  socketMax = None
 
   # Measure random
   # SP: This test should now work on all systems. For failed tests, a string
