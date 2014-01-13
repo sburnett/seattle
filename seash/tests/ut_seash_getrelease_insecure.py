@@ -1,5 +1,5 @@
 """
-Test that we can acquire and release vessels in secure mode.
+Test that we can acquire and release vessels in insecure mode.
 
 """
 import seash
@@ -17,9 +17,9 @@ commands = [
   'enable clearinghouse',
   'loadkeys seash_gettest',
   'as seash_gettest',
-  'get 5',
+  'get insecure 5',
   'on acquired',
-  'release acquired',
+  'release insecure acquired',
   'show targets',
 ]
 

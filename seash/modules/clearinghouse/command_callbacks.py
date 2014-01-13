@@ -49,6 +49,8 @@ def get(input_dict, environment_dict):
   if environment_dict['currentkeyname'] is None or not seash_global_variables.keys[environment_dict['currentkeyname']]['privatekey']:
     raise seash_exceptions.UserError("Error, must get as an identity with a private key")
 
+  # Activate secure mode if user did not specify the insecure keyword
+  allow_ssl_insecure = _get_user_argument(input_dict, 'insecure') is not None
   vesselcount = int(_get_user_argument(input_dict, 'vesselcount'))
 
   try:
@@ -60,7 +62,8 @@ def get(input_dict, environment_dict):
   if not vesseltype in ['wan', 'lan', 'nat', None]:
     raise seash_exceptions.UserError("Error, unknown vessel type '"+vesseltype+"'")
 
-  client = _connect_to_clearinghouse(environment_dict['currentkeyname'])
+  client = _connect_to_clearinghouse(environment_dict['currentkeyname'],
+    allow_ssl_insecure)
 
   # Get the vessels!
   try:
@@ -96,6 +99,9 @@ def release(input_dict, environment_dict):
   <Returns>
     None
   """
+  # Activate secure mode if user did not specify the insecure keyword
+  allow_ssl_insecure = _get_user_argument(input_dict, 'insecure') is not None
+
   # Get the group name to release
   groupname = environment_dict['currenttarget']
   nodelist = seash_global_variables.targets[groupname]
@@ -114,7 +120,8 @@ def release(input_dict, environment_dict):
       faillist.append(nodename)
 
   # Release!
-  client = _connect_to_clearinghouse(environment_dict['currentkeyname'])
+  client = _connect_to_clearinghouse(environment_dict['currentkeyname'],
+    allow_ssl_insecure)
   client.release_resources(clearinghouse_vesselhandles)
 
   # Remove each vessel from the targets list
@@ -147,6 +154,9 @@ def release_args(input_dict, environment_dict):
   <Returns>
     None
   """
+  # Activate secure mode if user did not specify the insecure keyword
+  allow_ssl_insecure = _get_user_argument(input_dict, 'insecure') is not None
+
   # Get the group name to release
   groupname = _get_user_argument(input_dict, 'groupname')
   nodelist = seash_global_variables.targets[groupname]
@@ -165,7 +175,8 @@ def release_args(input_dict, environment_dict):
       faillist.append(nodename)
 
   # Release!
-  client = _connect_to_clearinghouse(environment_dict['currentkeyname'])
+  client = _connect_to_clearinghouse(environment_dict['currentkeyname'],
+    allow_ssl_insecure)
   client.release_resources(clearinghouse_vesselhandles)
 
   # Remove each vessel from the targets list
@@ -281,34 +292,39 @@ def _get_clearinghouse_vessel_handle(vesselhandle):
   return (True, nodekeystr+':'+vesselname)
 
 
-def _connect_to_clearinghouse(identity):
-  global is_printed_m2crypto_not_installed
-
+def _connect_to_clearinghouse(identity, allow_ssl_insecure):
   try:
-    return seattleclearinghouse_xmlrpc.SeattleClearinghouseClient(
-        username=identity,
-        private_key_string=rsa_privatekey_to_string(
-          seash_global_variables.keys[identity]['privatekey']))
-
-  except ImportError:
-    # We only want to print this error message on the first time that
-    # the user tries to connect to the clearinghouse, so we don't
-    # overwhelm the user with unnecessary output.
-    if not is_printed_m2crypto_not_installed:
-      print "You must have M2Crypto installed to connect to the Clearinghouse securely."
-      print "Insecure mode will be used for the rest of this session."
-      is_printed_m2crypto_not_installed = True
-
     return seattleclearinghouse_xmlrpc.SeattleClearinghouseClient(
       username=identity,
       private_key_string=rsa_privatekey_to_string(
         seash_global_variables.keys[identity]['privatekey']),
-      allow_ssl_insecure=True)
+      allow_ssl_insecure=allow_ssl_insecure)
+
+  except ImportError, e:
+    if "M2Crypto" in str(e):
+      raise seash_exceptions.UserError("You must have M2Crypto " +
+        "installed to connect to the Clearinghouse securely.\n" +
+        "For more information, run 'modulehelp clearinghouse'.")
+    # Unknown error...
+    raise
+
+  except seattleclearinghouse_xmlrpc.SeattleClearinghouseError, e:
+    if not allow_ssl_insecure and "No CA certs found in file" in str(e):
+      print ("Your CA Certs file is corrupt or does not exist.\n" +
+        "You need to download a CA certs file (you can do so here: \n" +
+        "http://curl.haxx.se/ca/cacert.pem) and place it in the following location.")
+      # Re-raise to get Seash to print out this error message
+      raise seash_exceptions.UserError(str(e))
+    # Unknown error...
+    raise
 
 def _get_user_argument(input_dict, argname):
   # Iterates through the dictionary to retrieve the user's argument
   command_key = input_dict.keys()[0]
   while input_dict[command_key]['name'] is not argname:
      input_dict = input_dict[command_key]['children']
+     # No more children, argument couldn't be found.
+     if not input_dict:
+      return None
      command_key = input_dict.keys()[0]
   return command_key
