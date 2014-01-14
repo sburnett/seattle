@@ -18,6 +18,9 @@ from repyportability import *
 _context = locals()
 add_dy_support(_context)
 
+# For sys.executable, see #1081
+import sys
+
 # used to persist data...
 import persist
 
