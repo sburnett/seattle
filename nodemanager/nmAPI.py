@@ -381,7 +381,9 @@ def startvessel_ex(vesselname, prog_platform, argstring):
       "--stop",    os.path.abspath(vesseldict[vesselname]['stopfilename']),
       "--status",  os.path.abspath(vesseldict[vesselname]['statusfilename']),
       "--cwd",     os.path.abspath(vesselname),
-      "--servicelog", os.path.abspath(vesseldict[vesselname]['resourcefilename'])] + argstring.split()
+      "--servicelog", 
+      "--execinfo",
+      os.path.abspath(vesseldict[vesselname]['resourcefilename'])] + argstring.split()
 
   portable_popen.Popen(command)
 
