@@ -580,7 +580,7 @@ def readvessellog(vesselname):
   # doing the actual work) to minimize the time between copy calls.
   firstOK=False
   try:
-    shutil.copy(vesseldict[vesselname]['logfilename']+'.old', "tmplog")
+    shutil.copyfile(vesseldict[vesselname]['logfilename']+'.old', "tmplog")
   except IOError, e:
     if e[0] == 2:
       # No such file or directory, we should ignore (we likely interrupted an 
@@ -596,7 +596,7 @@ def readvessellog(vesselname):
   # I have this next so that the amount of time between copying the files is 
   # minimized (I'll read both after)
   try:
-    shutil.copy(vesseldict[vesselname]['logfilename']+'.new', "tmplog.new")
+    shutil.copyfile(vesseldict[vesselname]['logfilename']+'.new', "tmplog.new")
   except IOError, e:
     if e[0] == 2:
       # No such file or directory, we should ignore (we likely interrupted an 
