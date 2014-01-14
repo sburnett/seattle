@@ -376,7 +376,7 @@ def startvessel_ex(vesselname, prog_platform, argstring):
   
   # Conrad: switched this to sequence-style Popen invocation so that spaces
   # in files work. Switched it back to absolute paths.
-  command = ["python", prog_platform_location] + ip_iface_preference_flags + [
+  command = [sys.executable, prog_platform_location] + ip_iface_preference_flags + [
       "--logfile", os.path.abspath(vesseldict[vesselname]['logfilename']),
       "--stop",    os.path.abspath(vesseldict[vesselname]['stopfilename']),
       "--status",  os.path.abspath(vesseldict[vesselname]['statusfilename']),
