@@ -223,6 +223,7 @@ def main():
   copy_to_target("softwareupdater/*", target_dir)
   copy_to_target("autograder/nm_remote_api.mix", target_dir)
   copy_to_target("keydaemon/*", target_dir)
+  copy_to_target("dist/update_crontab_entry.py", target_dir)
   # The license must be included in anything we distribute.
   copy_to_target("LICENSE.TXT", target_dir)
 
@@ -240,7 +241,6 @@ def main():
     copy_to_target("seash/tests/*", target_dir)
     copy_to_target("seattlelib/tests/*", target_dir)
     #copy_to_target("keydaemon/tests/*", target_dir)
-    copy_to_target("dist/update_crontab_entry.py", target_dir)
     copy_to_target("shims/tests/*", target_dir)
 
     # The web server is used in the software updater tests
