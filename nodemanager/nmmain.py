@@ -604,7 +604,8 @@ def main():
 
     # If ip has changed, then restart the advertisement and accepter threads.
     if current_ip != myip:
-      servicelogger.log('[WARN]:At ' + str(time.time()) + ' node ip changed...')
+      servicelogger.log('[WARN]:Node IP has changed, it is ' + 
+        str(current_ip) + ' now (was ' + str(myip) + ').')
       myip = current_ip
 
       # Restart the accepter thread and update nodename in node_reset_config
