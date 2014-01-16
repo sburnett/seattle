@@ -872,6 +872,7 @@ def get_execution_platform(command, filename):
   elif command.endswith('v1'):
     return 'repyV1'
 
+  # Information on extensions for repy programs can be found on #1286.
   if filename.endswith('.repy'):
     return 'repyV1'
   else:
