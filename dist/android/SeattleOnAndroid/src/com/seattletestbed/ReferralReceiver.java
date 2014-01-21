@@ -53,7 +53,7 @@ public class ReferralReceiver extends BroadcastReceiver
 
         try
         {    // Remove any url encoding
-            referrer = URLDecoder.decode(referrer, "x-www-form-urlencoded"); //$NON-NLS-1$
+            referrer = URLDecoder.decode(referrer, "utf-8"); //$NON-NLS-1$
         }
         catch (UnsupportedEncodingException e) { return; }
  	Log.i(Common.LOG_TAG, "Refrec right encoding");
