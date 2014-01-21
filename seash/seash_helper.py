@@ -873,10 +873,10 @@ def get_execution_platform(command, filename):
     return 'repyV1'
 
   # Information on extensions for repy programs can be found on #1286.
-  if filename.endswith('.repy'):
-    return 'repyV1'
-  else:
+  if filename.endswith('.r2py'):
     return 'repyV2'
+  else:
+    return 'repyV1'
 
 
 def print_vessel_errors(retdict):
