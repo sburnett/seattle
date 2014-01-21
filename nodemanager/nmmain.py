@@ -118,6 +118,7 @@ affix_service_key = "SeattleAffixStack"
 enable_affix_key = "EnableSeattleAffix"
 affix_enabled = False
 affix_stack_string = None
+check_affix_frequency = 15 * 60 # Check for Affix status update every 15 minutes.
 
 
 # JAC: Fix for #1000: This needs to be after ALL repyhhelper calls to prevent 
@@ -558,6 +559,10 @@ def main():
   # periodically.   This makes it clear I am alive.
   times_through_the_loop = 0
 
+  # Setup the initial time for checking Affix status.
+  last_check_affix_time = nonportable.getruntime()
+
+
   # BUG: Need to exit all when we're being upgraded
   while True:
 
@@ -582,6 +587,7 @@ def main():
     if not TEST_NM and not runonce.stillhaveprocesslock("seattlenodemanager"):
       servicelogger.log("[ERROR]:The node manager lost the process lock...")
       harshexit.harshexit(55)
+
 
 
     # Check for ip change.
@@ -616,30 +622,36 @@ def main():
       start_advert_thread(vesseldict, myname, configuration['publickey'])
 
 
-
+    
     # Check to see if we need to restart the accepter thread due to affix
     # string changing or it being turned on/off.
-    try:
-      affix_enabled_lookup = advertise_lookup(enable_affix_key)[-1]
-      if affix_enabled_lookup and str(affix_enabled_lookup) != str(affix_enabled):
-        servicelogger.log('[WARN]:At ' + str(time.time()) + ' affix_enabled set to: ' + affix_enabled_lookup)
-        servicelogger.log('Previous flag for affix_enabled was: ' + str(affix_enabled))
-        node_reset_config['reset_accepter'] = True
-        accepter_thread.close_serversocket()
-        
-      elif affix_enabled_lookup == 'True':
-        affix_stack_string_lookup = advertise_lookup(affix_service_key)[-1]
-        # If the affix string has changed, we reset our accepter listener.
-        if affix_stack_string_lookup != affix_stack_string:
-          servicelogger.log('[WARN]:At ' + str(time.time()) + ' affix string chaged to: ' + affix_stack_string_lookup)
+    if (nonportable.getruntime() - last_check_affix_time) > check_affix_frequency:
+      try:
+        servicelogger.log("[Info] Checking to see if Affix status has changed...")
+        affix_enabled_lookup = advertise_lookup(enable_affix_key)[-1]
+        if affix_enabled_lookup and str(affix_enabled_lookup) != str(affix_enabled):
+          servicelogger.log('[WARN]:At ' + str(time.time()) + ' affix_enabled set to: ' + affix_enabled_lookup)
+          servicelogger.log('Previous flag for affix_enabled was: ' + str(affix_enabled))
           node_reset_config['reset_accepter'] = True
           accepter_thread.close_serversocket()
-    except (AdvertiseError, IndexError, ValueError):
-      # IndexError and ValueError will occur if the advertise lookup
-      # returns an empty list.
-      pass
-    except Exception, err:
-      servicelogger.log('[Exception]:At ' + str(time.time()) + ' Uncaught exception: ' + str(err))
+        
+        elif affix_enabled_lookup == 'True':
+          affix_stack_string_lookup = advertise_lookup(affix_service_key)[-1]
+          # If the affix string has changed, we reset our accepter listener.
+          if affix_stack_string_lookup != affix_stack_string:
+            servicelogger.log('[WARN]:At ' + str(time.time()) + ' affix string chaged to: ' + affix_stack_string_lookup)
+            node_reset_config['reset_accepter'] = True
+            accepter_thread.close_serversocket()
+      except (AdvertiseError, IndexError, ValueError):
+        # IndexError and ValueError will occur if the advertise lookup
+        # returns an empty list.
+        pass
+      except Exception, err:
+        servicelogger.log('[Exception]:At ' + str(time.time()) + ' Uncaught exception: ' + str(err))
+
+      # Update the last time Affix status was checked.
+      last_check_affix_time = nonportable.getruntime()
+
 
     # If the reset accepter flag has been turned on, we call start_accepter
     # and update our name. 
