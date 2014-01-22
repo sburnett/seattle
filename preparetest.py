@@ -248,9 +248,7 @@ def main():
     #copy_to_target("softwareupdater/test/*", target_dir)
 
   # Set working directory to the target
-  os.chdir(os.path.join(target_dir, "repyV1"))
-  process_mix("repypp.py", verbose)
-
+  os.chdir(target_dir)
 
   # Set up dynamic port information
   if RANDOMPORTS:
@@ -277,6 +275,11 @@ def main():
     # Use default port 1224 for the nodemanager port if --random flag is not provided.
     replace_string("<nodemanager_port>", '1224', "*nm*")
     replace_string("<nodemanager_port>", '1224', "*securitylayers*")
+
+
+  os.chdir("repyV1")
+  process_mix("repypp.py", verbose)
+
 
   # Change back to root project directory
   os.chdir(current_dir) 
