@@ -492,15 +492,20 @@ def main():
     if 'crontab_updated_for_2009_installer' not in configuration or \
           configuration['crontab_updated_for_2009_installer'] == False:
       try:
-        import update_crontab_entry
-        modified_crontab_entry = \
-            update_crontab_entry.modify_seattle_crontab_entry()
-        # If updating the seattle crontab entry succeeded, then update the
-        # 'crontab_updated_for_2009_installer' so the nodemanager no longer
-        # tries to update the crontab entry when it starts up.
-        if modified_crontab_entry:
-          configuration['crontab_updated_for_2009_installer'] = True
-          persist.commit_object(configuration,"nodeman.cfg")
+        # crontab may not exist on Android, therefore let's not check
+        # if we are running on Android. See #1302 and #1254.
+        try:
+          import android
+        except ImportError:
+          import update_crontab_entry
+          modified_crontab_entry = \
+              update_crontab_entry.modify_seattle_crontab_entry()
+          # If updating the seattle crontab entry succeeded, then update the
+          # 'crontab_updated_for_2009_installer' so the nodemanager no longer
+          # tries to update the crontab entry when it starts up.
+          if modified_crontab_entry:
+            configuration['crontab_updated_for_2009_installer'] = True
+            persist.commit_object(configuration,"nodeman.cfg")
 
       except Exception,e:
         exception_traceback_string = traceback.format_exc()
